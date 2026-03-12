@@ -1,0 +1,25 @@
+{
+  "name": "create-aped",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Scaffold the APED pipeline (Analyze, PRD, Epics, Dev, Review) into any Claude Code project",
+  "bin": {
+    "create-aped": "./bin/create-aped.js"
+  },
+  "files": [
+    "bin/",
+    "src/"
+  ],
+  "keywords": [
+    "claude-code",
+    "skills",
+    "pipeline",
+    "tdd",
+    "code-review",
+    "product-development"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
