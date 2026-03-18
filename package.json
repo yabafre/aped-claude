@@ -1,10 +1,10 @@
 {
-  "name": "create-aped",
+  "name": "aped-method",
   "version": "1.0.0",
   "type": "module",
   "description": "Scaffold the APED pipeline (Analyze, PRD, Epics, Dev, Review) into any Claude Code project",
   "bin": {
-    "create-aped": "./bin/create-aped.js"
+    "aped-method": "./bin/aped-method.js"
   },
   "files": [
     "bin/",
@@ -16,9 +16,15 @@
     "pipeline",
     "tdd",
     "code-review",
-    "product-development"
+    "product-development",
+    "aped"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yabafre/aped-claude.git"
+  },
+  "author": "yabafre",
   "engines": {
     "node": ">=18"
   }
