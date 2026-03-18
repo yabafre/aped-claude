@@ -3,6 +3,7 @@ export function configFiles(c) {
   const o = c.outputDir;
   const ts = c.ticketSystem || 'none';
   const gp = c.gitProvider || 'github';
+  const ver = c.cliVersion || '0.0.0';
   return [
     {
       path: `${a}/config.yaml`,
@@ -13,6 +14,7 @@ communication_language: ${c.communicationLang}
 document_output_language: ${c.documentLang}
 aped_path: ${a}
 output_path: ${o}
+aped_version: ${ver}
 
 # Integrations
 ticket_system: ${ts}

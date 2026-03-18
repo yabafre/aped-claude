@@ -1,8 +1,13 @@
 import { createInterface } from 'node:readline';
 import { existsSync, readFileSync, writeFileSync as writeFS } from 'node:fs';
 import { stdin, stdout } from 'node:process';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { scaffold } from './scaffold.js';
+
+// ── CLI version (read from package.json) ──
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const CLI_VERSION = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8')).version;
 
 const DEFAULTS = {
   apedDir: '.aped',
@@ -102,6 +107,17 @@ function sectionEnd() {
   console.log(`  ${a.emerald}${a.bold}└──────────────────────────────────${a.reset}`);
 }
 
+// ── Semver compare (1=a>b, -1=a<b, 0=equal) ──
+function semverCompare(va, vb) {
+  const pa = va.split('.').map(Number);
+  const pb = vb.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+  }
+  return 0;
+}
+
 // ── Detect existing install & read config ──
 function detectExisting(apedDir) {
   const cwd = process.cwd();
@@ -127,6 +143,7 @@ function detectExisting(apedDir) {
     outputDir: existing.output_path || DEFAULTS.outputDir,
     ticketSystem: existing.ticket_system || DEFAULTS.ticketSystem,
     gitProvider: existing.git_provider || DEFAULTS.gitProvider,
+    installedVersion: existing.aped_version || '0.0.0',
   };
 }
 
@@ -138,6 +155,7 @@ function parseArgs(argv) {
     if (arg === '--yes' || arg === '-y') { args.yes = true; continue; }
     if (arg === '--update' || arg === '-u') { args.mode = 'update'; continue; }
     if (arg === '--fresh' || arg === '--force') { args.mode = 'fresh'; continue; }
+    if (arg === '--version' || arg === '-v') { args.version = true; continue; }
     const match = arg.match(/^--(\w[\w-]*)=(.+)$/);
     if (match) {
       const key = match[1].replace(/-([a-z])/g, (_, ch) => ch.toUpperCase());
@@ -181,14 +199,35 @@ export async function run() {
     detectedProject = process.cwd().split('/').pop();
   }
 
+  // ── Version flag ──
+  if (args.version) {
+    console.log(`aped-method v${CLI_VERSION}`);
+    return;
+  }
+
   // ── Banner ──
   console.log(LOGO);
+  console.log(`${a.dim}    v${CLI_VERSION}${a.reset}`);
+  console.log('');
   console.log(PIPELINE);
   console.log('');
 
   // ── Detect existing installation ──
   const apedDir = args.aped || args.apedDir || DEFAULTS.apedDir;
   const existing = detectExisting(apedDir);
+
+  // ── Version upgrade detection ──
+  if (existing && existing.installedVersion !== '0.0.0') {
+    if (existing.installedVersion === CLI_VERSION) {
+      console.log(`  ${a.lime}${a.bold}✓${a.reset} ${dim(`Installed: v${existing.installedVersion} — up to date`)}`);
+    } else if (semverCompare(CLI_VERSION, existing.installedVersion) > 0) {
+      console.log(`  ${a.yellow}${a.bold}↑${a.reset} ${bold(`Upgrade available: v${existing.installedVersion} → v${CLI_VERSION}`)}`);
+      console.log(`  ${dim('  Run with --update to upgrade engine files')}`);
+    } else {
+      console.log(`  ${a.yellow}${a.bold}!${a.reset} ${dim(`Installed v${existing.installedVersion} is newer than CLI v${CLI_VERSION}`)}`);
+    }
+    console.log('');
+  }
 
   if (args.yes) {
     // Non-interactive mode
@@ -205,6 +244,7 @@ export async function run() {
       commandsDir: args.commands || args.commandsDir || DEFAULTS.commandsDir,
       ticketSystem: args.tickets || args.ticketSystem || defaults.ticketSystem || DEFAULTS.ticketSystem,
       gitProvider: args.git || args.gitProvider || defaults.gitProvider || DEFAULTS.gitProvider,
+      cliVersion: CLI_VERSION,
     };
 
     await runScaffold(config, mode);
@@ -228,8 +268,11 @@ export async function run() {
 
     // ── Existing install detected ──
     if (existing) {
+      const vInfo = existing.installedVersion !== '0.0.0'
+        ? ` | v${existing.installedVersion}`
+        : '';
       console.log(`  ${a.yellow}${a.bold}⚠${a.reset}  ${bold('Existing APED installation detected')}`);
-      console.log(`  ${dim(`   Project: ${existing.projectName} | Phase: check ${existing.outputDir}/state.yaml`)}`);
+      console.log(`  ${dim(`   Project: ${existing.projectName}${vInfo}`)}`);
       console.log('');
       console.log(`  ${a.emerald}│${a.reset}  ${bold('1')} ${dim('Update engine')}  ${dim('— upgrade skills, scripts, hooks. Preserve config & artifacts')}`);
       console.log(`  ${a.emerald}│${a.reset}  ${bold('2')} ${dim('Fresh install')} ${dim('— delete everything and start from zero')}`);
@@ -268,6 +311,7 @@ export async function run() {
     config.commandsDir = await prompt(`${bold('Commands dir')}`, DEFAULTS.commandsDir);
     config.ticketSystem = await prompt(`${bold('Ticket system')} ${dim(`(${TICKET_OPTIONS.join('/')})`)}`, defaults.ticketSystem || DEFAULTS.ticketSystem);
     config.gitProvider = await prompt(`${bold('Git provider')} ${dim(`(${GIT_OPTIONS.join('/')})`)}`, defaults.gitProvider || DEFAULTS.gitProvider);
+    config.cliVersion = CLI_VERSION;
 
     sectionEnd();
     console.log('');
