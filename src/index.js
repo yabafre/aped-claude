@@ -10,7 +10,12 @@ const DEFAULTS = {
   projectName: '',
   communicationLang: 'english',
   documentLang: 'english',
+  ticketSystem: 'none',
+  gitProvider: 'github',
 };
+
+const TICKET_OPTIONS = ['none', 'jira', 'linear', 'github-issues', 'gitlab-issues'];
+const GIT_OPTIONS = ['github', 'gitlab', 'bitbucket'];
 
 // ── ANSI helpers ──
 const ESC = '\x1b';
@@ -168,6 +173,8 @@ export async function run() {
       apedDir: args.aped || args.apedDir || DEFAULTS.apedDir,
       outputDir: args.output || args.outputDir || DEFAULTS.outputDir,
       commandsDir: args.commands || args.commandsDir || DEFAULTS.commandsDir,
+      ticketSystem: args.tickets || args.ticketSystem || DEFAULTS.ticketSystem,
+      gitProvider: args.git || args.gitProvider || DEFAULTS.gitProvider,
     };
 
     await runScaffold(config);
@@ -196,6 +203,8 @@ export async function run() {
     config.apedDir = await prompt(`${bold('APED dir')} ${dim('(engine)')}`, DEFAULTS.apedDir);
     config.outputDir = await prompt(`${bold('Output dir')} ${dim('(artifacts)')}`, DEFAULTS.outputDir);
     config.commandsDir = await prompt(`${bold('Commands dir')}`, DEFAULTS.commandsDir);
+    config.ticketSystem = await prompt(`${bold('Ticket system')} ${dim(`(${TICKET_OPTIONS.join('/')})`)}`, DEFAULTS.ticketSystem);
+    config.gitProvider = await prompt(`${bold('Git provider')} ${dim(`(${GIT_OPTIONS.join('/')})`)}`, DEFAULTS.gitProvider);
 
     sectionEnd();
     console.log('');
@@ -322,6 +331,8 @@ function printConfig(config) {
   box('APED',          config.apedDir + '/',    'engine');
   box('Output',        config.outputDir + '/',  'artifacts');
   box('Commands',      config.commandsDir + '/');
+  box('Tickets',       config.ticketSystem,       config.ticketSystem === 'none' ? '' : 'integrated');
+  box('Git',           config.gitProvider);
   console.log(`  ${a.emerald}│${a.reset}`);
   console.log(`  ${a.emerald}${a.bold}└──────────────────────────────────${a.reset}`);
 }
@@ -341,6 +352,8 @@ function printDone(count) {
   console.log(`    ${a.yellow}${a.bold}/aped-e${a.reset}    ${dim('Epics — requirements decomposition')}`);
   console.log(`    ${a.lime}${a.bold}/aped-d${a.reset}    ${dim('Dev — TDD story implementation')}`);
   console.log(`    ${a.red}${a.bold}/aped-r${a.reset}    ${dim('Review — adversarial code review')}`);
+  console.log('');
+  console.log(`    ${a.spring}${a.bold}/aped-quick${a.reset} ${dim('Quick fix/feature — bypass full pipeline')}`);
   console.log(`    ${a.spring}${a.bold}/aped-all${a.reset}   ${dim('Full pipeline A→P→E→D→R')}`);
   console.log('');
   console.log(`  ${dim('Guardrail hook active — pipeline coherence enforced')}`);

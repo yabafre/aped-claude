@@ -13,7 +13,7 @@ export function guardrail(c) {
 set -euo pipefail
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-STATE_FILE="$PROJECT_ROOT/${a}/state.yaml"
+STATE_FILE="$PROJECT_ROOT/${o}/state.yaml"
 CONFIG_FILE="$PROJECT_ROOT/${a}/config.yaml"
 OUTPUT_DIR="$PROJECT_ROOT/${o}"
 
@@ -56,6 +56,9 @@ WANTS_CODE=false
 [[ "$PROMPT_LOWER" =~ (aped-d|/aped-d|dev|implement|code|build|create.*component|create.*service) ]] && WANTS_DEV=true
 [[ "$PROMPT_LOWER" =~ (aped-r|/aped-r|review|audit) ]] && WANTS_REVIEW=true
 [[ "$PROMPT_LOWER" =~ (aped-all|/aped-all|full.pipeline|start.from.scratch) ]] && WANTS_ALL=true
+WANTS_QUICK=false
+
+[[ "$PROMPT_LOWER" =~ (aped-quick|/aped-quick|quick.fix|quick.feature|hotfix) ]] && WANTS_QUICK=true
 [[ "$PROMPT_LOWER" =~ (code|implement|write.*function|create.*file|add.*feature|fix.*bug|refactor) ]] && WANTS_CODE=true
 
 # ── Check artifact existence ──
@@ -83,6 +86,11 @@ phase_index() {
 }
 
 CURRENT_IDX=$(phase_index "$CURRENT_PHASE")
+
+# Rule 0: Quick mode bypasses pipeline checks
+if [[ "$WANTS_QUICK" == "true" ]]; then
+  exit 0
+fi
 
 # Rule 1: Trying to code without epics/stories
 if [[ "$WANTS_CODE" == "true" || "$WANTS_DEV" == "true" ]] && [[ "$CURRENT_PHASE" != "dev" && "$CURRENT_PHASE" != "review" ]]; then

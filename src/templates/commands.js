@@ -52,6 +52,16 @@ Read and follow the SKILL.md at $PROJECT_ROOT/${a}/aped-r/SKILL.md
 `,
     },
     {
+      path: `${c.commandsDir}/aped-quick.md`,
+      content: `---
+name: aped-quick
+description: 'Quick fix/feature bypassing full pipeline. Use when user says "quick fix", "quick feature", "aped quick", or "hotfix"'
+---
+
+Read and follow the SKILL.md at $PROJECT_ROOT/${a}/aped-quick/SKILL.md
+`,
+    },
+    {
       path: `${c.commandsDir}/aped-all.md`,
       content: `---
 name: aped-all

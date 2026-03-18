@@ -1,6 +1,6 @@
 export function skills(c) {
   const a = c.apedDir;   // .aped  (engine: skills, config, templates)
-  const o = c.outputDir; // docs/aped (output: generated artifacts)
+  const o = c.outputDir; // docs/aped (output: generated artifacts + state)
   return [
     // ── aped-a ──────────────────────────────────────────────
     {
@@ -14,8 +14,8 @@ description: 'Analyze project idea through parallel market, domain, and technica
 
 ## Setup
 
-1. Read \`${a}/config.yaml\` — extract \`user_name\`, \`communication_language\`
-2. Read \`${a}/state.yaml\` — check \`pipeline.phases.analyze\`
+1. Read \`${a}/config.yaml\` — extract \`user_name\`, \`communication_language\`, \`ticket_system\`, \`git_provider\`
+2. Read \`${o}/state.yaml\` — check \`pipeline.phases.analyze\`
    - If status is \`done\`: ask user — redo analysis or skip to next phase?
    - If user skips: invoke Skill tool with \`skill: "aped-p"\` and stop
 
@@ -80,7 +80,7 @@ If validation fails: fix missing sections and re-validate.
 
 ## State Update
 
-Update \`${a}/state.yaml\`:
+Update \`${o}/state.yaml\`:
 \`\`\`yaml
 pipeline:
   current_phase: "analyze"
@@ -108,7 +108,7 @@ description: 'Generate PRD autonomously from product brief. Use when user says "
 ## Setup
 
 1. Read \`${a}/config.yaml\` — extract \`user_name\`, \`communication_language\`, \`document_output_language\`
-2. Read \`${a}/state.yaml\` — check pipeline state
+2. Read \`${o}/state.yaml\` — check pipeline state
    - If \`pipeline.phases.prd.status\` is \`done\`: ask user — redo PRD or skip?
    - If user skips: invoke Skill tool with \`skill: "aped-e"\` and stop
 
@@ -162,7 +162,7 @@ bash ${a}/aped-p/scripts/validate-prd.sh ${o}/prd.md
 ## Output & State
 
 1. Write PRD to \`${o}/prd.md\`
-2. Update \`${a}/state.yaml\`:
+2. Update \`${o}/state.yaml\`:
 \`\`\`yaml
 pipeline:
   current_phase: "prd"
@@ -189,8 +189,8 @@ description: 'Create epics and stories from PRD with full FR coverage. Use when 
 
 ## Setup
 
-1. Read \`${a}/config.yaml\` — extract config
-2. Read \`${a}/state.yaml\` — check pipeline state
+1. Read \`${a}/config.yaml\` — extract config including \`ticket_system\`
+2. Read \`${o}/state.yaml\` — check pipeline state
    - If \`pipeline.phases.epics.status\` is \`done\`: ask user — redo or skip?
    - If user skips: invoke Skill tool with \`skill: "aped-d"\` and stop
 
@@ -225,6 +225,16 @@ Story files: \`${o}/stories/{story-key}.md\`
 - ACs in **Given/When/Then** format
 - Tasks as checkboxes: \`- [ ] task [AC: AC#]\`
 
+## Ticket System Integration
+
+Read \`ticket_system\` from config. If not \`none\`:
+- Add ticket reference in each story header: \`**Ticket:** {{ticket_id}}\`
+- If \`jira\`: format as \`PROJ-###\` placeholder
+- If \`linear\`: format as \`TEAM-###\` placeholder
+- If \`github-issues\`: format as \`#issue_number\` placeholder
+- If \`gitlab-issues\`: format as \`#issue_number\` placeholder
+- Note: actual ticket creation is manual — these are reference placeholders
+
 ## FR Coverage Map
 
 Every FR from PRD mapped to exactly one epic. No orphans, no phantoms.
@@ -243,7 +253,7 @@ mkdir -p ${o}/stories
 
 1. Write epics to \`${o}/epics.md\`
 2. Create story files in \`${o}/stories/\` using \`${a}/templates/story.md\`
-3. Update \`${a}/state.yaml\` with sprint section and pipeline phase
+3. Update \`${o}/state.yaml\` with sprint section and pipeline phase
 
 ## Chain
 
@@ -262,8 +272,8 @@ description: 'Dev sprint - implement next story with TDD red-green-refactor. Use
 
 ## Setup
 
-1. Read \`${a}/config.yaml\` — extract config
-2. Read \`${a}/state.yaml\` — find next story
+1. Read \`${a}/config.yaml\` — extract config including \`ticket_system\`, \`git_provider\`
+2. Read \`${o}/state.yaml\` — find next story
 
 ## Story Selection
 
@@ -278,7 +288,7 @@ If story has \`[AI-Review]\` items: address them BEFORE regular tasks.
 
 ## State Update (start)
 
-Update \`${a}/state.yaml\`: story — \`in-progress\`, epic — \`in-progress\` if first story.
+Update \`${o}/state.yaml\`: story — \`in-progress\`, epic — \`in-progress\` if first story.
 
 ## Context Gathering
 
@@ -308,10 +318,16 @@ Mark \`[x]\` ONLY when: tests exist, pass 100%, implementation matches, ACs sati
 
 **STOP and ask user if:** new dependency, 3 consecutive failures, missing config, ambiguity.
 
+## Git Commit Convention
+
+Read \`git_provider\` and \`ticket_system\` from config:
+- Commit message format: \`type(scope): description\`
+- If ticket system configured, append ticket ref: \`type(scope): description [TICKET-ID]\`
+
 ## Completion
 
 1. Update story: mark tasks \`[x]\`, fill Dev Agent Record
-2. Update \`${a}/state.yaml\`: story — \`review\`
+2. Update \`${o}/state.yaml\`: story — \`review\`
 3. Chain to \`/aped-r\`
 `,
     },
@@ -327,8 +343,8 @@ description: 'Adversarial code review for completed stories. Use when user says 
 
 ## Setup
 
-1. Read \`${a}/config.yaml\` — extract config
-2. Read \`${a}/state.yaml\` — find first story with status \`review\`
+1. Read \`${a}/config.yaml\` — extract config including \`git_provider\`
+2. Read \`${o}/state.yaml\` — find first story with status \`review\`
    - If none: report "No stories pending review" and stop
 
 ## Load Story
@@ -367,7 +383,78 @@ Severity: CRITICAL > HIGH > MEDIUM > LOW. Format: \`[Severity] Description [file
 
 ## State Update
 
-Update \`${a}/state.yaml\`. If more stories — chain to \`/aped-d\`. If all done — report completion.
+Update \`${o}/state.yaml\`. If more stories — chain to \`/aped-d\`. If all done — report completion.
+`,
+    },
+    // ── aped-quick ────────────────────────────────────────────
+    {
+      path: `${a}/aped-quick/SKILL.md`,
+      content: `---
+name: aped-quick
+description: 'Quick feature/fix implementation bypassing full pipeline. Use when user says "quick fix", "quick feature", "aped quick", or invokes /aped-quick.'
+---
+
+# APED Quick — Fast Track for Small Changes
+
+Use this for isolated fixes, small features, or refactors that don't warrant the full A→P→E→D→R pipeline.
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract config
+2. Read \`${o}/state.yaml\` — note current phase for context
+
+## Scope Check
+
+This mode is for changes that:
+- Touch **5 files or fewer**
+- Can be completed in **1 session**
+- Don't introduce **new architectural patterns**
+- Don't require **new dependencies**
+
+If any of these are violated, recommend the full pipeline instead.
+
+## Quick Spec (2 minutes)
+
+Ask the user:
+1. **What?** — What needs to change (1-2 sentences)
+2. **Why?** — Why now, what breaks without it
+3. **Type?** — fix | feature | refactor
+
+Generate a quick spec using \`${a}/templates/quick-spec.md\`:
+- Fill: title, type, what, why, acceptance criteria, files to change, test plan
+- Write to \`${o}/quick-specs/{date}-{slug}.md\`
+
+## Implementation (TDD)
+
+Same TDD cycle as aped-d but compressed:
+
+1. **RED** — Write test for the expected behavior
+2. **GREEN** — Minimal implementation to pass
+3. **REFACTOR** — Clean up while green
+
+Run tests: \`bash ${a}/aped-d/scripts/run-tests.sh\`
+
+## Self-Review (30 seconds)
+
+Quick checklist — no full adversarial review:
+- [ ] Tests pass
+- [ ] No security issues introduced
+- [ ] No regressions in existing tests
+- [ ] AC from quick spec satisfied
+
+## Git Commit
+
+Read \`ticket_system\` and \`git_provider\` from config.
+- Format: \`type(scope): description\`
+- Append ticket ref if configured
+- If \`git_provider\` is \`github\`: suggest PR creation with \`gh pr create\`
+- If \`git_provider\` is \`gitlab\`: suggest MR creation with \`glab mr create\`
+
+## Output
+
+1. Write quick spec to \`${o}/quick-specs/\` (create dir if needed)
+2. No state.yaml update — quick specs don't affect pipeline phase
+3. Report: files changed, tests added, quick spec path
 `,
     },
     // ── aped-all ─────────────────────────────────────────────
@@ -382,7 +469,7 @@ description: 'Run full APED pipeline from Analyze through Review. Use when user 
 
 ## Resume Logic
 
-1. Read \`${a}/state.yaml\`
+1. Read \`${o}/state.yaml\`
 2. Determine resume point:
 
 | State | Action |
@@ -397,11 +484,11 @@ description: 'Run full APED pipeline from Analyze through Review. Use when user 
 ## Execution
 
 Use the Skill tool to invoke each phase: aped-a, aped-p, aped-e, aped-d, aped-r.
-Each phase updates \`${a}/state.yaml\` and chains automatically.
+Each phase updates \`${o}/state.yaml\` and chains automatically.
 
 ## Interruption Handling
 
-State persists in \`${a}/state.yaml\`. Next \`/aped-all\` resumes from last incomplete phase.
+State persists in \`${o}/state.yaml\`. Next \`/aped-all\` resumes from last incomplete phase.
 
 ## Completion Report
 

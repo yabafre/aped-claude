@@ -1,6 +1,8 @@
 export function configFiles(c) {
   const a = c.apedDir;
   const o = c.outputDir;
+  const ts = c.ticketSystem || 'none';
+  const gp = c.gitProvider || 'github';
   return [
     {
       path: `${a}/config.yaml`,
@@ -11,10 +13,14 @@ communication_language: ${c.communicationLang}
 document_output_language: ${c.documentLang}
 aped_path: ${a}
 output_path: ${o}
+
+# Integrations
+ticket_system: ${ts}
+git_provider: ${gp}
 `,
     },
     {
-      path: `${a}/state.yaml`,
+      path: `${o}/state.yaml`,
       content: `# APED Pipeline State
 pipeline:
   current_phase: "none"
@@ -224,6 +230,35 @@ sprint:
 ### Completion Notes
 
 ### File List
+`,
+    },
+    {
+      path: `${a}/templates/quick-spec.md`,
+      content: `# Quick Spec: {{title}}
+
+**Date:** {{date}}
+**Author:** {{user_name}}
+**Type:** {{fix|feature|refactor}}
+
+## What
+
+<!-- 1-2 sentences: what needs to change -->
+
+## Why
+
+<!-- 1 sentence: why this change matters now -->
+
+## Acceptance Criteria
+
+- [ ] {{criterion}}
+
+## Files to Change
+
+- {{file_path}} — {{what to change}}
+
+## Test Plan
+
+- {{test description}}
 `,
     },
   ];
