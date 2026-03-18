@@ -14,7 +14,7 @@ const DEFAULTS = {
 
 // ── ANSI helpers ──
 const ESC = '\x1b';
-const c = {
+const a = {
   reset:     `${ESC}[0m`,
   bold:      `${ESC}[1m`,
   dim:       `${ESC}[2m`,
@@ -27,34 +27,39 @@ const c = {
   magenta:   `${ESC}[35m`,
   cyan:      `${ESC}[36m`,
   white:     `${ESC}[37m`,
-  bgBlue:    `${ESC}[44m`,
-  bgMagenta: `${ESC}[45m`,
-  bgCyan:    `${ESC}[46m`,
+  // 256-color greens for richer palette
+  lime:      `${ESC}[38;5;118m`,  // bright lime
+  emerald:   `${ESC}[38;5;42m`,   // emerald
+  mint:      `${ESC}[38;5;48m`,   // mint
+  forest:    `${ESC}[38;5;34m`,   // forest
+  spring:    `${ESC}[38;5;82m`,   // spring green
 };
 
-const bold    = (s) => `${c.bold}${s}${c.reset}`;
-const dim     = (s) => `${c.dim}${s}${c.reset}`;
-const green   = (s) => `${c.green}${s}${c.reset}`;
-const cyan    = (s) => `${c.cyan}${s}${c.reset}`;
-const yellow  = (s) => `${c.yellow}${s}${c.reset}`;
-const magenta = (s) => `${c.magenta}${s}${c.reset}`;
-const blue    = (s) => `${c.blue}${s}${c.reset}`;
-const red     = (s) => `${c.red}${s}${c.reset}`;
+const bold    = (s) => `${a.bold}${s}${a.reset}`;
+const dim     = (s) => `${a.dim}${s}${a.reset}`;
+const green   = (s) => `${a.green}${s}${a.reset}`;
+const lime    = (s) => `${a.lime}${s}${a.reset}`;
+const emerald = (s) => `${a.emerald}${s}${a.reset}`;
+const mint    = (s) => `${a.mint}${s}${a.reset}`;
+const yellow  = (s) => `${a.yellow}${s}${a.reset}`;
+const magenta = (s) => `${a.magenta}${s}${a.reset}`;
+const red     = (s) => `${a.red}${s}${a.reset}`;
+const cyan    = (s) => `${a.cyan}${s}${a.reset}`;
 
 // ── ASCII Art Logo ──
 const LOGO = `
-${c.cyan}${c.bold}     █████╗ ██████╗ ███████╗██████╗
+${a.emerald}${a.bold}     █████╗ ██████╗ ███████╗██████╗
     ██╔══██╗██╔══██╗██╔════╝██╔══██╗
     ███████║██████╔╝█████╗  ██║  ██║
     ██╔══██║██╔═══╝ ██╔══╝  ██║  ██║
     ██║  ██║██║     ███████╗██████╔╝
-    ╚═╝  ╚═╝╚═╝     ╚══════╝╚═════╝${c.reset}
-${c.dim}    ─────────────────────────────────${c.reset}
-${c.magenta}${c.bold}          M  E  T  H  O  D${c.reset}
-${c.dim}    ─────────────────────────────────${c.reset}
+    ╚═╝  ╚═╝╚═╝     ╚══════╝╚═════╝${a.reset}
+${a.dim}    ─────────────────────────────────${a.reset}
+${a.lime}${a.bold}          M  E  T  H  O  D${a.reset}
+${a.dim}    ─────────────────────────────────${a.reset}
 `;
 
-const PIPELINE = `    ${c.blue}${c.bold}A${c.reset}${c.dim}nalyze${c.reset}  ${c.dim}→${c.reset}  ${c.magenta}${c.bold}P${c.reset}${c.dim}RD${c.reset}  ${c.dim}→${c.reset}  ${c.yellow}${c.bold}E${c.reset}${c.dim}pics${c.reset}  ${c.dim}→${c.reset}  ${c.green}${c.bold}D${c.reset}${c.dim}ev${c.reset}  ${c.dim}→${c.reset}  ${c.red}${c.bold}R${c.reset}${c.dim}eview${c.reset}`;
+const PIPELINE = `    ${a.emerald}${a.bold}A${a.reset}${a.dim}nalyze${a.reset}  ${a.dim}→${a.reset}  ${a.mint}${a.bold}P${a.reset}${a.dim}RD${a.reset}  ${a.dim}→${a.reset}  ${a.yellow}${a.bold}E${a.reset}${a.dim}pics${a.reset}  ${a.dim}→${a.reset}  ${a.lime}${a.bold}D${a.reset}${a.dim}ev${a.reset}  ${a.dim}→${a.reset}  ${a.red}${a.bold}R${a.reset}${a.dim}eview${a.reset}`;
 
 // ── Spinner ──
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -67,18 +72,18 @@ function createSpinner(text) {
       process.stdout.write('\x1b[?25l'); // hide cursor
       interval = setInterval(() => {
         const frame = SPINNER_FRAMES[i % SPINNER_FRAMES.length];
-        process.stdout.write(`\r  ${c.cyan}${frame}${c.reset} ${text}`);
+        process.stdout.write(`\r  ${a.emerald}${frame}${a.reset} ${text}`);
         i++;
       }, 80);
     },
     stop(finalText) {
       clearInterval(interval);
-      process.stdout.write(`\r  ${c.green}${c.bold}✓${c.reset} ${finalText}\x1b[K\n`);
+      process.stdout.write(`\r  ${a.lime}${a.bold}✓${a.reset} ${finalText}\x1b[K\n`);
       process.stdout.write('\x1b[?25h'); // show cursor
     },
     fail(finalText) {
       clearInterval(interval);
-      process.stdout.write(`\r  ${c.red}${c.bold}✗${c.reset} ${finalText}\x1b[K\n`);
+      process.stdout.write(`\r  ${a.red}${a.bold}✗${a.reset} ${finalText}\x1b[K\n`);
       process.stdout.write('\x1b[?25h');
     },
   };
@@ -88,19 +93,15 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// ── Checkpoint display ──
-function checkpoint(label, detail) {
-  console.log(`  ${c.green}${c.bold}✓${c.reset} ${c.bold}${label}${c.reset}  ${c.dim}${detail}${c.reset}`);
-}
-
+// ── Section display ──
 function sectionHeader(title) {
   console.log('');
-  console.log(`  ${c.cyan}${c.bold}┌─${c.reset} ${c.bold}${title}${c.reset}`);
-  console.log(`  ${c.cyan}│${c.reset}`);
+  console.log(`  ${a.emerald}${a.bold}┌─${a.reset} ${a.bold}${title}${a.reset}`);
+  console.log(`  ${a.emerald}│${a.reset}`);
 }
 
 function sectionEnd() {
-  console.log(`  ${c.cyan}${c.bold}└──────────────────────────────────${c.reset}`);
+  console.log(`  ${a.emerald}${a.bold}└──────────────────────────────────${a.reset}`);
 }
 
 // ── Args ──
@@ -121,7 +122,7 @@ function parseArgs(argv) {
 function ask(rl, question, defaultVal) {
   return new Promise((resolve) => {
     const suffix = defaultVal ? ` ${dim(`(${defaultVal})`)}` : '';
-    rl.question(`  ${c.cyan}│${c.reset}  ${question}${suffix}: `, (answer) => {
+    rl.question(`  ${a.emerald}│${a.reset}  ${question}${suffix}: `, (answer) => {
       resolve(answer.trim() || defaultVal || '');
     });
   });
@@ -179,7 +180,7 @@ export async function run() {
     ? (question, def) => {
         const val = (stdinLines[lineIndex++] || '').trim();
         const result = val || def || '';
-        console.log(`  ${c.cyan}│${c.reset}  ${question}: ${result}`);
+        console.log(`  ${a.emerald}│${a.reset}  ${question}: ${result}`);
         return Promise.resolve(result);
       }
     : (question, def) => ask(rl, question, def);
@@ -228,7 +229,7 @@ async function runScaffold(config) {
 
   // ── Phase 3: Scaffolding ──
   sectionHeader('Scaffolding Pipeline');
-  console.log(`  ${c.cyan}│${c.reset}`);
+  console.log(`  ${a.emerald}│${a.reset}`);
 
   const count = await scaffoldWithCheckpoints(config);
 
@@ -259,13 +260,13 @@ async function scaffoldWithCheckpoints(config) {
   const templates = getTemplates(config);
 
   const groups = {
-    config:     { label: 'Config & State',    icon: '⚙', color: c.blue,    items: [] },
-    templates:  { label: 'Templates',         icon: '📄', color: c.dim,     items: [] },
-    commands:   { label: 'Slash Commands',     icon: '⚡', color: c.yellow,  items: [] },
-    skills:     { label: 'Skills (SKILL.md)',  icon: '🧠', color: c.magenta, items: [] },
-    scripts:    { label: 'Validation Scripts', icon: '🔧', color: c.green,   items: [] },
-    references: { label: 'Reference Docs',     icon: '📚', color: c.cyan,    items: [] },
-    hooks:      { label: 'Hooks & Settings',   icon: '🛡', color: c.red,    items: [] },
+    config:     { label: 'Config & State',    icon: '⚙', items: [] },
+    templates:  { label: 'Templates',         icon: '📄', items: [] },
+    commands:   { label: 'Slash Commands',     icon: '⚡', items: [] },
+    skills:     { label: 'Skills (SKILL.md)',  icon: '🧠', items: [] },
+    scripts:    { label: 'Validation Scripts', icon: '🔧', items: [] },
+    references: { label: 'Reference Docs',    icon: '📚', items: [] },
+    hooks:      { label: 'Hooks & Settings',  icon: '🛡', items: [] },
   };
 
   for (const tpl of templates) {
@@ -309,11 +310,11 @@ async function scaffoldWithCheckpoints(config) {
 function printConfig(config) {
   const box = (label, value, extra) => {
     const e = extra ? `  ${dim(extra)}` : '';
-    console.log(`  ${c.cyan}│${c.reset}  ${dim(label.padEnd(16))}${bold(value)}${e}`);
+    console.log(`  ${a.emerald}│${a.reset}  ${dim(label.padEnd(16))}${bold(value)}${e}`);
   };
 
-  console.log(`  ${c.cyan}${c.bold}┌─${c.reset} ${bold('Summary')}`);
-  console.log(`  ${c.cyan}│${c.reset}`);
+  console.log(`  ${a.emerald}${a.bold}┌─${a.reset} ${bold('Summary')}`);
+  console.log(`  ${a.emerald}│${a.reset}`);
   box('Project',       config.projectName);
   box('Author',        config.authorName || dim('(not set)'));
   box('Communication', config.communicationLang);
@@ -321,26 +322,26 @@ function printConfig(config) {
   box('APED',          config.apedDir + '/',    'engine');
   box('Output',        config.outputDir + '/',  'artifacts');
   box('Commands',      config.commandsDir + '/');
-  console.log(`  ${c.cyan}│${c.reset}`);
-  console.log(`  ${c.cyan}${c.bold}└──────────────────────────────────${c.reset}`);
+  console.log(`  ${a.emerald}│${a.reset}`);
+  console.log(`  ${a.emerald}${a.bold}└──────────────────────────────────${a.reset}`);
 }
 
 function printDone(count) {
   console.log('');
-  console.log(`  ${c.green}${c.bold}╔══════════════════════════════════════╗${c.reset}`);
-  console.log(`  ${c.green}${c.bold}║${c.reset}  ${c.green}${c.bold}✓${c.reset} ${bold(`${count} files scaffolded`)}              ${c.green}${c.bold}║${c.reset}`);
-  console.log(`  ${c.green}${c.bold}║${c.reset}  ${dim('Pipeline ready to use')}               ${c.green}${c.bold}║${c.reset}`);
-  console.log(`  ${c.green}${c.bold}╚══════════════════════════════════════╝${c.reset}`);
+  console.log(`  ${a.emerald}${a.bold}╔══════════════════════════════════════╗${a.reset}`);
+  console.log(`  ${a.emerald}${a.bold}║${a.reset}  ${a.lime}${a.bold}✓${a.reset} ${bold(`${count} files scaffolded`)}              ${a.emerald}${a.bold}║${a.reset}`);
+  console.log(`  ${a.emerald}${a.bold}║${a.reset}  ${dim('Pipeline ready to use')}               ${a.emerald}${a.bold}║${a.reset}`);
+  console.log(`  ${a.emerald}${a.bold}╚══════════════════════════════════════╝${a.reset}`);
   console.log('');
 
-  console.log(`  ${c.bold}Available commands:${c.reset}`);
+  console.log(`  ${a.bold}Available commands:${a.reset}`);
   console.log('');
-  console.log(`    ${c.blue}${c.bold}/aped-a${c.reset}    ${dim('Analyze — parallel research → product brief')}`);
-  console.log(`    ${c.magenta}${c.bold}/aped-p${c.reset}    ${dim('PRD — autonomous generation from brief')}`);
-  console.log(`    ${c.yellow}${c.bold}/aped-e${c.reset}    ${dim('Epics — requirements decomposition')}`);
-  console.log(`    ${c.green}${c.bold}/aped-d${c.reset}    ${dim('Dev — TDD story implementation')}`);
-  console.log(`    ${c.red}${c.bold}/aped-r${c.reset}    ${dim('Review — adversarial code review')}`);
-  console.log(`    ${c.cyan}${c.bold}/aped-all${c.reset}   ${dim('Full pipeline A→P→E→D→R')}`);
+  console.log(`    ${a.emerald}${a.bold}/aped-a${a.reset}    ${dim('Analyze — parallel research → product brief')}`);
+  console.log(`    ${a.mint}${a.bold}/aped-p${a.reset}    ${dim('PRD — autonomous generation from brief')}`);
+  console.log(`    ${a.yellow}${a.bold}/aped-e${a.reset}    ${dim('Epics — requirements decomposition')}`);
+  console.log(`    ${a.lime}${a.bold}/aped-d${a.reset}    ${dim('Dev — TDD story implementation')}`);
+  console.log(`    ${a.red}${a.bold}/aped-r${a.reset}    ${dim('Review — adversarial code review')}`);
+  console.log(`    ${a.spring}${a.bold}/aped-all${a.reset}   ${dim('Full pipeline A→P→E→D→R')}`);
   console.log('');
   console.log(`  ${dim('Guardrail hook active — pipeline coherence enforced')}`);
   console.log('');
