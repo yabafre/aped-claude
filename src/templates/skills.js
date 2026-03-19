@@ -29,13 +29,23 @@ Ask the user these questions (adapt to \`communication_language\`):
 
 Wait for answers before proceeding.
 
+## Task Tracking
+
+Create tasks to track this phase:
+\`\`\`
+TaskCreate: "Parallel research — Market, Domain, Technical"
+TaskCreate: "Synthesize research into product brief"
+TaskCreate: "Validate brief"
+\`\`\`
+
 ## Parallel Research
 
 Read \`${a}/aped-a/references/research-prompts.md\` for detailed agent prompts.
 
-Launch **3 Agent tool calls in parallel** with \`run_in_background: true\`:
+Launch **3 Agent tool calls in a single message** (parallel execution) with \`run_in_background: true\`:
 
 ### Agent 1: Market Research
+- \`subagent_type: "Explore"\`
 - Customer behavior and pain points in the target segment
 - Competitive landscape: direct and indirect competitors
 - Market size and growth trajectory
@@ -43,6 +53,7 @@ Launch **3 Agent tool calls in parallel** with \`run_in_background: true\`:
 - Use WebSearch for current data
 
 ### Agent 2: Domain Research
+- \`subagent_type: "Explore"\`
 - Industry analysis and key trends
 - Regulatory requirements and compliance needs
 - Technical trends shaping the domain
@@ -50,11 +61,14 @@ Launch **3 Agent tool calls in parallel** with \`run_in_background: true\`:
 - Use WebSearch for current data
 
 ### Agent 3: Technical Research
+- \`subagent_type: "Explore"\`
 - Technology stack overview and options
 - Integration patterns and APIs available
 - Architecture patterns for similar products
 - Open-source tools and frameworks relevant
 - Use WebSearch for current data
+
+Once all 3 agents return, update task: \`TaskUpdate: "Parallel research" → completed\`
 
 ## Synthesis
 
@@ -77,6 +91,12 @@ bash ${a}/aped-a/scripts/validate-brief.sh ${o}/product-brief.md
 \`\`\`
 
 If validation fails: fix missing sections and re-validate.
+
+Update tasks:
+\`\`\`
+TaskUpdate: "Synthesize research" → completed
+TaskUpdate: "Validate brief" → completed
+\`\`\`
 
 ## State Update
 
@@ -126,6 +146,19 @@ description: 'Generates PRD autonomously from product brief. Use when user says 
 2. Read \`${a}/aped-p/references/project-types.csv\`
    - Match against \`detection_signals\`
    - Note \`required_sections\`, \`skip_sections\`, \`key_questions\`
+
+## Task Tracking
+
+Create tasks for each generation phase:
+\`\`\`
+TaskCreate: "P1: Foundation — Executive Summary & Vision"
+TaskCreate: "P2: Scope & Journeys"
+TaskCreate: "P3: Domain Requirements (conditional)"
+TaskCreate: "P4: Functional & Non-Functional Requirements"
+TaskCreate: "Validate PRD"
+\`\`\`
+
+Update each task to \`completed\` as you finish each phase.
 
 ## PRD Generation (4 compressed phases)
 
@@ -199,6 +232,18 @@ description: 'Creates epics and stories from PRD with full FR coverage. Use when
 - Read PRD from path in \`pipeline.phases.prd.output\`
 - If no prd phase in state: ask user for PRD path
 - Extract ALL FRs and NFRs by number
+
+## Task Tracking
+
+\`\`\`
+TaskCreate: "Extract FRs and NFRs from PRD"
+TaskCreate: "Design epics (user-value grouping)"
+TaskCreate: "Create stories with ACs and tasks"
+TaskCreate: "FR coverage validation"
+TaskCreate: "Write story files"
+\`\`\`
+
+Update each to \`completed\` as you progress.
 
 ## Epic Design
 
@@ -291,17 +336,35 @@ If story has \`[AI-Review]\` items: address them BEFORE regular tasks.
 
 Update \`${o}/state.yaml\`: story — \`in-progress\`, epic — \`in-progress\` if first story.
 
+## Task Tracking
+
+Create a task for each story task checkbox:
+\`\`\`
+For each "- [ ] task description [AC: AC#]" in story:
+  TaskCreate: "task description" (status: todo)
+\`\`\`
+Update each to \`in_progress\` when starting RED, \`completed\` when GATE passes.
+
 ## Context Gathering
 
+Launch **2 Agent tool calls in parallel** for context:
+
+### Agent 1: Code Context
+- \`subagent_type: "Explore"\`
 - Read story Dev Notes for architecture, file paths, dependencies
-- Use MCP context7 for library docs mentioned in Dev Notes
 - Read existing code files mentioned in story
+- Map the current state of files to modify
+
+### Agent 2: Library Docs (if dependencies listed)
+- \`subagent_type: "general-purpose"\`
+- Use MCP context7 (\`resolve-library-id\` then \`query-docs\`) for libraries in Dev Notes
+- Extract relevant API patterns and usage examples
 
 ## TDD Implementation
 
 Read \`${a}/aped-d/references/tdd-engine.md\` for detailed rules.
 
-For each task:
+For each task (update TaskUpdate to \`in_progress\` when starting):
 
 ### RED
 Write failing tests first. Run: \`bash ${a}/aped-d/scripts/run-tests.sh\`
@@ -359,20 +422,33 @@ Read story from \`${o}/stories/{story-key}.md\`
 bash ${a}/aped-r/scripts/git-audit.sh ${o}/stories/{story-key}.md
 \`\`\`
 
+## Task Tracking
+
+\`\`\`
+TaskCreate: "Git audit"
+TaskCreate: "AC validation"
+TaskCreate: "Task audit"
+TaskCreate: "Code quality review"
+TaskCreate: "Generate review report"
+\`\`\`
+
 ## Adversarial Review
 
 Read \`${a}/aped-r/references/review-criteria.md\` for detailed criteria.
 
-### 1. AC Validation
-For each AC: search code for evidence (file:line). Rate: IMPLEMENTED / PARTIAL / MISSING.
+Launch **2 Agent tool calls in parallel** for the review:
 
-### 2. Task Audit
-For each \`[x]\` task: find proof in code. No evidence = **CRITICAL**.
+### Agent 1: AC & Task Validation (\`subagent_type: "feature-dev:code-explorer"\`)
+- For each AC: search code for evidence (file:line). Rate: IMPLEMENTED / PARTIAL / MISSING
+- For each \`[x]\` task: find proof in code. No evidence = **CRITICAL**
 
-### 3. Code Quality
-Security, Performance, Reliability, Test Quality.
+### Agent 2: Code Quality (\`subagent_type: "feature-dev:code-reviewer"\`)
+- Security, Performance, Reliability, Test Quality
+- Focus on files listed in the story's File List section
 
-### 4. Minimum 3 findings enforced.
+Once both agents return, merge findings. Update tasks to \`completed\`.
+
+### Minimum 3 findings enforced.
 
 ## Report
 
@@ -672,9 +748,21 @@ For the selected scope:
 3. Map user journeys across stories (multi-step flows)
 4. Identify integration points (APIs, databases, external services)
 
+## Task Tracking
+
+\`\`\`
+TaskCreate: "Analyze stories and extract ACs"
+TaskCreate: "Generate E2E tests"
+TaskCreate: "Generate integration tests"
+TaskCreate: "Run and verify all tests"
+TaskCreate: "Write QA report"
+\`\`\`
+
 ## Test Generation
 
-### E2E Tests (User Journeys)
+Launch **2 Agent tool calls in parallel**:
+
+### Agent 1: E2E Tests (\`subagent_type: "general-purpose"\`)
 
 For each user journey that spans one or more stories:
 
@@ -686,7 +774,7 @@ For each user journey that spans one or more stories:
    - Error paths (invalid input, unauthorized, not found)
    - Edge cases (empty data, concurrent access, timeouts)
 
-### Integration Tests (API/Service)
+### Agent 2: Integration Tests (\`subagent_type: "general-purpose"\`)
 
 For each integration point:
 
@@ -694,6 +782,8 @@ For each integration point:
 2. Test error handling (service down, timeout, malformed response)
 3. Test data consistency (DB state before/after)
 4. Test authentication/authorization boundaries
+
+Once both agents return, update tasks to \`completed\`.
 
 ### Test Naming Convention
 
@@ -832,6 +922,19 @@ disable-model-invocation: true
 | prd \`done\`, epics missing | Invoke \`/aped-e\` |
 | epics \`done\` | Loop: \`/aped-d\` — \`/aped-r\` until all stories \`done\` |
 | All stories \`done\` | Report pipeline complete |
+
+## Task Tracking
+
+Create a task per pipeline phase:
+\`\`\`
+TaskCreate: "Phase A — Analyze"
+TaskCreate: "Phase P — PRD"
+TaskCreate: "Phase E — Epics"
+TaskCreate: "Phase D — Dev Sprint"
+TaskCreate: "Phase R — Review"
+\`\`\`
+
+Update each to \`in_progress\` when invoking, \`completed\` when phase returns done.
 
 ## Execution
 
