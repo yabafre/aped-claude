@@ -8,9 +8,20 @@ export function skills(c) {
       content: `---
 name: aped-a
 description: 'Analyzes a new project idea through parallel market, domain, and technical research. Use when user says "research idea", "aped analyze", or invokes /aped-a. Not for existing codebases — use aped-ctx for brownfield projects.'
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED Analyze — Parallel Research to Product Brief
+
+## Critical Rules
+
+- NEVER skip Discovery questions — research quality depends on clear inputs
+- ALL 3 agents must complete before synthesis — do not proceed with partial results
+- Take your time with synthesis — quality is more important than speed
+- Do not skip validation steps
 
 ## Setup
 
@@ -113,6 +124,20 @@ pipeline:
 ## Chain
 
 Invoke Skill tool with \`skill: "aped-p"\` to proceed to PRD phase.
+
+## Example
+
+User says: "I want to build a SaaS for restaurant inventory management"
+1. Discovery: ask what, for whom, why now
+2. Launch 3 agents: market (restaurant tech), domain (food service regulations), technical (inventory systems)
+3. Synthesize into product brief with 5 sections
+4. Validate → write to \`${o}/product-brief.md\`
+
+## Common Issues
+
+- **Agent returns empty results**: WebSearch may fail — retry with different keywords, broaden search terms
+- **Brief validation fails**: Check which section is missing, fill it from agent results, re-validate
+- **User gives vague answers**: Ask follow-up questions before launching research — garbage in = garbage out
 `,
     },
     // ── aped-p ──────────────────────────────────────────────
@@ -121,9 +146,20 @@ Invoke Skill tool with \`skill: "aped-p"\` to proceed to PRD phase.
       content: `---
 name: aped-p
 description: 'Generates PRD autonomously from product brief. Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-p.'
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED PRD — Autonomous PRD Generation
+
+## Critical Rules
+
+- EVERY FR must follow format: \`FR#: [Actor] can [capability]\` — no exceptions
+- Take your time to generate quality FRs — 10-80 range, each independently testable
+- Do not skip domain detection — it determines mandatory sections
+- Quality is more important than speed — validate before writing
 
 ## Setup
 
@@ -210,6 +246,20 @@ pipeline:
 Ask the user: "Do you want to design the UX before creating epics?"
 - If yes: invoke Skill tool with \`skill: "aped-ux"\`
 - If no: invoke Skill tool with \`skill: "aped-e"\` to skip directly to Epics
+
+## Example
+
+From a restaurant inventory brief → PRD generates:
+- FR1: Manager can add inventory items with name, quantity, and unit
+- FR2: Manager can set low-stock thresholds per item
+- FR3: System can send alerts when stock falls below threshold
+- NFR: The system shall respond to inventory queries within 200ms at p95
+
+## Common Issues
+
+- **FR count too low (<10)**: Brief may lack detail — re-read brief, extract implicit capabilities
+- **Anti-pattern words detected**: Replace "easy" with step count, "fast" with time threshold
+- **Validation script fails**: Run \`bash ${a}/aped-p/scripts/validate-prd.sh ${o}/prd.md\` — fix reported issues one by one
 `,
     },
     // ── aped-e ──────────────────────────────────────────────
@@ -218,9 +268,20 @@ Ask the user: "Do you want to design the UX before creating epics?"
       content: `---
 name: aped-e
 description: 'Creates epics and stories from PRD with full FR coverage. Use when user says "create epics", "break into stories", "aped epics", or invokes /aped-e.'
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED Epics & Stories — Requirements Decomposition
+
+## Critical Rules
+
+- EVERY FR must map to exactly one epic — no orphans, no phantoms
+- Epics describe USER VALUE, not technical layers — "User Authentication" not "Database Setup"
+- Each story must be completable in 1 dev session — split if >8 tasks
+- Quality is more important than speed — do not skip coverage validation
 
 ## Setup
 
@@ -302,6 +363,19 @@ mkdir -p ${o}/stories
 2. Create story files in \`${o}/stories/\` using \`${a}/templates/story.md\`
 3. Update \`${o}/state.yaml\` with sprint section and pipeline phase
 
+## Example
+
+PRD with 25 FRs → 3 epics:
+- Epic 1: "Users can manage inventory" (FR1-FR8, 4 stories)
+- Epic 2: "Managers can monitor stock levels" (FR9-FR16, 3 stories)
+- Epic 3: "System sends automated alerts" (FR17-FR25, 3 stories)
+
+## Common Issues
+
+- **Coverage validation fails**: Run \`validate-coverage.sh\` — lists orphan FRs
+- **Epic too large**: Split by sub-domain — e.g., "User Auth" → "Registration" + "Sessions"
+- **Forward dependencies**: If story B needs A, merge them or restructure
+
 ## Chain
 
 Invoke Skill tool with \`skill: "aped-d"\` to proceed to Dev Sprint.
@@ -314,9 +388,20 @@ Invoke Skill tool with \`skill: "aped-d"\` to proceed to Dev Sprint.
 name: aped-d
 description: 'Implements next story with TDD red-green-refactor cycle. Use when user says "start dev", "implement story", "aped dev", or invokes /aped-d.'
 disable-model-invocation: true
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED Dev Sprint — TDD Story Implementation
+
+## Critical Rules
+
+- NEVER mark a task \`[x]\` without passing all 5 gate conditions
+- ALWAYS write the failing test FIRST — no implementation without a RED test
+- Take your time — quality is more important than speed
+- Do not skip validation steps or test runs
 
 ## Setup
 
@@ -395,6 +480,21 @@ Read \`git_provider\` and \`ticket_system\` from config:
 1. Update story: mark tasks \`[x]\`, fill Dev Agent Record
 2. Update \`${o}/state.yaml\`: story — \`review\`
 3. Invoke Skill tool with \`skill: "aped-r"\` to proceed to Review phase
+
+## Example
+
+Story "1-2-user-registration":
+1. RED: write test \`expect(register({email, password})).resolves.toHaveProperty('id')\` → fails
+2. GREEN: implement \`register()\` → test passes
+3. REFACTOR: extract validation → tests still pass
+4. GATE: tests exist ✓, pass ✓, matches spec ✓, ACs met ✓, no regressions ✓ → mark \`[x]\`
+
+## Common Issues
+
+- **Test framework not detected**: Ensure package.json has vitest/jest dependency, or use \`run-tests.sh\` manually
+- **3 consecutive failures**: HALT — ask user. Do not brute-force; the approach may be wrong
+- **Missing dependency**: HALT — ask user before installing. Do not add deps silently
+- **Tests pass before writing code**: The test is wrong — it doesn't test new behavior. Rewrite it
 `,
     },
     // ── aped-r ──────────────────────────────────────────────
@@ -404,9 +504,20 @@ Read \`git_provider\` and \`ticket_system\` from config:
 name: aped-r
 description: 'Reviews completed stories adversarially with minimum 3 findings. Use when user says "review code", "run review", "aped review", or invokes /aped-r.'
 disable-model-invocation: true
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED Review — Adversarial Code Review
+
+## Critical Rules
+
+- MINIMUM 3 findings — if you found fewer, you didn't look hard enough. Re-examine.
+- NEVER skip the git audit — it catches undocumented file changes
+- Take your time — thoroughness is more important than speed
+- Do not rubber-stamp. Your job is to find problems, not to validate.
 
 ## Setup
 
@@ -464,6 +575,20 @@ Severity: CRITICAL > HIGH > MEDIUM > LOW. Format: \`[Severity] Description [file
 ## State Update
 
 Update \`${o}/state.yaml\`. If more stories remain: invoke Skill tool with \`skill: "aped-d"\`. If all stories done: report pipeline completion.
+
+## Example
+
+Review of story "1-2-user-registration":
+- [HIGH] No input validation on email field [src/auth/register.ts:42]
+- [MEDIUM] Password stored without hashing [src/auth/register.ts:58]
+- [LOW] Missing error message i18n [src/auth/register.ts:71]
+Result: 3 findings → story back to \`in-progress\` with [AI-Review] items.
+
+## Common Issues
+
+- **Git audit fails (no git repo)**: Script handles this — skips audit with WARNING, proceeds to code review
+- **Fewer than 3 findings**: Re-examine edge cases, error handling, test gaps, security surface
+- **Story file not found**: Check \`sprint.stories\` in state.yaml — story key may have changed
 `,
     },
     // ── aped-ux ─────────────────────────────────────────────
@@ -472,9 +597,21 @@ Update \`${o}/state.yaml\`. If more stories remain: invoke Skill tool with \`ski
       content: `---
 name: aped-ux
 description: 'Designs UX via the ANF framework (Assemble design system, Normalize with React preview, Fill all screens). Use when user says "design UX", "UX spec", "aped ux", or invokes /aped-ux. Runs between PRD and Epics phases.'
+license: MIT
+compatibility: 'Requires Node.js 18+ and npm for Vite+React preview scaffold'
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED UX — ANF Framework
+
+## Critical Rules
+
+- NEVER use lorem ipsum — every text element must reflect the actual product from the PRD
+- ALWAYS run the pre-delivery checklist before presenting to user
+- Take your time with each screen — quality is more important than speed
+- Do not skip the user review cycle — the prototype MUST be approved before proceeding
 
 Produces a validated, interactive React prototype from the PRD. The prototype becomes the UX spec that \`/aped-e\` consumes as the visual source of truth.
 
@@ -747,6 +884,14 @@ Invoke Skill tool with \`skill: "aped-e"\` to proceed to Epics phase.
 - Screen references (wireframe screenshots)
 - Design tokens to respect
 - Responsive requirements per screen
+
+## Common Issues
+
+- **npm create vite fails**: Ensure Node.js 18+ is installed. Try \`node --version\` first.
+- **UI library install fails**: Check network. For shadcn, ensure the project has a tsconfig.json.
+- **User gives no design inspiration**: Use the product domain to suggest a style — "SaaS dashboard" → clean/minimal, "e-commerce" → card-heavy/visual
+- **Prototype looks wrong on mobile**: Check responsive breakpoints — sidebar must collapse, touch targets ≥ 44px
+- **Dark mode contrast fails**: Use semantic tokens, not hardcoded colors. Check with browser devtools contrast checker.
 `,
     },
     // ── aped-s ──────────────────────────────────────────────
@@ -755,7 +900,11 @@ Invoke Skill tool with \`skill: "aped-e"\` to proceed to Epics phase.
       content: `---
 name: aped-s
 description: 'Shows sprint status dashboard with progress, blockers, and next actions. Use when user says "sprint status", "show progress", "aped status", or invokes /aped-s.'
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: "Read Grep Glob Bash"
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED Status — Sprint Dashboard
@@ -817,6 +966,20 @@ If \`ticket_system\` is not \`none\`:
 ## Output
 
 Display only — no file writes, no state changes. Pure read-only dashboard.
+
+## Example
+
+\`\`\`
+Pipeline: A[✓] → P[✓] → UX[✓] → E[✓] → D[▶] → R[ ]
+Epic 1: User Auth        [████████░░] 80% (4/5)
+Epic 2: Dashboard         [██░░░░░░░░] 20% (1/5)
+Next: /aped-d (story 1-5-session-mgmt is ready-for-dev)
+\`\`\`
+
+## Common Issues
+
+- **State file not found**: Ensure \`${o}/state.yaml\` exists — run /aped-a first
+- **Stories show wrong status**: State.yaml may be stale — re-run the last phase to update it
 `,
     },
     // ── aped-c ──────────────────────────────────────────────
@@ -826,6 +989,10 @@ Display only — no file writes, no state changes. Pure read-only dashboard.
 name: aped-c
 description: 'Manages scope changes and pivots during development with impact analysis. Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes /aped-c.'
 disable-model-invocation: true
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED Correct Course — Managed Pivot
@@ -899,6 +1066,22 @@ After applying changes, verify:
 - No epic became too large (>8 stories)
 - No story became too large (>8 tasks)
 - Changed stories still fit single-session size
+
+## Example
+
+User says "We need to add OAuth — the client changed requirements":
+1. Impact: minor change — add FRs to PRD, create new stories
+2. Update PRD: add FR26-FR28 for OAuth
+3. Re-validate PRD
+4. Add stories to Epic 1 for OAuth support
+5. Re-validate coverage
+6. Reset new stories to \`ready-for-dev\`
+
+## Common Issues
+
+- **User wants to change everything**: Confirm scope — "Is this a pivot or an addition?"
+- **Invalidated stories have committed code**: Archive the code changes, don't delete — user may want to reference them
+- **FR count exceeds 80 after change**: Some features may need to move to a Growth phase scope
 `,
     },
     // ── aped-ctx ────────────────────────────────────────────
@@ -907,7 +1090,11 @@ After applying changes, verify:
       content: `---
 name: aped-ctx
 description: 'Analyzes existing codebase to generate project context for brownfield development. Use when user says "document codebase", "project context", "existing project", "aped context", or invokes /aped-ctx. Not for new project ideation — use aped-a for greenfield.'
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: "Read Grep Glob Bash"
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED Context — Brownfield Project Analysis
@@ -1000,6 +1187,20 @@ project_context:
 Suggest:
 - If no brief exists: run \`/aped-a\` with project context loaded
 - If brief exists: context will inform \`/aped-p\` and \`/aped-d\` decisions
+
+## Example
+
+Scanning a Next.js SaaS project → project-context.md:
+- Stack: TypeScript, Next.js 14, Prisma, PostgreSQL
+- Pattern: App Router, server components, feature-based folders
+- Conventions: camelCase files, Zod validation, Tailwind CSS
+- 45 dependencies, 3 outdated, 0 security advisories
+
+## Common Issues
+
+- **No package.json/Cargo.toml found**: Project may be multi-language or unconventional — scan for entry points manually
+- **Very large codebase (>1000 files)**: Focus on src/ and key config files, don't scan node_modules or build output
+- **Monorepo detected**: Document each package/app separately in the context file
 `,
     },
     // ── aped-qa ─────────────────────────────────────────────
@@ -1008,6 +1209,10 @@ Suggest:
       content: `---
 name: aped-qa
 description: 'Generates E2E and integration tests from acceptance criteria for completed features. Use when user says "generate tests", "E2E tests", "integration tests", "aped qa", or invokes /aped-qa.'
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED QA — E2E & Integration Test Generation
@@ -1110,6 +1315,19 @@ QA doesn't affect pipeline state — it's an additive quality layer.
 ## Next Steps
 
 Suggest running \`/aped-s\` to view updated sprint status with QA coverage noted.
+
+## Example
+
+Epic 1 completed (3 stories) → generate QA:
+- E2E: 5 tests covering registration → login → dashboard journey
+- Integration: 3 API tests for auth endpoints
+- Report: 8/8 ACs covered, 0 gaps, 1 manual test suggested (email verification)
+
+## Common Issues
+
+- **Test framework not detected**: Check project config — ensure test runner is in dependencies
+- **ACs not testable**: Some ACs describe UX behavior — flag as "manual test required" in report
+- **Tests fail on generated code**: Review the test — it may assume a specific API shape. Adapt to actual implementation
 `,
     },
     // ── aped-quick ────────────────────────────────────────────
@@ -1118,6 +1336,10 @@ Suggest running \`/aped-s\` to view updated sprint status with QA coverage noted
       content: `---
 name: aped-quick
 description: 'Implements quick fixes and small features bypassing the full pipeline. Use when user says "quick fix", "quick feature", "hotfix", "aped quick", or invokes /aped-quick.'
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED Quick — Fast Track for Small Changes
@@ -1181,6 +1403,20 @@ Read \`ticket_system\` and \`git_provider\` from config.
 1. Write quick spec to \`${o}/quick-specs/\` (create dir if needed)
 2. No state.yaml update — quick specs don't affect pipeline phase
 3. Report: files changed, tests added, quick spec path
+
+## Example
+
+User: "quick fix the login button not submitting"
+1. Quick spec: fix, "login form submit handler not wired"
+2. RED: test that clicking submit calls auth API
+3. GREEN: wire onClick → submitForm()
+4. Self-review: tests pass, no security issues
+5. Commit: \`fix(auth): wire login form submit handler\`
+
+## Common Issues
+
+- **Change touches >5 files**: This is too big for quick — recommend full pipeline
+- **New dependency needed**: HALT — ask user, this may need architectural discussion
 `,
     },
     // ── aped-all ─────────────────────────────────────────────
@@ -1190,6 +1426,10 @@ Read \`ticket_system\` and \`git_provider\` from config.
 name: aped-all
 description: 'Runs the full APED pipeline from Analyze through Review with auto-resume. Use when user says "run full pipeline", "aped all", or invokes /aped-all.'
 disable-model-invocation: true
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
 ---
 
 # APED Pipeline — Full Orchestrator
@@ -1235,6 +1475,22 @@ State persists in \`${o}/state.yaml\`. Next \`/aped-all\` resumes from last inco
 ## Completion Report
 
 Total phases, epics, stories, review iterations. Pipeline status: COMPLETE.
+
+## Example
+
+Fresh start → full pipeline run:
+1. A: 3 parallel agents → product brief (5 min)
+2. P: PRD with 20 FRs generated + validated (3 min)
+3. UX: user says "skip" → proceed to epics
+4. E: 3 epics, 8 stories created (3 min)
+5. D→R loop: 8 stories × (dev + review) cycles
+6. All done → pipeline COMPLETE
+
+## Common Issues
+
+- **Phase fails and can't recover**: Check state.yaml — reset the failed phase to \`in-progress\` and re-run /aped-all
+- **Context window limit during long pipeline**: Normal — /aped-all chains via Skill tool which starts fresh context per phase
+- **User wants to skip a phase**: Supported — each phase asks "redo or skip?" if already done
 `,
     },
   ];
