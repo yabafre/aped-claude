@@ -55,7 +55,7 @@ Read and follow the SKILL.md at $PROJECT_ROOT/${a}/aped-r/SKILL.md
       path: `${c.commandsDir}/aped-ux.md`,
       content: `---
 name: aped-ux
-description: 'Designs UX specifications from PRD — screen flows, wireframes, component inventory. Use when user says "design UX", "create wireframes", "UX spec", "aped ux", or invokes /aped-ux. Runs between PRD and Epics phases.'
+description: 'Designs UX via the ANF framework (Assemble design system, Normalize with React preview, Fill all screens). Use when user says "design UX", "UX spec", "aped ux", or invokes /aped-ux. Runs between PRD and Epics phases.'
 ---
 
 Read and follow the SKILL.md at $PROJECT_ROOT/${a}/aped-ux/SKILL.md

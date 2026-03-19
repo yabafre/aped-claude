@@ -471,12 +471,25 @@ Update \`${o}/state.yaml\`. If more stories remain: invoke Skill tool with \`ski
       path: `${a}/aped-ux/SKILL.md`,
       content: `---
 name: aped-ux
-description: 'Designs UX specifications from PRD — screen flows, wireframes, component inventory. Use when user says "design UX", "create wireframes", "UX spec", "aped ux", or invokes /aped-ux. Runs between PRD and Epics phases.'
+description: 'Designs UX via the ANF framework (Assemble design system, Normalize with React preview, Fill all screens). Use when user says "design UX", "UX spec", "aped ux", or invokes /aped-ux. Runs between PRD and Epics phases.'
 ---
 
-# APED UX — Spec-First UX Design
+# APED UX — ANF Framework
 
-Generates UX specifications from the PRD before epics creation. Produces screen flows, wireframes (ASCII), component inventories, and interaction specs that \`/aped-e\` consumes to enrich stories with visual context.
+Produces a validated, interactive React prototype from the PRD. The prototype becomes the UX spec that \`/aped-e\` consumes as the visual source of truth.
+
+**ANF = Assemble → Normalize → Fill**
+
+\`\`\`
+A: Design DNA        N: React Preview        F: Complete + Validate
+   (inputs)             (live prototype)         (user-approved spec)
+
+Inspirations         Vite + React app        All screens built
++ UI library         with REAL content       + interaction states
++ color/typo         from PRD context        + responsive behavior
++ components         (no lorem ipsum)        + user review cycles
+                                             = UX spec for /aped-e
+\`\`\`
 
 ## Setup
 
@@ -489,139 +502,185 @@ Generates UX specifications from the PRD before epics creation. Produces screen 
 ## Task Tracking
 
 \`\`\`
-TaskCreate: "Analyze PRD user journeys"
-TaskCreate: "Define screen inventory"
-TaskCreate: "Design screen flows"
-TaskCreate: "Create wireframes"
-TaskCreate: "Build component inventory"
-TaskCreate: "Write interaction specs"
-TaskCreate: "Validate UX spec"
+TaskCreate: "A — Assemble: collect design DNA"
+TaskCreate: "A — Assemble: scaffold Vite + React preview app"
+TaskCreate: "N — Normalize: build layout + navigation + design tokens"
+TaskCreate: "N — Normalize: implement screens with real PRD content"
+TaskCreate: "F — Fill: complete all states (loading, error, empty)"
+TaskCreate: "F — Fill: responsive + accessibility pass"
+TaskCreate: "F — Fill: user review + validation"
 \`\`\`
 
-## Load PRD
+---
 
-- Read PRD from \`pipeline.phases.prd.output\`
-- Extract: user journeys, FRs grouped by capability, actors, key workflows
+## A — ASSEMBLE (Design DNA)
 
-## Phase 1: Screen Inventory
+### A1: Collect Design Inputs
 
-For each user journey in the PRD:
+Ask the user (adapt to \`communication_language\`):
 
-1. **Map the journey** to concrete screens (1 journey = 1+ screens)
-2. **Name each screen** with a slug: \`{area}-{action}\` (e.g., \`auth-login\`, \`dashboard-overview\`, \`settings-profile\`)
-3. **Classify screen type**: form, list, detail, dashboard, wizard, modal, empty-state, error
-4. **Map FR coverage**: which FRs are satisfied by which screen
+1. **Inspirations** — "Share screenshots, URLs, or describe the visual direction you want"
+   - Accept: image files (Read tool), URLs (WebFetch), or verbal description
+   - If images: analyze layout, density, color palette, typography, component style
+   - If URLs: fetch and analyze visual patterns
 
-Output: screen inventory table.
+2. **UI Library** — "Which component library? Or none (custom)?"
+   - Options: shadcn/ui, Radix UI, MUI, Ant Design, Chakra UI, Mantine, none
+   - If specified: use MCP context7 (\`resolve-library-id\` then \`query-docs\`) to load component API
+   - If none: will create custom components styled to match inspirations
 
-## Phase 2: Screen Flows
+3. **Design Tokens** — Extract or ask:
+   - **Colors**: primary, secondary, accent, neutral scale, semantic (success/warning/error/info)
+   - **Typography**: font family, size scale (xs to 2xl), weight scale, line heights
+   - **Spacing**: base unit (4px/8px), scale (1-12)
+   - **Radius**: none/sm/md/lg/full
+   - **Shadows**: sm/md/lg/xl
 
-For each major workflow:
+4. **Branding** — Logo, brand colors, tone (playful/serious/minimal/bold)
 
-1. **Draw flow diagram** in text format:
-\`\`\`
-[Landing] → [Login] → [Dashboard]
-                ↓              ↓
-           [Register]    [Settings]
-                ↓
-           [Verify Email] → [Dashboard]
-\`\`\`
+### A2: Scaffold Preview App
 
-2. **Document transitions**: what triggers navigation (button click, form submit, auto-redirect)
-3. **Identify shared patterns**: navigation, auth guards, error states, loading states
-
-## Phase 3: Wireframes (ASCII)
-
-For each screen, produce an ASCII wireframe:
-
-\`\`\`
-┌─────────────────────────────────┐
-│ [Logo]          [Nav] [Avatar]  │
-├─────────────────────────────────┤
-│                                 │
-│  ┌──────────┐ ┌──────────────┐  │
-│  │ Sidebar  │ │   Content    │  │
-│  │          │ │              │  │
-│  │ • Item 1 │ │  ┌────────┐  │  │
-│  │ • Item 2 │ │  │ Card 1 │  │  │
-│  │ • Item 3 │ │  └────────┘  │  │
-│  │          │ │  ┌────────┐  │  │
-│  │          │ │  │ Card 2 │  │  │
-│  └──────────┘ │  └────────┘  │  │
-│               └──────────────┘  │
-├─────────────────────────────────┤
-│ [Footer]                        │
-└─────────────────────────────────┘
+\`\`\`bash
+mkdir -p ${o}/ux-preview
+cd ${o}/ux-preview
+npm create vite@latest . -- --template react-ts
+npm install
 \`\`\`
 
-Rules:
-- Use box drawing characters (┌ ─ ┐ │ └ ┘ ├ ┤)
-- Label every zone with its purpose
-- Show content hierarchy (headings, lists, cards, forms)
-- Annotate interactive elements: \`[Button]\`, \`(Input)\`, \`{Dropdown}\`
-- Include responsive notes: "sidebar collapses to hamburger on mobile"
-
-## Phase 4: Component Inventory
-
-Analyze all wireframes and extract:
-
-### Component Tree
-\`\`\`
-App
-├── Layout
-│   ├── Header (logo, nav, avatar)
-│   ├── Sidebar (nav items, collapsible)
-│   └── Footer
-├── Shared
-│   ├── Button (primary, secondary, ghost, danger)
-│   ├── Input (text, email, password, search)
-│   ├── Card (title, body, actions)
-│   ├── Modal (header, body, footer)
-│   └── Toast (success, error, warning, info)
-└── Feature-specific
-    ├── UserAvatar (image, initials fallback)
-    ├── DataTable (sortable, filterable, paginated)
-    └── StatsCard (value, label, trend)
+If UI library chosen:
+\`\`\`bash
+# Example for shadcn/ui:
+npx shadcn@latest init
+# Example for MUI:
+npm install @mui/material @emotion/react @emotion/styled
 \`\`\`
 
-### Component Spec (for each)
-- **Props**: name, type, required, default
-- **States**: default, hover, active, disabled, loading, error
-- **Variants**: size (sm/md/lg), color (primary/secondary/danger)
-- **Accessibility**: ARIA role, keyboard navigation, focus management
+Create design token files:
+- \`src/tokens/colors.ts\` — color palette as CSS custom properties or theme object
+- \`src/tokens/typography.ts\` — font config
+- \`src/tokens/spacing.ts\` — spacing scale
+- \`src/theme.ts\` — unified theme export
 
-## Phase 5: Interaction Specs
+Create \`src/data/mock.ts\` — **real content from PRD**, not lorem ipsum:
+- Extract product name, user types, feature names, sample data from PRD
+- Generate realistic mock data that matches the product domain
+- Example: if building a project manager, mock projects have real-sounding names and dates
 
-For each screen, document:
+\`TaskUpdate: "A — Assemble: scaffold" → completed\`
 
-1. **Loading states**: skeleton, spinner, progressive
-2. **Empty states**: first-use, no-results, error
-3. **Error handling**: inline validation, toast, error page
-4. **Animations**: page transitions, micro-interactions (optional)
-5. **Responsive behavior**: breakpoints, layout changes, touch targets
+---
 
-## Validation
+## N — NORMALIZE (React Preview with Real Content)
 
-Check completeness:
-- [ ] Every FR from PRD maps to at least one screen
-- [ ] Every screen has a wireframe
-- [ ] Every interactive element has states defined
-- [ ] Flows cover happy path + error paths
-- [ ] Component inventory covers all wireframe elements
-- [ ] No orphan screens (unreachable from any flow)
+### N1: Layout + Navigation
+
+Read PRD user journeys and screen inventory (from \`${a}/aped-ux/references/ux-patterns.md\`).
+
+1. **Map screens** from PRD user journeys:
+   - Each journey → concrete screens
+   - Name: \`{area}-{action}\` slug (e.g., \`auth-login\`, \`dashboard-overview\`)
+   - Classify: form, list, detail, dashboard, wizard, modal
+
+2. **Build layout shell** — \`src/layouts/\`:
+   - App layout (header, sidebar/nav, content, footer)
+   - Auth layout (centered card)
+   - Apply design tokens throughout
+
+3. **Set up routing** — React Router with all screens as routes:
+   - \`src/App.tsx\` — router config
+   - \`src/pages/{ScreenSlug}.tsx\` — one page per screen (initially placeholder)
+
+4. **Navigation** — working nav that links all screens:
+   - Sidebar or top nav matching design inspiration
+   - Active state indicators
+   - Mobile responsive (hamburger/drawer)
+
+Run: \`npm run dev\` — verify app runs with working navigation.
+
+### N2: Screen Implementation
+
+For each screen, in priority order (core journey first):
+
+1. **Read relevant FRs** for this screen
+2. **Build with UI library components** (or custom styled components)
+3. **Use real mock data** from \`src/data/mock.ts\` — product names, user names, realistic dates and numbers
+4. **Implement the primary content** — forms, tables, cards, etc.
+5. **Wire interactions** — form submits, button clicks, navigation (can be no-op handlers)
+
+**CRITICAL: No lorem ipsum.** Every text element must reflect the actual product:
+- If it's a SaaS dashboard, show realistic metric names and values
+- If it's an e-commerce, show real-looking product names and prices
+- If it's a project tool, show plausible project names and statuses
+
+\`TaskUpdate: "N — Normalize: implement screens" → completed\`
+
+---
+
+## F — FILL (Complete + Validate)
+
+### F1: Interaction States
+
+For each screen, add:
+
+1. **Loading states** — skeleton components or spinners where data loads
+2. **Empty states** — first-use experience, "no results" views with CTAs
+3. **Error states** — inline form validation, error boundaries, toast/snackbar
+4. **Success feedback** — confirmation messages, success toasts
+
+### F2: Responsive + Accessibility
+
+1. **Responsive** — test and fix at 3 breakpoints:
+   - Mobile (375px): single column, hamburger nav, touch targets ≥44px
+   - Tablet (768px): adapted layout, sidebar may collapse
+   - Desktop (1440px): full layout
+
+2. **Accessibility** — verify:
+   - All images have alt text
+   - Form inputs have labels
+   - Color contrast ≥ 4.5:1
+   - Keyboard navigation works (Tab, Enter, Escape)
+   - Focus indicators visible
+
+### F3: User Review Cycle
+
+**This is the most important step.** The prototype must be validated by the user.
+
+1. Run \`npm run dev\` and give the user the local URL
+2. Ask: "Review each screen. What needs to change?"
+3. Categories of feedback:
+   - **Layout** — move, resize, reorder sections
+   - **Content** — missing info, wrong hierarchy, unclear labels
+   - **Style** — colors, spacing, typography adjustments
+   - **Flow** — navigation changes, missing screens, wrong order
+   - **Components** — wrong component type, missing states, wrong behavior
+
+4. **Iterate** until user says "approved" or "good enough"
+5. Each iteration: apply feedback → run dev → ask again
+
+\`TaskUpdate: "F — Fill: user review" → completed\`
+
+---
 
 ## Output
+
+Once user approves the prototype:
 
 \`\`\`bash
 mkdir -p ${o}/ux
 \`\`\`
 
-Write to \`${o}/ux/\`:
-1. \`screen-inventory.md\` — table of all screens with FR mapping
-2. \`flows.md\` — all screen flow diagrams
-3. \`wireframes.md\` — ASCII wireframes for every screen
-4. \`components.md\` — component tree + specs
-5. \`interactions.md\` — states, errors, responsive, animations
+1. **Preview app stays** at \`${o}/ux-preview/\` — living reference
+2. Write \`${o}/ux/design-spec.md\`:
+   - Design tokens (colors, typo, spacing, radius)
+   - UI library + version
+   - Screen inventory with routes
+   - Component tree with props
+   - Layout specifications
+   - Responsive breakpoints
+3. Write \`${o}/ux/screen-inventory.md\` — all screens with FR mapping
+4. Write \`${o}/ux/components.md\` — component catalog from the preview app
+5. Write \`${o}/ux/flows.md\` — navigation flow diagrams
+6. Take **screenshots** of each screen at desktop resolution → \`${o}/ux/screenshots/\`
 
 ## State Update
 
@@ -633,12 +692,20 @@ pipeline:
     ux:
       status: "done"
       output: "${o}/ux/"
+      preview: "${o}/ux-preview/"
+      design_system:
+        ui_library: "{library}"
+        tokens: "${o}/ux-preview/src/tokens/"
 \`\`\`
 
 ## Chain
 
 Invoke Skill tool with \`skill: "aped-e"\` to proceed to Epics phase.
-\`/aped-e\` will read UX specs to enrich stories with wireframe refs, component specs, and interaction requirements in Dev Notes.
+\`/aped-e\` reads \`${o}/ux/design-spec.md\` and the preview app to enrich stories with:
+- Component references (which component to use, which props)
+- Screen references (wireframe screenshots)
+- Design tokens to respect
+- Responsive requirements per screen
 `,
     },
     // ── aped-s ──────────────────────────────────────────────
