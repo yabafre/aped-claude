@@ -590,10 +590,13 @@ Read PRD user journeys and screen inventory (from \`${a}/aped-ux/references/ux-p
    - \`src/App.tsx\` — router config
    - \`src/pages/{ScreenSlug}.tsx\` — one page per screen (initially placeholder)
 
-4. **Navigation** — working nav that links all screens:
+4. **Navigation** — read rules P9 (Navigation) from \`${a}/aped-ux/references/ux-patterns.md\`:
    - Sidebar or top nav matching design inspiration
-   - Active state indicators
-   - Mobile responsive (hamburger/drawer)
+   - Active state indicators on current route
+   - Mobile: bottom nav ≤5 items (icon + label) or hamburger/drawer
+   - Desktop ≥1024px: sidebar; smaller: bottom/top nav
+   - Predictable back behavior, preserve scroll/state
+   - Same navigation placement across all pages
 
 Run: \`npm run dev\` — verify app runs with working navigation.
 
@@ -620,42 +623,80 @@ For each screen, in priority order (core journey first):
 
 ### F1: Interaction States
 
+Read rules P7 (Animation) and P8 (Forms & Feedback) from \`${a}/aped-ux/references/ux-patterns.md\`.
+
 For each screen, add:
 
-1. **Loading states** — skeleton components or spinners where data loads
-2. **Empty states** — first-use experience, "no results" views with CTAs
-3. **Error states** — inline form validation, error boundaries, toast/snackbar
-4. **Success feedback** — confirmation messages, success toasts
+1. **Loading states** — skeleton/shimmer for operations >300ms, spinner for buttons
+2. **Empty states** — first-use experience with helpful message + CTA, "no results" views
+3. **Error states** — inline validation on blur, error below field, error summary at top for long forms
+4. **Success feedback** — toast auto-dismiss 3-5s, confirmation messages
+5. **Disabled states** — opacity 0.38-0.5, cursor change, non-interactive
+6. **Press feedback** — visual response within 80-150ms (ripple, opacity, scale 0.95-1.05)
+7. **Animations** — 150-300ms micro-interactions, transform/opacity only, ease-out enter, ease-in exit
 
-### F2: Responsive + Accessibility
+### F2: Responsive + Dark Mode
+
+Read rules P5 (Layout) and P6 (Typography & Color) from \`${a}/aped-ux/references/ux-patterns.md\`.
 
 1. **Responsive** — test and fix at 3 breakpoints:
-   - Mobile (375px): single column, hamburger nav, touch targets ≥44px
-   - Tablet (768px): adapted layout, sidebar may collapse
-   - Desktop (1440px): full layout
+   - Mobile (375px): single column, hamburger nav, touch targets ≥44px, safe areas
+   - Tablet (768px): adapted layout, sidebar may collapse, adjusted gutters
+   - Desktop (1440px): full layout, max-width container, sidebar visible
 
-2. **Accessibility** — verify:
-   - All images have alt text
-   - Form inputs have labels
-   - Color contrast ≥ 4.5:1
-   - Keyboard navigation works (Tab, Enter, Escape)
-   - Focus indicators visible
+2. **Dark mode** — if applicable:
+   - Semantic color tokens mapped per theme (not hardcoded hex)
+   - Desaturated/lighter variants, NOT inverted colors
+   - Primary text ≥ 4.5:1, secondary ≥ 3:1 in both modes
+   - Borders/dividers distinguishable in both modes
+   - Modal scrim: 40-60% black, foreground legible
+   - Test both themes independently
 
-### F3: User Review Cycle
+### F3: Accessibility Pass
+
+Read rules P1 (Accessibility) and P2 (Touch) from \`${a}/aped-ux/references/ux-patterns.md\`.
+
+- Contrast: 4.5:1 normal text, 3:1 large text (test with browser devtools)
+- Focus rings: 2-4px, visible on all interactive elements
+- Tab order: matches visual order
+- Form labels: visible, associated, not placeholder-only
+- Icon buttons: aria-label
+- Skip-to-main link
+- Heading hierarchy: h1→h2→h3, no skipping
+- Touch targets: ≥44x44pt with ≥8px spacing
+- No information conveyed by color alone
+
+### F4: Pre-Delivery Checklist
+
+Read the full Pre-Delivery Checklist from \`${a}/aped-ux/references/ux-patterns.md\`.
+
+Run through ALL checks before presenting to user:
+
+**Visual Quality** — SVG icons, consistent family, no press jitter, semantic tokens, brand assets
+**Interaction** — press feedback, touch targets, micro-interaction timing, disabled states, focus order
+**Light/Dark Mode** — contrast ratios in both, dividers visible, scrim legibility
+**Layout** — safe areas, fixed bars, tested 3 devices, spacing rhythm, text readability
+**Accessibility** — labels, hints, errors, color independence, reduced motion, ARIA
+
+If any check fails: fix before showing to user.
+
+### F5: User Review Cycle
 
 **This is the most important step.** The prototype must be validated by the user.
 
 1. Run \`npm run dev\` and give the user the local URL
-2. Ask: "Review each screen. What needs to change?"
-3. Categories of feedback:
+2. Present the pre-delivery checklist results
+3. Ask: "Review each screen. What needs to change?"
+4. Categories of feedback:
    - **Layout** — move, resize, reorder sections
    - **Content** — missing info, wrong hierarchy, unclear labels
    - **Style** — colors, spacing, typography adjustments
    - **Flow** — navigation changes, missing screens, wrong order
    - **Components** — wrong component type, missing states, wrong behavior
+   - **Dark mode** — contrast issues, token problems, scrim opacity
 
-4. **Iterate** until user says "approved" or "good enough"
-5. Each iteration: apply feedback → run dev → ask again
+5. **Iterate** until user says "approved" or "good enough"
+6. Each iteration: apply feedback → run checklist again → present → ask again
 
 \`TaskUpdate: "F — Fill: user review" → completed\`
 
