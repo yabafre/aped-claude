@@ -73,8 +73,8 @@ HAS_EPICS=false
 # ── Phase-aware guardrail logic ──
 WARNINGS=()
 
-# Phase transition map: none → analyze → prd → epics → dev ↔ review → done
-PHASE_ORDER="none analyze prd epics dev review done"
+# Phase transition map: none → analyze → prd → ux → epics → dev ↔ review → done
+PHASE_ORDER="none analyze prd ux epics dev review done"
 
 phase_index() {
   local i=0

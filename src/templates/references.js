@@ -46,6 +46,10 @@ export function references(c) {
       path: `${a}/aped-r/references/review-criteria.md`,
       content: REVIEW_CRITERIA,
     },
+    {
+      path: `${a}/aped-ux/references/ux-patterns.md`,
+      content: UX_PATTERNS,
+    },
   ];
 }
 
@@ -547,3 +551,84 @@ web_app,"website,webapp,browser,SPA,PWA","SPA or MPA?;Browser support?;SEO neede
 mobile_app,"iOS,Android,app,mobile,iPhone,iPad","Native or cross-platform?;Offline needed?;Push notifications?;Device features?;Store compliance?","platform_reqs;device_permissions;offline_mode;push_strategy;store_compliance","desktop_features;cli_commands","app store guidelines;platform requirements","Gesture innovation;AR/VR features"
 saas_b2b,"SaaS,B2B,platform,dashboard,teams,enterprise","Multi-tenant?;Permission model?;Subscription tiers?;Integrations?;Compliance?","tenant_model;rbac_matrix;subscription_tiers;integration_list;compliance_reqs","cli_interface;mobile_first","compliance requirements;integration guides","Workflow automation;AI agents"
 cli_tool,"CLI,command,terminal,bash,script","Interactive or scriptable?;Output formats?;Config method?;Shell completion?","command_structure;output_formats;config_schema;scripting_support","visual_design;ux_principles;touch_interactions","CLI design patterns;shell integration","Natural language CLI;AI commands"`;
+
+const UX_PATTERNS = `# UX Screen Patterns Catalog
+
+## Screen Types
+
+### Form Screens
+- **Login/Register**: email + password, social auth buttons, forgot link
+- **Settings**: grouped sections, save/cancel, inline validation
+- **Wizard/Multi-step**: progress indicator, back/next, step validation
+- **Search + Filters**: search bar, filter sidebar/chips, results list
+
+### List Screens
+- **Data Table**: sortable headers, row actions, pagination, bulk select
+- **Card Grid**: image + title + meta, responsive columns, load more
+- **Feed/Timeline**: chronological, infinite scroll, activity items
+
+### Detail Screens
+- **Profile/Entity**: header (avatar, name, stats), tabbed content, actions
+- **Article/Content**: title, meta, body, sidebar, related items
+
+### Dashboard Screens
+- **Analytics**: stat cards, charts, date range picker, export
+- **Admin**: sidebar nav, content area, notification badge
+
+### Utility Screens
+- **Empty State**: illustration, message, CTA button
+- **Error Page**: error code, message, back/home links
+- **Loading**: skeleton screens, progress bar, spinner
+
+## Layout Patterns
+
+### Navigation
+- **Top Nav**: logo left, nav center/right, avatar far right
+- **Sidebar**: collapsible, icons + labels, active indicator, mobile hamburger
+- **Tab Bar**: bottom tabs (mobile), top tabs (desktop), badge counts
+- **Breadcrumb**: path hierarchy, current page non-linked
+
+### Content Layout
+- **Sidebar + Content**: 240-280px sidebar, fluid content, responsive collapse
+- **Full Width**: max-width container (1200-1440px), centered
+- **Split View**: list left, detail right (email pattern), resizable
+- **Grid**: 12-column, responsive breakpoints (sm/md/lg/xl)
+
+## Interaction Patterns
+
+### Forms
+- **Inline Validation**: validate on blur, show error below field, green checkmark on valid
+- **Progressive Disclosure**: show fields based on previous answers
+- **Autosave**: debounced save, "Saved" indicator, conflict resolution
+
+### Data
+- **Optimistic Updates**: update UI immediately, revert on error
+- **Pagination**: page numbers for known total, infinite scroll for feeds
+- **Search**: debounced input (300ms), loading indicator, clear button
+
+### Feedback
+- **Toast/Snackbar**: bottom-right, auto-dismiss (5s), action button, stacking
+- **Modal/Dialog**: overlay, focus trap, escape to close, confirm/cancel
+- **Inline Alerts**: contextual, dismissible, icon + message + action
+
+## Responsive Breakpoints
+
+| Name | Width | Typical |
+|------|-------|---------|
+| sm | < 640px | Mobile portrait |
+| md | 640-1024px | Tablet / mobile landscape |
+| lg | 1024-1440px | Desktop |
+| xl | > 1440px | Large desktop |
+
+## Accessibility Checklist
+
+- [ ] All interactive elements keyboard-navigable (Tab, Enter, Escape)
+- [ ] Focus indicator visible on all focusable elements
+- [ ] ARIA labels on icon-only buttons
+- [ ] Color contrast ratio ≥ 4.5:1 (text), ≥ 3:1 (large text)
+- [ ] Form fields have associated labels
+- [ ] Error messages linked to fields via aria-describedby
+- [ ] Skip navigation link for screen readers
+- [ ] Alt text on meaningful images
+- [ ] Touch targets ≥ 44x44px on mobile
+`;

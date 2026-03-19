@@ -63,7 +63,7 @@ ${a.lime}${a.bold}          M  E  T  H  O  D${a.reset}
 ${a.dim}    ─────────────────────────────────${a.reset}
 `;
 
-const PIPELINE = `    ${a.emerald}${a.bold}A${a.reset}${a.dim}nalyze${a.reset}  ${a.dim}→${a.reset}  ${a.mint}${a.bold}P${a.reset}${a.dim}RD${a.reset}  ${a.dim}→${a.reset}  ${a.yellow}${a.bold}E${a.reset}${a.dim}pics${a.reset}  ${a.dim}→${a.reset}  ${a.lime}${a.bold}D${a.reset}${a.dim}ev${a.reset}  ${a.dim}→${a.reset}  ${a.red}${a.bold}R${a.reset}${a.dim}eview${a.reset}`;
+const PIPELINE = `    ${a.emerald}${a.bold}A${a.reset}${a.dim}nalyze${a.reset}  ${a.dim}→${a.reset}  ${a.mint}${a.bold}P${a.reset}${a.dim}RD${a.reset}  ${a.dim}→${a.reset}  ${a.magenta}${a.bold}UX${a.reset}  ${a.dim}→${a.reset}  ${a.yellow}${a.bold}E${a.reset}${a.dim}pics${a.reset}  ${a.dim}→${a.reset}  ${a.lime}${a.bold}D${a.reset}${a.dim}ev${a.reset}  ${a.dim}→${a.reset}  ${a.red}${a.bold}R${a.reset}${a.dim}eview${a.reset}`;
 
 // ── Spinner ──
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -584,6 +584,7 @@ function printDone(created, updated, skipped, mode) {
   console.log('');
   console.log(`    ${a.emerald}${a.bold}/aped-a${a.reset}     ${dim('Analyze — parallel research → product brief')}`);
   console.log(`    ${a.mint}${a.bold}/aped-p${a.reset}     ${dim('PRD — autonomous generation from brief')}`);
+  console.log(`    ${a.magenta}${a.bold}/aped-ux${a.reset}    ${dim('UX — screen flows, wireframes, components')}`);
   console.log(`    ${a.yellow}${a.bold}/aped-e${a.reset}     ${dim('Epics — requirements decomposition')}`);
   console.log(`    ${a.lime}${a.bold}/aped-d${a.reset}     ${dim('Dev — TDD story implementation')}`);
   console.log(`    ${a.red}${a.bold}/aped-r${a.reset}     ${dim('Review — adversarial code review')}`);

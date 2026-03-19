@@ -207,7 +207,9 @@ pipeline:
 
 ## Chain
 
-Invoke Skill tool with \`skill: "aped-e"\` to proceed to Epics phase.
+Ask the user: "Do you want to design the UX before creating epics?"
+- If yes: invoke Skill tool with \`skill: "aped-ux"\`
+- If no: invoke Skill tool with \`skill: "aped-e"\` to skip directly to Epics
 `,
     },
     // ── aped-e ──────────────────────────────────────────────
@@ -462,6 +464,181 @@ Severity: CRITICAL > HIGH > MEDIUM > LOW. Format: \`[Severity] Description [file
 ## State Update
 
 Update \`${o}/state.yaml\`. If more stories remain: invoke Skill tool with \`skill: "aped-d"\`. If all stories done: report pipeline completion.
+`,
+    },
+    // ── aped-ux ─────────────────────────────────────────────
+    {
+      path: `${a}/aped-ux/SKILL.md`,
+      content: `---
+name: aped-ux
+description: 'Designs UX specifications from PRD — screen flows, wireframes, component inventory. Use when user says "design UX", "create wireframes", "UX spec", "aped ux", or invokes /aped-ux. Runs between PRD and Epics phases.'
+---
+
+# APED UX — Spec-First UX Design
+
+Generates UX specifications from the PRD before epics creation. Produces screen flows, wireframes (ASCII), component inventories, and interaction specs that \`/aped-e\` consumes to enrich stories with visual context.
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract config
+2. Read \`${o}/state.yaml\` — check pipeline state
+   - If \`pipeline.phases.ux.status\` is \`done\`: ask user — redo or skip?
+   - If user skips: invoke Skill tool with \`skill: "aped-e"\` and stop
+3. Read \`${a}/aped-ux/references/ux-patterns.md\` for design patterns catalog
+
+## Task Tracking
+
+\`\`\`
+TaskCreate: "Analyze PRD user journeys"
+TaskCreate: "Define screen inventory"
+TaskCreate: "Design screen flows"
+TaskCreate: "Create wireframes"
+TaskCreate: "Build component inventory"
+TaskCreate: "Write interaction specs"
+TaskCreate: "Validate UX spec"
+\`\`\`
+
+## Load PRD
+
+- Read PRD from \`pipeline.phases.prd.output\`
+- Extract: user journeys, FRs grouped by capability, actors, key workflows
+
+## Phase 1: Screen Inventory
+
+For each user journey in the PRD:
+
+1. **Map the journey** to concrete screens (1 journey = 1+ screens)
+2. **Name each screen** with a slug: \`{area}-{action}\` (e.g., \`auth-login\`, \`dashboard-overview\`, \`settings-profile\`)
+3. **Classify screen type**: form, list, detail, dashboard, wizard, modal, empty-state, error
+4. **Map FR coverage**: which FRs are satisfied by which screen
+
+Output: screen inventory table.
+
+## Phase 2: Screen Flows
+
+For each major workflow:
+
+1. **Draw flow diagram** in text format:
+\`\`\`
+[Landing] → [Login] → [Dashboard]
+                ↓              ↓
+           [Register]    [Settings]
+                ↓
+           [Verify Email] → [Dashboard]
+\`\`\`
+
+2. **Document transitions**: what triggers navigation (button click, form submit, auto-redirect)
+3. **Identify shared patterns**: navigation, auth guards, error states, loading states
+
+## Phase 3: Wireframes (ASCII)
+
+For each screen, produce an ASCII wireframe:
+
+\`\`\`
+┌─────────────────────────────────┐
+│ [Logo]          [Nav] [Avatar]  │
+├─────────────────────────────────┤
+│                                 │
+│  ┌──────────┐ ┌──────────────┐  │
+│  │ Sidebar  │ │   Content    │  │
+│  │          │ │              │  │
+│  │ • Item 1 │ │  ┌────────┐  │  │
+│  │ • Item 2 │ │  │ Card 1 │  │  │
+│  │ • Item 3 │ │  └────────┘  │  │
+│  │          │ │  ┌────────┐  │  │
+│  │          │ │  │ Card 2 │  │  │
+│  └──────────┘ │  └────────┘  │  │
+│               └──────────────┘  │
+├─────────────────────────────────┤
+│ [Footer]                        │
+└─────────────────────────────────┘
+\`\`\`
+
+Rules:
+- Use box drawing characters (┌ ─ ┐ │ └ ┘ ├ ┤)
+- Label every zone with its purpose
+- Show content hierarchy (headings, lists, cards, forms)
+- Annotate interactive elements: \`[Button]\`, \`(Input)\`, \`{Dropdown}\`
+- Include responsive notes: "sidebar collapses to hamburger on mobile"
+
+## Phase 4: Component Inventory
+
+Analyze all wireframes and extract:
+
+### Component Tree
+\`\`\`
+App
+├── Layout
+│   ├── Header (logo, nav, avatar)
+│   ├── Sidebar (nav items, collapsible)
+│   └── Footer
+├── Shared
+│   ├── Button (primary, secondary, ghost, danger)
+│   ├── Input (text, email, password, search)
+│   ├── Card (title, body, actions)
+│   ├── Modal (header, body, footer)
+│   └── Toast (success, error, warning, info)
+└── Feature-specific
+    ├── UserAvatar (image, initials fallback)
+    ├── DataTable (sortable, filterable, paginated)
+    └── StatsCard (value, label, trend)
+\`\`\`
+
+### Component Spec (for each)
+- **Props**: name, type, required, default
+- **States**: default, hover, active, disabled, loading, error
+- **Variants**: size (sm/md/lg), color (primary/secondary/danger)
+- **Accessibility**: ARIA role, keyboard navigation, focus management
+
+## Phase 5: Interaction Specs
+
+For each screen, document:
+
+1. **Loading states**: skeleton, spinner, progressive
+2. **Empty states**: first-use, no-results, error
+3. **Error handling**: inline validation, toast, error page
+4. **Animations**: page transitions, micro-interactions (optional)
+5. **Responsive behavior**: breakpoints, layout changes, touch targets
+
+## Validation
+
+Check completeness:
+- [ ] Every FR from PRD maps to at least one screen
+- [ ] Every screen has a wireframe
+- [ ] Every interactive element has states defined
+- [ ] Flows cover happy path + error paths
+- [ ] Component inventory covers all wireframe elements
+- [ ] No orphan screens (unreachable from any flow)
+
+## Output
+
+\`\`\`bash
+mkdir -p ${o}/ux
+\`\`\`
+
+Write to \`${o}/ux/\`:
+1. \`screen-inventory.md\` — table of all screens with FR mapping
+2. \`flows.md\` — all screen flow diagrams
+3. \`wireframes.md\` — ASCII wireframes for every screen
+4. \`components.md\` — component tree + specs
+5. \`interactions.md\` — states, errors, responsive, animations
+
+## State Update
+
+Update \`${o}/state.yaml\`:
+\`\`\`yaml
+pipeline:
+  current_phase: "ux"
+  phases:
+    ux:
+      status: "done"
+      output: "${o}/ux/"
+\`\`\`
+
+## Chain
+
+Invoke Skill tool with \`skill: "aped-e"\` to proceed to Epics phase.
+\`/aped-e\` will read UX specs to enrich stories with wireframe refs, component specs, and interaction requirements in Dev Notes.
 `,
     },
     // ── aped-s ──────────────────────────────────────────────
@@ -919,7 +1096,8 @@ disable-model-invocation: true
 | No state / \`current_phase: "none"\` | Start from \`/aped-a\` |
 | Any phase \`in-progress\` | Re-invoke that phase (ask user: resume or restart?) |
 | analyze \`done\`, prd missing | Invoke \`/aped-p\` |
-| prd \`done\`, epics missing | Invoke \`/aped-e\` |
+| prd \`done\`, ux missing | Invoke \`/aped-ux\` (optional — ask user: design UX or skip to epics?) |
+| ux \`done\` or skipped, epics missing | Invoke \`/aped-e\` |
 | epics \`done\` | Loop: \`/aped-d\` — \`/aped-r\` until all stories \`done\` |
 | All stories \`done\` | Report pipeline complete |
 
@@ -929,6 +1107,7 @@ Create a task per pipeline phase:
 \`\`\`
 TaskCreate: "Phase A — Analyze"
 TaskCreate: "Phase P — PRD"
+TaskCreate: "Phase UX — UX Design (optional)"
 TaskCreate: "Phase E — Epics"
 TaskCreate: "Phase D — Dev Sprint"
 TaskCreate: "Phase R — Review"
@@ -938,7 +1117,7 @@ Update each to \`in_progress\` when invoking, \`completed\` when phase returns d
 
 ## Execution
 
-Use the Skill tool to invoke each phase: aped-a, aped-p, aped-e, aped-d, aped-r.
+Use the Skill tool to invoke each phase: aped-a, aped-p, aped-ux (optional), aped-e, aped-d, aped-r.
 Each phase updates \`${o}/state.yaml\` and chains automatically.
 
 ## Interruption Handling
