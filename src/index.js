@@ -580,15 +580,21 @@ function printDone(created, updated, skipped, mode) {
   console.log(`  ${a.emerald}${a.bold}╚══════════════════════════════════════╝${a.reset}`);
   console.log('');
 
-  console.log(`  ${a.bold}Available commands:${a.reset}`);
+  console.log(`  ${a.bold}Pipeline commands:${a.reset}`);
   console.log('');
-  console.log(`    ${a.emerald}${a.bold}/aped-a${a.reset}    ${dim('Analyze — parallel research → product brief')}`);
-  console.log(`    ${a.mint}${a.bold}/aped-p${a.reset}    ${dim('PRD — autonomous generation from brief')}`);
-  console.log(`    ${a.yellow}${a.bold}/aped-e${a.reset}    ${dim('Epics — requirements decomposition')}`);
-  console.log(`    ${a.lime}${a.bold}/aped-d${a.reset}    ${dim('Dev — TDD story implementation')}`);
-  console.log(`    ${a.red}${a.bold}/aped-r${a.reset}    ${dim('Review — adversarial code review')}`);
+  console.log(`    ${a.emerald}${a.bold}/aped-a${a.reset}     ${dim('Analyze — parallel research → product brief')}`);
+  console.log(`    ${a.mint}${a.bold}/aped-p${a.reset}     ${dim('PRD — autonomous generation from brief')}`);
+  console.log(`    ${a.yellow}${a.bold}/aped-e${a.reset}     ${dim('Epics — requirements decomposition')}`);
+  console.log(`    ${a.lime}${a.bold}/aped-d${a.reset}     ${dim('Dev — TDD story implementation')}`);
+  console.log(`    ${a.red}${a.bold}/aped-r${a.reset}     ${dim('Review — adversarial code review')}`);
   console.log('');
-  console.log(`    ${a.spring}${a.bold}/aped-quick${a.reset} ${dim('Quick fix/feature — bypass full pipeline')}`);
+  console.log(`  ${a.bold}Utility commands:${a.reset}`);
+  console.log('');
+  console.log(`    ${a.spring}${a.bold}/aped-s${a.reset}     ${dim('Sprint status — progress dashboard')}`);
+  console.log(`    ${a.spring}${a.bold}/aped-c${a.reset}     ${dim('Correct course — manage scope changes')}`);
+  console.log(`    ${a.spring}${a.bold}/aped-ctx${a.reset}   ${dim('Project context — brownfield analysis')}`);
+  console.log(`    ${a.spring}${a.bold}/aped-qa${a.reset}    ${dim('QA — generate E2E & integration tests')}`);
+  console.log(`    ${a.spring}${a.bold}/aped-quick${a.reset} ${dim('Quick fix/feature — bypass pipeline')}`);
   console.log(`    ${a.spring}${a.bold}/aped-all${a.reset}   ${dim('Full pipeline A→P→E→D→R')}`);
   console.log('');
   console.log(`  ${dim('Guardrail hook active — pipeline coherence enforced')}`);

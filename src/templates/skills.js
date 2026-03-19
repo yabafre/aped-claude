@@ -386,6 +386,348 @@ Severity: CRITICAL > HIGH > MEDIUM > LOW. Format: \`[Severity] Description [file
 Update \`${o}/state.yaml\`. If more stories — chain to \`/aped-d\`. If all done — report completion.
 `,
     },
+    // ── aped-s ──────────────────────────────────────────────
+    {
+      path: `${a}/aped-s/SKILL.md`,
+      content: `---
+name: aped-s
+description: 'Sprint status dashboard — progress, blockers, next actions. Use when user says "sprint status", "show progress", "aped status", or invokes /aped-s.'
+---
+
+# APED Status — Sprint Dashboard
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract \`communication_language\`, \`ticket_system\`
+2. Read \`${o}/state.yaml\` — load full pipeline and sprint state
+
+## Pipeline Overview
+
+Display current pipeline phase and completion status:
+
+\`\`\`
+Pipeline: A[✓] → P[✓] → E[✓] → D[▶] → R[ ]
+\`\`\`
+
+For each completed phase, show the output artifact path.
+
+## Sprint Progress
+
+For each epic in \`sprint.stories\`:
+
+1. Count stories by status: \`done\`, \`in-progress\`, \`review\`, \`ready-for-dev\`, \`backlog\`
+2. Calculate completion percentage
+3. Display as progress bar:
+
+\`\`\`
+Epic 1: User Authentication     [████████░░] 80% (4/5 stories)
+  ✓ 1-1-project-setup           done
+  ✓ 1-2-user-registration       done
+  ✓ 1-3-login-flow              done
+  ✓ 1-4-password-reset          done
+  ▶ 1-5-session-management      in-progress
+\`\`\`
+
+## Blockers Detection
+
+Scan for:
+- Stories with \`[AI-Review]\` items → **Review blockers**
+- Stories \`in-progress\` for more than 1 session → **Stuck stories**
+- Missing dependencies between stories → **Dependency blockers**
+- HALT conditions logged in Dev Agent Record → **Dev halts**
+
+## Next Actions
+
+Based on current state, suggest the next logical command:
+- If stories \`ready-for-dev\`: suggest \`/aped-d\`
+- If stories in \`review\`: suggest \`/aped-r\`
+- If all stories \`done\`: suggest pipeline complete
+- If blockers found: describe resolution path
+
+## Ticket System Integration
+
+If \`ticket_system\` is not \`none\`:
+- Show ticket references alongside story statuses
+- Note any stories without ticket references
+
+## Output
+
+Display only — no file writes, no state changes. Pure read-only dashboard.
+`,
+    },
+    // ── aped-c ──────────────────────────────────────────────
+    {
+      path: `${a}/aped-c/SKILL.md`,
+      content: `---
+name: aped-c
+description: 'Correct course — manage scope changes and pivots during development. Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes /aped-c.'
+---
+
+# APED Correct Course — Managed Pivot
+
+Use when requirements change, priorities shift, or the current approach needs rethinking mid-pipeline.
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract config
+2. Read \`${o}/state.yaml\` — understand current pipeline state
+3. Read existing artifacts: brief, PRD, epics, stories
+
+## Impact Assessment
+
+Ask the user:
+1. **What changed?** — New requirement, removed feature, architectural pivot, priority shift
+2. **Why?** — User feedback, market shift, technical limitation, stakeholder decision
+
+Then analyze impact:
+
+### Scope Change Matrix
+
+| What changed | Artifacts affected | Action required |
+|---|---|---|
+| New feature added | PRD, Epics | Add FRs → create new stories |
+| Feature removed | PRD, Epics | Remove FRs → archive stories |
+| Architecture change | PRD NFRs, All stories | Update NFRs → review all Dev Notes |
+| Priority reorder | Epics, Sprint | Reorder stories → update sprint |
+| Complete pivot | Everything | Reset to /aped-a |
+
+## Change Execution
+
+### Minor change (new/removed feature)
+1. Update PRD: add/remove FRs, update scope
+2. Re-run validation: \`bash ${a}/aped-p/scripts/validate-prd.sh ${o}/prd.md\`
+3. Update epics: add/archive affected stories
+4. Re-run coverage: \`bash ${a}/aped-e/scripts/validate-coverage.sh ${o}/epics.md ${o}/prd.md\`
+5. Update \`${o}/state.yaml\`: mark affected stories as \`backlog\`
+
+### Major change (architecture/pivot)
+1. Confirm with user: "This invalidates in-progress work. Proceed?"
+2. Archive current artifacts to \`${o}/archive/{date}/\`
+3. Update PRD or restart from \`/aped-a\`
+4. Regenerate affected downstream artifacts
+
+## Story Impact Report
+
+For each in-progress or completed story:
+- **Safe**: story not affected by change
+- **Needs update**: story Dev Notes or ACs need modification
+- **Invalidated**: story no longer relevant — archive it
+
+## State Update
+
+Update \`${o}/state.yaml\`:
+- Reset affected stories to \`backlog\` or \`ready-for-dev\`
+- If major change: reset \`current_phase\` to appropriate earlier phase
+- Log the correction in pipeline phases:
+\`\`\`yaml
+corrections:
+  - date: "{date}"
+    type: "{minor|major}"
+    reason: "{user's reason}"
+    affected_stories: [...]
+\`\`\`
+
+## Guard Against Scope Creep
+
+After applying changes, verify:
+- Total FR count still within 10-80 range
+- No epic became too large (>8 stories)
+- No story became too large (>8 tasks)
+- Changed stories still fit single-session size
+`,
+    },
+    // ── aped-ctx ────────────────────────────────────────────
+    {
+      path: `${a}/aped-ctx/SKILL.md`,
+      content: `---
+name: aped-ctx
+description: 'Analyze existing project for context — brownfield documentation. Use when user says "analyze project", "document codebase", "project context", "aped context", or invokes /aped-ctx.'
+---
+
+# APED Context — Brownfield Project Analysis
+
+Use on existing codebases to generate project context before running the APED pipeline. Essential for brownfield projects where you're adding features to existing code.
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract config
+2. Verify this is a brownfield project (existing code, not greenfield)
+
+## Codebase Analysis
+
+### Phase 1: Structure Discovery
+
+Scan the project root:
+- Detect language/framework from config files (package.json, Cargo.toml, go.mod, pyproject.toml, etc.)
+- Map directory structure (max 3 levels deep)
+- Identify entry points, main modules, config files
+- Count: files, LOC, languages used
+
+### Phase 2: Architecture Mapping
+
+- Identify architectural pattern (MVC, hexagonal, microservices, monolith, etc.)
+- Map data flow: entry point → processing → storage → response
+- List external dependencies and integrations (APIs, databases, queues, caches)
+- Identify test framework and coverage approach
+
+### Phase 3: Convention Extraction
+
+- Naming conventions (files, functions, variables, classes)
+- Code organization patterns (feature-based, layer-based, domain-based)
+- Error handling patterns
+- Logging approach
+- Config management (env vars, config files, secrets)
+
+### Phase 4: Dependency Audit
+
+- List production dependencies with versions
+- Flag outdated or deprecated packages
+- Identify security advisories (if available)
+- Note lock file type (package-lock, yarn.lock, pnpm-lock, etc.)
+
+## Output
+
+Write project context to \`${o}/project-context.md\`:
+
+\`\`\`markdown
+# Project Context: {project_name}
+
+## Tech Stack
+- Language: {lang} {version}
+- Framework: {framework} {version}
+- Database: {db}
+- Test Framework: {test_framework}
+
+## Architecture
+- Pattern: {pattern}
+- Entry Point: {entry}
+- Key Modules: {modules}
+
+## Conventions
+- File naming: {convention}
+- Code style: {style}
+- Error handling: {pattern}
+
+## Dependencies
+| Package | Version | Purpose |
+|---------|---------|---------|
+
+## Integration Points
+- {service}: {purpose}
+
+## Notes for Development
+- {important context for new feature development}
+\`\`\`
+
+## State Update
+
+Update \`${o}/state.yaml\`:
+\`\`\`yaml
+project_context:
+  generated: true
+  path: "${o}/project-context.md"
+  type: "brownfield"
+\`\`\`
+
+## Next Steps
+
+Suggest:
+- If no brief exists: run \`/aped-a\` with project context loaded
+- If brief exists: context will inform \`/aped-p\` and \`/aped-d\` decisions
+`,
+    },
+    // ── aped-qa ─────────────────────────────────────────────
+    {
+      path: `${a}/aped-qa/SKILL.md`,
+      content: `---
+name: aped-qa
+description: 'Generate E2E and integration tests for completed features. Use when user says "generate tests", "E2E tests", "integration tests", "aped qa", or invokes /aped-qa.'
+---
+
+# APED QA — E2E & Integration Test Generation
+
+Generate comprehensive end-to-end and integration tests for completed stories or epics. Complements the unit tests written during /aped-d TDD.
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract config
+2. Read \`${o}/state.yaml\` — find completed stories/epics
+
+## Scope Selection
+
+Ask the user:
+1. **What to test?** — specific story, full epic, or all completed work
+2. **Test type?** — E2E (user journeys), Integration (API/service), or Both
+
+## Story/Epic Analysis
+
+For the selected scope:
+1. Read story files from \`${o}/stories/\`
+2. Extract all Acceptance Criteria (Given/When/Then)
+3. Map user journeys across stories (multi-step flows)
+4. Identify integration points (APIs, databases, external services)
+
+## Test Generation
+
+### E2E Tests (User Journeys)
+
+For each user journey that spans one or more stories:
+
+1. Map the full flow: entry → steps → expected outcome
+2. Generate test using the project's test framework
+3. Each AC's Given/When/Then becomes a test step
+4. Include:
+   - Happy path (main flow)
+   - Error paths (invalid input, unauthorized, not found)
+   - Edge cases (empty data, concurrent access, timeouts)
+
+### Integration Tests (API/Service)
+
+For each integration point:
+
+1. Test request/response contracts
+2. Test error handling (service down, timeout, malformed response)
+3. Test data consistency (DB state before/after)
+4. Test authentication/authorization boundaries
+
+### Test Naming Convention
+
+\`\`\`
+{test-type}/{epic-slug}/{story-slug}.test.{ext}
+\`\`\`
+
+## Framework Detection
+
+Read project config to auto-detect:
+- **Node.js**: Playwright, Cypress, or Puppeteer for E2E; Supertest for API
+- **Python**: Pytest + httpx for API; Playwright for E2E
+- **Go**: Go test + httptest for API
+- **Rust**: reqwest for API tests
+
+Use \`bash ${a}/aped-d/scripts/run-tests.sh\` to verify tests pass.
+
+## Test Coverage Report
+
+After generation:
+- List ACs covered vs uncovered
+- List user journeys tested
+- List integration points tested
+- Flag any untestable ACs (and why)
+
+## Output
+
+1. Write tests to project test directory (detect convention)
+2. Write QA report to \`${o}/qa-report.md\`:
+   - Stories tested
+   - Tests generated (count by type)
+   - Coverage gaps
+   - Manual test suggestions (for things that can't be automated)
+
+## No State Change
+
+QA doesn't affect pipeline state — it's an additive quality layer.
+`,
+    },
     // ── aped-quick ────────────────────────────────────────────
     {
       path: `${a}/aped-quick/SKILL.md`,
