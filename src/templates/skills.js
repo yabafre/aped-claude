@@ -7,7 +7,7 @@ export function skills(c) {
       path: `${a}/aped-a/SKILL.md`,
       content: `---
 name: aped-a
-description: 'Analyze project idea through parallel market, domain, and technical research. Use when user says "analyze project", "research idea", "aped analyze", or invokes /aped-a.'
+description: 'Analyzes a new project idea through parallel market, domain, and technical research. Use when user says "research idea", "aped analyze", or invokes /aped-a. Not for existing codebases — use aped-ctx for brownfield projects.'
 ---
 
 # APED Analyze — Parallel Research to Product Brief
@@ -100,7 +100,7 @@ Invoke Skill tool with \`skill: "aped-p"\` to proceed to PRD phase.
       path: `${a}/aped-p/SKILL.md`,
       content: `---
 name: aped-p
-description: 'Generate PRD autonomously from product brief. Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-p.'
+description: 'Generates PRD autonomously from product brief. Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-p.'
 ---
 
 # APED PRD — Autonomous PRD Generation
@@ -182,7 +182,7 @@ Invoke Skill tool with \`skill: "aped-e"\` to proceed to Epics phase.
       path: `${a}/aped-e/SKILL.md`,
       content: `---
 name: aped-e
-description: 'Create epics and stories from PRD with full FR coverage. Use when user says "create epics", "break into stories", "aped epics", or invokes /aped-e.'
+description: 'Creates epics and stories from PRD with full FR coverage. Use when user says "create epics", "break into stories", "aped epics", or invokes /aped-e.'
 ---
 
 # APED Epics & Stories — Requirements Decomposition
@@ -265,7 +265,8 @@ Invoke Skill tool with \`skill: "aped-d"\` to proceed to Dev Sprint.
       path: `${a}/aped-d/SKILL.md`,
       content: `---
 name: aped-d
-description: 'Dev sprint - implement next story with TDD red-green-refactor. Use when user says "start dev", "implement story", "aped dev", or invokes /aped-d.'
+description: 'Implements next story with TDD red-green-refactor cycle. Use when user says "start dev", "implement story", "aped dev", or invokes /aped-d.'
+disable-model-invocation: true
 ---
 
 # APED Dev Sprint — TDD Story Implementation
@@ -328,7 +329,7 @@ Read \`git_provider\` and \`ticket_system\` from config:
 
 1. Update story: mark tasks \`[x]\`, fill Dev Agent Record
 2. Update \`${o}/state.yaml\`: story — \`review\`
-3. Chain to \`/aped-r\`
+3. Invoke Skill tool with \`skill: "aped-r"\` to proceed to Review phase
 `,
     },
     // ── aped-r ──────────────────────────────────────────────
@@ -336,7 +337,8 @@ Read \`git_provider\` and \`ticket_system\` from config:
       path: `${a}/aped-r/SKILL.md`,
       content: `---
 name: aped-r
-description: 'Adversarial code review for completed stories. Use when user says "review code", "run review", "aped review", or invokes /aped-r.'
+description: 'Reviews completed stories adversarially with minimum 3 findings. Use when user says "review code", "run review", "aped review", or invokes /aped-r.'
+disable-model-invocation: true
 ---
 
 # APED Review — Adversarial Code Review
@@ -383,7 +385,7 @@ Severity: CRITICAL > HIGH > MEDIUM > LOW. Format: \`[Severity] Description [file
 
 ## State Update
 
-Update \`${o}/state.yaml\`. If more stories — chain to \`/aped-d\`. If all done — report completion.
+Update \`${o}/state.yaml\`. If more stories remain: invoke Skill tool with \`skill: "aped-d"\`. If all stories done: report pipeline completion.
 `,
     },
     // ── aped-s ──────────────────────────────────────────────
@@ -391,7 +393,8 @@ Update \`${o}/state.yaml\`. If more stories — chain to \`/aped-d\`. If all don
       path: `${a}/aped-s/SKILL.md`,
       content: `---
 name: aped-s
-description: 'Sprint status dashboard — progress, blockers, next actions. Use when user says "sprint status", "show progress", "aped status", or invokes /aped-s.'
+description: 'Shows sprint status dashboard with progress, blockers, and next actions. Use when user says "sprint status", "show progress", "aped status", or invokes /aped-s.'
+allowed-tools: Read, Grep, Glob, Bash
 ---
 
 # APED Status — Sprint Dashboard
@@ -460,7 +463,8 @@ Display only — no file writes, no state changes. Pure read-only dashboard.
       path: `${a}/aped-c/SKILL.md`,
       content: `---
 name: aped-c
-description: 'Correct course — manage scope changes and pivots during development. Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes /aped-c.'
+description: 'Manages scope changes and pivots during development with impact analysis. Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes /aped-c.'
+disable-model-invocation: true
 ---
 
 # APED Correct Course — Managed Pivot
@@ -541,7 +545,8 @@ After applying changes, verify:
       path: `${a}/aped-ctx/SKILL.md`,
       content: `---
 name: aped-ctx
-description: 'Analyze existing project for context — brownfield documentation. Use when user says "analyze project", "document codebase", "project context", "aped context", or invokes /aped-ctx.'
+description: 'Analyzes existing codebase to generate project context for brownfield development. Use when user says "document codebase", "project context", "existing project", "aped context", or invokes /aped-ctx. Not for new project ideation — use aped-a for greenfield.'
+allowed-tools: Read, Grep, Glob, Bash
 ---
 
 # APED Context — Brownfield Project Analysis
@@ -641,7 +646,7 @@ Suggest:
       path: `${a}/aped-qa/SKILL.md`,
       content: `---
 name: aped-qa
-description: 'Generate E2E and integration tests for completed features. Use when user says "generate tests", "E2E tests", "integration tests", "aped qa", or invokes /aped-qa.'
+description: 'Generates E2E and integration tests from acceptance criteria for completed features. Use when user says "generate tests", "E2E tests", "integration tests", "aped qa", or invokes /aped-qa.'
 ---
 
 # APED QA — E2E & Integration Test Generation
@@ -726,6 +731,10 @@ After generation:
 ## No State Change
 
 QA doesn't affect pipeline state — it's an additive quality layer.
+
+## Next Steps
+
+Suggest running \`/aped-s\` to view updated sprint status with QA coverage noted.
 `,
     },
     // ── aped-quick ────────────────────────────────────────────
@@ -733,7 +742,7 @@ QA doesn't affect pipeline state — it's an additive quality layer.
       path: `${a}/aped-quick/SKILL.md`,
       content: `---
 name: aped-quick
-description: 'Quick feature/fix implementation bypassing full pipeline. Use when user says "quick fix", "quick feature", "aped quick", or invokes /aped-quick.'
+description: 'Implements quick fixes and small features bypassing the full pipeline. Use when user says "quick fix", "quick feature", "hotfix", "aped quick", or invokes /aped-quick.'
 ---
 
 # APED Quick — Fast Track for Small Changes
@@ -804,7 +813,8 @@ Read \`ticket_system\` and \`git_provider\` from config.
       path: `${a}/aped-all/SKILL.md`,
       content: `---
 name: aped-all
-description: 'Run full APED pipeline from Analyze through Review. Use when user says "run full pipeline", "aped all", "start from scratch", or invokes /aped-all.'
+description: 'Runs the full APED pipeline from Analyze through Review with auto-resume. Use when user says "run full pipeline", "aped all", or invokes /aped-all.'
+disable-model-invocation: true
 ---
 
 # APED Pipeline — Full Orchestrator
