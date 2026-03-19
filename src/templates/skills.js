@@ -335,13 +335,18 @@ Story files: \`${o}/stories/{story-key}.md\`
 
 ## Ticket System Integration
 
-Read \`ticket_system\` from config. If not \`none\`:
+Read \`ticket_system\` from config. Read \`${a}/aped-d/references/ticket-git-workflow.md\` for full guide.
+
+If \`ticket_system\` is not \`none\`:
 - Add ticket reference in each story header: \`**Ticket:** {{ticket_id}}\`
-- If \`jira\`: format as \`PROJ-###\` placeholder
-- If \`linear\`: format as \`TEAM-###\` placeholder
-- If \`github-issues\`: format as \`#issue_number\` placeholder
-- If \`gitlab-issues\`: format as \`#issue_number\` placeholder
+- Add suggested branch name: \`**Branch:** feature/{{ticket_id}}-{{story-slug}}\`
+- Format ticket ID per provider:
+  - \`linear\`: \`TEAM-###\` (e.g., \`KON-10\`)
+  - \`jira\`: \`PROJ-###\` (e.g., \`PROJ-42\`)
+  - \`github-issues\`: \`#issue_number\` (e.g., \`#10\`)
+  - \`gitlab-issues\`: \`#issue_number\` (e.g., \`#10\`)
 - Note: actual ticket creation is manual — these are reference placeholders
+- In Dev Notes, add: "Commit prefix: \`feat({{ticket_id}})\`"
 
 ## FR Coverage Map
 
@@ -469,11 +474,32 @@ Mark \`[x]\` ONLY when: tests exist, pass 100%, implementation matches, ACs sati
 
 **STOP and ask user if:** new dependency, 3 consecutive failures, missing config, ambiguity.
 
-## Git Commit Convention
+## Git & Ticket Workflow
 
-Read \`git_provider\` and \`ticket_system\` from config:
-- Commit message format: \`type(scope): description\`
-- If ticket system configured, append ticket ref: \`type(scope): description [TICKET-ID]\`
+Read \`${a}/aped-d/references/ticket-git-workflow.md\` for full integration guide.
+
+Read \`ticket_system\` and \`git_provider\` from \`${a}/config.yaml\`.
+
+### Before Implementation
+If \`ticket_system\` is not \`none\`:
+1. Find the corresponding ticket/issue for this story
+2. Move ticket status to **In Progress**
+3. Create feature branch using ticket system's suggested name
+4. Add a comment on the ticket: implementation plan
+
+If \`ticket_system\` is \`none\`:
+1. Create branch: \`feature/{story-key}\`
+
+### During Implementation
+- Include ticket ID in EVERY commit: \`type({ticket-id}): description\`
+- Use magic words for auto-linking (see reference doc)
+- NEVER use \`git add .\` — stage specific files only
+
+### After Implementation
+1. Push branch and create PR/MR (adapt to \`git_provider\`):
+   - \`github\`: \`gh pr create --title "feat({ticket-id}): Story X.Y" --body "Fixes {ticket-id}"\`
+   - \`gitlab\`: \`glab mr create --title "feat({ticket-id}): Story X.Y" --description "Closes {ticket-id}"\`
+2. Move ticket to **In Review**
 
 ## Completion
 
@@ -571,6 +597,20 @@ Severity: CRITICAL > HIGH > MEDIUM > LOW. Format: \`[Severity] Description [file
 
 - MEDIUM/LOW only: fix automatically, story — \`done\`
 - HIGH+: fix or add \`[AI-Review]\` items, story — \`in-progress\`
+
+## Ticket & Git Update
+
+Read \`ticket_system\` and \`git_provider\` from \`${a}/config.yaml\`.
+Read \`${a}/aped-d/references/ticket-git-workflow.md\` for details.
+
+If story → \`done\`:
+1. If PR exists: approve/merge (adapt to \`git_provider\`)
+2. If \`ticket_system\` is not \`none\`: move ticket to **Done**
+3. Cleanup: delete feature branch after merge
+
+If story → \`in-progress\` (review found HIGH+ issues):
+1. Add [AI-Review] items as comments on the PR
+2. Ticket stays in **In Review**
 
 ## State Update
 
@@ -966,11 +1006,20 @@ Based on current state, suggest the next logical command:
 - If all stories \`done\`: suggest pipeline complete
 - If blockers found: describe resolution path
 
-## Ticket System Integration
+## Ticket System Sync
+
+Read \`${a}/aped-d/references/ticket-git-workflow.md\` for status mapping.
 
 If \`ticket_system\` is not \`none\`:
-- Show ticket references alongside story statuses
-- Note any stories without ticket references
+- Show ticket ID alongside each story status
+- Flag any stories without ticket references
+- Check sync: compare state.yaml statuses with expected ticket statuses
+- If divergence detected: warn user — "state.yaml says X, ticket system should be Y"
+- Display mapping table:
+  - \`backlog\` → Backlog/Todo
+  - \`in-progress\` → In Progress
+  - \`review\` → In Review
+  - \`done\` → Done
 
 ## Output
 
@@ -1402,13 +1451,18 @@ Quick checklist — no full adversarial review:
 - [ ] No regressions in existing tests
 - [ ] AC from quick spec satisfied
 
-## Git Commit
+## Git & Ticket Workflow
 
 Read \`ticket_system\` and \`git_provider\` from config.
-- Format: \`type(scope): description\`
-- Append ticket ref if configured
-- If \`git_provider\` is \`github\`: suggest PR creation with \`gh pr create\`
-- If \`git_provider\` is \`gitlab\`: suggest MR creation with \`glab mr create\`
+Read \`${a}/aped-d/references/ticket-git-workflow.md\` for full guide.
+
+1. **Branch**: create \`fix/{ticket-id}-{slug}\` or \`feature/{ticket-id}-{slug}\`
+2. **Commits**: \`type({ticket-id}): description\` — include magic words per ticket provider
+3. **PR/MR**:
+   - \`github\`: \`gh pr create --title "fix({ticket-id}): description" --body "Fixes {ticket-id}"\`
+   - \`gitlab\`: \`glab mr create --title "fix({ticket-id}): description" --description "Closes {ticket-id}"\`
+   - \`bitbucket\`: push branch, create PR via web
+4. **Ticket**: move to Done after merge
 
 ## Output
 
