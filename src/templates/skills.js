@@ -860,6 +860,14 @@ mkdir -p ${o}/ux
 5. Write \`${o}/ux/flows.md\` — navigation flow diagrams
 6. Take **screenshots** of each screen at desktop resolution → \`${o}/ux/screenshots/\`
 
+## Validation
+
+\`\`\`bash
+bash ${a}/aped-ux/scripts/validate-ux.sh ${o}/ux
+\`\`\`
+
+If validation fails: fix missing files or content and re-validate.
+
 ## State Update
 
 Update \`${o}/state.yaml\`:
@@ -913,6 +921,7 @@ metadata:
 
 1. Read \`${a}/config.yaml\` — extract \`communication_language\`, \`ticket_system\`
 2. Read \`${o}/state.yaml\` — load full pipeline and sprint state
+3. Read \`${a}/aped-s/references/status-format.md\` for display conventions
 
 ## Pipeline Overview
 
@@ -1004,6 +1013,7 @@ Use when requirements change, priorities shift, or the current approach needs re
 1. Read \`${a}/config.yaml\` — extract config
 2. Read \`${o}/state.yaml\` — understand current pipeline state
 3. Read existing artifacts: brief, PRD, epics, stories
+4. Read \`${a}/aped-c/references/scope-change-guide.md\` for impact matrix and process
 
 ## Impact Assessment
 
@@ -1105,6 +1115,7 @@ Use on existing codebases to generate project context before running the APED pi
 
 1. Read \`${a}/config.yaml\` — extract config
 2. Verify this is a brownfield project (existing code, not greenfield)
+3. Read \`${a}/aped-ctx/references/analysis-checklist.md\` for the full analysis checklist
 
 ## Codebase Analysis
 
@@ -1223,6 +1234,7 @@ Generate comprehensive end-to-end and integration tests for completed stories or
 
 1. Read \`${a}/config.yaml\` — extract config
 2. Read \`${o}/state.yaml\` — find completed stories/epics
+3. Read \`${a}/aped-qa/references/test-patterns.md\` for framework selection and test templates
 
 ## Scope Selection
 

@@ -50,6 +50,22 @@ export function references(c) {
       path: `${a}/aped-ux/references/ux-patterns.md`,
       content: UX_PATTERNS,
     },
+    {
+      path: `${a}/aped-s/references/status-format.md`,
+      content: STATUS_FORMAT,
+    },
+    {
+      path: `${a}/aped-c/references/scope-change-guide.md`,
+      content: SCOPE_CHANGE_GUIDE,
+    },
+    {
+      path: `${a}/aped-ctx/references/analysis-checklist.md`,
+      content: ANALYSIS_CHECKLIST,
+    },
+    {
+      path: `${a}/aped-qa/references/test-patterns.md`,
+      content: TEST_PATTERNS,
+    },
   ];
 }
 
@@ -798,4 +814,300 @@ Rules ranked by impact. Apply in order — never skip a higher-priority rule for
 - [ ] Color not sole indicator of state
 - [ ] Reduced motion and dynamic text size supported
 - [ ] ARIA roles/states announced correctly
+`;
+
+const STATUS_FORMAT = `# Sprint Status Dashboard Format
+
+## Pipeline Progress Bar
+
+Display format:
+\`\`\`
+Pipeline: A[✓] → P[✓] → UX[✓] → E[✓] → D[▶] → R[ ]
+\`\`\`
+
+Symbols:
+- \`✓\` = phase done
+- \`▶\` = phase in-progress
+- \` \` = phase not started
+- \`—\` = phase skipped
+
+## Epic Progress Bar
+
+\`\`\`
+Epic 1: {{title}}  [████████░░] 80% (4/5 stories)
+\`\`\`
+
+- Bar: 10 chars wide, \`█\` for done, \`░\` for remaining
+- Show fraction and percentage
+
+## Story Status Icons
+
+| Status | Icon | Meaning |
+|--------|------|---------|
+| done | ✓ | Story completed and reviewed |
+| review | ⟳ | Waiting for adversarial review |
+| in-progress | ▶ | Currently being implemented |
+| ready-for-dev | ○ | Ready to start |
+| backlog | · | Not yet planned |
+| blocked | ✗ | Blocked by issue |
+
+## Blocker Categories
+
+- **[AI-Review]** items — review findings not yet addressed
+- **HALT** — dev stopped due to missing config/dependency/ambiguity
+- **Stuck** — in-progress for multiple sessions without progress
+- **Dependency** — blocked by another story
+
+## Next Action Logic
+
+| Current State | Suggestion |
+|---------------|------------|
+| Stories ready-for-dev | "Run /aped-d to implement next story" |
+| Stories in review | "Run /aped-r to review completed story" |
+| All stories done | "Pipeline complete! Run /aped-qa for E2E tests" |
+| Blockers found | Describe each blocker and resolution path |
+| No state file | "Run /aped-a to start the pipeline" |
+`;
+
+const SCOPE_CHANGE_GUIDE = `# Scope Change Management Guide
+
+## Impact Assessment Matrix
+
+| Change Type | PRD | UX | Epics | Stories | Code | Severity |
+|-------------|-----|-----|-------|---------|------|----------|
+| New feature added | Add FRs | Add screens | New stories | Create | None | Minor |
+| Feature removed | Remove FRs | Remove screens | Archive stories | Archive | May delete | Minor |
+| FR modified | Update FR | May update | Update story ACs | Update | May refactor | Medium |
+| Architecture change | Update NFRs | May rebuild | Update all Dev Notes | Reset | May rewrite | Major |
+| Priority reorder | No change | No change | Reorder | Reset status | None | Minor |
+| Complete pivot | Restart | Restart | Restart | Restart | Archive | Critical |
+
+## Change Process
+
+### Step 1: Document the Change
+- What changed and why
+- Who requested it (user, stakeholder, technical discovery)
+- Date of change
+
+### Step 2: Impact Analysis
+- List all affected artifacts (PRD sections, stories, code files)
+- Classify severity (minor/medium/major/critical)
+- Estimate effort to apply change
+
+### Step 3: User Confirmation
+- Present impact summary to user
+- Get explicit "proceed" before making changes
+- For major/critical: warn about in-progress work loss
+
+### Step 4: Execute Change
+- Archive affected artifacts to \`{output}/archive/{date}/\`
+- Apply changes top-down (PRD → UX → Epics → Stories)
+- Re-validate at each level (scripts)
+- Update state.yaml
+
+### Step 5: Verify Consistency
+- FR coverage still 100%
+- No orphan stories
+- No broken dependencies
+- State reflects new reality
+
+## Scope Creep Detection
+
+Warning signs:
+- Total FRs grew >20% from original PRD
+- Epic count increased
+- Stories consistently exceed single-session size
+- "Just one more thing" pattern repeating
+
+Response:
+- Flag to user with metrics
+- Suggest moving additions to Growth phase
+- Enforce MVP discipline
+`;
+
+const ANALYSIS_CHECKLIST = `# Brownfield Project Analysis Checklist
+
+## Phase 1: Structure Discovery
+
+- [ ] Identify primary language(s) from config files
+- [ ] Map directory structure (max 3 levels)
+- [ ] Find entry points (main, index, app, server)
+- [ ] Count: files, LOC, languages
+- [ ] Identify package manager (npm, yarn, pnpm, cargo, pip, go mod)
+- [ ] Check for monorepo structure (workspaces, packages/)
+
+## Phase 2: Architecture Mapping
+
+- [ ] Identify pattern (MVC, hexagonal, microservices, monolith, serverless)
+- [ ] Map data flow: entry → processing → storage → response
+- [ ] List databases and data stores
+- [ ] List external API integrations
+- [ ] List message queues/event systems
+- [ ] Identify caching layer
+- [ ] Map authentication/authorization flow
+
+## Phase 3: Convention Extraction
+
+- [ ] File naming convention (camelCase, kebab-case, PascalCase)
+- [ ] Function/method naming convention
+- [ ] Code organization (feature-based, layer-based, domain-based)
+- [ ] Error handling pattern (try/catch, Result type, error codes)
+- [ ] Logging approach (structured, unstructured, library used)
+- [ ] Config management (env vars, .env files, config files, vault)
+- [ ] Linting/formatting (ESLint, Prettier, Biome, rustfmt)
+
+## Phase 4: Dependency Audit
+
+- [ ] List production dependencies with versions
+- [ ] Flag outdated packages (major versions behind)
+- [ ] Check for known security advisories
+- [ ] Identify lock file type
+- [ ] Note any vendored/bundled dependencies
+- [ ] Check for deprecated packages
+
+## Phase 5: Testing
+
+- [ ] Identify test framework(s)
+- [ ] Estimate test coverage (file count, coverage reports)
+- [ ] Check for CI/CD pipeline config
+- [ ] Identify test types present (unit, integration, E2E)
+- [ ] Check for test fixtures/factories/mocks
+
+## Output Format
+
+\`\`\`markdown
+# Project Context: {name}
+
+## Tech Stack
+- Language: {lang} {version}
+- Framework: {framework} {version}
+- Database: {db}
+- Test Framework: {test_fw}
+
+## Architecture
+- Pattern: {pattern}
+- Entry: {entry_point}
+- Modules: {key_modules}
+
+## Conventions
+- Files: {naming}
+- Code style: {linter}
+- Error handling: {pattern}
+
+## Dependencies ({count} total)
+| Package | Version | Purpose | Status |
+|---------|---------|---------|--------|
+
+## Integration Points
+| Service | Purpose | Protocol |
+|---------|---------|----------|
+
+## Notes
+- {important_context_for_dev}
+\`\`\`
+`;
+
+const TEST_PATTERNS = `# E2E & Integration Test Patterns
+
+## Framework Selection
+
+| Project Type | E2E Framework | Integration Framework |
+|-------------|---------------|----------------------|
+| Node.js + React | Playwright or Cypress | Supertest + Vitest |
+| Node.js + API only | - | Supertest + Jest/Vitest |
+| Next.js | Playwright | Next.js test utils |
+| Python + Django/Flask | Playwright | pytest + httpx |
+| Python + FastAPI | Playwright | pytest + httpx |
+| Go | - | go test + httptest |
+| Rust | - | reqwest + tokio::test |
+
+## E2E Test Structure
+
+\`\`\`
+tests/e2e/
+  {journey-name}.test.{ext}     # One file per user journey
+  fixtures/                      # Test data
+  helpers/                       # Page objects, utilities
+\`\`\`
+
+### User Journey Test Template
+
+\`\`\`
+describe("{Journey Name}", () => {
+  test("happy path: {description}", async () => {
+    // Given: {precondition from AC}
+    // When: {action from AC}
+    // Then: {outcome from AC}
+  });
+
+  test("error: {error scenario}", async () => {
+    // Given: {invalid state}
+    // When: {action}
+    // Then: {error handling}
+  });
+
+  test("edge: {edge case}", async () => {
+    // Given: {boundary condition}
+    // When: {action}
+    // Then: {expected behavior}
+  });
+});
+\`\`\`
+
+## Integration Test Structure
+
+\`\`\`
+tests/integration/
+  {endpoint-or-service}.test.{ext}
+  fixtures/
+  helpers/
+\`\`\`
+
+### API Test Template
+
+\`\`\`
+describe("{Endpoint/Service}", () => {
+  test("POST /api/resource - creates resource", async () => {
+    // Arrange: valid payload
+    // Act: POST request
+    // Assert: 201, response body, DB state
+  });
+
+  test("POST /api/resource - 400 on invalid input", async () => {
+    // Arrange: invalid payload
+    // Act: POST request
+    // Assert: 400, error message
+  });
+
+  test("GET /api/resource/:id - 404 on missing", async () => {
+    // Arrange: non-existent ID
+    // Act: GET request
+    // Assert: 404
+  });
+
+  test("auth: rejects unauthenticated requests", async () => {
+    // Arrange: no auth header
+    // Act: request
+    // Assert: 401
+  });
+});
+\`\`\`
+
+## Test Coverage Goals
+
+| Category | Target | How to verify |
+|----------|--------|---------------|
+| AC coverage | 100% of ACs have tests | Map each AC → test |
+| Happy paths | Every user journey | 1 E2E test per journey |
+| Error paths | All error states | 1 test per error scenario |
+| Auth boundaries | All protected routes | Unauthorized + forbidden |
+| Edge cases | Empty, null, max values | Boundary value analysis |
+
+## Anti-Patterns
+
+- **Flaky tests**: Don't depend on timing. Use waitFor, retries, explicit waits.
+- **Shared state**: Each test must be independent. Reset DB/state before each.
+- **Hardcoded selectors**: Use data-testid or accessible roles, not CSS classes.
+- **Testing implementation**: Test behavior, not internal structure.
+- **No assertions**: Every test must assert something. \`expect(true).toBe(true)\` is not a test.
 `;
