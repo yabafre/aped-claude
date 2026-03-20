@@ -92,8 +92,8 @@ for section in "\${REQUIRED_SECTIONS[@]}"; do
   fi
 done
 
-# Check FR format
-FR_LINES=$(grep -E '^FR[0-9]+:' "$FILE" 2>/dev/null || true)
+# Check FR format — accepts: FR1:, - FR1:, **FR1:**, * FR1:, etc.
+FR_LINES=$(grep -E '(^|[-*>[:space:]])\\*{0,2}FR[0-9]+\\*{0,2}\\s*:' "$FILE" 2>/dev/null || true)
 FR_COUNT=0
 if [[ -n "$FR_LINES" ]]; then
   FR_COUNT=$(echo "$FR_LINES" | wc -l | tr -d ' ')
@@ -111,7 +111,7 @@ fi
 ANTI_PATTERNS=("easy" "intuitive" "fast" "responsive" "simple" "multiple" "several" "various")
 
 for pattern in "\${ANTI_PATTERNS[@]}"; do
-  MATCHES=$(grep -inE "^FR[0-9]+:.*\\b\${pattern}\\b" "$FILE" 2>/dev/null || true)
+  MATCHES=$(grep -inE 'FR[0-9]+.*:.*\\b\${pattern}\\b' "$FILE" 2>/dev/null || true)
   if [[ -n "$MATCHES" ]]; then
     ISSUES+=("ANTI-PATTERN '$pattern' found in FR: $MATCHES")
   fi
