@@ -10,7 +10,9 @@ export function guardrail(c) {
 # Validates prompt coherence against pipeline state, existing artifacts, and memories.
 # Returns JSON with "decision" and optionally "addToPrompt" to inject context.
 
-set -euo pipefail
+set -u
+# Note: NOT using set -e or pipefail — grep returns exit 1 on no match
+# which would kill the script. We handle errors explicitly.
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 STATE_FILE="$PROJECT_ROOT/${o}/state.yaml"
@@ -33,9 +35,9 @@ if [[ -f "$STATE_FILE" ]]; then
 fi
 
 # ── Read communication language from config ──
-LANG="english"
+COMM_LANG="english"
 if [[ -f "$CONFIG_FILE" ]]; then
-  LANG=$(grep 'communication_language:' "$CONFIG_FILE" | sed 's/.*communication_language:[[:space:]]*//' | tr -d ' ' || echo "english")
+  COMM_LANG=$(grep 'communication_language:' "$CONFIG_FILE" | sed 's/.*communication_language:[[:space:]]*//' | tr -d ' ' || echo "english")
 fi
 
 # ── Detect what the user is trying to do ──
@@ -146,7 +148,7 @@ for w in "\${WARNINGS[@]}"; do
   CONTEXT+="  ⚠ $w\\n"
 done
 
-if [[ "$LANG" == "french" ]] || [[ "$LANG" == "français" ]]; then
+if [[ "$COMM_LANG" == "french" ]] || [[ "$COMM_LANG" == "français" ]]; then
   CONTEXT+="\\nINSTRUCTION: Signale ces avertissements à l'utilisateur en français AVANT d'exécuter quoi que ce soit. Explique le problème et propose le chemin correct dans le pipeline. Demande confirmation si l'utilisateur veut quand même continuer."
 else
   CONTEXT+="\\nINSTRUCTION: Report these warnings to the user BEFORE executing anything. Explain the issue and suggest the correct pipeline path. Ask for confirmation if the user wants to proceed anyway."
