@@ -1,6 +1,5 @@
 import * as p from '@clack/prompts';
 import { existsSync, readFileSync, writeFileSync as writeFS } from 'node:fs';
-import { stdin } from 'node:process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import color from 'picocolors';
@@ -93,31 +92,9 @@ function parseArgs(argv) {
   return args;
 }
 
-async function readStdinLines() {
-  // Only read piped stdin if explicitly not a TTY and stdin has data ready
-  // Never consume stdin in TTY mode — @clack/prompts needs it for interactive input
-  if (stdin.isTTY || stdin.isTTY === undefined) return null;
-  return new Promise((resolve) => {
-    let data = '';
-    const timeout = setTimeout(() => {
-      stdin.removeAllListeners('data');
-      stdin.removeAllListeners('end');
-      resolve(null);
-    }, 50);
-    stdin.setEncoding('utf-8');
-    stdin.on('data', (chunk) => { data += chunk; });
-    stdin.on('end', () => {
-      clearTimeout(timeout);
-      resolve(data.split('\n'));
-    });
-  });
-}
-
 // ── Main ──
 export async function run() {
   const args = parseArgs(process.argv);
-  const stdinLines = await readStdinLines();
-  let lineIndex = 0;
 
   let detectedProject = '';
   try {
@@ -199,39 +176,6 @@ export async function run() {
   }
 
   // ── Interactive mode ──
-
-  // ── Piped stdin fallback for non-TTY ──
-  if (stdinLines) {
-    const nextLine = (def) => {
-      const val = (stdinLines[lineIndex++] || '').trim();
-      return val || def || '';
-    };
-
-    let mode = 'install';
-    if (existing) {
-      const choice = nextLine('1');
-      mode = choice === '2' ? 'fresh' : 'update';
-    }
-
-    const defaults = (mode === 'update' && existing) ? existing : DEFAULTS;
-    const config = {
-      projectName: nextLine(defaults.projectName || detectedProject),
-      authorName: nextLine(defaults.authorName),
-      communicationLang: nextLine(defaults.communicationLang),
-      documentLang: nextLine(defaults.documentLang),
-      apedDir: nextLine(defaults.apedDir || DEFAULTS.apedDir),
-      outputDir: nextLine(defaults.outputDir || DEFAULTS.outputDir),
-      commandsDir: nextLine(DEFAULTS.commandsDir),
-      ticketSystem: nextLine(defaults.ticketSystem || DEFAULTS.ticketSystem),
-      gitProvider: nextLine(defaults.gitProvider || DEFAULTS.gitProvider),
-      cliVersion: CLI_VERSION,
-    };
-
-    await runScaffold(config, mode);
-    return;
-  }
-
-  // ── TTY interactive prompts ──
   let mode = 'install';
 
   if (existing) {
