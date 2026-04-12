@@ -1015,11 +1015,26 @@ TaskCreate: "Code quality review"
 TaskCreate: "Generate review report"
 \`\`\`
 
+## Frontend Detection
+
+Before starting the review, detect if this is a frontend story:
+- Check if the story's File List contains \`.tsx\`, \`.jsx\`, \`.vue\`, \`.svelte\` files
+- Check if the story references UI components, screens, or visual elements
+- Check if \`${o}/ux/\` exists (UX phase was run)
+
+**If frontend story detected:**
+1. Ensure the dev server is running (\`npm run dev\` or equivalent)
+2. Use \`mcp__react-grab-mcp__get_element_context\` to inspect implemented UI elements
+3. Compare the rendered output with the UX spec (\`${o}/ux/design-spec.md\`) and screenshots
+4. Add a **Visual Review** section to the review report with visual findings
+
+This is automatic — do not ask the user whether to do visual review. If it's frontend code, review it visually.
+
 ## Adversarial Review
 
 Read \`${a}/aped-review/references/review-criteria.md\` for detailed criteria.
 
-Launch **2 Agent tool calls in parallel** for the review:
+Launch **3 Agent tool calls in parallel** for the review:
 
 ### Agent 1: AC & Task Validation (\`subagent_type: "feature-dev:code-explorer"\`)
 - For each AC: search code for evidence (file:line). Rate: IMPLEMENTED / PARTIAL / MISSING
@@ -1029,7 +1044,15 @@ Launch **2 Agent tool calls in parallel** for the review:
 - Security, Performance, Reliability, Test Quality
 - Focus on files listed in the story's File List section
 
-Once both agents return, merge findings. Update tasks to \`completed\`.
+### Agent 3: Visual Review (frontend only — skip if no frontend files)
+- \`subagent_type: "general-purpose"\`
+- Start dev server if not running
+- Use \`mcp__react-grab-mcp__get_element_context\` to inspect each implemented component
+- Compare with UX spec: correct tokens, spacing, typography, responsive behavior?
+- Check: correct component hierarchy, proper prop usage, accessibility attributes
+- Report visual discrepancies as findings
+
+Once all agents return, merge findings. Update tasks to \`completed\`.
 
 ### Minimum 3 findings enforced.
 
@@ -1322,9 +1345,10 @@ If any check fails: fix before showing to user.
 **This is the most important step.** The prototype must be validated by the user.
 
 1. Run \`npm run dev\` and give the user the local URL
-2. Present the pre-delivery checklist results
-3. Ask: "Review each screen. What needs to change?"
-4. Categories of feedback:
+2. **Use React Grab for visual review** — call \`mcp__react-grab-mcp__get_element_context\` to inspect specific UI elements the user selects. This gives you the component tree, props, and styles of any element the user points to, making review precise instead of guessing from screenshots.
+3. Present the pre-delivery checklist results
+4. Ask: "Review each screen. What needs to change?"
+5. Categories of feedback:
    - **Layout** — move, resize, reorder sections
    - **Content** — missing info, wrong hierarchy, unclear labels
    - **Style** — colors, spacing, typography adjustments
@@ -1332,8 +1356,8 @@ If any check fails: fix before showing to user.
    - **Components** — wrong component type, missing states, wrong behavior
    - **Dark mode** — contrast issues, token problems, scrim opacity
 
-5. **Iterate** until user says "approved" or "good enough"
-6. Each iteration: apply feedback → run checklist again → present → ask again
+6. **Iterate** until user says "approved" or "good enough"
+7. Each iteration: apply feedback → use React Grab to inspect the changed elements → run checklist again → present → ask again
 
 \`TaskUpdate: "F — Fill: user review" → completed\`
 
