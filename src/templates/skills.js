@@ -880,6 +880,23 @@ With epic context loaded, launch **2 Agent tool calls in parallel** for story-sp
 - Use MCP context7 (\`resolve-library-id\` then \`query-docs\`) for libraries in Dev Notes
 - Extract relevant API patterns and usage examples
 
+## Frontend Detection & Visual Dev Loop
+
+Before starting TDD, detect if this is a frontend story:
+- Check if the story's File List contains \`.tsx\`, \`.jsx\`, \`.vue\`, \`.svelte\` files
+- Check if \`${o}/ux/\` exists
+
+**If frontend story:**
+1. Ensure the dev server is running (\`npm run dev\` or equivalent)
+2. Before writing any component, use \`mcp__react-grab-mcp__get_element_context\` to inspect the **root layout** — understand the existing component tree, props, and styles as baseline
+3. After each GREEN pass on a UI task, use React Grab to inspect the implemented component:
+   - Verify it renders correctly in the component tree
+   - Compare with UX spec (\`${o}/ux/design-spec.md\`) — correct tokens, spacing, typography?
+   - Check the component is properly nested in the layout hierarchy
+4. If visual issues are found: fix before moving to REFACTOR
+
+This is systematic — every frontend task gets a visual check at GREEN, not just at review time.
+
 ## TDD Implementation
 
 Read \`${a}/aped-dev/references/tdd-engine.md\` for detailed rules.
@@ -891,12 +908,14 @@ Write failing tests first. Run: \`bash ${a}/aped-dev/scripts/run-tests.sh\`
 
 ### GREEN
 Write minimal code to pass. Run: \`bash ${a}/aped-dev/scripts/run-tests.sh\`
+**Frontend tasks:** after tests pass, use React Grab to verify the component renders correctly in the layout.
 
 ### REFACTOR
 Improve structure while green. Run tests again.
 
 ### GATE
 Mark \`[x]\` ONLY when: tests exist, pass 100%, implementation matches, ACs satisfied, no regressions.
+**Frontend tasks:** add a 6th condition — React Grab visual check confirms component matches UX spec.
 
 ## HALT Conditions
 
