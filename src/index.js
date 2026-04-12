@@ -94,13 +94,22 @@ function parseArgs(argv) {
 }
 
 async function readStdinLines() {
-  if (stdin.isTTY) return null;
+  // Only read piped stdin if explicitly not a TTY and stdin has data ready
+  // Never consume stdin in TTY mode — @clack/prompts needs it for interactive input
+  if (stdin.isTTY || stdin.isTTY === undefined) return null;
   return new Promise((resolve) => {
     let data = '';
+    const timeout = setTimeout(() => {
+      stdin.removeAllListeners('data');
+      stdin.removeAllListeners('end');
+      resolve(null);
+    }, 50);
     stdin.setEncoding('utf-8');
     stdin.on('data', (chunk) => { data += chunk; });
-    stdin.on('end', () => resolve(data.split('\n')));
-    setTimeout(() => resolve(null), 100);
+    stdin.on('end', () => {
+      clearTimeout(timeout);
+      resolve(data.split('\n'));
+    });
   });
 }
 
