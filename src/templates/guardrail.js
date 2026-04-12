@@ -7,30 +7,38 @@ export function guardrail(c) {
       executable: true,
       content: `#!/usr/bin/env bash
 # APED Guardrail — UserPromptSubmit hook
-# Uses the official Claude Code hook output format.
-# See: https://code.claude.com/docs/hooks
+# Injects pipeline coherence warnings into Claude's context.
+# Does NOT block — warns and asks for confirmation.
+#
+# stdin: JSON with hook_event_name + prompt
+# stdout: JSON with hookSpecificOutput.additionalContext
+# exit 0 = allow (always), context injection is advisory
 
-# NOT using set -e or pipefail — grep returns exit 1 on no match
-# which would kill the script. We handle errors explicitly.
+# No set -e: grep returns 1 on no match, which is expected behavior.
+# No set -u: some variables are intentionally unset.
+# No pipefail: same reason as -e.
 
 # ── Read stdin JSON ──
-INPUT=$(cat < /dev/stdin)
-
-# Extract prompt using simple string parsing (no jq dependency)
-PROMPT=""
-if command -v jq &>/dev/null; then
-  PROMPT=$(echo "$INPUT" | jq -r '.prompt // empty' 2>/dev/null || echo "")
-else
-  PROMPT=$(echo "$INPUT" | grep -o '"prompt":"[^"]*"' | sed 's/"prompt":"//;s/"$//' 2>/dev/null || echo "")
+INPUT=""
+if ! read -r -t 2 INPUT; then
+  exit 0
 fi
 
-# If no prompt or empty, allow
+# Extract prompt (jq preferred, fallback to grep)
+PROMPT=""
+if command -v jq &>/dev/null; then
+  PROMPT=$(printf '%s' "$INPUT" | jq -r '.prompt // empty' 2>/dev/null) || true
+else
+  PROMPT=$(printf '%s' "$INPUT" | grep -o '"prompt":"[^"]*"' | sed 's/"prompt":"//;s/"$//' 2>/dev/null) || true
+fi
+
+# If no prompt or empty, allow silently
 if [[ -z "$PROMPT" ]]; then
   exit 0
 fi
 
 # ── Resolve paths ──
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 STATE_FILE="$PROJECT_ROOT/${o}/state.yaml"
 CONFIG_FILE="$PROJECT_ROOT/${a}/config.yaml"
 OUTPUT_DIR="$PROJECT_ROOT/${o}"
@@ -61,16 +69,14 @@ WANTS_PRD=false
 WANTS_EPICS=false
 WANTS_DEV=false
 WANTS_REVIEW=false
-WANTS_ALL=false
 WANTS_QUICK=false
 WANTS_CODE=false
 
-echo "$PROMPT_LOWER" | grep -qE '(aped-a|/aped-a|analyze|analyse|research)' && WANTS_ANALYZE=true
-echo "$PROMPT_LOWER" | grep -qE '(aped-p|/aped-p|prd|product.req)' && WANTS_PRD=true
-echo "$PROMPT_LOWER" | grep -qE '(aped-e|/aped-e|epic|stories|story)' && WANTS_EPICS=true
-echo "$PROMPT_LOWER" | grep -qE '(aped-d|/aped-d|dev|implement|build|create.*component|create.*service)' && WANTS_DEV=true
-echo "$PROMPT_LOWER" | grep -qE '(aped-r|/aped-r|review|audit)' && WANTS_REVIEW=true
-echo "$PROMPT_LOWER" | grep -qE '(aped-all|/aped-all|full.pipeline|start.from.scratch)' && WANTS_ALL=true
+echo "$PROMPT_LOWER" | grep -qE '(aped-analyze|/aped-analyze|analyze|analyse|research)' && WANTS_ANALYZE=true
+echo "$PROMPT_LOWER" | grep -qE '(aped-prd|/aped-prd|prd|product.req)' && WANTS_PRD=true
+echo "$PROMPT_LOWER" | grep -qE '(aped-epics|/aped-epics|epic|stories|story)' && WANTS_EPICS=true
+echo "$PROMPT_LOWER" | grep -qE '(aped-dev|/aped-dev|dev|implement|build|create.*component|create.*service)' && WANTS_DEV=true
+echo "$PROMPT_LOWER" | grep -qE '(aped-review|/aped-review|review|audit)' && WANTS_REVIEW=true
 echo "$PROMPT_LOWER" | grep -qE '(aped-quick|/aped-quick|quick.fix|quick.feature|hotfix)' && WANTS_QUICK=true
 echo "$PROMPT_LOWER" | grep -qE '(code|implement|write.*function|create.*file|add.*feature|fix.*bug|refactor)' && WANTS_CODE=true
 
@@ -96,36 +102,36 @@ fi
 # Rule 1: Trying to code without epics/stories
 if [[ "$WANTS_CODE" == "true" || "$WANTS_DEV" == "true" ]] && [[ "$CURRENT_PHASE" != "dev" && "$CURRENT_PHASE" != "review" ]]; then
   if [[ "$HAS_EPICS" == "false" ]]; then
-    WARNINGS="$WARNINGS\\nSKIP_DETECTED: Attempting dev/code without epics. Current phase: $CURRENT_PHASE. Run /aped-a, /aped-p, /aped-e first."
+    WARNINGS="$WARNINGS\\nSKIP_DETECTED: Attempting dev/code without epics. Current phase: $CURRENT_PHASE. Run /aped-analyze, /aped-prd, /aped-epics first."
   elif [[ "$HAS_PRD" == "false" ]]; then
-    WARNINGS="$WARNINGS\\nSKIP_DETECTED: Attempting dev/code without PRD. Current phase: $CURRENT_PHASE. Run /aped-a, /aped-p first."
+    WARNINGS="$WARNINGS\\nSKIP_DETECTED: Attempting dev/code without PRD. Current phase: $CURRENT_PHASE. Run /aped-analyze, /aped-prd first."
   fi
 fi
 
 # Rule 2: PRD without brief
 if [[ "$WANTS_PRD" == "true" ]] && [[ "$HAS_BRIEF" == "false" ]] && [[ "$CURRENT_PHASE" != "prd" ]]; then
-  WARNINGS="$WARNINGS\\nMISSING_ARTIFACT: No product brief found. Run /aped-a first."
+  WARNINGS="$WARNINGS\\nMISSING_ARTIFACT: No product brief found. Run /aped-analyze first."
 fi
 
 # Rule 3: Epics without PRD
 if [[ "$WANTS_EPICS" == "true" ]] && [[ "$HAS_PRD" == "false" ]]; then
-  WARNINGS="$WARNINGS\\nMISSING_ARTIFACT: No PRD found. Run /aped-p first."
+  WARNINGS="$WARNINGS\\nMISSING_ARTIFACT: No PRD found. Run /aped-prd first."
 fi
 
 # Rule 4: Review without dev
 if [[ "$WANTS_REVIEW" == "true" ]] && [[ "$CURRENT_PHASE" != "dev" && "$CURRENT_PHASE" != "review" ]]; then
-  WARNINGS="$WARNINGS\\nPREMATURE_REVIEW: No story developed yet. Run /aped-d first."
+  WARNINGS="$WARNINGS\\nPREMATURE_REVIEW: No story developed yet. Run /aped-dev first."
 fi
 
 # Rule 5: Modifying upstream during dev
 if [[ "$CURRENT_PHASE" == "dev" || "$CURRENT_PHASE" == "review" ]]; then
   if [[ "$WANTS_PRD" == "true" || "$WANTS_ANALYZE" == "true" ]]; then
-    WARNINGS="$WARNINGS\\nSCOPE_CHANGE: Phase is '$CURRENT_PHASE'. Modifying PRD/brief invalidates epics and stories. Use /aped-c instead."
+    WARNINGS="$WARNINGS\\nSCOPE_CHANGE: Phase is '$CURRENT_PHASE'. Modifying PRD/brief invalidates epics and stories. Use /aped-course instead."
   fi
 fi
 
 # Rule 6: Skipping phases
-if [[ "$WANTS_DEV" == "true" ]] && [[ "$WANTS_ALL" == "false" ]]; then
+if [[ "$WANTS_DEV" == "true" ]]; then
   if [[ "$CURRENT_PHASE" == "none" || "$CURRENT_PHASE" == "analyze" ]]; then
     WARNINGS="$WARNINGS\\nPHASE_SKIP: Jumping from '$CURRENT_PHASE' to dev skips critical steps. Pipeline: Analyze -> PRD -> Epics -> Dev."
   fi
@@ -137,25 +143,28 @@ if [[ -z "$WARNINGS" ]]; then
 fi
 
 # ── Build context for Claude ──
-CONTEXT="[APED GUARDRAIL] Pipeline coherence check.\\nCurrent phase: $CURRENT_PHASE | Artifacts: brief=$HAS_BRIEF, prd=$HAS_PRD, epics=$HAS_EPICS\\nWarnings:$WARNINGS"
+CONTEXT="[APED GUARDRAIL] Pipeline coherence check."
+CONTEXT="$CONTEXT Current phase: $CURRENT_PHASE | Artifacts: brief=$HAS_BRIEF, prd=$HAS_PRD, epics=$HAS_EPICS"
+CONTEXT="$CONTEXT Warnings:$WARNINGS"
 
 if [[ "$COMM_LANG" == "french" ]] || [[ "$COMM_LANG" == "français" ]]; then
-  CONTEXT="$CONTEXT\\n\\nINSTRUCTION: Signale ces avertissements a l utilisateur en francais AVANT d executer quoi que ce soit. Explique le probleme et propose le chemin correct. Demande confirmation pour continuer."
+  CONTEXT="$CONTEXT INSTRUCTION: Signale ces avertissements a l utilisateur en francais AVANT d executer quoi que ce soit. Explique le probleme et propose le chemin correct. Demande confirmation pour continuer."
 else
-  CONTEXT="$CONTEXT\\n\\nINSTRUCTION: Report these warnings to the user BEFORE executing anything. Explain the issue and suggest the correct pipeline path. Ask for confirmation to proceed."
+  CONTEXT="$CONTEXT INSTRUCTION: Report these warnings to the user BEFORE executing anything. Explain the issue and suggest the correct pipeline path. Ask for confirmation to proceed."
 fi
 
 # ── Output using official Claude Code hook format ──
-# UserPromptSubmit: use hookSpecificOutput.additionalContext to inject context
-# Does NOT block — injects context so Claude warns the user
-cat << HOOKEOF
-{
-  "hookSpecificOutput": {
-    "hookEventName": "UserPromptSubmit",
-    "additionalContext": "$(echo "$CONTEXT" | sed 's/"/\\\\"/g')"
-  }
-}
-HOOKEOF
+# UserPromptSubmit: additionalContext injects context into Claude's prompt
+# Does NOT block — advisory warnings only
+# Use jq for safe JSON encoding if available, fallback to manual escaping
+if command -v jq &>/dev/null; then
+  ESCAPED=$(printf '%s' "$CONTEXT" | jq -Rs '.')
+  printf '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":%s}}' "$ESCAPED"
+else
+  # Manual escaping: backslash, quotes, control chars
+  ESCAPED=$(printf '%s' "$CONTEXT" | sed 's/\\\\/\\\\\\\\/g;s/"/\\\\"/g;s/	/\\\\t/g' | tr '\\n' ' ')
+  printf '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"%s"}}' "$ESCAPED"
+fi
 `,
     },
     {
@@ -168,7 +177,7 @@ HOOKEOF
         "hooks": [
           {
             "type": "command",
-            "command": "${a}/hooks/guardrail.sh"
+            "command": "$CLAUDE_PROJECT_DIR/${a}/hooks/guardrail.sh"
           }
         ]
       }
