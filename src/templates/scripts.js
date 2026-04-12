@@ -3,7 +3,7 @@ export function scripts(c) {
   const o = c.outputDir;
   return [
     {
-      path: `${a}/aped-a/scripts/validate-brief.sh`,
+      path: `${a}/aped-analyze/scripts/validate-brief.sh`,
       executable: true,
       content: `#!/usr/bin/env bash
 # Validate product brief has all required sections
@@ -53,7 +53,7 @@ exit 0
 `,
     },
     {
-      path: `${a}/aped-p/scripts/validate-prd.sh`,
+      path: `${a}/aped-prd/scripts/validate-prd.sh`,
       executable: true,
       content: `#!/usr/bin/env bash
 # Validate PRD has required sections, FR format, and no anti-patterns
@@ -131,7 +131,7 @@ exit 0
 `,
     },
     {
-      path: `${a}/aped-e/scripts/validate-coverage.sh`,
+      path: `${a}/aped-epics/scripts/validate-coverage.sh`,
       executable: true,
       content: `#!/usr/bin/env bash
 # Validate that all FRs from PRD are covered in epics
@@ -194,7 +194,7 @@ exit 0
 `,
     },
     {
-      path: `${a}/aped-d/scripts/run-tests.sh`,
+      path: `${a}/aped-dev/scripts/run-tests.sh`,
       executable: true,
       content: `#!/usr/bin/env bash
 # Auto-detect test framework and run tests
@@ -247,7 +247,7 @@ fi
 `,
     },
     {
-      path: `${a}/aped-r/scripts/git-audit.sh`,
+      path: `${a}/aped-review/scripts/git-audit.sh`,
       executable: true,
       content: `#!/usr/bin/env bash
 # Compare git changes vs story file list

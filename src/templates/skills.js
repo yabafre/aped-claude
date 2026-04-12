@@ -2,12 +2,12 @@ export function skills(c) {
   const a = c.apedDir;   // .aped  (engine: skills, config, templates)
   const o = c.outputDir; // docs/aped (output: generated artifacts + state)
   return [
-    // ── aped-a ──────────────────────────────────────────────
+    // ── aped-analyze ──────────────────────────────────────────────
     {
-      path: `${a}/aped-a/SKILL.md`,
+      path: `${a}/aped-analyze/SKILL.md`,
       content: `---
-name: aped-a
-description: 'Analyzes a new project idea through parallel market, domain, and technical research. Use when user says "research idea", "aped analyze", or invokes /aped-a. Not for existing codebases — use aped-ctx for brownfield projects.'
+name: aped-analyze
+description: 'Analyzes a new project idea through parallel market, domain, and technical research. Use when user says "research idea", "aped analyze", or invokes /aped-analyze. Not for existing codebases — use aped-context for brownfield projects.'
 license: MIT
 metadata:
   author: yabafre
@@ -18,49 +18,93 @@ metadata:
 
 ## Critical Rules
 
-- NEVER skip Discovery questions — research quality depends on clear inputs
+- NEVER skip Discovery — research quality depends on clear, detailed inputs
+- NEVER proceed to the next step without explicit user validation
 - ALL 3 agents must complete before synthesis — do not proceed with partial results
 - Take your time with synthesis — quality is more important than speed
 - Do not skip validation steps
+
+## Guiding Principles
+
+### 1. Discovery Is the Foundation
+The quality of the entire pipeline depends on how well the project is understood upfront. A vague brief produces a vague PRD, which produces vague stories. Invest time here — it pays for itself 10x downstream.
+
+### 2. Help the User Think, Don't Just Ask
+Many users know what they want but struggle to articulate it clearly. Your job is to guide them through structured thinking — probe deeper on vague answers, suggest angles they haven't considered, and reflect back what you understood so they can correct it.
+
+### 3. Research Informs, User Decides
+The 3 research agents bring data. The user brings vision and judgment. Present research findings clearly, highlight conflicts or surprises, and let the user make the final call on scope and direction.
 
 ## Setup
 
 1. Read \`${a}/config.yaml\` — extract \`user_name\`, \`communication_language\`, \`ticket_system\`, \`git_provider\`
 2. Read \`${o}/state.yaml\` — check \`pipeline.phases.analyze\`
    - If status is \`done\`: ask user — redo analysis or skip to next phase?
-   - If user skips: invoke Skill tool with \`skill: "aped-p"\` and stop
+   - If user skips: stop here (user will invoke next phase manually)
 
-## Discovery (2-3 questions max)
+## Phase 1: Guided Discovery
 
-Ask the user these questions (adapt to \`communication_language\`):
+This is a **conversation**, not a questionnaire. Adapt to \`communication_language\`. Ask one category at a time, wait for the answer, then ask follow-ups based on what the user said. Do NOT dump all questions at once.
 
-1. **What are we building?** — Core idea, the product/service in one paragraph
-2. **For whom?** — Target users, their pain points, current alternatives
-3. **Why now?** — Market timing, technology enabler, competitive gap
+### Round 1 — The Vision
+Start with the big picture. Ask:
+- **What are we building?** — The product/service in the user's own words
+- **What problem does it solve?** — The specific pain point, not a generic category
+- **What exists today?** — How do people currently solve this problem (even imperfectly)?
 
-Wait for answers before proceeding.
+Listen to the answers. If they're vague ("a platform for X"), probe:
+- "Can you walk me through a specific scenario where a user would use this?"
+- "What's the most frustrating thing about the current alternatives?"
 
-## Task Tracking
+### Round 2 — The Users
+Once the vision is clear, dig into the audience:
+- **Who is the primary user?** — Role, context, technical level
+- **Who pays?** — Sometimes the user and the buyer are different
+- **What does success look like for them?** — What outcome makes them come back?
 
-Create tasks to track this phase:
+Probe deeper if needed:
+- "Is this for individuals or teams? Small businesses or enterprise?"
+- "What's their budget sensitivity? Is this a must-have or a nice-to-have?"
+
+### Round 3 — The Constraints
+Now understand the boundaries:
+- **Why now?** — Market timing, technology enabler, competitive gap
+- **What's the MVP scope?** — If you had to launch in 2 weeks, what's the one thing it MUST do?
+- **Any technical constraints?** — Platform preferences, existing systems to integrate with, compliance needs
+
+### Round 4 — Validation
+Summarize what you understood back to the user in a structured format:
+- **Product:** one-line description
+- **Problem:** the pain point
+- **Users:** primary audience
+- **MVP core:** the one essential feature
+- **Constraints:** platform, integrations, compliance
+
+**Ask the user to confirm or correct this summary before proceeding.**
+
+⏸ **GATE: Do NOT proceed to research until the user explicitly validates the discovery summary.**
+
+## Phase 2: Parallel Research
+
+### Task Tracking
+
 \`\`\`
 TaskCreate: "Parallel research — Market, Domain, Technical"
-TaskCreate: "Synthesize research into product brief"
-TaskCreate: "Validate brief"
+TaskCreate: "Present research findings to user"
+TaskCreate: "Synthesize into product brief"
+TaskCreate: "Validate brief with user"
 \`\`\`
 
-## Parallel Research
-
-Read \`${a}/aped-a/references/research-prompts.md\` for detailed agent prompts.
+Read \`${a}/aped-analyze/references/research-prompts.md\` for detailed agent prompts.
 
 Launch **3 Agent tool calls in a single message** (parallel execution) with \`run_in_background: true\`:
 
 ### Agent 1: Market Research
 - \`subagent_type: "Explore"\`
 - Customer behavior and pain points in the target segment
-- Competitive landscape: direct and indirect competitors
+- Competitive landscape: direct and indirect competitors (names, pricing, strengths, weaknesses)
 - Market size and growth trajectory
-- Pricing models in the space
+- Pricing models and monetization patterns in the space
 - Use WebSearch for current data
 
 ### Agent 2: Domain Research
@@ -68,12 +112,12 @@ Launch **3 Agent tool calls in a single message** (parallel execution) with \`ru
 - Industry analysis and key trends
 - Regulatory requirements and compliance needs
 - Technical trends shaping the domain
-- Standards and certifications required
+- Standards, certifications, and legal requirements
 - Use WebSearch for current data
 
 ### Agent 3: Technical Research
 - \`subagent_type: "Explore"\`
-- Technology stack overview and options
+- Technology stack options with trade-offs
 - Integration patterns and APIs available
 - Architecture patterns for similar products
 - Open-source tools and frameworks relevant
@@ -81,35 +125,53 @@ Launch **3 Agent tool calls in a single message** (parallel execution) with \`ru
 
 Once all 3 agents return, update task: \`TaskUpdate: "Parallel research" → completed\`
 
-## Synthesis
+## Phase 3: Research Review
+
+**Present the research findings to the user** in a structured summary:
+- Key competitors found and how they compare
+- Market size and opportunity
+- Regulatory or compliance concerns discovered
+- Recommended technical approach and why
+- Any surprises or conflicts between research areas
+
+Highlight anything that might change the user's original vision:
+- "Research shows the market is more crowded than expected — here are 3 direct competitors..."
+- "There's a compliance requirement you may not have considered..."
+- "The technical approach X is more mature than Y for this use case..."
+
+⏸ **GATE: Ask the user if the research changes their vision. Wait for confirmation before synthesizing.**
+
+## Phase 4: Synthesis
 
 Ensure output directory exists:
 \`\`\`bash
 mkdir -p ${o}
 \`\`\`
 
-Once all 3 agents complete:
-
-1. Fuse research results into a product brief
+1. Fuse discovery answers + research results into a product brief
 2. Use template from \`${a}/templates/product-brief.md\`
 3. Fill all 5 sections: Executive Summary, Core Vision, Target Users, Success Metrics, MVP Scope
 4. Write output to \`${o}/product-brief.md\`
 
-## Validation
+## Phase 5: Validation
 
 \`\`\`bash
-bash ${a}/aped-a/scripts/validate-brief.sh ${o}/product-brief.md
+bash ${a}/aped-analyze/scripts/validate-brief.sh ${o}/product-brief.md
 \`\`\`
 
 If validation fails: fix missing sections and re-validate.
 
-Update tasks:
-\`\`\`
-TaskUpdate: "Synthesize research" → completed
-TaskUpdate: "Validate brief" → completed
-\`\`\`
+**Present the completed brief to the user.** Summarize the 5 sections and ask:
+- "Does this accurately capture your project?"
+- "Anything to add, remove, or change?"
+
+⏸ **GATE: Do NOT update state until the user explicitly approves the brief.**
+
+If user requests changes: apply them, re-validate, re-present.
 
 ## State Update
+
+Only after user approval:
 
 Update \`${o}/state.yaml\`:
 \`\`\`yaml
@@ -121,31 +183,40 @@ pipeline:
       output: "${o}/product-brief.md"
 \`\`\`
 
-## Chain
+## Next Step
 
-Invoke Skill tool with \`skill: "aped-p"\` to proceed to PRD phase.
+Tell the user: "Product brief is ready. When you're ready, run \`/aped-prd\` to generate the PRD."
+
+**Do NOT auto-chain.** The user decides when to proceed.
 
 ## Example
 
 User says: "I want to build a SaaS for restaurant inventory management"
-1. Discovery: ask what, for whom, why now
-2. Launch 3 agents: market (restaurant tech), domain (food service regulations), technical (inventory systems)
-3. Synthesize into product brief with 5 sections
-4. Validate → write to \`${o}/product-brief.md\`
+1. Discovery Round 1: "What specific problem? Manual counting? Waste tracking? Supplier ordering?"
+2. User clarifies: "Waste tracking — restaurants throw away too much and don't know why"
+3. Discovery Round 2: "Who uses it? Kitchen manager? Owner? Both?" → user answers
+4. Discovery Round 3: "Any POS system to integrate with? Compliance needs?" → user answers
+5. Discovery Round 4: summary → user confirms
+6. Launch 3 agents: market, domain, technical
+7. Present findings: "Found 2 direct competitors (FoodWaste Pro, KitchenTrack)..."
+8. User confirms direction
+9. Synthesize → validate → present brief → user approves
+10. "Run /aped-prd when ready."
 
 ## Common Issues
 
+- **User gives vague answers**: Don't accept "a platform for X." Probe with scenarios: "Walk me through a Tuesday morning for your target user."
 - **Agent returns empty results**: WebSearch may fail — retry with different keywords, broaden search terms
 - **Brief validation fails**: Check which section is missing, fill it from agent results, re-validate
-- **User gives vague answers**: Ask follow-up questions before launching research — garbage in = garbage out
+- **User changes direction after research**: This is normal and expected. Update the discovery summary, re-run research if needed, re-synthesize.
 `,
     },
-    // ── aped-p ──────────────────────────────────────────────
+    // ── aped-prd ──────────────────────────────────────────────
     {
-      path: `${a}/aped-p/SKILL.md`,
+      path: `${a}/aped-prd/SKILL.md`,
       content: `---
-name: aped-p
-description: 'Generates PRD autonomously from product brief. Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-p.'
+name: aped-prd
+description: 'Generates PRD autonomously from product brief. Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-prd.'
 license: MIT
 metadata:
   author: yabafre
@@ -166,7 +237,7 @@ metadata:
 1. Read \`${a}/config.yaml\` — extract \`user_name\`, \`communication_language\`, \`document_output_language\`
 2. Read \`${o}/state.yaml\` — check pipeline state
    - If \`pipeline.phases.prd.status\` is \`done\`: ask user — redo PRD or skip?
-   - If user skips: invoke Skill tool with \`skill: "aped-e"\` and stop
+   - If user skips: stop here (user will invoke next phase manually)
 
 ## Load Product Brief
 
@@ -175,11 +246,11 @@ metadata:
 
 ## Domain & Project Type Detection
 
-1. Read \`${a}/aped-p/references/domain-complexity.csv\`
+1. Read \`${a}/aped-prd/references/domain-complexity.csv\`
    - Match brief content against \`signals\` column
    - If match found: note \`complexity\`, \`key_concerns\`, \`special_sections\`
    - High-complexity domains (healthcare, fintech, govtech, etc.) — mandatory Domain Requirements section
-2. Read \`${a}/aped-p/references/project-types.csv\`
+2. Read \`${a}/aped-prd/references/project-types.csv\`
    - Match against \`detection_signals\`
    - Note \`required_sections\`, \`skip_sections\`, \`key_questions\`
 
@@ -218,14 +289,14 @@ Generate the PRD autonomously using \`${a}/templates/prd.md\` as structure.
 - Functional Requirements (target 10-80 FRs)
   - Format: \`FR#: [Actor] can [capability] [context/constraint]\`
   - Group by capability area
-  - Read \`${a}/aped-p/references/fr-rules.md\` — validate quality
+  - Read \`${a}/aped-prd/references/fr-rules.md\` — validate quality
 - Non-Functional Requirements (relevant categories only)
   - Format: \`The system shall [metric] [condition] [measurement method]\`
 
 ## Validation
 
 \`\`\`bash
-bash ${a}/aped-p/scripts/validate-prd.sh ${o}/prd.md
+bash ${a}/aped-prd/scripts/validate-prd.sh ${o}/prd.md
 \`\`\`
 
 ## Output & State
@@ -241,11 +312,14 @@ pipeline:
       output: "${o}/prd.md"
 \`\`\`
 
-## Chain
+## Next Step
 
-Ask the user: "Do you want to design the UX before creating epics?"
-- If yes: invoke Skill tool with \`skill: "aped-ux"\`
-- If no: invoke Skill tool with \`skill: "aped-e"\` to skip directly to Epics
+Tell the user: "PRD is ready. Next options:"
+- \`/aped-ux\` — Design UX (recommended for UI-heavy projects)
+- \`/aped-arch\` — Define architecture decisions (recommended before epics)
+- \`/aped-epics\` — Go straight to epics (if arch/UX not needed)
+
+**Do NOT auto-chain.** The user decides when to proceed.
 
 ## Example
 
@@ -259,28 +333,218 @@ From a restaurant inventory brief → PRD generates:
 
 - **FR count too low (<10)**: Brief may lack detail — re-read brief, extract implicit capabilities
 - **Anti-pattern words detected**: Replace "easy" with step count, "fast" with time threshold
-- **Validation script fails**: Run \`bash ${a}/aped-p/scripts/validate-prd.sh ${o}/prd.md\` — fix reported issues one by one
+- **Validation script fails**: Run \`bash ${a}/aped-prd/scripts/validate-prd.sh ${o}/prd.md\` — fix reported issues one by one
 `,
     },
-    // ── aped-e ──────────────────────────────────────────────
+    // ── aped-arch ───────────────────────────────────────────────
     {
-      path: `${a}/aped-e/SKILL.md`,
+      path: `${a}/aped-arch/SKILL.md`,
       content: `---
-name: aped-e
-description: 'Creates epics and stories from PRD with full FR coverage. Use when user says "create epics", "break into stories", "aped epics", or invokes /aped-e.'
+name: aped-arch
+description: 'Collaborative architecture decisions for consistent AI implementation. Use when user says "create architecture", "technical architecture", "solution design", or invokes /aped-arch. Runs between PRD and Epics.'
 license: MIT
 metadata:
   author: yabafre
   version: ${c.cliVersion || '1.7.1'}
 ---
 
-# APED Epics & Stories — Requirements Decomposition
+# APED Architecture — Collaborative Solution Design
+
+Create architecture decisions through step-by-step discovery so that all downstream agents (dev, review, story) implement consistently. This is a **partnership** — you bring structured thinking, the user brings domain expertise and product vision.
+
+## Critical Rules
+
+- EVERY decision must have a rationale — no "just because" choices
+- Architecture is NOT implementation — define WHAT and WHY, not the code
+- Do NOT proceed to next section without user validation
+- Decisions made here are LAW for /aped-dev and /aped-review
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract config
+2. Read \`${o}/state.yaml\` — check pipeline state
+   - If \`pipeline.phases.architecture.status\` is \`done\`: ask user — redo or skip?
+   - If user skips: stop here
+3. Load input documents:
+   - PRD from \`${o}/prd.md\` (required)
+   - UX spec from \`${o}/ux/\` (if exists)
+   - Product brief from \`${o}/product-brief.md\`
+
+## Phase 1: Context Analysis
+
+Analyze loaded documents for architectural implications:
+- Extract FRs and NFRs that drive architectural choices
+- Identify scale requirements (users, data volume, throughput)
+- Note integration points (external APIs, services)
+- Flag compliance/security constraints
+
+Present findings to user:
+- "Here's what the PRD implies architecturally..."
+- Highlight any tensions between requirements
+
+⏸ **GATE: User validates the context analysis.**
+
+## Phase 2: Technology Decisions
+
+Work through each category collaboratively. For each, present options with trade-offs and let the user decide:
+
+### Data Layer
+- Database type and choice (SQL, NoSQL, graph...)
+- ORM/query builder
+- Caching strategy
+- Data validation approach
+
+### Authentication & Security
+- Auth strategy (session, JWT, OAuth, passkeys...)
+- Authorization model (RBAC, ABAC...)
+- Secrets management
+- CORS / rate limiting
+
+### API Design
+- Architecture style (REST, GraphQL, tRPC, gRPC...)
+- API versioning strategy
+- Error handling conventions
+- Pagination pattern
+
+### Frontend
+- Framework and rendering strategy (SSR, SPA, hybrid...)
+- State management
+- Component library / design system
+- Form handling and validation
+
+### Infrastructure
+- Hosting and deployment (serverless, containers, PaaS...)
+- CI/CD pipeline
+- Monitoring and logging
+- Environment strategy (dev, staging, prod)
+
+For each category:
+1. Present 2-3 options with pros/cons
+2. Make a recommendation with rationale
+3. User decides
+4. Record the decision
+
+⏸ **GATE: User validates all technology decisions.**
+
+## Phase 3: Implementation Patterns
+
+Define conventions that ensure consistency across agents and stories:
+
+### Naming Conventions
+- Files and directories (kebab-case, camelCase...)
+- Components, functions, variables
+- Database tables, columns
+- API endpoints
+
+### Code Structure
+- Project directory tree (full layout)
+- Module/layer boundaries (where does business logic live?)
+- Import conventions
+- Test file locations and naming
+
+### Communication Patterns
+- Error format (how errors flow from DB to API to UI)
+- Logging format and levels
+- Event/message patterns (if applicable)
+
+### Process Rules
+- Branch naming convention
+- Commit message format
+- PR/MR requirements
+- Required test coverage level
+
+Present each category. Discuss with user. Record decisions.
+
+⏸ **GATE: User validates patterns.**
+
+## Phase 4: Structure & Mapping
+
+Create the concrete project structure:
+
+1. **Directory tree** — full project layout with annotations
+2. **FR → File mapping** — which FRs are implemented where
+3. **Integration boundaries** — where external systems connect
+4. **Shared code inventory** — utilities, types, constants that multiple features share
+
+Present to user for review.
+
+⏸ **GATE: User validates structure.**
+
+## Phase 5: Validation
+
+Check coherence:
+- [ ] All technology decisions work together (no conflicts)
+- [ ] Every FR/NFR from PRD has a clear implementation path
+- [ ] Security requirements are addressed
+- [ ] Scale requirements are supported by chosen stack
+- [ ] No orphan decisions (every choice connects to a requirement)
+
+Present validation results. Flag any gaps.
+
+⏸ **GATE: User approves the architecture document.**
+
+## Output
+
+Write architecture document to \`${o}/architecture.md\`:
+- Project Context Analysis
+- Technology Decisions (with rationale for each)
+- Implementation Patterns & Conventions
+- Project Structure & FR Mapping
+- Validation Results
+
+Update \`${o}/state.yaml\`:
+\`\`\`yaml
+pipeline:
+  current_phase: "architecture"
+  phases:
+    architecture:
+      status: "done"
+      output: "${o}/architecture.md"
+\`\`\`
+
+## Example
+
+PRD says: SaaS for restaurant inventory, 500 concurrent users, POS integration, HACCP compliance.
+
+Phase 2 discussion:
+- Data: "PostgreSQL — relational fits inventory domain, JSONB for flexible item attributes"
+- Auth: "Supabase Auth + RLS — multi-tenant per restaurant"
+- API: "tRPC — type-safe, fast iteration for SaaS MVP"
+- Frontend: "Next.js App Router + shadcn/ui — SSR for SEO, RSC for performance"
+- Infra: "Vercel + Supabase — zero-ops for MVP stage"
+
+## Common Issues
+
+- **User unsure about a choice**: Present the simplest option as default — "start with X, migrate to Y if needed"
+- **Requirements conflict**: Flag it explicitly — "FR-12 wants real-time but NFR-3 wants minimal infra. Pick one."
+- **Over-engineering**: For MVP, prefer boring tech. Save the clever architecture for v2.
+
+## Next Step
+
+Tell the user: "Architecture is ready. Run \`/aped-epics\` to create the epic structure."
+
+**Do NOT auto-chain.** The user decides when to proceed.
+`,
+    },
+    // ── aped-epics ──────────────────────────────────────────────
+    {
+      path: `${a}/aped-epics/SKILL.md`,
+      content: `---
+name: aped-epics
+description: 'Creates epic structure and story list from PRD. Does NOT create story files — use /aped-story for that. Use when user says "create epics", "break into stories", "aped epics", or invokes /aped-epics.'
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
+---
+
+# APED Epics — Requirements Decomposition
 
 ## Critical Rules
 
 - EVERY FR must map to exactly one epic — no orphans, no phantoms
 - Epics describe USER VALUE, not technical layers — "User Authentication" not "Database Setup"
-- Each story must be completable in 1 dev session — split if >8 tasks
+- This skill creates the PLAN, not the story files — \`/aped-story\` creates one story file at a time
 - Quality is more important than speed — do not skip coverage validation
 
 ## Setup
@@ -288,7 +552,7 @@ metadata:
 1. Read \`${a}/config.yaml\` — extract config including \`ticket_system\`
 2. Read \`${o}/state.yaml\` — check pipeline state
    - If \`pipeline.phases.epics.status\` is \`done\`: ask user — redo or skip?
-   - If user skips: invoke Skill tool with \`skill: "aped-d"\` and stop
+   - If user skips: stop here (user will invoke next phase manually)
 
 ## Load PRD
 
@@ -301,16 +565,13 @@ metadata:
 \`\`\`
 TaskCreate: "Extract FRs and NFRs from PRD"
 TaskCreate: "Design epics (user-value grouping)"
-TaskCreate: "Create stories with ACs and tasks"
+TaskCreate: "Define story list per epic"
 TaskCreate: "FR coverage validation"
-TaskCreate: "Write story files"
 \`\`\`
-
-Update each to \`completed\` as you progress.
 
 ## Epic Design
 
-Read \`${a}/aped-e/references/epic-rules.md\` for design principles.
+Read \`${a}/aped-epics/references/epic-rules.md\` for design principles.
 
 ### Core Rules
 
@@ -319,34 +580,29 @@ Read \`${a}/aped-e/references/epic-rules.md\` for design principles.
 3. **User-outcome naming** — epic names describe what users can do
 4. **Starter template rule** — if project needs scaffolding, Epic 1 Story 1 = project setup
 
-### Story Slug Convention
+### Story Listing (NOT story files)
 
-Story keys: \`{epic#}-{story#}-{slug}\` — slug from title, lowercase, hyphens, max 30 chars.
-Story files: \`${o}/stories/{story-key}.md\`
+For each epic, list the stories with:
+- **Title** — what the story achieves (user-facing outcome)
+- **Story key** — \`{epic#}-{story#}-{slug}\` (slug from title, lowercase, hyphens, max 30 chars)
+- **Summary** — 1-2 sentences of scope
+- **FRs covered** — which FR numbers this story addresses
+- **Acceptance Criteria** — high-level Given/When/Then (will be refined in /aped-story)
+- **Estimated complexity** — S / M / L
 
-### Story Design
+Do NOT create the detailed story files here. The user will run \`/aped-story\` to create each one individually before implementing it.
 
-- Format: **As a** [role], **I want** [capability], **so that** [benefit]
-- Each story completable in 1 dev session
-- No forward dependencies within an epic
-- DB tables created ONLY when the story needs them
-- ACs in **Given/When/Then** format
-- Tasks as checkboxes: \`- [ ] task [AC: AC#]\`
+## Discussion with User
 
-## Ticket System Integration
+After designing the epics and story list, present them to the user:
+- Show the epic structure with story titles
+- Show the FR coverage map
+- Discuss the ordering — does the user agree with the implementation sequence?
+- Are any stories too large? Too granular?
 
-Read \`ticket_system\` from config. Read \`${a}/aped-d/references/ticket-git-workflow.md\` for full guide.
+⏸ **GATE: User must validate the epic structure and story list before proceeding.**
 
-If \`ticket_system\` is not \`none\`:
-- Add ticket reference in each story header: \`**Ticket:** {{ticket_id}}\`
-- Add suggested branch name: \`**Branch:** feature/{{ticket_id}}-{{story-slug}}\`
-- Format ticket ID per provider:
-  - \`linear\`: \`TEAM-###\` (e.g., \`KON-10\`)
-  - \`jira\`: \`PROJ-###\` (e.g., \`PROJ-42\`)
-  - \`github-issues\`: \`#issue_number\` (e.g., \`#10\`)
-  - \`gitlab-issues\`: \`#issue_number\` (e.g., \`#10\`)
-- Note: actual ticket creation is manual — these are reference placeholders
-- In Dev Notes, add: "Commit prefix: \`feat({{ticket_id}})\`"
+If user requests changes: adjust, re-validate, re-present.
 
 ## FR Coverage Map
 
@@ -355,25 +611,27 @@ Every FR from PRD mapped to exactly one epic. No orphans, no phantoms.
 ## Validation
 
 \`\`\`bash
-bash ${a}/aped-e/scripts/validate-coverage.sh ${o}/epics.md ${o}/prd.md
+bash ${a}/aped-epics/scripts/validate-coverage.sh ${o}/epics.md ${o}/prd.md
 \`\`\`
 
 ## Output
 
-\`\`\`bash
-mkdir -p ${o}/stories
-\`\`\`
-
-1. Write epics to \`${o}/epics.md\`
-2. Create story files in \`${o}/stories/\` using \`${a}/templates/story.md\`
-3. Update \`${o}/state.yaml\` with sprint section and pipeline phase
+1. Write epics and story list to \`${o}/epics.md\`
+2. Update \`${o}/state.yaml\` with sprint section (stories listed as \`pending\`) and pipeline phase
+3. Do NOT create \`${o}/stories/\` files — that is \`/aped-story\`'s job
 
 ## Example
 
 PRD with 25 FRs → 3 epics:
-- Epic 1: "Users can manage inventory" (FR1-FR8, 4 stories)
+- Epic 1: "Users can manage inventory" (FR1-FR8)
+  - 1-1-project-setup (S) — scaffold, deps, CI
+  - 1-2-inventory-crud (M) — create/read/update/delete items
+  - 1-3-search-filter (M) — search and filter inventory
+  - 1-4-bulk-import (L) — CSV bulk import
 - Epic 2: "Managers can monitor stock levels" (FR9-FR16, 3 stories)
 - Epic 3: "System sends automated alerts" (FR17-FR25, 3 stories)
+
+FR Coverage: FR1→1-1, FR2→1-2, FR3→1-2, ... (all mapped)
 
 ## Common Issues
 
@@ -381,17 +639,130 @@ PRD with 25 FRs → 3 epics:
 - **Epic too large**: Split by sub-domain — e.g., "User Auth" → "Registration" + "Sessions"
 - **Forward dependencies**: If story B needs A, merge them or restructure
 
-## Chain
+## Next Step
 
-Invoke Skill tool with \`skill: "aped-d"\` to proceed to Dev Sprint.
+Tell the user: "Epics structure is ready. Run \`/aped-story\` to create the first story file, then \`/aped-dev\` to implement it."
+
+**Do NOT auto-chain.** The user decides when to proceed.
 `,
     },
-    // ── aped-d ──────────────────────────────────────────────
+    // ── aped-story ────────────────────────────────────────────
     {
-      path: `${a}/aped-d/SKILL.md`,
+      path: `${a}/aped-story/SKILL.md`,
       content: `---
-name: aped-d
-description: 'Implements next story with TDD red-green-refactor cycle. Use when user says "start dev", "implement story", "aped dev", or invokes /aped-d.'
+name: aped-story
+description: 'Creates a detailed story file for the next story to implement. Use when user says "create story", "prepare next story", "aped story", or invokes /aped-story.'
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
+---
+
+# APED Story — Detailed Story Preparation
+
+Create a single, implementation-ready story file with all the context needed for \`/aped-dev\`.
+
+## Critical Rules
+
+- Create ONE story at a time — the next one to implement
+- The story file must be self-contained — everything the dev agent needs to implement
+- Discuss the story with the user before finalizing — this is a collaborative process
+- Quality of story definition determines quality of implementation
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract config including \`ticket_system\`
+2. Read \`${o}/state.yaml\` — find sprint stories
+3. Read \`${o}/epics.md\` — load epic structure and story list
+
+## Story Selection
+
+Scan \`sprint.stories\` for the first story with status \`pending\` (no story file yet).
+- If user specifies a story key: use that one instead
+- If all stories have files: "All stories are prepared. Run \`/aped-dev\` to implement."
+- Show the selected story's summary from epics.md
+
+## Context Compilation
+
+Before writing the story, gather context to make it rich and actionable:
+
+1. **PRD** — read the relevant FRs for this story
+2. **UX spec** — if exists, read relevant screens/components
+3. **Previous stories** — read completed stories from the same epic for continuity
+4. **Codebase** — if code exists, scan for relevant patterns, existing models, APIs
+
+## Collaborative Story Design
+
+Present a draft story to the user and discuss:
+
+### Story Structure
+- **Title** — user-facing outcome
+- **As a** [role], **I want** [capability], **so that** [benefit]
+- **Acceptance Criteria** — detailed Given/When/Then (refine from epics.md high-level ACs)
+
+### Discussion Points (ask the user)
+- "Does this scope feel right for one dev session?"
+- "Any technical constraints I should know about?"
+- "Should we split this differently?"
+- "Any edge cases you're thinking about?"
+
+⏸ **GATE: User must validate the story scope and ACs before the file is written.**
+
+## Story File Creation
+
+Use template \`${a}/templates/story.md\`. Fill every section:
+
+### Required Sections
+- **Header**: story key, epic, title, status (\`ready-for-dev\`)
+- **User Story**: As a / I want / So that
+- **Acceptance Criteria**: numbered, Given/When/Then format
+- **Tasks**: checkboxes with AC references \`- [ ] task description [AC: AC#]\`
+- **Dev Notes**: architecture guidance, file paths, dependencies, patterns to follow
+- **File List**: expected files to create/modify
+
+### Ticket Integration
+If \`ticket_system\` is not \`none\`:
+- Read \`${a}/aped-dev/references/ticket-git-workflow.md\`
+- Add \`**Ticket:** {{ticket_id}}\`
+- Add \`**Branch:** feature/{{ticket_id}}-{{story-slug}}\`
+- Add commit prefix in Dev Notes
+
+## Output
+
+1. Write story file to \`${o}/stories/{story-key}.md\`
+2. Update \`${o}/state.yaml\`: story status → \`ready-for-dev\`
+
+## Example
+
+User runs \`/aped-story\`:
+1. Next pending story: 1-2-inventory-crud
+2. Reads FR2, FR3 from PRD + inventory screen from UX spec
+3. Presents draft: "CRUD for inventory items — 4 ACs, 6 tasks"
+4. User: "Add an AC for duplicate item names"
+5. Updates draft, user validates
+6. Writes \`${o}/stories/1-2-inventory-crud.md\`
+7. "Story ready. Run \`/aped-dev\` to implement."
+
+## Common Issues
+
+- **Story too large (>8 tasks)**: Split into two stories — discuss with user where to cut
+- **Missing context from previous story**: Read the completed story file for decisions made
+- **User wants to skip a story**: Mark as \`skipped\` in state.yaml, move to next
+- **User wants to reorder stories**: Update state.yaml ordering, check for dependency issues
+
+## Next Step
+
+Tell the user: "Story file is ready at \`${o}/stories/{story-key}.md\`. Run \`/aped-dev\` to implement it."
+
+**Do NOT auto-chain.** The user decides when to proceed.
+`,
+    },
+    // ── aped-dev ──────────────────────────────────────────────
+    {
+      path: `${a}/aped-dev/SKILL.md`,
+      content: `---
+name: aped-dev
+description: 'Implements next story with TDD red-green-refactor cycle. Use when user says "start dev", "implement story", "aped dev", or invokes /aped-dev.'
 disable-model-invocation: true
 license: MIT
 metadata:
@@ -408,6 +779,34 @@ metadata:
 - Take your time — quality is more important than speed
 - Do not skip validation steps or test runs
 
+## Guiding Principles
+
+### 1. Understand Before You Code
+Read the story, its ACs, and the existing code BEFORE writing anything. If the story references files, read them. If it mentions a pattern, find an existing example in the codebase. The most expensive mistake is building the wrong thing correctly.
+
+### 2. Small Increments, Verified Progress
+Each task is one RED→GREEN→REFACTOR cycle. Do not batch multiple tasks into one implementation pass. A task that touches more than 3 files is suspicious — it may need splitting. Commit after each GREEN gate, not at the end.
+
+### 3. The Test Proves the Behavior, Not the Implementation
+Write tests that assert WHAT the code does, not HOW it does it. \`expect(result).toBe(42)\` is good. \`expect(mockDb.query).toHaveBeenCalledWith("SELECT...")\` is fragile. Test the contract, not the wiring.
+
+### 4. Existing Patterns Are Law
+If the codebase uses a specific pattern (repository pattern, service layer, naming convention), follow it exactly — even if you know a "better" way. Consistency across the codebase matters more than local perfection. Deviate only if the story explicitly requires it.
+
+### 5. Fail Fast, Ask Early
+Three consecutive test failures on the same task means your approach is wrong, not that you need to try harder. HALT and ask the user. A 2-minute conversation saves 30 minutes of brute-forcing.
+
+## Pre-Implementation Checklist
+
+Before writing ANY code for a story, verify you can check every box. If you can't, go back and gather more context.
+
+- [ ] Story file read — all ACs, tasks, and Dev Notes understood
+- [ ] Existing code explored — files listed in Dev Notes are read and understood
+- [ ] Dependencies identified — libraries needed are installed and documented
+- [ ] Test strategy clear — you know WHERE to put tests and WHAT to assert for each AC
+- [ ] No ambiguity — if anything is unclear, HALT and ask before proceeding
+- [ ] Branch created — feature branch exists, clean working tree confirmed
+
 ## Setup
 
 1. Read \`${a}/config.yaml\` — extract config including \`ticket_system\`, \`git_provider\`
@@ -417,7 +816,9 @@ metadata:
 
 Scan \`sprint.stories\` top-to-bottom for first \`ready-for-dev\` story.
 - If none found: report "All stories implemented or in review" and stop
-- Read story file from \`${o}/stories/{story-key}.md\`
+- Check if story file exists at \`${o}/stories/{story-key}.md\`
+  - If file missing: tell user "Story file not found. Run \`/aped-story\` first to prepare it." and stop
+- Read story file
 - Story key format: \`{epic#}-{story#}-{slug}\`
 
 ## Review Continuation Check
@@ -437,9 +838,36 @@ For each "- [ ] task description [AC: AC#]" in story:
 \`\`\`
 Update each to \`in_progress\` when starting RED, \`completed\` when GATE passes.
 
-## Context Gathering
+## Epic Context Compilation
 
-Launch **2 Agent tool calls in parallel** for context:
+Before diving into the story, check if a cached context file exists for this epic:
+
+**Cache path:** \`${o}/epic-{N}-context.md\` (where N = epic number from story key)
+
+### If cache exists and is fresh
+- Read it — skip compilation
+- A cache is "fresh" if no stories in this epic have been completed since the cache was written
+- Check: compare cache file mtime with the latest story completion timestamp in state.yaml
+
+### If cache is missing or stale
+Launch an Agent to compile the epic context:
+- \`subagent_type: "Explore"\`
+- \`run_in_background: false\` (need the result before proceeding)
+
+The agent reads and compiles into a single \`epic-{N}-context.md\`:
+1. **PRD excerpts** — FRs mapped to this epic (from \`${o}/prd.md\`)
+2. **Architecture decisions** — relevant patterns and conventions (from \`${o}/architecture.md\` if exists)
+3. **UX references** — screens and components for this epic (from \`${o}/ux/\` if exists)
+4. **Completed stories** — implementation details and decisions from already-done stories in this epic (from \`${o}/stories/\`)
+5. **Key code patterns** — scan the codebase for established patterns relevant to this epic
+
+Write the compiled context to \`${o}/epic-{N}-context.md\`.
+
+This compilation runs **once per epic** and is reused across all stories in the epic.
+
+## Story Context Gathering
+
+With epic context loaded, launch **2 Agent tool calls in parallel** for story-specific context:
 
 ### Agent 1: Code Context
 - \`subagent_type: "Explore"\`
@@ -454,15 +882,15 @@ Launch **2 Agent tool calls in parallel** for context:
 
 ## TDD Implementation
 
-Read \`${a}/aped-d/references/tdd-engine.md\` for detailed rules.
+Read \`${a}/aped-dev/references/tdd-engine.md\` for detailed rules.
 
 For each task (update TaskUpdate to \`in_progress\` when starting):
 
 ### RED
-Write failing tests first. Run: \`bash ${a}/aped-d/scripts/run-tests.sh\`
+Write failing tests first. Run: \`bash ${a}/aped-dev/scripts/run-tests.sh\`
 
 ### GREEN
-Write minimal code to pass. Run: \`bash ${a}/aped-d/scripts/run-tests.sh\`
+Write minimal code to pass. Run: \`bash ${a}/aped-dev/scripts/run-tests.sh\`
 
 ### REFACTOR
 Improve structure while green. Run tests again.
@@ -476,7 +904,7 @@ Mark \`[x]\` ONLY when: tests exist, pass 100%, implementation matches, ACs sati
 
 ## Git & Ticket Workflow
 
-Read \`${a}/aped-d/references/ticket-git-workflow.md\` for full integration guide.
+Read \`${a}/aped-dev/references/ticket-git-workflow.md\` for full integration guide.
 
 Read \`ticket_system\` and \`git_provider\` from \`${a}/config.yaml\`.
 
@@ -505,7 +933,12 @@ If \`ticket_system\` is \`none\`:
 
 1. Update story: mark tasks \`[x]\`, fill Dev Agent Record
 2. Update \`${o}/state.yaml\`: story — \`review\`
-3. Invoke Skill tool with \`skill: "aped-r"\` to proceed to Review phase
+
+## Next Step
+
+Tell the user: "Story implementation complete. Run \`/aped-review\` to review, or \`/aped-dev\` to start the next story."
+
+**Do NOT auto-chain.** The user decides when to proceed.
 
 ## Example
 
@@ -515,6 +948,17 @@ Story "1-2-user-registration":
 3. REFACTOR: extract validation → tests still pass
 4. GATE: tests exist ✓, pass ✓, matches spec ✓, ACs met ✓, no regressions ✓ → mark \`[x]\`
 
+## What NOT to Do
+
+- **Don't implement without reading existing code first.** If the story says "add validation to UserService", read UserService top to bottom before touching it. Building on assumptions about code you haven't read produces conflicts and regressions.
+- **Don't write tests after the implementation.** Tests written after are confirmation bias — they test what you built, not what you should have built. RED comes first, always.
+- **Don't batch multiple tasks into one commit.** Each task = one RED→GREEN→REFACTOR cycle = one commit. Batching makes it impossible to bisect regressions and defeats the purpose of incremental progress.
+- **Don't add dependencies silently.** Every new package is a HALT condition. The user decides, not you. Even "obvious" ones like a validation library.
+- **Don't fight the test framework.** If tests are hard to write, your code is hard to test. Refactor the code, don't add complexity to the tests.
+- **Don't \`git add .\`** — ever. Stage specific files. Accidental commits of \`.env\`, lockfile diffs, or debug files waste everyone's time.
+- **Don't skip the GATE.** "Tests pass, good enough" is not a gate. All 5 conditions: tests exist, pass 100%, implementation matches spec, ACs satisfied, no regressions.
+- **Don't brute-force failures.** 3 consecutive failures = wrong approach, not insufficient effort. HALT.
+
 ## Common Issues
 
 - **Test framework not detected**: Ensure package.json has vitest/jest dependency, or use \`run-tests.sh\` manually
@@ -523,12 +967,12 @@ Story "1-2-user-registration":
 - **Tests pass before writing code**: The test is wrong — it doesn't test new behavior. Rewrite it
 `,
     },
-    // ── aped-r ──────────────────────────────────────────────
+    // ── aped-review ──────────────────────────────────────────────
     {
-      path: `${a}/aped-r/SKILL.md`,
+      path: `${a}/aped-review/SKILL.md`,
       content: `---
-name: aped-r
-description: 'Reviews completed stories adversarially with minimum 3 findings. Use when user says "review code", "run review", "aped review", or invokes /aped-r.'
+name: aped-review
+description: 'Reviews completed stories adversarially with minimum 3 findings. Use when user says "review code", "run review", "aped review", or invokes /aped-review.'
 disable-model-invocation: true
 license: MIT
 metadata:
@@ -558,7 +1002,7 @@ Read story from \`${o}/stories/{story-key}.md\`
 ## Git Audit
 
 \`\`\`bash
-bash ${a}/aped-r/scripts/git-audit.sh ${o}/stories/{story-key}.md
+bash ${a}/aped-review/scripts/git-audit.sh ${o}/stories/{story-key}.md
 \`\`\`
 
 ## Task Tracking
@@ -573,7 +1017,7 @@ TaskCreate: "Generate review report"
 
 ## Adversarial Review
 
-Read \`${a}/aped-r/references/review-criteria.md\` for detailed criteria.
+Read \`${a}/aped-review/references/review-criteria.md\` for detailed criteria.
 
 Launch **2 Agent tool calls in parallel** for the review:
 
@@ -601,7 +1045,7 @@ Severity: CRITICAL > HIGH > MEDIUM > LOW. Format: \`[Severity] Description [file
 ## Ticket & Git Update
 
 Read \`ticket_system\` and \`git_provider\` from \`${a}/config.yaml\`.
-Read \`${a}/aped-d/references/ticket-git-workflow.md\` for details.
+Read \`${a}/aped-dev/references/ticket-git-workflow.md\` for details.
 
 If story → \`done\`:
 1. If PR exists: approve/merge (adapt to \`git_provider\`)
@@ -614,7 +1058,14 @@ If story → \`in-progress\` (review found HIGH+ issues):
 
 ## State Update
 
-Update \`${o}/state.yaml\`. If more stories remain: invoke Skill tool with \`skill: "aped-d"\`. If all stories done: report pipeline completion.
+Update \`${o}/state.yaml\`.
+
+## Next Step
+
+If all stories are done: report pipeline completion.
+If more stories remain: tell the user "Run \`/aped-dev\` for the next story, or \`/aped-status\` to check sprint status."
+
+**Do NOT auto-chain.** The user decides when to proceed.
 
 ## Example
 
@@ -623,6 +1074,15 @@ Review of story "1-2-user-registration":
 - [MEDIUM] Password stored without hashing [src/auth/register.ts:58]
 - [LOW] Missing error message i18n [src/auth/register.ts:71]
 Result: 3 findings → story back to \`in-progress\` with [AI-Review] items.
+
+## What NOT to Do
+
+- **Don't rubber-stamp.** "Code looks clean" is not a review. Your job is to find problems. If you found 0-2 issues, you didn't look hard enough — re-examine error handling, edge cases, missing tests, and security surface.
+- **Don't review only the happy path.** What happens when the input is null? Empty string? 10MB payload? Concurrent requests? The bugs live in the edges, not the golden path.
+- **Don't skip the git audit.** Files modified outside the story scope are the #1 source of silent regressions. The script catches what your eyes miss.
+- **Don't conflate style with substance.** Naming nitpicks and formatting preferences are LOW at best. Focus on logic errors, missing validation, security gaps, and test coverage holes.
+- **Don't auto-fix HIGH+ findings without understanding them.** A HIGH finding means something is structurally wrong. Slapping a fix on it without understanding why it happened will introduce a new bug. Send it back to dev with a clear explanation.
+- **Don't validate tests by reading them — run them.** A test that "looks correct" but hasn't been executed is decoration. Verify with \`run-tests.sh\`.
 
 ## Common Issues
 
@@ -653,7 +1113,7 @@ metadata:
 - Take your time with each screen — quality is more important than speed
 - Do not skip the user review cycle — the prototype MUST be approved before proceeding
 
-Produces a validated, interactive React prototype from the PRD. The prototype becomes the UX spec that \`/aped-e\` consumes as the visual source of truth.
+Produces a validated, interactive React prototype from the PRD. The prototype becomes the UX spec that \`/aped-epics\` consumes as the visual source of truth.
 
 **ANF = Assemble → Normalize → Fill**
 
@@ -665,7 +1125,7 @@ Inspirations         Vite + React app        All screens built
 + UI library         with REAL content       + interaction states
 + color/typo         from PRD context        + responsive behavior
 + components         (no lorem ipsum)        + user review cycles
-                                             = UX spec for /aped-e
+                                             = UX spec for /aped-epics
 \`\`\`
 
 ## Setup
@@ -673,7 +1133,7 @@ Inspirations         Vite + React app        All screens built
 1. Read \`${a}/config.yaml\` — extract config
 2. Read \`${o}/state.yaml\` — check pipeline state
    - If \`pipeline.phases.ux.status\` is \`done\`: ask user — redo or skip?
-   - If user skips: invoke Skill tool with \`skill: "aped-e"\` and stop
+   - If user skips: stop here (user will invoke next phase manually)
 3. Read \`${a}/aped-ux/references/ux-patterns.md\` for design patterns catalog
 
 ## Task Tracking
@@ -924,14 +1384,17 @@ pipeline:
         tokens: "${o}/ux-preview/src/tokens/"
 \`\`\`
 
-## Chain
+## Next Step
 
-Invoke Skill tool with \`skill: "aped-e"\` to proceed to Epics phase.
-\`/aped-e\` reads \`${o}/ux/design-spec.md\` and the preview app to enrich stories with:
+Tell the user: "UX design is ready. Run \`/aped-epics\` to create epics and stories."
+
+The epics phase reads \`${o}/ux/design-spec.md\` and the preview app to enrich stories with:
 - Component references (which component to use, which props)
 - Screen references (wireframe screenshots)
 - Design tokens to respect
 - Responsive requirements per screen
+
+**Do NOT auto-chain.** The user decides when to proceed.
 
 ## Common Issues
 
@@ -942,12 +1405,12 @@ Invoke Skill tool with \`skill: "aped-e"\` to proceed to Epics phase.
 - **Dark mode contrast fails**: Use semantic tokens, not hardcoded colors. Check with browser devtools contrast checker.
 `,
     },
-    // ── aped-s ──────────────────────────────────────────────
+    // ── aped-status ──────────────────────────────────────────────
     {
-      path: `${a}/aped-s/SKILL.md`,
+      path: `${a}/aped-status/SKILL.md`,
       content: `---
-name: aped-s
-description: 'Shows sprint status dashboard with progress, blockers, and next actions. Use when user says "sprint status", "show progress", "aped status", or invokes /aped-s.'
+name: aped-status
+description: 'Shows sprint status dashboard with progress, blockers, and next actions. Use when user says "sprint status", "show progress", "aped status", or invokes /aped-status.'
 allowed-tools: "Read Grep Glob Bash"
 license: MIT
 metadata:
@@ -961,7 +1424,7 @@ metadata:
 
 1. Read \`${a}/config.yaml\` — extract \`communication_language\`, \`ticket_system\`
 2. Read \`${o}/state.yaml\` — load full pipeline and sprint state
-3. Read \`${a}/aped-s/references/status-format.md\` for display conventions
+3. Read \`${a}/aped-status/references/status-format.md\` for display conventions
 
 ## Pipeline Overview
 
@@ -1001,14 +1464,14 @@ Scan for:
 ## Next Actions
 
 Based on current state, suggest the next logical command:
-- If stories \`ready-for-dev\`: suggest \`/aped-d\`
-- If stories in \`review\`: suggest \`/aped-r\`
+- If stories \`ready-for-dev\`: suggest \`/aped-dev\`
+- If stories in \`review\`: suggest \`/aped-review\`
 - If all stories \`done\`: suggest pipeline complete
 - If blockers found: describe resolution path
 
 ## Ticket System Sync
 
-Read \`${a}/aped-d/references/ticket-git-workflow.md\` for status mapping.
+Read \`${a}/aped-dev/references/ticket-git-workflow.md\` for status mapping.
 
 If \`ticket_system\` is not \`none\`:
 - Show ticket ID alongside each story status
@@ -1031,21 +1494,21 @@ Display only — no file writes, no state changes. Pure read-only dashboard.
 Pipeline: A[✓] → P[✓] → UX[✓] → E[✓] → D[▶] → R[ ]
 Epic 1: User Auth        [████████░░] 80% (4/5)
 Epic 2: Dashboard         [██░░░░░░░░] 20% (1/5)
-Next: /aped-d (story 1-5-session-mgmt is ready-for-dev)
+Next: /aped-dev (story 1-5-session-mgmt is ready-for-dev)
 \`\`\`
 
 ## Common Issues
 
-- **State file not found**: Ensure \`${o}/state.yaml\` exists — run /aped-a first
+- **State file not found**: Ensure \`${o}/state.yaml\` exists — run /aped-analyze first
 - **Stories show wrong status**: State.yaml may be stale — re-run the last phase to update it
 `,
     },
-    // ── aped-c ──────────────────────────────────────────────
+    // ── aped-course ──────────────────────────────────────────────
     {
-      path: `${a}/aped-c/SKILL.md`,
+      path: `${a}/aped-course/SKILL.md`,
       content: `---
-name: aped-c
-description: 'Manages scope changes and pivots during development with impact analysis. Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes /aped-c.'
+name: aped-course
+description: 'Manages scope changes and pivots during development with impact analysis. Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes /aped-course.'
 disable-model-invocation: true
 license: MIT
 metadata:
@@ -1062,7 +1525,7 @@ Use when requirements change, priorities shift, or the current approach needs re
 1. Read \`${a}/config.yaml\` — extract config
 2. Read \`${o}/state.yaml\` — understand current pipeline state
 3. Read existing artifacts: brief, PRD, epics, stories
-4. Read \`${a}/aped-c/references/scope-change-guide.md\` for impact matrix and process
+4. Read \`${a}/aped-course/references/scope-change-guide.md\` for impact matrix and process
 
 ## Impact Assessment
 
@@ -1080,21 +1543,21 @@ Then analyze impact:
 | Feature removed | PRD, Epics | Remove FRs → archive stories |
 | Architecture change | PRD NFRs, All stories | Update NFRs → review all Dev Notes |
 | Priority reorder | Epics, Sprint | Reorder stories → update sprint |
-| Complete pivot | Everything | Reset to /aped-a |
+| Complete pivot | Everything | Reset to /aped-analyze |
 
 ## Change Execution
 
 ### Minor change (new/removed feature)
 1. Update PRD: add/remove FRs, update scope
-2. Re-run validation: \`bash ${a}/aped-p/scripts/validate-prd.sh ${o}/prd.md\`
+2. Re-run validation: \`bash ${a}/aped-prd/scripts/validate-prd.sh ${o}/prd.md\`
 3. Update epics: add/archive affected stories
-4. Re-run coverage: \`bash ${a}/aped-e/scripts/validate-coverage.sh ${o}/epics.md ${o}/prd.md\`
+4. Re-run coverage: \`bash ${a}/aped-epics/scripts/validate-coverage.sh ${o}/epics.md ${o}/prd.md\`
 5. Update \`${o}/state.yaml\`: mark affected stories as \`backlog\`
 
 ### Major change (architecture/pivot)
 1. Confirm with user: "This invalidates in-progress work. Proceed?"
 2. Archive current artifacts to \`${o}/archive/{date}/\`
-3. Update PRD or restart from \`/aped-a\`
+3. Update PRD or restart from \`/aped-analyze\`
 4. Regenerate affected downstream artifacts
 
 ## Story Impact Report
@@ -1143,12 +1606,12 @@ User says "We need to add OAuth — the client changed requirements":
 - **FR count exceeds 80 after change**: Some features may need to move to a Growth phase scope
 `,
     },
-    // ── aped-ctx ────────────────────────────────────────────
+    // ── aped-context ────────────────────────────────────────────
     {
-      path: `${a}/aped-ctx/SKILL.md`,
+      path: `${a}/aped-context/SKILL.md`,
       content: `---
-name: aped-ctx
-description: 'Analyzes existing codebase to generate project context for brownfield development. Use when user says "document codebase", "project context", "existing project", "aped context", or invokes /aped-ctx. Not for new project ideation — use aped-a for greenfield.'
+name: aped-context
+description: 'Analyzes existing codebase to generate project context for brownfield development. Use when user says "document codebase", "project context", "existing project", "aped context", or invokes /aped-context. Not for new project ideation — use aped-analyze for greenfield.'
 allowed-tools: "Read Grep Glob Bash"
 license: MIT
 metadata:
@@ -1164,7 +1627,7 @@ Use on existing codebases to generate project context before running the APED pi
 
 1. Read \`${a}/config.yaml\` — extract config
 2. Verify this is a brownfield project (existing code, not greenfield)
-3. Read \`${a}/aped-ctx/references/analysis-checklist.md\` for the full analysis checklist
+3. Read \`${a}/aped-context/references/analysis-checklist.md\` for the full analysis checklist
 
 ## Codebase Analysis
 
@@ -1245,8 +1708,8 @@ project_context:
 ## Next Steps
 
 Suggest:
-- If no brief exists: run \`/aped-a\` with project context loaded
-- If brief exists: context will inform \`/aped-p\` and \`/aped-d\` decisions
+- If no brief exists: run \`/aped-analyze\` with project context loaded
+- If brief exists: context will inform \`/aped-prd\` and \`/aped-dev\` decisions
 
 ## Example
 
@@ -1277,7 +1740,7 @@ metadata:
 
 # APED QA — E2E & Integration Test Generation
 
-Generate comprehensive end-to-end and integration tests for completed stories or epics. Complements the unit tests written during /aped-d TDD.
+Generate comprehensive end-to-end and integration tests for completed stories or epics. Complements the unit tests written during /aped-dev TDD.
 
 ## Setup
 
@@ -1350,7 +1813,7 @@ Read project config to auto-detect:
 - **Go**: Go test + httptest for API
 - **Rust**: reqwest for API tests
 
-Use \`bash ${a}/aped-d/scripts/run-tests.sh\` to verify tests pass.
+Use \`bash ${a}/aped-dev/scripts/run-tests.sh\` to verify tests pass.
 
 ## Test Coverage Report
 
@@ -1375,7 +1838,7 @@ QA doesn't affect pipeline state — it's an additive quality layer.
 
 ## Next Steps
 
-Suggest running \`/aped-s\` to view updated sprint status with QA coverage noted.
+Suggest running \`/aped-status\` to view updated sprint status with QA coverage noted.
 
 ## Example
 
@@ -1411,6 +1874,16 @@ Use this for isolated fixes, small features, or refactors that don't warrant the
 
 1. Read \`${a}/config.yaml\` — extract config
 2. Read \`${o}/state.yaml\` — note current phase for context
+3. Scan \`${o}/quick-specs/\` for any specs with \`**Status:** in-progress\`
+   - If found: ask user — "Resume spec \`{slug}\` or start a new one?"
+   - If resume: load that spec and skip to Implementation
+
+## Spec Isolation
+
+Each quick spec is an independent file: \`${o}/quick-specs/{date}-{slug}.md\`
+- Multiple specs can exist in parallel (different sessions, different developers)
+- Status field tracks lifecycle: \`draft\` → \`in-progress\` → \`done\` or \`abandoned\`
+- Never overwrite an existing spec — always create a new file with a unique slug
 
 ## Scope Check
 
@@ -1431,17 +1904,23 @@ Ask the user:
 
 Generate a quick spec using \`${a}/templates/quick-spec.md\`:
 - Fill: title, type, what, why, acceptance criteria, files to change, test plan
+- Set \`**Status:** draft\`
 - Write to \`${o}/quick-specs/{date}-{slug}.md\`
+- Present spec to user for validation before implementing
+
+⏸ **GATE: User must approve the spec before implementation starts.**
+
+Once approved, update \`**Status:** in-progress\`
 
 ## Implementation (TDD)
 
-Same TDD cycle as aped-d but compressed:
+Same TDD cycle as aped-dev but compressed:
 
 1. **RED** — Write test for the expected behavior
 2. **GREEN** — Minimal implementation to pass
 3. **REFACTOR** — Clean up while green
 
-Run tests: \`bash ${a}/aped-d/scripts/run-tests.sh\`
+Run tests: \`bash ${a}/aped-dev/scripts/run-tests.sh\`
 
 ## Self-Review (30 seconds)
 
@@ -1454,7 +1933,7 @@ Quick checklist — no full adversarial review:
 ## Git & Ticket Workflow
 
 Read \`ticket_system\` and \`git_provider\` from config.
-Read \`${a}/aped-d/references/ticket-git-workflow.md\` for full guide.
+Read \`${a}/aped-dev/references/ticket-git-workflow.md\` for full guide.
 
 1. **Branch**: create \`fix/{ticket-id}-{slug}\` or \`feature/{ticket-id}-{slug}\`
 2. **Commits**: \`type({ticket-id}): description\` — include magic words per ticket provider
@@ -1466,7 +1945,7 @@ Read \`${a}/aped-d/references/ticket-git-workflow.md\` for full guide.
 
 ## Output
 
-1. Write quick spec to \`${o}/quick-specs/\` (create dir if needed)
+1. Update spec: set \`**Status:** done\`, fill the \`## Result\` section
 2. No state.yaml update — quick specs don't affect pipeline phase
 3. Report: files changed, tests added, quick spec path
 
@@ -1485,78 +1964,91 @@ User: "quick fix the login button not submitting"
 - **New dependency needed**: HALT — ask user, this may need architectural discussion
 `,
     },
-    // ── aped-all ─────────────────────────────────────────────
+    // ── aped-checkpoint ──────────────────────────────────────
     {
-      path: `${a}/aped-all/SKILL.md`,
+      path: `${a}/aped-checkpoint/SKILL.md`,
       content: `---
-name: aped-all
-description: 'Runs the full APED pipeline from Analyze through Review with auto-resume. Use when user says "run full pipeline", "aped all", or invokes /aped-all.'
-disable-model-invocation: true
+name: aped-checkpoint
+description: 'Human-in-the-loop review of recent changes. Summarizes what changed, highlights concerns, and halts for user approval. Use when user says "checkpoint", "review changes", "walk me through this", or invokes /aped-check.'
 license: MIT
 metadata:
   author: yabafre
   version: ${c.cliVersion || '1.7.1'}
 ---
 
-# APED Pipeline — Full Orchestrator
+# APED Checkpoint — Human-in-the-Loop Review
 
-## Resume Logic
+Pause, summarize recent changes, and wait for the user to confirm before proceeding. Use at any point in the pipeline when the user wants to review what's been done.
 
-1. Read \`${o}/state.yaml\`
-2. Determine resume point:
+## When to Use
 
-| State | Action |
-|-------|--------|
-| No state / \`current_phase: "none"\` | Start from \`/aped-a\` |
-| Any phase \`in-progress\` | Re-invoke that phase (ask user: resume or restart?) |
-| analyze \`done\`, prd missing | Invoke \`/aped-p\` |
-| prd \`done\`, ux missing | Invoke \`/aped-ux\` (optional — ask user: design UX or skip to epics?) |
-| ux \`done\` or skipped, epics missing | Invoke \`/aped-e\` |
-| epics \`done\` | Loop: \`/aped-d\` — \`/aped-r\` until all stories \`done\` |
-| All stories \`done\` | Report pipeline complete |
+- After a complex implementation before moving to the next story
+- After multiple quick-specs in a row
+- When you are unsure a decision was correct
+- When the user asks "what just happened?" or "walk me through this"
+- Before any irreversible action (merge, deploy, major refactor)
 
-## Task Tracking
+## Step 1: Gather Changes
 
-Create a task per pipeline phase:
-\`\`\`
-TaskCreate: "Phase A — Analyze"
-TaskCreate: "Phase P — PRD"
-TaskCreate: "Phase UX — UX Design (optional)"
-TaskCreate: "Phase E — Epics"
-TaskCreate: "Phase D — Dev Sprint"
-TaskCreate: "Phase R — Review"
-\`\`\`
+Analyze what has changed since the last checkpoint (or since session start):
 
-Update each to \`in_progress\` when invoking, \`completed\` when phase returns done.
+1. **Git diff**: Run \`git diff --stat\` and \`git diff --stat HEAD~N\` to see files changed
+2. **Recent commits**: Run \`git log --oneline -10\` for commit history
+3. **State changes**: Read \`${o}/state.yaml\` — what phase/story moved?
+4. **New artifacts**: Check for new files in \`${o}/\` (specs, stories, reports)
 
-## Execution
+## Step 2: Concern-Ordered Summary
 
-Use the Skill tool to invoke each phase: aped-a, aped-p, aped-ux (optional), aped-e, aped-d, aped-r.
-Each phase updates \`${o}/state.yaml\` and chains automatically.
+Present changes to the user ordered by **concern level** (highest first):
 
-## Interruption Handling
+### Concern Types (priority order)
+1. **RISK** — Security, data loss, breaking change potential
+2. **ASSUMPTION** — Decision made without explicit user input
+3. **DEVIATION** — Diverged from spec, story, or established pattern
+4. **INFO** — Notable but not concerning
 
-State persists in \`${o}/state.yaml\`. Next \`/aped-all\` resumes from last incomplete phase.
+### Format
 
-## Completion Report
+**Needs Attention** (if any):
+- [RISK] Description [file:line]
+- [ASSUMPTION] Description [file:line]
 
-Total phases, epics, stories, review iterations. Pipeline status: COMPLETE.
+**Changes Made:**
+- [type] Description [files affected]
 
-## Example
+**Artifacts Created/Updated:**
+- Path and what it contains
 
-Fresh start → full pipeline run:
-1. A: 3 parallel agents → product brief (5 min)
-2. P: PRD with 20 FRs generated + validated (3 min)
-3. UX: user says "skip" → proceed to epics
-4. E: 3 epics, 8 stories created (3 min)
-5. D→R loop: 8 stories × (dev + review) cycles
-6. All done → pipeline COMPLETE
+**Decisions Made:**
+- What was decided and why
 
-## Common Issues
+### Rules
+- Lead with concerns, not with a changelog
+- If there are no concerns, say so explicitly — do not manufacture them
+- Be specific: "Added user input to SQL query without parameterization" not "potential security issue"
+- Include file:line references for every concern
+- Keep it scannable — bullet points, not paragraphs
 
-- **Phase fails and can't recover**: Check state.yaml — reset the failed phase to \`in-progress\` and re-run /aped-all
-- **Context window limit during long pipeline**: Normal — /aped-all chains via Skill tool which starts fresh context per phase
-- **User wants to skip a phase**: Supported — each phase asks "redo or skip?" if already done
+## Step 3: HALT
+
+After presenting the summary, **stop and wait**.
+
+Do NOT:
+- Suggest next steps unprompted
+- Continue to the next story/phase
+- Ask "shall I proceed?" — just present and stop
+
+The user will respond with one of:
+- **Approve**: "looks good" / "proceed" / "ok"
+- **Request changes**: "fix the SQL injection" / "revert that file"
+- **Ask questions**: "why did you choose X over Y?"
+- **Abort**: "undo everything since last commit"
+
+If you make further changes based on user feedback, present a new mini-checkpoint and halt again.
+
+## No State Change
+
+Checkpoint is read-only — it does not modify state.yaml or advance the pipeline. It is purely an observation and communication tool.
 `,
     },
   ];

@@ -19,31 +19,31 @@ export function references(c) {
   const a = c.apedDir;
   return [
     {
-      path: `${a}/aped-a/references/research-prompts.md`,
+      path: `${a}/aped-analyze/references/research-prompts.md`,
       content: RESEARCH_PROMPTS,
     },
     {
-      path: `${a}/aped-p/references/fr-rules.md`,
+      path: `${a}/aped-prd/references/fr-rules.md`,
       content: FR_RULES,
     },
     {
-      path: `${a}/aped-p/references/domain-complexity.csv`,
+      path: `${a}/aped-prd/references/domain-complexity.csv`,
       content: loadCSV('domain-complexity.csv'),
     },
     {
-      path: `${a}/aped-p/references/project-types.csv`,
+      path: `${a}/aped-prd/references/project-types.csv`,
       content: loadCSV('project-types.csv'),
     },
     {
-      path: `${a}/aped-e/references/epic-rules.md`,
+      path: `${a}/aped-epics/references/epic-rules.md`,
       content: EPIC_RULES,
     },
     {
-      path: `${a}/aped-d/references/tdd-engine.md`,
+      path: `${a}/aped-dev/references/tdd-engine.md`,
       content: TDD_ENGINE,
     },
     {
-      path: `${a}/aped-r/references/review-criteria.md`,
+      path: `${a}/aped-review/references/review-criteria.md`,
       content: REVIEW_CRITERIA,
     },
     {
@@ -51,15 +51,15 @@ export function references(c) {
       content: UX_PATTERNS,
     },
     {
-      path: `${a}/aped-s/references/status-format.md`,
+      path: `${a}/aped-status/references/status-format.md`,
       content: STATUS_FORMAT,
     },
     {
-      path: `${a}/aped-c/references/scope-change-guide.md`,
+      path: `${a}/aped-course/references/scope-change-guide.md`,
       content: SCOPE_CHANGE_GUIDE,
     },
     {
-      path: `${a}/aped-ctx/references/analysis-checklist.md`,
+      path: `${a}/aped-context/references/analysis-checklist.md`,
       content: ANALYSIS_CHECKLIST,
     },
     {
@@ -67,7 +67,7 @@ export function references(c) {
       content: TEST_PATTERNS,
     },
     {
-      path: `${a}/aped-d/references/ticket-git-workflow.md`,
+      path: `${a}/aped-dev/references/ticket-git-workflow.md`,
       content: TICKET_GIT_WORKFLOW,
     },
   ];
@@ -397,7 +397,7 @@ backlog -> ready-for-dev -> in-progress -> review -> done
 
 When a story returns from review with \`[AI-Review]\` items:
 
-1. Story status will be \`in-progress\` (set by aped-r)
+1. Story status will be \`in-progress\` (set by aped-review)
 2. Look for items formatted as: \`[AI-Review][Severity] Description [file:line]\`
 3. Address ALL \`[AI-Review]\` items BEFORE continuing with regular tasks
 4. For each item:
@@ -866,11 +866,11 @@ Epic 1: {{title}}  [████████░░] 80% (4/5 stories)
 
 | Current State | Suggestion |
 |---------------|------------|
-| Stories ready-for-dev | "Run /aped-d to implement next story" |
-| Stories in review | "Run /aped-r to review completed story" |
+| Stories ready-for-dev | "Run /aped-dev to implement next story" |
+| Stories in review | "Run /aped-review to review completed story" |
 | All stories done | "Pipeline complete! Run /aped-qa for E2E tests" |
 | Blockers found | Describe each blocker and resolution path |
-| No state file | "Run /aped-a to start the pipeline" |
+| No state file | "Run /aped-analyze to start the pipeline" |
 `;
 
 const SCOPE_CHANGE_GUIDE = `# Scope Change Management Guide
