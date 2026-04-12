@@ -1,6 +1,6 @@
 {
   "name": "aped-method",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "type": "module",
   "description": "Scaffold the APED pipeline (Analyze, PRD, Epics, Dev, Review) into any Claude Code project",
   "bin": {
@@ -27,5 +27,9 @@
   "author": "yabafre",
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.2.0",
+    "picocolors": "^1.1.1"
   }
 }

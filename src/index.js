@@ -1,8 +1,9 @@
-import { createInterface } from 'node:readline';
+import * as p from '@clack/prompts';
 import { existsSync, readFileSync, writeFileSync as writeFS } from 'node:fs';
-import { stdin, stdout } from 'node:process';
+import { stdin } from 'node:process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import color from 'picocolors';
 import { scaffold } from './scaffold.js';
 
 // ── CLI version (read from package.json) ──
@@ -21,91 +22,19 @@ const DEFAULTS = {
   gitProvider: 'github',
 };
 
-const TICKET_OPTIONS = ['none', 'jira', 'linear', 'github-issues', 'gitlab-issues'];
-const GIT_OPTIONS = ['github', 'gitlab', 'bitbucket'];
+const TICKET_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'jira', label: 'Jira' },
+  { value: 'linear', label: 'Linear' },
+  { value: 'github-issues', label: 'GitHub Issues' },
+  { value: 'gitlab-issues', label: 'GitLab Issues' },
+];
 
-// ── ANSI helpers ──
-const ESC = '\x1b';
-const a = {
-  reset:     `${ESC}[0m`,
-  bold:      `${ESC}[1m`,
-  dim:       `${ESC}[2m`,
-  italic:    `${ESC}[3m`,
-  underline: `${ESC}[4m`,
-  red:       `${ESC}[31m`,
-  green:     `${ESC}[32m`,
-  yellow:    `${ESC}[33m`,
-  blue:      `${ESC}[34m`,
-  magenta:   `${ESC}[35m`,
-  cyan:      `${ESC}[36m`,
-  white:     `${ESC}[37m`,
-  lime:      `${ESC}[38;5;118m`,
-  emerald:   `${ESC}[38;5;42m`,
-  mint:      `${ESC}[38;5;48m`,
-  forest:    `${ESC}[38;5;34m`,
-  spring:    `${ESC}[38;5;82m`,
-};
-
-const bold    = (s) => `${a.bold}${s}${a.reset}`;
-const dim     = (s) => `${a.dim}${s}${a.reset}`;
-const yellow  = (s) => `${a.yellow}${s}${a.reset}`;
-
-// ── ASCII Art Logo ──
-const LOGO = `
-${a.emerald}${a.bold}     █████╗ ██████╗ ███████╗██████╗
-    ██╔══██╗██╔══██╗██╔════╝██╔══██╗
-    ███████║██████╔╝█████╗  ██║  ██║
-    ██╔══██║██╔═══╝ ██╔══╝  ██║  ██║
-    ██║  ██║██║     ███████╗██████╔╝
-    ╚═╝  ╚═╝╚═╝     ╚══════╝╚═════╝${a.reset}
-${a.dim}    ─────────────────────────────────${a.reset}
-${a.lime}${a.bold}          M  E  T  H  O  D${a.reset}
-${a.dim}    ─────────────────────────────────${a.reset}
-`;
-
-const PIPELINE = `    ${a.emerald}${a.bold}A${a.reset}${a.dim}nalyze${a.reset}  ${a.dim}→${a.reset}  ${a.mint}${a.bold}P${a.reset}${a.dim}RD${a.reset}  ${a.dim}→${a.reset}  ${a.magenta}${a.bold}UX${a.reset}  ${a.dim}→${a.reset}  ${a.yellow}${a.bold}E${a.reset}${a.dim}pics${a.reset}  ${a.dim}→${a.reset}  ${a.lime}${a.bold}D${a.reset}${a.dim}ev${a.reset}  ${a.dim}→${a.reset}  ${a.red}${a.bold}R${a.reset}${a.dim}eview${a.reset}`;
-
-// ── Spinner ──
-const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-
-function createSpinner(text) {
-  let i = 0;
-  let interval;
-  return {
-    start() {
-      process.stdout.write('\x1b[?25l');
-      interval = setInterval(() => {
-        const frame = SPINNER_FRAMES[i % SPINNER_FRAMES.length];
-        process.stdout.write(`\r  ${a.emerald}${frame}${a.reset} ${text}`);
-        i++;
-      }, 80);
-    },
-    stop(finalText) {
-      clearInterval(interval);
-      process.stdout.write(`\r  ${a.lime}${a.bold}✓${a.reset} ${finalText}\x1b[K\n`);
-      process.stdout.write('\x1b[?25h');
-    },
-    fail(finalText) {
-      clearInterval(interval);
-      process.stdout.write(`\r  ${a.red}${a.bold}✗${a.reset} ${finalText}\x1b[K\n`);
-      process.stdout.write('\x1b[?25h');
-    },
-  };
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function sectionHeader(title) {
-  console.log('');
-  console.log(`  ${a.emerald}${a.bold}┌─${a.reset} ${a.bold}${title}${a.reset}`);
-  console.log(`  ${a.emerald}│${a.reset}`);
-}
-
-function sectionEnd() {
-  console.log(`  ${a.emerald}${a.bold}└──────────────────────────────────${a.reset}`);
-}
+const GIT_OPTIONS = [
+  { value: 'github', label: 'GitHub' },
+  { value: 'gitlab', label: 'GitLab' },
+  { value: 'bitbucket', label: 'Bitbucket' },
+];
 
 // ── Semver compare (1=a>b, -1=a<b, 0=equal) ──
 function semverCompare(va, vb) {
@@ -124,7 +53,6 @@ function detectExisting(apedDir) {
   const configPath = join(cwd, apedDir, 'config.yaml');
   if (!existsSync(configPath)) return null;
 
-  // Parse existing config.yaml (simple key: value)
   const existing = {};
   try {
     const content = readFileSync(configPath, 'utf-8');
@@ -165,15 +93,6 @@ function parseArgs(argv) {
   return args;
 }
 
-function ask(rl, question, defaultVal) {
-  return new Promise((resolve) => {
-    const suffix = defaultVal ? ` ${dim(`(${defaultVal})`)}` : '';
-    rl.question(`  ${a.emerald}│${a.reset}  ${question}${suffix}: `, (answer) => {
-      resolve(answer.trim() || defaultVal || '');
-    });
-  });
-}
-
 async function readStdinLines() {
   if (stdin.isTTY) return null;
   return new Promise((resolve) => {
@@ -206,11 +125,31 @@ export async function run() {
   }
 
   // ── Banner ──
-  console.log(LOGO);
-  console.log(`${a.dim}    v${CLI_VERSION}${a.reset}`);
-  console.log('');
-  console.log(PIPELINE);
-  console.log('');
+  const cols = process.stdout.columns || 80;
+
+  if (cols >= 50) {
+    const LOGO = [
+      '',
+      `  ${color.green(color.bold('     █████╗ ██████╗ ███████╗██████╗'))}`,
+      `  ${color.green(color.bold('    ██╔══██╗██╔══██╗██╔════╝██╔══██╗'))}`,
+      `  ${color.green(color.bold('    ███████║██████╔╝█████╗  ██║  ██║'))}`,
+      `  ${color.green(color.bold('    ██╔══██║██╔═══╝ ██╔══╝  ██║  ██║'))}`,
+      `  ${color.green(color.bold('    ██║  ██║██║     ███████╗██████╔╝'))}`,
+      `  ${color.green(color.bold('    ╚═╝  ╚═╝╚═╝     ╚══════╝╚═════╝'))}`,
+      `  ${color.dim('    ─────────────────────────────────')}`,
+      `  ${color.green(color.bold('          M  E  T  H  O  D'))}`,
+      `  ${color.dim('    ─────────────────────────────────')}`,
+      '',
+    ].join('\n');
+    console.log(LOGO);
+  }
+
+  const PIPELINE = cols >= 80
+    ? `  ${color.green(color.bold('A'))}${color.dim('nalyze')}  ${color.dim('→')}  ${color.green(color.bold('P'))}${color.dim('RD')}  ${color.dim('→')}  ${color.magenta(color.bold('UX'))}  ${color.dim('→')}  ${color.blue(color.bold('A'))}${color.dim('rch')}  ${color.dim('→')}  ${color.yellow(color.bold('E'))}${color.dim('pics')}  ${color.dim('→')}  ${color.green(color.bold('D'))}${color.dim('ev')}  ${color.dim('→')}  ${color.red(color.bold('R'))}${color.dim('eview')}`
+    : `  ${color.green('A')}${color.dim('→')}${color.green('P')}${color.dim('→')}${color.magenta('UX')}${color.dim('→')}${color.blue('Arch')}${color.dim('→')}${color.yellow('E')}${color.dim('→')}${color.green('D')}${color.dim('→')}${color.red('R')}`;
+
+  p.intro(`${color.green(color.bold('APED Method'))} ${color.dim(`v${CLI_VERSION}`)}`);
+  p.log.message(PIPELINE);
 
   // ── Detect existing installation ──
   const apedDir = args.aped || args.apedDir || DEFAULTS.apedDir;
@@ -219,14 +158,13 @@ export async function run() {
   // ── Version upgrade detection ──
   if (existing && existing.installedVersion !== '0.0.0') {
     if (existing.installedVersion === CLI_VERSION) {
-      console.log(`  ${a.lime}${a.bold}✓${a.reset} ${dim(`Installed: v${existing.installedVersion} — up to date`)}`);
+      p.log.success(color.dim(`Installed: v${existing.installedVersion} — up to date`));
     } else if (semverCompare(CLI_VERSION, existing.installedVersion) > 0) {
-      console.log(`  ${a.yellow}${a.bold}↑${a.reset} ${bold(`Upgrade available: v${existing.installedVersion} → v${CLI_VERSION}`)}`);
-      console.log(`  ${dim('  Run with --update to upgrade engine files')}`);
+      p.log.warn(`Upgrade available: ${color.dim(`v${existing.installedVersion}`)} → ${color.green(`v${CLI_VERSION}`)}`);
+      p.log.message(color.dim('Run with --update to upgrade engine files'));
     } else {
-      console.log(`  ${a.yellow}${a.bold}!${a.reset} ${dim(`Installed v${existing.installedVersion} is newer than CLI v${CLI_VERSION}`)}`);
+      p.log.warn(color.dim(`Installed v${existing.installedVersion} is newer than CLI v${CLI_VERSION}`));
     }
-    console.log('');
   }
 
   if (args.yes) {
@@ -252,150 +190,217 @@ export async function run() {
   }
 
   // ── Interactive mode ──
-  const rl = createInterface({ input: stdin, output: stdout });
 
-  const prompt = stdinLines
-    ? (question, def) => {
-        const val = (stdinLines[lineIndex++] || '').trim();
-        const result = val || def || '';
-        console.log(`  ${a.emerald}│${a.reset}  ${question}: ${result}`);
-        return Promise.resolve(result);
-      }
-    : (question, def) => ask(rl, question, def);
+  // ── Piped stdin fallback for non-TTY ──
+  if (stdinLines) {
+    const nextLine = (def) => {
+      const val = (stdinLines[lineIndex++] || '').trim();
+      return val || def || '';
+    };
 
-  try {
     let mode = 'install';
-
-    // ── Existing install detected ──
     if (existing) {
-      const vInfo = existing.installedVersion !== '0.0.0'
-        ? ` | v${existing.installedVersion}`
-        : '';
-      console.log(`  ${a.yellow}${a.bold}⚠${a.reset}  ${bold('Existing APED installation detected')}`);
-      console.log(`  ${dim(`   Project: ${existing.projectName}${vInfo}`)}`);
-      console.log('');
-      console.log(`  ${a.emerald}│${a.reset}  ${bold('1')} ${dim('Update engine')}  ${dim('— upgrade skills, scripts, hooks. Preserve config & artifacts')}`);
-      console.log(`  ${a.emerald}│${a.reset}  ${bold('2')} ${dim('Fresh install')} ${dim('— delete everything and start from zero')}`);
-      console.log(`  ${a.emerald}│${a.reset}  ${bold('3')} ${dim('Cancel')}`);
-      console.log(`  ${a.emerald}│${a.reset}`);
-
-      const choice = await prompt(`${bold('Choice')}`, '1');
-
-      if (choice === '3' || choice.toLowerCase() === 'n') {
-        console.log(`\n  ${yellow('Cancelled.')}\n`);
-        return;
-      }
-
+      const choice = nextLine('1');
       mode = choice === '2' ? 'fresh' : 'update';
     }
 
-    // ── Config prompts ──
-    // For update: pre-fill with existing values
     const defaults = (mode === 'update' && existing) ? existing : DEFAULTS;
+    const config = {
+      projectName: nextLine(defaults.projectName || detectedProject),
+      authorName: nextLine(defaults.authorName),
+      communicationLang: nextLine(defaults.communicationLang),
+      documentLang: nextLine(defaults.documentLang),
+      apedDir: nextLine(defaults.apedDir || DEFAULTS.apedDir),
+      outputDir: nextLine(defaults.outputDir || DEFAULTS.outputDir),
+      commandsDir: nextLine(DEFAULTS.commandsDir),
+      ticketSystem: nextLine(defaults.ticketSystem || DEFAULTS.ticketSystem),
+      gitProvider: nextLine(defaults.gitProvider || DEFAULTS.gitProvider),
+      cliVersion: CLI_VERSION,
+    };
 
-    sectionHeader('Configuration');
+    await runScaffold(config, mode);
+    return;
+  }
 
-    const config = {};
-    if (mode === 'update') {
-      // In update mode, show current config and only ask what to change
-      console.log(`  ${a.emerald}│${a.reset}  ${dim('Current config loaded. Press Enter to keep, or type new value.')}`);
-      console.log(`  ${a.emerald}│${a.reset}`);
-    }
+  // ── TTY interactive prompts ──
+  let mode = 'install';
 
-    config.projectName = await prompt(`${bold('Project name')}`, defaults.projectName || detectedProject);
-    config.authorName = await prompt(`${bold('Author')}`, defaults.authorName);
-    config.communicationLang = await prompt(`${bold('Communication language')}`, defaults.communicationLang);
-    config.documentLang = await prompt(`${bold('Document language')}`, defaults.documentLang);
-    config.apedDir = await prompt(`${bold('APED dir')} ${dim('(engine)')}`, defaults.apedDir || DEFAULTS.apedDir);
-    config.outputDir = await prompt(`${bold('Output dir')} ${dim('(artifacts)')}`, defaults.outputDir || DEFAULTS.outputDir);
-    config.commandsDir = await prompt(`${bold('Commands dir')}`, DEFAULTS.commandsDir);
-    config.ticketSystem = await prompt(`${bold('Ticket system')} ${dim(`(${TICKET_OPTIONS.join('/')})`)}`, defaults.ticketSystem || DEFAULTS.ticketSystem);
-    config.gitProvider = await prompt(`${bold('Git provider')} ${dim(`(${GIT_OPTIONS.join('/')})`)}`, defaults.gitProvider || DEFAULTS.gitProvider);
-    config.cliVersion = CLI_VERSION;
+  if (existing) {
+    const vInfo = existing.installedVersion !== '0.0.0' ? ` | v${existing.installedVersion}` : '';
+    p.log.warn(`Existing APED installation detected ${color.dim(`(${existing.projectName}${vInfo})`)}`);
 
-    sectionEnd();
-    console.log('');
-    printConfig(config, mode);
-    console.log('');
+    const choice = await p.select({
+      message: 'What would you like to do?',
+      options: [
+        { value: 'update', label: 'Update engine', hint: 'upgrade skills, scripts, hooks — preserve config & artifacts' },
+        { value: 'fresh', label: 'Fresh install', hint: 'delete everything and start from zero' },
+        { value: 'cancel', label: 'Cancel' },
+      ],
+    });
 
-    const confirm = await prompt(`${bold('Proceed?')}`, 'Y');
-    if (confirm.toLowerCase() === 'n') {
-      console.log(`\n  ${yellow('Cancelled.')}\n`);
+    if (p.isCancel(choice) || choice === 'cancel') {
+      p.cancel('Operation cancelled.');
       return;
     }
 
-    await runScaffold(config, mode);
-  } finally {
-    rl.close();
+    mode = choice;
   }
+
+  const defaults = (mode === 'update' && existing) ? existing : DEFAULTS;
+
+  if (mode === 'update') {
+    p.log.info(color.dim('Current config loaded. Press Enter to keep, or type a new value.'));
+  }
+
+  const config = await p.group(
+    {
+      projectName: () => p.text({
+        message: 'Project name',
+        placeholder: defaults.projectName || detectedProject,
+        initialValue: defaults.projectName || detectedProject,
+      }),
+      authorName: () => p.text({
+        message: 'Author',
+        placeholder: defaults.authorName || 'your name',
+        initialValue: defaults.authorName,
+      }),
+      communicationLang: () => p.text({
+        message: 'Communication language',
+        placeholder: defaults.communicationLang,
+        initialValue: defaults.communicationLang,
+      }),
+      documentLang: () => p.text({
+        message: 'Document language',
+        placeholder: defaults.documentLang,
+        initialValue: defaults.documentLang,
+      }),
+      apedDir: () => p.text({
+        message: 'APED dir (engine)',
+        placeholder: defaults.apedDir || DEFAULTS.apedDir,
+        initialValue: defaults.apedDir || DEFAULTS.apedDir,
+      }),
+      outputDir: () => p.text({
+        message: 'Output dir (artifacts)',
+        placeholder: defaults.outputDir || DEFAULTS.outputDir,
+        initialValue: defaults.outputDir || DEFAULTS.outputDir,
+      }),
+      commandsDir: () => p.text({
+        message: 'Commands dir',
+        placeholder: DEFAULTS.commandsDir,
+        initialValue: DEFAULTS.commandsDir,
+      }),
+      ticketSystem: () => p.select({
+        message: 'Ticket system',
+        options: TICKET_OPTIONS,
+        initialValue: defaults.ticketSystem || DEFAULTS.ticketSystem,
+      }),
+      gitProvider: () => p.select({
+        message: 'Git provider',
+        options: GIT_OPTIONS,
+        initialValue: defaults.gitProvider || DEFAULTS.gitProvider,
+      }),
+    },
+    {
+      onCancel: () => {
+        p.cancel('Operation cancelled.');
+        process.exit(0);
+      },
+    }
+  );
+
+  config.cliVersion = CLI_VERSION;
+
+  // ── Summary ──
+  const modeTag = mode === 'update'
+    ? color.yellow(color.bold(' UPDATE'))
+    : mode === 'fresh'
+      ? color.red(color.bold(' FRESH'))
+      : '';
+
+  p.note(
+    [
+      `${color.dim('Project'.padEnd(16))}${color.bold(config.projectName)}`,
+      `${color.dim('Author'.padEnd(16))}${color.bold(config.authorName || color.dim('(not set)'))}`,
+      `${color.dim('Communication'.padEnd(16))}${color.bold(config.communicationLang)}`,
+      `${color.dim('Documents'.padEnd(16))}${color.bold(config.documentLang)}`,
+      `${color.dim('APED'.padEnd(16))}${color.bold(config.apedDir + '/')}  ${color.dim('engine')}`,
+      `${color.dim('Output'.padEnd(16))}${color.bold(config.outputDir + '/')}  ${color.dim('artifacts')}`,
+      `${color.dim('Commands'.padEnd(16))}${color.bold(config.commandsDir + '/')}`,
+      `${color.dim('Tickets'.padEnd(16))}${color.bold(config.ticketSystem)}`,
+      `${color.dim('Git'.padEnd(16))}${color.bold(config.gitProvider)}`,
+    ].join('\n'),
+    `Summary${modeTag}`
+  );
+
+  const shouldProceed = await p.confirm({ message: 'Proceed?' });
+
+  if (p.isCancel(shouldProceed) || !shouldProceed) {
+    p.cancel('Operation cancelled.');
+    return;
+  }
+
+  await runScaffold(config, mode);
 }
 
 async function runScaffold(config, mode) {
-  const modeLabel = mode === 'update' ? 'Updating' : mode === 'fresh' ? 'Fresh installing' : 'Installing';
-  const modeTag = mode === 'update'
-    ? `${a.yellow}${a.bold}UPDATE${a.reset}`
+  const modeLabel = mode === 'update'
+    ? color.yellow(color.bold('UPDATE'))
     : mode === 'fresh'
-      ? `${a.red}${a.bold}FRESH${a.reset}`
-      : `${a.lime}${a.bold}INSTALL${a.reset}`;
+      ? color.red(color.bold('FRESH'))
+      : color.green(color.bold('INSTALL'));
 
-  console.log(`  ${modeTag}  ${dim(modeLabel + ' APED Method...')}`);
-  console.log('');
+  p.log.step(`${modeLabel} ${color.dim('Scaffolding APED Method...')}`);
 
   // ── Phase 1: Clean if fresh ──
   if (mode === 'fresh') {
-    const s0 = createSpinner('Removing existing installation...');
-    s0.start();
-    const { rmSync } = await import('node:fs');
-    const cwd = process.cwd();
-    try { rmSync(join(cwd, config.apedDir), { recursive: true, force: true }); } catch { /* ok */ }
-    try { rmSync(join(cwd, config.outputDir), { recursive: true, force: true }); } catch { /* ok */ }
-    // Don't delete commands dir — may have non-aped commands
-    // Delete only aped-* command files
-    const { readdirSync } = await import('node:fs');
-    try {
-      const cmdDir = join(cwd, config.commandsDir);
-      for (const f of readdirSync(cmdDir)) {
-        if (f.startsWith('aped-')) {
-          rmSync(join(cmdDir, f), { force: true });
-        }
-      }
-    } catch { /* ok */ }
-    await sleep(300);
-    s0.stop('Previous installation removed');
+    await p.tasks([
+      {
+        title: 'Removing existing installation...',
+        async task() {
+          const { rmSync, readdirSync } = await import('node:fs');
+          const cwd = process.cwd();
+          try { rmSync(join(cwd, config.apedDir), { recursive: true, force: true }); } catch { /* ok */ }
+          try { rmSync(join(cwd, config.outputDir), { recursive: true, force: true }); } catch { /* ok */ }
+          try {
+            const cmdDir = join(cwd, config.commandsDir);
+            for (const f of readdirSync(cmdDir)) {
+              if (f.startsWith('aped-')) rmSync(join(cmdDir, f), { force: true });
+            }
+          } catch { /* ok */ }
+          await sleep(400);
+          return 'Previous installation removed';
+        },
+      },
+    ]);
   }
 
-  // ── Phase 2: Validate ──
-  const s1 = createSpinner('Validating configuration...');
-  s1.start();
-  await sleep(400);
-  s1.stop('Configuration validated');
+  // ── Phase 2: Scaffold ──
+  const { created, updated, skipped } = await scaffoldWithProgress(config, mode);
 
-  // ── Phase 3: Scaffold ──
-  sectionHeader(`Scaffolding Pipeline ${dim(`(${mode})`)}`);
-  console.log(`  ${a.emerald}│${a.reset}`);
-
-  const { created, updated, skipped } = await scaffoldWithCheckpoints(config, mode);
-
-  sectionEnd();
-
-  // ── Phase 4: Hooks ──
-  const s3 = createSpinner('Installing guardrail hook...');
-  s3.start();
-  await sleep(350);
-  s3.stop('Guardrail hook installed');
-
-  // ── Phase 5: Verify ──
+  // ── Phase 3: Post-install tasks ──
   const total = created + updated;
-  const s4 = createSpinner('Verifying installation...');
-  s4.start();
-  await sleep(300);
-  s4.stop(`Verified — ${bold(String(total))} files`);
+  await p.tasks([
+    {
+      title: 'Installing guardrail hook...',
+      async task() {
+        await sleep(500);
+        return 'Guardrail hook installed';
+      },
+    },
+    {
+      title: 'Verifying installation...',
+      async task() {
+        await sleep(400);
+        return `Verified — ${color.bold(String(total))} files`;
+      },
+    },
+  ]);
 
   // ── Done ──
   printDone(created, updated, skipped, mode);
 }
 
-async function scaffoldWithCheckpoints(config, mode) {
+async function scaffoldWithProgress(config, mode) {
   const { getTemplates } = await import('./templates/index.js');
   const { mkdirSync, writeFileSync, chmodSync, existsSync } = await import('node:fs');
   const { join, dirname } = await import('node:path');
@@ -403,28 +408,29 @@ async function scaffoldWithCheckpoints(config, mode) {
   const cwd = process.cwd();
   const templates = getTemplates(config);
 
-  const groups = {
-    config:     { label: 'Config & State',    icon: '⚙', items: [] },
-    templates:  { label: 'Templates',         icon: '📄', items: [] },
-    commands:   { label: 'Slash Commands',     icon: '⚡', items: [] },
-    skills:     { label: 'Skills (SKILL.md)',  icon: '🧠', items: [] },
-    scripts:    { label: 'Validation Scripts', icon: '🔧', items: [] },
-    references: { label: 'Reference Docs',    icon: '📚', items: [] },
-    hooks:      { label: 'Hooks & Settings',  icon: '🛡', items: [] },
-  };
+  const groups = [
+    { key: 'config',     label: 'Config & State',    items: [] },
+    { key: 'templates',  label: 'Templates',         items: [] },
+    { key: 'commands',   label: 'Slash Commands',     items: [] },
+    { key: 'skills',     label: 'Skills',             items: [] },
+    { key: 'scripts',    label: 'Validation Scripts', items: [] },
+    { key: 'references', label: 'Reference Docs',    items: [] },
+    { key: 'hooks',      label: 'Hooks & Settings',  items: [] },
+  ];
+
+  const groupMap = Object.fromEntries(groups.map((g) => [g.key, g]));
 
   for (const tpl of templates) {
-    const p = tpl.path;
-    if (p.includes('/hooks/') || p.includes('settings'))     groups.hooks.items.push(tpl);
-    else if (p.includes('/scripts/'))                        groups.scripts.items.push(tpl);
-    else if (p.includes('/references/'))                     groups.references.items.push(tpl);
-    else if (p.includes('SKILL.md'))                         groups.skills.items.push(tpl);
-    else if (p.includes('/commands/'))                       groups.commands.items.push(tpl);
-    else if (p.includes('/templates/'))                      groups.templates.items.push(tpl);
-    else                                                     groups.config.items.push(tpl);
+    const pt = tpl.path;
+    if (pt.includes('/hooks/') || pt.includes('settings'))     groupMap.hooks.items.push(tpl);
+    else if (pt.includes('/scripts/'))                         groupMap.scripts.items.push(tpl);
+    else if (pt.includes('/references/'))                      groupMap.references.items.push(tpl);
+    else if (pt.includes('SKILL.md'))                          groupMap.skills.items.push(tpl);
+    else if (pt.includes('/commands/'))                        groupMap.commands.items.push(tpl);
+    else if (pt.includes('/templates/'))                       groupMap.templates.items.push(tpl);
+    else                                                       groupMap.config.items.push(tpl);
   }
 
-  // Paths to preserve during update (user data, not engine)
   const preserveOnUpdate = new Set([
     join(config.outputDir, 'state.yaml'),
   ]);
@@ -433,68 +439,69 @@ async function scaffoldWithCheckpoints(config, mode) {
   let updated = 0;
   let skipped = 0;
 
-  for (const [, group] of Object.entries(groups)) {
-    if (group.items.length === 0) continue;
+  const activeGroups = groups.filter((g) => g.items.length > 0);
 
-    const sp = createSpinner(`${group.label}...`);
-    sp.start();
-    await sleep(200);
+  await p.tasks(
+    activeGroups.map((group) => ({
+      title: `${group.label}...`,
+      async task(message) {
+        let groupCreated = 0;
+        let groupUpdated = 0;
+        let groupSkipped = 0;
 
-    let groupCreated = 0;
-    let groupUpdated = 0;
-    let groupSkipped = 0;
+        for (let i = 0; i < group.items.length; i++) {
+          const tpl = group.items[i];
+          const fullPath = join(cwd, tpl.path);
+          const fileExists = existsSync(fullPath);
+          const fileName = tpl.path.split('/').pop();
 
-    for (const tpl of group.items) {
-      const fullPath = join(cwd, tpl.path);
-      const fileExists = existsSync(fullPath);
+          message(`${group.label} ${color.dim(`(${i + 1}/${group.items.length})`)} ${color.dim(fileName)}`);
 
-      mkdirSync(dirname(fullPath), { recursive: true });
+          mkdirSync(dirname(fullPath), { recursive: true });
 
-      if (!fileExists) {
-        // New file — always create
-        writeFileSync(fullPath, tpl.content, 'utf-8');
-        if (tpl.executable) chmodSync(fullPath, 0o755);
-        groupCreated++;
-        created++;
-      } else if (mode === 'update') {
-        // File exists + update mode
-        if (preserveOnUpdate.has(tpl.path)) {
-          // Preserve user artifacts
-          groupSkipped++;
-          skipped++;
-        } else if (tpl.path.endsWith('settings.local.json')) {
-          // Merge settings instead of overwrite
-          mergeSettings(fullPath, tpl.content);
-          groupUpdated++;
-          updated++;
-        } else {
-          // Engine file — overwrite with new version
-          writeFileSync(fullPath, tpl.content, 'utf-8');
-          if (tpl.executable) chmodSync(fullPath, 0o755);
-          groupUpdated++;
-          updated++;
+          if (!fileExists) {
+            writeFileSync(fullPath, tpl.content, 'utf-8');
+            if (tpl.executable) chmodSync(fullPath, 0o755);
+            groupCreated++;
+            created++;
+          } else if (mode === 'update') {
+            if (preserveOnUpdate.has(tpl.path)) {
+              groupSkipped++;
+              skipped++;
+            } else if (tpl.path.endsWith('settings.local.json')) {
+              mergeSettings(fullPath, tpl.content);
+              groupUpdated++;
+              updated++;
+            } else {
+              writeFileSync(fullPath, tpl.content, 'utf-8');
+              if (tpl.executable) chmodSync(fullPath, 0o755);
+              groupUpdated++;
+              updated++;
+            }
+          } else if (mode === 'fresh') {
+            writeFileSync(fullPath, tpl.content, 'utf-8');
+            if (tpl.executable) chmodSync(fullPath, 0o755);
+            groupCreated++;
+            created++;
+          } else {
+            groupSkipped++;
+            skipped++;
+          }
+
+          // Small delay per file for visible animation
+          await sleep(30 + Math.random() * 50);
         }
-      } else if (mode === 'fresh') {
-        // Fresh mode — overwrite everything
-        writeFileSync(fullPath, tpl.content, 'utf-8');
-        if (tpl.executable) chmodSync(fullPath, 0o755);
-        groupCreated++;
-        created++;
-      } else {
-        // Install mode — skip existing
-        groupSkipped++;
-        skipped++;
-      }
-    }
 
-    const parts = [];
-    if (groupCreated > 0) parts.push(`${a.lime}+${groupCreated}${a.reset}`);
-    if (groupUpdated > 0) parts.push(`${a.yellow}↑${groupUpdated}${a.reset}`);
-    if (groupSkipped > 0) parts.push(`${a.dim}=${groupSkipped}${a.reset}`);
-    const stats = parts.length > 0 ? parts.join(' ') : `${a.dim}0${a.reset}`;
+        const parts = [];
+        if (groupCreated > 0) parts.push(color.green(`+${groupCreated}`));
+        if (groupUpdated > 0) parts.push(color.yellow(`↑${groupUpdated}`));
+        if (groupSkipped > 0) parts.push(color.dim(`=${groupSkipped}`));
+        const stats = parts.join(' ') || color.dim('0');
 
-    sp.stop(`${group.icon}  ${group.label}  ${dim('(')}${stats}${dim(')')}`);
-  }
+        return `${group.label}  ${color.dim('(')}${stats}${color.dim(')')}`;
+      },
+    }))
+  );
 
   return { created, updated, skipped };
 }
@@ -504,14 +511,12 @@ function mergeSettings(filePath, newContent) {
     const existing = JSON.parse(readFileSync(filePath, 'utf-8'));
     const incoming = JSON.parse(newContent);
 
-    // Merge hooks: add guardrail if not already present
     if (incoming.hooks) {
       if (!existing.hooks) existing.hooks = {};
       for (const [event, handlers] of Object.entries(incoming.hooks)) {
         if (!existing.hooks[event]) {
           existing.hooks[event] = handlers;
         } else {
-          // Check if guardrail hook already exists
           for (const handler of handlers) {
             const hookCmds = handler.hooks || [];
             for (const hook of hookCmds) {
@@ -529,75 +534,43 @@ function mergeSettings(filePath, newContent) {
 
     writeFS(filePath, JSON.stringify(existing, null, 2) + '\n', 'utf-8');
   } catch {
-    // If can't parse existing, overwrite
     writeFS(filePath, newContent, 'utf-8');
   }
 }
 
-function printConfig(config, mode) {
-  const box = (label, value, extra) => {
-    const e = extra ? `  ${dim(extra)}` : '';
-    console.log(`  ${a.emerald}│${a.reset}  ${dim(label.padEnd(16))}${bold(value)}${e}`);
-  };
-
-  const modeTag = mode === 'update' ? ` ${a.yellow}${a.bold}UPDATE${a.reset}` : mode === 'fresh' ? ` ${a.red}${a.bold}FRESH${a.reset}` : '';
-  console.log(`  ${a.emerald}${a.bold}┌─${a.reset} ${bold('Summary')}${modeTag}`);
-  console.log(`  ${a.emerald}│${a.reset}`);
-  box('Project',       config.projectName);
-  box('Author',        config.authorName || dim('(not set)'));
-  box('Communication', config.communicationLang);
-  box('Documents',     config.documentLang);
-  box('APED',          config.apedDir + '/',    'engine');
-  box('Output',        config.outputDir + '/',  'artifacts');
-  box('Commands',      config.commandsDir + '/');
-  box('Tickets',       config.ticketSystem,       config.ticketSystem === 'none' ? '' : 'integrated');
-  box('Git',           config.gitProvider);
-
-  if (mode === 'update') {
-    console.log(`  ${a.emerald}│${a.reset}`);
-    console.log(`  ${a.emerald}│${a.reset}  ${a.yellow}${a.bold}↑${a.reset} ${dim('Engine files will be overwritten')}`);
-    console.log(`  ${a.emerald}│${a.reset}  ${a.lime}${a.bold}=${a.reset} ${dim('Config, state & artifacts preserved')}`);
-  } else if (mode === 'fresh') {
-    console.log(`  ${a.emerald}│${a.reset}`);
-    console.log(`  ${a.emerald}│${a.reset}  ${a.red}${a.bold}!${a.reset} ${dim('All existing files will be deleted and recreated')}`);
-  }
-
-  console.log(`  ${a.emerald}│${a.reset}`);
-  console.log(`  ${a.emerald}${a.bold}└──────────────────────────────────${a.reset}`);
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function printDone(created, updated, skipped, mode) {
   const total = created + updated;
-  console.log('');
-  console.log(`  ${a.emerald}${a.bold}╔══════════════════════════════════════╗${a.reset}`);
-  if (mode === 'update') {
-    console.log(`  ${a.emerald}${a.bold}║${a.reset}  ${a.lime}${a.bold}✓${a.reset} ${bold('Update complete')}                   ${a.emerald}${a.bold}║${a.reset}`);
-    console.log(`  ${a.emerald}${a.bold}║${a.reset}  ${dim(`  +${created} created  ↑${updated} updated  =${skipped} kept`)} ${a.emerald}${a.bold}║${a.reset}`);
-  } else {
-    console.log(`  ${a.emerald}${a.bold}║${a.reset}  ${a.lime}${a.bold}✓${a.reset} ${bold(`${total} files scaffolded`)}              ${a.emerald}${a.bold}║${a.reset}`);
-    console.log(`  ${a.emerald}${a.bold}║${a.reset}  ${dim('Pipeline ready to use')}               ${a.emerald}${a.bold}║${a.reset}`);
-  }
-  console.log(`  ${a.emerald}${a.bold}╚══════════════════════════════════════╝${a.reset}`);
-  console.log('');
 
-  console.log(`  ${a.bold}Pipeline commands:${a.reset}`);
-  console.log('');
-  console.log(`    ${a.emerald}${a.bold}/aped-a${a.reset}     ${dim('Analyze — parallel research → product brief')}`);
-  console.log(`    ${a.mint}${a.bold}/aped-p${a.reset}     ${dim('PRD — autonomous generation from brief')}`);
-  console.log(`    ${a.magenta}${a.bold}/aped-ux${a.reset}    ${dim('UX — screen flows, wireframes, components')}`);
-  console.log(`    ${a.yellow}${a.bold}/aped-e${a.reset}     ${dim('Epics — requirements decomposition')}`);
-  console.log(`    ${a.lime}${a.bold}/aped-d${a.reset}     ${dim('Dev — TDD story implementation')}`);
-  console.log(`    ${a.red}${a.bold}/aped-r${a.reset}     ${dim('Review — adversarial code review')}`);
-  console.log('');
-  console.log(`  ${a.bold}Utility commands:${a.reset}`);
-  console.log('');
-  console.log(`    ${a.spring}${a.bold}/aped-s${a.reset}     ${dim('Sprint status — progress dashboard')}`);
-  console.log(`    ${a.spring}${a.bold}/aped-c${a.reset}     ${dim('Correct course — manage scope changes')}`);
-  console.log(`    ${a.spring}${a.bold}/aped-ctx${a.reset}   ${dim('Project context — brownfield analysis')}`);
-  console.log(`    ${a.spring}${a.bold}/aped-qa${a.reset}    ${dim('QA — generate E2E & integration tests')}`);
-  console.log(`    ${a.spring}${a.bold}/aped-quick${a.reset} ${dim('Quick fix/feature — bypass pipeline')}`);
-  console.log(`    ${a.spring}${a.bold}/aped-all${a.reset}   ${dim('Full pipeline A→P→E→D→R')}`);
-  console.log('');
-  console.log(`  ${dim('Guardrail hook active — pipeline coherence enforced')}`);
-  console.log('');
+  if (mode === 'update') {
+    p.log.success(`Update complete  ${color.green(`+${created}`)} created  ${color.yellow(`↑${updated}`)} updated  ${color.dim(`=${skipped}`)} kept`);
+  } else {
+    p.log.success(`${color.bold(String(total))} files scaffolded — pipeline ready`);
+  }
+
+  p.note(
+    [
+      `${color.green(color.bold('/aped-analyze'))}     ${color.dim('Analyze — parallel research → product brief')}`,
+      `${color.green(color.bold('/aped-prd'))}     ${color.dim('PRD — autonomous generation from brief')}`,
+      `${color.magenta(color.bold('/aped-ux'))}    ${color.dim('UX — screen flows, wireframes, components')}`,
+      `${color.blue(color.bold('/aped-arch'))}     ${color.dim('Architecture — collaborative solution design')}`,
+      `${color.yellow(color.bold('/aped-epics'))}     ${color.dim('Epics — requirements decomposition')}`,
+      `${color.yellow(color.bold('/aped-story'))}     ${color.dim('Story — prepare next story for dev')}`,
+      `${color.green(color.bold('/aped-dev'))}     ${color.dim('Dev — TDD story implementation')}`,
+      `${color.red(color.bold('/aped-review'))}     ${color.dim('Review — adversarial code review')}`,
+      '',
+      `${color.cyan(color.bold('/aped-status'))}     ${color.dim('Sprint status — progress dashboard')}`,
+      `${color.cyan(color.bold('/aped-course'))}     ${color.dim('Correct course — manage scope changes')}`,
+      `${color.cyan(color.bold('/aped-context'))}   ${color.dim('Project context — brownfield analysis')}`,
+      `${color.cyan(color.bold('/aped-qa'))}    ${color.dim('QA — generate E2E & integration tests')}`,
+      `${color.cyan(color.bold('/aped-quick'))} ${color.dim('Quick fix/feature — bypass pipeline')}`,
+      `${color.cyan(color.bold('/aped-check'))} ${color.dim('Checkpoint — review changes, halt for approval')}`,
+    ].join('\n'),
+    'Pipeline commands'
+  );
+
+  p.outro(color.dim('Guardrail hook active — pipeline coherence enforced'));
 }
