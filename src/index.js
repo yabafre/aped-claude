@@ -386,8 +386,6 @@ async function scaffoldWithProgress(config, mode) {
 
   const preserveOnUpdate = new Set([
     join(config.outputDir, 'state.yaml'),
-    join(config.outputDir, 'lessons.md'),
-    'CLAUDE.md',
   ]);
 
   let created = 0;
@@ -523,6 +521,7 @@ function printDone(created, updated, skipped, mode) {
       `${color.cyan(color.bold('/aped-qa'))}    ${color.dim('QA — generate E2E & integration tests')}`,
       `${color.cyan(color.bold('/aped-quick'))} ${color.dim('Quick fix/feature — bypass pipeline')}`,
       `${color.cyan(color.bold('/aped-check'))} ${color.dim('Checkpoint — review changes, halt for approval')}`,
+      `${color.cyan(color.bold('/aped-claude'))} ${color.dim('Sync APED rules into CLAUDE.md')}`,
     ].join('\n'),
     'Pipeline commands'
   );

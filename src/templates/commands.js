@@ -141,5 +141,15 @@ description: 'Human-in-the-loop checkpoint. Summarizes recent changes, highlight
 Read and follow the SKILL.md at $PROJECT_ROOT/${a}/aped-checkpoint/SKILL.md
 `,
     },
+    {
+      path: `${c.commandsDir}/aped-claude.md`,
+      content: `---
+name: aped-claude
+description: 'Update CLAUDE.md with APED working rules and project config. Smart merge — preserves user content. Use when user says "update CLAUDE.md", "sync claude rules", "aped claude".'
+---
+
+Read and follow the SKILL.md at $PROJECT_ROOT/${a}/aped-claude/SKILL.md
+`,
+    },
   ];
 }
