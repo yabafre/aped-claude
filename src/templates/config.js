@@ -235,6 +235,132 @@ sprint:
 `,
     },
     {
+      path: `CLAUDE.md`,
+      content: `# ${c.projectName}
+
+This project uses the **APED Method** — a disciplined, user-driven dev pipeline.
+Every step requires explicit user validation. No phase auto-chains.
+
+Pipeline: \`Analyze → PRD → UX → Architecture → Epics → Story → Dev → Review\`
+
+## Working Rules
+
+### 1. Plan Mode Default
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
+- If something goes sideways, STOP and re-plan immediately — don't keep pushing
+- Use plan mode for verification steps, not just building
+- Write detailed specs upfront to reduce ambiguity
+
+### 2. Subagent Strategy
+- Use subagents liberally to keep main context window clean
+- Offload research, exploration, and parallel analysis to subagents
+- For complex problems, throw more compute at it via subagents
+- One task per subagent for focused execution
+
+### 3. Self-Improvement Loop
+- After ANY correction from the user: update \`${o}/lessons.md\` with the pattern
+- Write rules for yourself that prevent the same mistake
+- Ruthlessly iterate on these lessons until mistake rate drops
+- Review lessons at session start
+
+### 4. Verification Before Done
+- Never mark a task complete without proving it works
+- Diff behavior between main and your changes when relevant
+- Ask yourself: "Would a staff engineer approve this?"
+- Run tests, check logs, demonstrate correctness
+
+### 5. Demand Elegance (Balanced)
+- For non-trivial changes: pause and ask "is there a more elegant way?"
+- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
+- Skip this for simple, obvious fixes — don't over-engineer
+- Challenge your own work before presenting it
+
+### 6. Autonomous Bug Fixing
+- When given a bug report: just fix it. Don't ask for hand-holding
+- Point at logs, errors, failing tests — then resolve them
+- Zero context switching required from the user
+- Go fix failing CI tests without being told how
+
+## APED-Specific Rules
+
+### 7. Never Auto-Chain Phases
+- Each APED skill ends with "Run /aped-X when ready" — STOP there
+- Wait for the user to explicitly invoke the next phase
+- Even if the next step is obvious, the user controls the pace
+
+### 8. Validate Before Persisting
+- \`/aped-analyze\`, \`/aped-prd\`, \`/aped-arch\`, \`/aped-epics\`, \`/aped-story\` all require user approval before writing artifacts
+- Never write to \`${o}/\` until the user has explicitly validated the content
+- If user requests changes: apply, re-present, wait for new approval
+
+### 9. Story-Driven Dev
+- Never code without a story file (use \`/aped-story\` first)
+- Never start a story without verifying the story file exists
+- Use the epic context cache (\`${o}/epic-{N}-context.md\`) — don't re-read the PRD every time
+
+### 10. Frontend = Visual Verification
+- Detect frontend stories (\`.tsx\`, \`.jsx\`, \`.vue\`, \`.svelte\`)
+- Use \`mcp__react-grab-mcp__get_element_context\` at each GREEN pass during dev
+- React Grab is also a 6th GATE condition for frontend tasks
+- In review, frontend stories get a 3rd visual review agent automatically
+
+## Task Management
+
+1. **Plan First**: Use TaskCreate to capture a plan with checkable items
+2. **Verify Plan**: Check in with the user before starting implementation
+3. **Track Progress**: TaskUpdate as you complete items (in_progress → completed)
+4. **Explain Changes**: High-level summary at each milestone
+5. **Document Results**: Update story file's Dev Agent Record section
+6. **Capture Lessons**: Update \`${o}/lessons.md\` after corrections
+
+## Core Principles
+
+- **Simplicity First** — Make every change as simple as possible. Impact minimal code.
+- **No Laziness** — Find root causes. No temporary fixes. Senior developer standards.
+- **User Controls Pace** — APED is collaborative, not automated. Wait for explicit approval.
+- **Quality > Speed** — Take your time. Validation gates exist for a reason.
+
+## State & Artifacts
+
+- Engine: \`${a}/\` (immutable after install)
+- Artifacts: \`${o}/\` (evolves during project)
+- State machine: \`${o}/state.yaml\`
+- Lessons learned: \`${o}/lessons.md\`
+
+## Slash Commands
+
+| Pipeline | Utility |
+|----------|---------|
+| \`/aped-analyze\` | \`/aped-status\` |
+| \`/aped-prd\` | \`/aped-course\` |
+| \`/aped-ux\` | \`/aped-context\` |
+| \`/aped-arch\` | \`/aped-qa\` |
+| \`/aped-epics\` | \`/aped-quick\` |
+| \`/aped-story\` | \`/aped-check\` |
+| \`/aped-dev\` | |
+| \`/aped-review\` | |
+`,
+    },
+    {
+      path: `${o}/lessons.md`,
+      content: `# Lessons Learned
+
+This file captures patterns from user corrections so the same mistake isn't made twice.
+
+## Format
+
+Each entry:
+- **Date:** YYYY-MM-DD
+- **Mistake:** What I did wrong
+- **Correction:** What the user told me
+- **Rule:** The pattern to apply going forward
+
+## Entries
+
+<!-- Add new entries at the top -->
+`,
+    },
+    {
       path: `${a}/templates/quick-spec.md`,
       content: `# Quick Spec: {{title}}
 

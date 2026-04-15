@@ -386,6 +386,8 @@ async function scaffoldWithProgress(config, mode) {
 
   const preserveOnUpdate = new Set([
     join(config.outputDir, 'state.yaml'),
+    join(config.outputDir, 'lessons.md'),
+    'CLAUDE.md',
   ]);
 
   let created = 0;
