@@ -91,6 +91,14 @@ if [[ -d "$OUTPUT_DIR" ]]; then
   test -n "$(find "$OUTPUT_DIR" -maxdepth 1 -name '*epic*' 2>/dev/null | head -1)" && HAS_EPICS=true
 fi
 
+# ── Check actual story statuses (more reliable than current_phase) ──
+HAS_STORY_IN_DEV=false
+HAS_STORY_IN_REVIEW=false
+if [[ -f "$STATE_FILE" ]]; then
+  grep -q 'status:.*in-progress' "$STATE_FILE" 2>/dev/null && HAS_STORY_IN_DEV=true
+  grep -q 'status:.*review' "$STATE_FILE" 2>/dev/null && HAS_STORY_IN_REVIEW=true
+fi
+
 # ── Phase-aware guardrail logic ──
 WARNINGS=""
 
@@ -100,8 +108,10 @@ if [[ "$WANTS_QUICK" == "true" ]]; then
 fi
 
 # Rule 1: Trying to code without epics/stories
-if [[ "$WANTS_CODE" == "true" || "$WANTS_DEV" == "true" ]] && [[ "$CURRENT_PHASE" != "dev" && "$CURRENT_PHASE" != "review" ]]; then
-  if [[ "$HAS_EPICS" == "false" ]]; then
+if [[ "$WANTS_CODE" == "true" || "$WANTS_DEV" == "true" ]]; then
+  if [[ "$HAS_STORY_IN_DEV" == "true" || "$HAS_STORY_IN_REVIEW" == "true" || "$CURRENT_PHASE" == "dev" || "$CURRENT_PHASE" == "review" ]]; then
+    : # OK — a story is actively being worked on
+  elif [[ "$HAS_EPICS" == "false" ]]; then
     WARNINGS="$WARNINGS\\nSKIP_DETECTED: Attempting dev/code without epics. Current phase: $CURRENT_PHASE. Run /aped-analyze, /aped-prd, /aped-epics first."
   elif [[ "$HAS_PRD" == "false" ]]; then
     WARNINGS="$WARNINGS\\nSKIP_DETECTED: Attempting dev/code without PRD. Current phase: $CURRENT_PHASE. Run /aped-analyze, /aped-prd first."
@@ -119,14 +129,18 @@ if [[ "$WANTS_EPICS" == "true" ]] && [[ "$HAS_PRD" == "false" ]]; then
 fi
 
 # Rule 4: Review without dev
-if [[ "$WANTS_REVIEW" == "true" ]] && [[ "$CURRENT_PHASE" != "dev" && "$CURRENT_PHASE" != "review" ]]; then
-  WARNINGS="$WARNINGS\\nPREMATURE_REVIEW: No story developed yet. Run /aped-dev first."
+if [[ "$WANTS_REVIEW" == "true" ]]; then
+  if [[ "$HAS_STORY_IN_REVIEW" == "true" || "$CURRENT_PHASE" == "dev" || "$CURRENT_PHASE" == "review" ]]; then
+    : # OK — a story is ready for review
+  else
+    WARNINGS="$WARNINGS\\nPREMATURE_REVIEW: No story in review status. Run /aped-dev first."
+  fi
 fi
 
 # Rule 5: Modifying upstream during dev
-if [[ "$CURRENT_PHASE" == "dev" || "$CURRENT_PHASE" == "review" ]]; then
+if [[ "$CURRENT_PHASE" == "dev" || "$CURRENT_PHASE" == "review" || "$HAS_STORY_IN_DEV" == "true" || "$HAS_STORY_IN_REVIEW" == "true" ]]; then
   if [[ "$WANTS_PRD" == "true" || "$WANTS_ANALYZE" == "true" ]]; then
-    WARNINGS="$WARNINGS\\nSCOPE_CHANGE: Phase is '$CURRENT_PHASE'. Modifying PRD/brief invalidates epics and stories. Use /aped-course instead."
+    WARNINGS="$WARNINGS\\nSCOPE_CHANGE: Stories are in progress. Modifying PRD/brief invalidates epics and stories. Use /aped-course instead."
   fi
 fi
 
