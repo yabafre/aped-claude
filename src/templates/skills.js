@@ -1263,37 +1263,25 @@ Severity: CRITICAL > HIGH > MEDIUM > LOW. Format: \`[Severity] Description [file
 
 Present the full review report. Do NOT change any status yet.
 
-⏸ **GATE: The user decides what to do with each finding. NEVER change story status without user approval.**
+⏸ **GATE: The user decides what to do. NEVER change story status without user approval.**
 
-Ask the user:
-- "Here are the findings. For each one, what do you want to do?"
-  - **Fix now** — I apply the fix immediately in this session
-  - **Accept as-is** — Dismiss the finding (user disagrees or defers)
-  - **Add to [AI-Review]** — Add as an item to address in the next dev pass
+Ask the user for each finding: **fix now** or **dismiss** (user disagrees or defers).
 
-Wait for the user's decision on EVERY HIGH+ finding. MEDIUM/LOW can be batched ("fix all medium/low?").
-
-## Apply Fixes (if user chose "fix now")
+## Apply Fixes
 
 For each finding the user wants fixed:
 1. Apply the fix
 2. Run tests to verify no regression
 3. Commit with \`fix({ticket-id}): description of fix\`
 
-After all fixes applied: re-run the review checklist on the fixed code to confirm the findings are resolved.
+After all fixes: re-run the review checklist on the fixed code.
 
-## Status Update (only after user decision)
+## Status Update
 
-Based on user decisions:
+**Review is binary: \`review\` → \`done\`. No other transition.**
 
-### All findings resolved (fixed or dismissed) → story \`done\`
-1. Update story file: mark review as passed, fill Review section
-2. Update \`${o}/state.yaml\`: story → \`done\`
-
-### Some findings deferred as [AI-Review] → story stays \`review\`
-1. Add [AI-Review] items to the story file
-2. Story stays in \`review\` — the user will decide when to address them
-3. Do NOT set back to \`in-progress\` without user saying so
+- All findings resolved (fixed or dismissed) → story \`done\`
+- Unresolved findings remain → story stays \`review\`, user fixes and re-runs \`/aped-review\`
 
 ## Ticket & Git Update
 
@@ -1324,24 +1312,21 @@ If \`ticket_system\` is not \`none\`: post the review findings as a comment on t
 
 ### If story → \`done\`
 1. If PR exists: approve/merge (adapt to \`git_provider\`)
-2. If \`ticket_system\` is not \`none\`:
-   - Move ticket to **Done**
-   - Close the ticket if the provider auto-closes on merge
+2. If \`ticket_system\` is not \`none\`: move ticket to **Done**
 3. Cleanup: delete feature branch after merge
 
-### If story has [AI-Review] items
-1. Add [AI-Review] items as comments on the PR (one comment per finding, with line anchors)
+### If story stays \`review\`
+1. Post findings as PR comments (one per finding, with line anchors)
 2. Ticket stays in **In Review**
-3. Add \`needs-changes\` label if provider supports it
 
 ## Next Step
 
-If story is \`done\`:
+If story → \`done\`:
 - If more stories in sprint: "Run \`/aped-story\` to prepare the next story."
 - If all stories done: report sprint completion.
 
-If story has [AI-Review] items:
-- "Review items are noted. Fix them when ready, then re-run \`/aped-review\`."
+If story stays \`review\`:
+- "Fix the remaining findings, then re-run \`/aped-review\`."
 
 **Do NOT auto-chain.** The user decides when to proceed.
 
@@ -1354,6 +1339,9 @@ Review of story "1-2-user-registration":
 
 User: "Fix the HIGH and MEDIUM. Dismiss the LOW."
 → Apply fixes → re-verify → story → done → "Run /aped-story for the next."
+
+User: "I'll fix later."
+→ Story stays review → "Fix findings, then re-run /aped-review."
 
 ## What NOT to Do
 
