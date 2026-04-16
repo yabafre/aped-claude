@@ -631,7 +631,11 @@ bash ${a}/aped-epics/scripts/validate-coverage.sh ${o}/epics.md ${o}/prd.md
 ## Output
 
 1. Write epics and story list to \`${o}/epics.md\`
-2. Update \`${o}/state.yaml\` with sprint section (stories listed as \`pending\`) and pipeline phase
+2. Update \`${o}/state.yaml\`:
+   - Set \`current_phase: "sprint"\` — this marks the transition from planning to execution
+   - Add \`phases.epics\` with status \`done\` and output path
+   - Add \`sprint.stories\` with all stories listed as \`pending\`
+   - \`"sprint"\` covers the entire story→dev→review cycle — no further phase changes needed
 3. Do NOT create \`${o}/stories/\` files — that is \`/aped-story\`'s job
 
 ## Ticket System Setup

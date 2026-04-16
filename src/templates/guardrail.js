@@ -91,11 +91,17 @@ if [[ -d "$OUTPUT_DIR" ]]; then
   test -n "$(find "$OUTPUT_DIR" -maxdepth 1 -name '*epic*' 2>/dev/null | head -1)" && HAS_EPICS=true
 fi
 
-# ── Check actual story statuses (more reliable than current_phase) ──
-HAS_STORY_IN_DEV=false
+# ── Derive effective phase ──
+# "sprint" covers the entire story/dev/review cycle
+IN_SPRINT=false
+if [[ "$CURRENT_PHASE" == "sprint" ]]; then
+  IN_SPRINT=true
+fi
+
+# Also check story statuses as fallback (if current_phase wasn't updated properly)
 HAS_STORY_IN_REVIEW=false
 if [[ -f "$STATE_FILE" ]]; then
-  grep -q 'status:.*in-progress' "$STATE_FILE" 2>/dev/null && HAS_STORY_IN_DEV=true
+  grep -q 'status:.*\\(in-progress\\|review\\|ready-for-dev\\)' "$STATE_FILE" 2>/dev/null && IN_SPRINT=true
   grep -q 'status:.*review' "$STATE_FILE" 2>/dev/null && HAS_STORY_IN_REVIEW=true
 fi
 
@@ -107,11 +113,9 @@ if [[ "$WANTS_QUICK" == "true" ]]; then
   exit 0
 fi
 
-# Rule 1: Trying to code without epics/stories
-if [[ "$WANTS_CODE" == "true" || "$WANTS_DEV" == "true" ]]; then
-  if [[ "$HAS_STORY_IN_DEV" == "true" || "$HAS_STORY_IN_REVIEW" == "true" || "$CURRENT_PHASE" == "dev" || "$CURRENT_PHASE" == "review" ]]; then
-    : # OK — a story is actively being worked on
-  elif [[ "$HAS_EPICS" == "false" ]]; then
+# Rule 1: Trying to code without going through the pipeline
+if [[ "$WANTS_CODE" == "true" || "$WANTS_DEV" == "true" ]] && [[ "$IN_SPRINT" == "false" ]]; then
+  if [[ "$HAS_EPICS" == "false" ]]; then
     WARNINGS="$WARNINGS\\nSKIP_DETECTED: Attempting dev/code without epics. Current phase: $CURRENT_PHASE. Run /aped-analyze, /aped-prd, /aped-epics first."
   elif [[ "$HAS_PRD" == "false" ]]; then
     WARNINGS="$WARNINGS\\nSKIP_DETECTED: Attempting dev/code without PRD. Current phase: $CURRENT_PHASE. Run /aped-analyze, /aped-prd first."
@@ -128,27 +132,21 @@ if [[ "$WANTS_EPICS" == "true" ]] && [[ "$HAS_PRD" == "false" ]]; then
   WARNINGS="$WARNINGS\\nMISSING_ARTIFACT: No PRD found. Run /aped-prd first."
 fi
 
-# Rule 4: Review without dev
-if [[ "$WANTS_REVIEW" == "true" ]]; then
-  if [[ "$HAS_STORY_IN_REVIEW" == "true" || "$CURRENT_PHASE" == "dev" || "$CURRENT_PHASE" == "review" ]]; then
-    : # OK — a story is ready for review
-  else
-    WARNINGS="$WARNINGS\\nPREMATURE_REVIEW: No story in review status. Run /aped-dev first."
-  fi
+# Rule 4: Review without a story in review status
+if [[ "$WANTS_REVIEW" == "true" ]] && [[ "$HAS_STORY_IN_REVIEW" == "false" ]]; then
+  WARNINGS="$WARNINGS\\nPREMATURE_REVIEW: No story in review status. Run /aped-dev first."
 fi
 
-# Rule 5: Modifying upstream during dev
-if [[ "$CURRENT_PHASE" == "dev" || "$CURRENT_PHASE" == "review" || "$HAS_STORY_IN_DEV" == "true" || "$HAS_STORY_IN_REVIEW" == "true" ]]; then
+# Rule 5: Modifying upstream during sprint
+if [[ "$IN_SPRINT" == "true" ]]; then
   if [[ "$WANTS_PRD" == "true" || "$WANTS_ANALYZE" == "true" ]]; then
-    WARNINGS="$WARNINGS\\nSCOPE_CHANGE: Stories are in progress. Modifying PRD/brief invalidates epics and stories. Use /aped-course instead."
+    WARNINGS="$WARNINGS\\nSCOPE_CHANGE: Sprint is active. Modifying PRD/brief invalidates epics and stories. Use /aped-course instead."
   fi
 fi
 
-# Rule 6: Skipping phases
-if [[ "$WANTS_DEV" == "true" ]]; then
-  if [[ "$CURRENT_PHASE" == "none" || "$CURRENT_PHASE" == "analyze" ]]; then
-    WARNINGS="$WARNINGS\\nPHASE_SKIP: Jumping from '$CURRENT_PHASE' to dev skips critical steps. Pipeline: Analyze -> PRD -> Epics -> Dev."
-  fi
+# Rule 6: Skipping phases — dev without completing planning
+if [[ "$WANTS_DEV" == "true" ]] && [[ "$IN_SPRINT" == "false" ]] && [[ "$HAS_EPICS" == "true" ]]; then
+  WARNINGS="$WARNINGS\\nPHASE_SKIP: Epics exist but sprint not started. Run /aped-epics to finalize and enter sprint phase."
 fi
 
 # ── No warnings = allow silently ──
