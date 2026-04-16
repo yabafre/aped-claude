@@ -1259,19 +1259,50 @@ Once all agents return, merge findings. Update tasks to \`completed\`.
 
 Severity: CRITICAL > HIGH > MEDIUM > LOW. Format: \`[Severity] Description [file:line]\`
 
-## Decision
+## Present Findings to User
 
-- MEDIUM/LOW only: fix automatically, story — \`done\`
-- HIGH+: fix or add \`[AI-Review]\` items, story — \`in-progress\`
+Present the full review report. Do NOT change any status yet.
+
+⏸ **GATE: The user decides what to do with each finding. NEVER change story status without user approval.**
+
+Ask the user:
+- "Here are the findings. For each one, what do you want to do?"
+  - **Fix now** — I apply the fix immediately in this session
+  - **Accept as-is** — Dismiss the finding (user disagrees or defers)
+  - **Add to [AI-Review]** — Add as an item to address in the next dev pass
+
+Wait for the user's decision on EVERY HIGH+ finding. MEDIUM/LOW can be batched ("fix all medium/low?").
+
+## Apply Fixes (if user chose "fix now")
+
+For each finding the user wants fixed:
+1. Apply the fix
+2. Run tests to verify no regression
+3. Commit with \`fix({ticket-id}): description of fix\`
+
+After all fixes applied: re-run the review checklist on the fixed code to confirm the findings are resolved.
+
+## Status Update (only after user decision)
+
+Based on user decisions:
+
+### All findings resolved (fixed or dismissed) → story \`done\`
+1. Update story file: mark review as passed, fill Review section
+2. Update \`${o}/state.yaml\`: story → \`done\`
+
+### Some findings deferred as [AI-Review] → story stays \`review\`
+1. Add [AI-Review] items to the story file
+2. Story stays in \`review\` — the user will decide when to address them
+3. Do NOT set back to \`in-progress\` without user saying so
 
 ## Ticket & Git Update
 
 Read \`ticket_system\` and \`git_provider\` from \`${a}/config.yaml\`.
 Read \`${a}/aped-dev/references/ticket-git-workflow.md\` for details.
 
-### Post Review Report to Ticket
+### Always: Post Review Report to Ticket
 
-If \`ticket_system\` is not \`none\`: always post the review findings as a comment on the ticket, regardless of outcome. Format:
+If \`ticket_system\` is not \`none\`: post the review findings as a comment on the ticket:
 
 \`\`\`markdown
 ## Code Review — {date}
@@ -1295,26 +1326,22 @@ If \`ticket_system\` is not \`none\`: always post the review findings as a comme
 1. If PR exists: approve/merge (adapt to \`git_provider\`)
 2. If \`ticket_system\` is not \`none\`:
    - Move ticket to **Done**
-   - Post the review report comment above
    - Close the ticket if the provider auto-closes on merge
 3. Cleanup: delete feature branch after merge
 
-### If story → \`in-progress\` (review found HIGH+ issues)
+### If story has [AI-Review] items
 1. Add [AI-Review] items as comments on the PR (one comment per finding, with line anchors)
-2. Post the review report comment on the ticket
-3. Ticket stays in **In Review**
-4. Ticket gets a \`needs-changes\` label (if provider supports it):
-   - \`github-issues\`: \`gh issue edit {id} --add-label "needs-changes"\`
-   - \`gitlab-issues\`: \`glab issue update {id} --label "needs-changes"\`
-
-## State Update
-
-Update \`${o}/state.yaml\`.
+2. Ticket stays in **In Review**
+3. Add \`needs-changes\` label if provider supports it
 
 ## Next Step
 
-If all stories are done: report pipeline completion.
-If more stories remain: tell the user "Run \`/aped-dev\` for the next story, or \`/aped-status\` to check sprint status."
+If story is \`done\`:
+- If more stories in sprint: "Run \`/aped-story\` to prepare the next story."
+- If all stories done: report sprint completion.
+
+If story has [AI-Review] items:
+- "Review items are noted. Fix them when ready, then re-run \`/aped-review\`."
 
 **Do NOT auto-chain.** The user decides when to proceed.
 
@@ -1324,7 +1351,9 @@ Review of story "1-2-user-registration":
 - [HIGH] No input validation on email field [src/auth/register.ts:42]
 - [MEDIUM] Password stored without hashing [src/auth/register.ts:58]
 - [LOW] Missing error message i18n [src/auth/register.ts:71]
-Result: 3 findings → story back to \`in-progress\` with [AI-Review] items.
+
+User: "Fix the HIGH and MEDIUM. Dismiss the LOW."
+→ Apply fixes → re-verify → story → done → "Run /aped-story for the next."
 
 ## What NOT to Do
 
