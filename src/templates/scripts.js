@@ -617,5 +617,322 @@ read_cmd() {
 ) 9> "$LOCK_FILE"
 `,
     },
+    {
+      path: `${a}/scripts/checkin.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# APED checkin — lead/story coordination plumbing.
+#
+# Story Leaders (inside a worktree) \`post\` a checkin at every transition;
+# the Lead Dev (inside the main project) \`poll\`s, \`approve\`s (or \`block\`s),
+# and \`push\`es the next command back into the worktree's tmux window.
+#
+# Backend: ticket system if configured (Linear / GitHub / GitLab / Jira)
+# with labels \`aped-checkin-<kind>\`, \`aped-approved-<kind>\`,
+# \`aped-blocked-<kind>\`. Otherwise falls back to JSONL inboxes under
+# \${main_project}/${a}/checkins/ — concurrent-safe via flock.
+#
+# Usage:
+#   checkin.sh post    <story-key> <kind> [<reason>]
+#   checkin.sh poll    [--format json|text]
+#   checkin.sh approve <story-key> <kind>
+#   checkin.sh block   <story-key> <kind> <reason>
+#   checkin.sh push    <story-key> <next-command...>
+#   checkin.sh status  <story-key> <kind>    # → pending|approved|blocked|none
+#
+# \`kind\` ∈ { story-ready, dev-done, review-done }.
+
+set -u
+set -o pipefail
+
+ACTION="\${1:-}"
+shift || true
+
+# ── Paths ─────────────────────────────────────────────────────────────────
+# Always resolve paths against the MAIN project root, not the worktree.
+# \`git worktree list\` reports absolute paths with the main worktree on line 1.
+MAIN_ROOT=""
+if command -v git >/dev/null 2>&1; then
+  MAIN_ROOT=\$(git worktree list 2>/dev/null | awk 'NR==1 {print \$1}' || true)
+fi
+: "\${MAIN_ROOT:=\${CLAUDE_PROJECT_DIR:-\$(pwd)}}"
+
+# ── Portable lock (mkdir is atomic on every POSIX fs; flock is Linux-only) ─
+acquire_lock() {
+  local lock="\$1" timeout="\${2:-10}" waited=0
+  until mkdir "\$lock" 2>/dev/null; do
+    (( waited >= timeout * 10 )) && { echo "Lock timeout on \$lock" >&2; return 1; }
+    sleep 0.1
+    waited=\$((waited + 1))
+  done
+  # Cleanup on exit, including signals.
+  # shellcheck disable=SC2064
+  trap "rmdir '\$lock' 2>/dev/null || true" EXIT INT TERM
+}
+
+CONFIG_FILE="\$MAIN_ROOT/${a}/config.yaml"
+STATE_FILE="\$MAIN_ROOT/${o}/state.yaml"
+INBOX_DIR="\$MAIN_ROOT/${a}/checkins"
+LOCK_FILE="\$INBOX_DIR/.lock"
+
+mkdir -p "\$INBOX_DIR"
+
+# ── Config helpers ────────────────────────────────────────────────────────
+read_config() {
+  local key="\$1"
+  [[ -f "\$CONFIG_FILE" ]] || { echo "none"; return; }
+  local val
+  val=\$(grep -E "^\${key}:" "\$CONFIG_FILE" 2>/dev/null | head -1 | sed 's/.*:[[:space:]]*//;s/["'\\'']//g;s/[[:space:]]*\$//')
+  echo "\${val:-none}"
+}
+
+TICKET_SYSTEM=\$(read_config ticket_system)
+GIT_PROVIDER=\$(read_config git_provider)
+
+ticket_for_story() {
+  local key="\$1"
+  [[ -f "\$STATE_FILE" ]] || return 1
+  awk -v k="\$key" '
+    \$0 ~ "^    " k ":" { in_story=1; next }
+    in_story && /^    [a-zA-Z0-9_-]+:/ { in_story=0 }
+    in_story && \$1 == "ticket:" {
+      gsub(/"/, "", \$2); print \$2; exit
+    }
+  ' "\$STATE_FILE"
+}
+
+# ── Validation ────────────────────────────────────────────────────────────
+validate_kind() {
+  case "\$1" in
+    story-ready|dev-done|review-done) ;;
+    *) echo "Invalid kind: \$1 (expected story-ready | dev-done | review-done)" >&2; exit 1 ;;
+  esac
+}
+
+now_iso() {
+  date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
+# ── File backend ──────────────────────────────────────────────────────────
+inbox_file() {
+  echo "\$INBOX_DIR/\$1.jsonl"
+}
+
+append_entry() {
+  local key="\$1" kind="\$2" status="\$3" reason="\${4:-}"
+  local file
+  file=\$(inbox_file "\$key")
+  local entry
+  if command -v jq >/dev/null 2>&1; then
+    entry=\$(jq -c -n --arg ts "\$(now_iso)" --arg s "\$key" --arg k "\$kind" --arg st "\$status" --arg r "\$reason" \
+      '{ts:\$ts, story:\$s, kind:\$k, status:\$st, reason:\$r}')
+  else
+    entry=\$(APED_TS="\$(now_iso)" APED_S="\$key" APED_K="\$kind" APED_ST="\$status" APED_R="\$reason" node -e '
+      process.stdout.write(JSON.stringify({
+        ts: process.env.APED_TS, story: process.env.APED_S,
+        kind: process.env.APED_K, status: process.env.APED_ST, reason: process.env.APED_R
+      }))')
+  fi
+
+  acquire_lock "\$LOCK_FILE" || return 1
+  printf '%s\\n' "\$entry" >> "\$file"
+  rmdir "\$LOCK_FILE" 2>/dev/null || true
+  trap - EXIT INT TERM
+}
+
+latest_status() {
+  local key="\$1" kind="\$2"
+  local file
+  file=\$(inbox_file "\$key")
+  [[ -f "\$file" ]] || { echo "none"; return; }
+  if command -v jq >/dev/null 2>&1; then
+    jq -r --arg k "\$kind" 'select(.kind == \$k) | .status' "\$file" 2>/dev/null | tail -1 || echo "none"
+  else
+    grep "\"kind\":\"\$kind\"" "\$file" | tail -1 | sed 's/.*"status":"\\([^"]*\\)".*/\\1/' || echo "none"
+  fi
+}
+
+# ── Ticket backend (thin — skills call providers directly, we just add labels + comments) ──
+add_ticket_label() {
+  local ticket="\$1" label="\$2"
+  case "\$TICKET_SYSTEM" in
+    github-issues) gh issue edit "\$ticket" --add-label "\$label" >/dev/null 2>&1 || true ;;
+    gitlab-issues) glab issue update "\$ticket" --label "\$label" >/dev/null 2>&1 || true ;;
+    linear|jira) true ;;  # Labels set by the calling skill via provider CLI — script stays provider-light.
+  esac
+}
+
+remove_ticket_label() {
+  local ticket="\$1" label="\$2"
+  case "\$TICKET_SYSTEM" in
+    github-issues) gh issue edit "\$ticket" --remove-label "\$label" >/dev/null 2>&1 || true ;;
+    gitlab-issues) glab issue update "\$ticket" --unlabel "\$label" >/dev/null 2>&1 || true ;;
+    linear|jira) true ;;
+  esac
+}
+
+post_ticket_comment() {
+  local ticket="\$1" body="\$2"
+  case "\$TICKET_SYSTEM" in
+    github-issues) gh issue comment "\$ticket" --body "\$body" >/dev/null 2>&1 || true ;;
+    gitlab-issues) glab issue note create "\$ticket" --message "\$body" >/dev/null 2>&1 || true ;;
+    linear|jira) true ;;
+  esac
+}
+
+# ── Actions ───────────────────────────────────────────────────────────────
+cmd_post() {
+  local key="\${1:-}" kind="\${2:-}" reason="\${3:-}"
+  [[ -n "\$key" && -n "\$kind" ]] || { echo "Usage: checkin.sh post <key> <kind> [reason]" >&2; exit 1; }
+  validate_kind "\$kind"
+
+  append_entry "\$key" "\$kind" "pending" "\$reason"
+
+  if [[ "\$TICKET_SYSTEM" != "none" ]]; then
+    local ticket
+    ticket=\$(ticket_for_story "\$key" || true)
+    if [[ -n "\$ticket" ]]; then
+      add_ticket_label "\$ticket" "aped-checkin-\$kind"
+      post_ticket_comment "\$ticket" "[APED:CHECKIN:\$kind] \$key — requesting lead approval.\${reason:+\$'\\n'Reason: \$reason}"
+    fi
+  fi
+
+  printf 'posted %s/%s (pending)\\n' "\$key" "\$kind"
+}
+
+cmd_approve() {
+  local key="\${1:-}" kind="\${2:-}"
+  [[ -n "\$key" && -n "\$kind" ]] || { echo "Usage: checkin.sh approve <key> <kind>" >&2; exit 1; }
+  validate_kind "\$kind"
+  append_entry "\$key" "\$kind" "approved" ""
+
+  if [[ "\$TICKET_SYSTEM" != "none" ]]; then
+    local ticket
+    ticket=\$(ticket_for_story "\$key" || true)
+    if [[ -n "\$ticket" ]]; then
+      remove_ticket_label "\$ticket" "aped-checkin-\$kind"
+      add_ticket_label "\$ticket" "aped-approved-\$kind"
+      post_ticket_comment "\$ticket" "[APED:APPROVE:\$kind] \$key — lead approved. Proceed."
+    fi
+  fi
+  printf 'approved %s/%s\\n' "\$key" "\$kind"
+}
+
+cmd_block() {
+  local key="\${1:-}" kind="\${2:-}" reason="\${3:-}"
+  [[ -n "\$key" && -n "\$kind" && -n "\$reason" ]] || { echo "Usage: checkin.sh block <key> <kind> <reason>" >&2; exit 1; }
+  validate_kind "\$kind"
+  append_entry "\$key" "\$kind" "blocked" "\$reason"
+
+  if [[ "\$TICKET_SYSTEM" != "none" ]]; then
+    local ticket
+    ticket=\$(ticket_for_story "\$key" || true)
+    if [[ -n "\$ticket" ]]; then
+      remove_ticket_label "\$ticket" "aped-checkin-\$kind"
+      add_ticket_label "\$ticket" "aped-blocked-\$kind"
+      post_ticket_comment "\$ticket" "[APED:BLOCK:\$kind] \$key — lead needs changes. Reason: \$reason"
+    fi
+  fi
+  printf 'blocked %s/%s\\n' "\$key" "\$kind"
+}
+
+cmd_status() {
+  local key="\${1:-}" kind="\${2:-}"
+  [[ -n "\$key" && -n "\$kind" ]] || { echo "Usage: checkin.sh status <key> <kind>" >&2; exit 1; }
+  latest_status "\$key" "\$kind"
+}
+
+cmd_poll() {
+  local format="text"
+  if [[ "\${1:-}" == "--format" ]]; then
+    format="\${2:-text}"
+  fi
+
+  local pending=()
+  shopt -s nullglob
+  for f in "\$INBOX_DIR"/*.jsonl; do
+    local key
+    key=\$(basename "\$f" .jsonl)
+    for kind in story-ready dev-done review-done; do
+      local st
+      st=\$(latest_status "\$key" "\$kind")
+      if [[ "\$st" == "pending" ]]; then
+        pending+=("\$key|\$kind")
+      fi
+    done
+  done
+  shopt -u nullglob
+
+  if [[ "\$format" == "json" ]]; then
+    printf '['
+    local first=1
+    for entry in "\${pending[@]}"; do
+      local k="\${entry%|*}"
+      local nd="\${entry#*|}"
+      [[ \$first -eq 1 ]] && first=0 || printf ','
+      printf '{"story":"%s","kind":"%s"}' "\$k" "\$nd"
+    done
+    printf ']\\n'
+  else
+    if [[ \${#pending[@]} -eq 0 ]]; then
+      echo "No pending check-ins."
+    else
+      echo "Pending check-ins (\${#pending[@]}):"
+      for entry in "\${pending[@]}"; do
+        local k="\${entry%|*}"
+        local nd="\${entry#*|}"
+        echo "  \$k  \$nd"
+      done
+    fi
+  fi
+}
+
+cmd_push() {
+  local key="\${1:-}"; shift || true
+  [[ -n "\$key" && \$# -gt 0 ]] || { echo "Usage: checkin.sh push <key> <command...>" >&2; exit 1; }
+  local prompt="\$*"
+
+  # Derive the tmux target window from the story's ticket (workmux naming default).
+  local ticket
+  ticket=\$(ticket_for_story "\$key" || true)
+  [[ -n "\$ticket" ]] || { echo "No ticket found for \$key — cannot push." >&2; exit 1; }
+
+  if ! command -v tmux >/dev/null 2>&1; then
+    echo "tmux not available — Story Leader must invoke next command manually (\$prompt)." >&2
+    exit 2
+  fi
+
+  # Try to send to any tmux window matching the ticket name (across sessions).
+  local targets
+  targets=\$(tmux list-windows -a -F '#{session_name}:#{window_index} #{window_name}' 2>/dev/null | awk -v n="\$ticket" '\$NF == n {print \$1}' || true)
+  if [[ -z "\$targets" ]]; then
+    echo "No tmux window named '\$ticket' found — Story Leader must invoke next command manually." >&2
+    exit 2
+  fi
+
+  local first_target
+  first_target=\$(echo "\$targets" | head -1)
+  tmux send-keys -t "\$first_target" "\$prompt" Enter
+  printf 'pushed to %s\\n' "\$first_target"
+}
+
+case "\$ACTION" in
+  post)    cmd_post    "\$@" ;;
+  poll)    cmd_poll    "\$@" ;;
+  approve) cmd_approve "\$@" ;;
+  block)   cmd_block   "\$@" ;;
+  status)  cmd_status  "\$@" ;;
+  push)    cmd_push    "\$@" ;;
+  ""|help|-h|--help)
+    sed -n '2,/^$/p' "\$0" | sed 's/^# \\{0,1\\}//'
+    ;;
+  *)
+    echo "Unknown action: \$ACTION" >&2
+    echo "Run checkin.sh --help" >&2
+    exit 1
+    ;;
+esac
+`,
+    },
   ];
 }

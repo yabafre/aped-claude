@@ -1219,11 +1219,25 @@ If \`ticket_system\` is \`none\`:
 2. Update \`${o}/state.yaml\`: story — \`review\`
 3. Sync any new decisions/notes from the Dev Agent Record to the ticket (as a comment, never overwrite body)
 
-## Next Step
+## Checkin — parallel-sprint mode
 
-Tell the user: "Story implementation complete. Run \`/aped-review\` to review, or \`/aped-dev\` to start the next story."
+If this session is a Story Leader (i.e. \`${a}/WORKTREE\` exists OR this worktree's path appears in sprint.stories.{key}.worktree), post a \`dev-done\` check-in and HALT awaiting Lead approval:
 
-**Do NOT auto-chain.** The user decides when to proceed.
+\`\`\`bash
+bash \${project_root}/${a}/scripts/checkin.sh post {story-key} dev-done
+\`\`\`
+
+Then tell the user in the worktree session:
+
+> "dev-done check-in posted. Waiting for the Lead Dev to approve in the main project (\`/aped-lead\`). This session will receive \`/aped-review {story-key}\` automatically via tmux send-keys once approved (or the user can run it manually)."
+
+**STOP. Do not continue to /aped-review yourself.**
+
+## Next Step — classic mode only
+
+If this is NOT a parallel-sprint worktree session, tell the user: "Story implementation complete. Run \`/aped-review\` to review, or \`/aped-dev\` to start the next story."
+
+**Do NOT auto-chain.** The user (or the Lead in parallel mode) decides when to proceed.
 
 ## Example
 
@@ -1554,8 +1568,23 @@ TeamDelete(name: "review-{story-key}")
 
 This frees the teammates' threads; skipping it only wastes context until the session ends.
 
+### Parallel-sprint checkin (only when story → done inside a worktree)
+
+If this session is a Story Leader (\`${a}/WORKTREE\` exists OR the worktree path is registered in sprint.stories.{key}) AND the story just flipped to \`done\`, post a \`review-done\` check-in so the Lead can verify and recommend cleanup:
+
+\`\`\`bash
+bash \${project_root}/${a}/scripts/checkin.sh post {story-key} review-done
+\`\`\`
+
+No HALT — the story is finished. The Lead picks up the check-in and tells the user what to do next (typically \`workmux merge\` inside this window, or the scripted fallback).
+
+If the story stayed \`review\`, do NOT post a check-in — the user stays in control and will re-invoke /aped-review after fixing.
+
+### Next Step messaging
+
 If story → \`done\`:
-- Stories remaining: "Run \`/aped-story\` to prepare the next story."
+- In parallel mode: "review-done check-in posted. Wait for \`/aped-lead\` to confirm cleanup instructions."
+- Classic mode: "Run \`/aped-story\` to prepare the next story."
 - Sprint complete: report completion.
 
 If story stays \`review\`:
@@ -1993,6 +2022,18 @@ Queue (waiting for a slot):
 \`\`\`
 
 Sorted by time in queue.
+
+## 4b. Lead Check-ins Pending
+
+Run \`bash ${a}/scripts/checkin.sh poll --format json\` and show any pending entries:
+
+\`\`\`
+Check-ins awaiting Lead Dev approval (2):
+  1-2-contract      dev-done     posted 4m
+  1-4-handlers      story-ready  posted 1m
+\`\`\`
+
+If non-empty, add a hint: "Run \`/aped-lead\` to batch-process these."
 
 ## 5. Ready to Dispatch
 
@@ -2814,6 +2855,140 @@ Before writing, present a summary:
 Tell the user: "CLAUDE.md updated. APED block is now at lines X-Y. Re-run \`/aped-claude\` anytime to refresh after APED updates."
 `,
     },
+    // ── aped-lead ────────────────────────────────────────────────
+    {
+      path: `${a}/aped-lead/SKILL.md`,
+      content: `---
+name: aped-lead
+description: 'Lead Dev hub for parallel sprints. Batch-processes Story Leader check-ins (story-ready, dev-done, review-done), auto-approves what is safe, escalates what needs user attention, and pushes the next command into each worktree. Use when user says "lead", "check approvals", "aped lead", or invokes /aped-lead. Runs from the MAIN project, not a worktree.'
+disable-model-invocation: true
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '3.4.4'}
+---
+
+# APED Lead — Parallel-Sprint Coordinator
+
+You are the **Lead Dev**. Story Leaders running in worktrees post check-ins at every transition (story-ready, dev-done, review-done). Your job is to batch-process those, approve what's safe, escalate what isn't, and push the next step back to each worktree.
+
+## Critical Rules
+
+- Only run from the **main project root**. If \`${a}/WORKTREE\` exists in CWD, HALT — you're inside a worktree, not the Lead.
+- NEVER approve a check-in whose auto-approve criteria (below) aren't all satisfied. Escalate instead.
+- NEVER silently change state.yaml or ticket status — every mutation is mirrored by a \`${a}/scripts/checkin.sh\` call so the audit trail stays in one place.
+- Auto-approve is **programmatic**, not vibes. Run the checks, compute the verdict, don't hallucinate.
+- When in doubt: escalate.
+
+## Setup
+
+1. Verify you are in the main project root: \`ls ${a}/WORKTREE\` must fail. If it succeeds, HALT.
+2. Read \`${a}/config.yaml\` — extract \`ticket_system\`, \`git_provider\`.
+3. Read \`${o}/state.yaml\` — load \`sprint.stories\` (DAG, worktrees, statuses).
+4. Run \`bash ${a}/scripts/checkin.sh poll --format json\` — this is the list of pending check-ins.
+5. If empty: report "No pending check-ins." and STOP.
+
+## Auto-Approve Criteria (hard, programmatic)
+
+For each pending check-in, classify as **AUTO** or **ESCALATE** using these rules only.
+
+### story-ready  (posted by /aped-story)
+AUTO iff all of:
+- \`${o}/stories/{story-key}.md\` exists.
+- Story file has a numbered Acceptance Criteria section with ≥ 1 GIVEN/WHEN/THEN.
+- Every key in \`depends_on\` has \`status: done\` in state.yaml.
+- If \`ticket_system != none\`: fetch the ticket; title + body are present; no comment posted after the checkin mentions an unresolved question (regex: \`\`\`?\`\`\`, \`TBD\`, \`need clarification\`).
+
+ESCALATE otherwise. Typical reasons: deps not done, ACs malformed, ticket/story divergence.
+
+### dev-done  (posted by /aped-dev)
+AUTO iff all of:
+- Latest commit on the story's branch has a successful \`run-tests.sh\` exit (check \`.aped/.last-test-exit\` in the worktree, or run tests if stale: \`bash \${worktree}/${a}/aped-dev/scripts/run-tests.sh --silent\`).
+- Every task in \`${o}/stories/{story-key}.md\` under "Tasks" is checked (\`[x]\`).
+- No HALT logs in the Dev Agent Record (\`grep -i 'HALT' \${worktree}/${o}/stories/{story-key}.md\` returns nothing).
+- \`git -C {worktree} status --porcelain\` is empty (clean working tree).
+- File list in the story matches the changes: \`bash ${a}/aped-review/scripts/git-audit.sh \${worktree}/${o}/stories/{story-key}.md --silent\` exits 0.
+
+ESCALATE otherwise. Typical reasons: test failures, HALT logs, unchecked tasks, file-list mismatch.
+
+### review-done  (posted by /aped-review when story → done)
+AUTO iff all of:
+- Story status in state.yaml is \`done\` (the review skill only posts this check-in after converging).
+- No \`aped-blocked-*\` label on the ticket (if applicable).
+- PR is mergeable (\`gh pr view --json mergeable | jq -r .mergeable\` == "MERGEABLE", or equivalent).
+
+ESCALATE otherwise.
+
+## Batch Processing
+
+For each pending check-in, compute a verdict.
+
+Present a compact dashboard:
+
+\`\`\`
+Pending check-ins (4):
+  ✓ 1-2-contract   story-ready   AUTO    (ACs OK, deps 1-1 ✓, ticket aligned)
+  ⚠ 1-3-rpc        dev-done       ESCALATE (2 tests failing in router.spec.ts)
+  ✓ 1-4-handlers   story-ready   AUTO    (ACs OK, deps 1-2 ✓)
+  ⚠ 1-5-hooks      review-done    ESCALATE (PR has conflicts with main)
+\`\`\`
+
+⏸ **GATE: User confirms the batch.**
+
+Offer three actions:
+- **Approve all AUTO (2)** — apply auto-approvals, skip escalations.
+- **Approve all (including escalations)** — user takes responsibility, full batch.
+- **Drill down on {story-key}/{kind}** — see the failing checks for that specific one.
+
+Default: **Approve all AUTO**. The user can override.
+
+## Applying Approvals
+
+For each approved check-in:
+
+1. \`bash ${a}/scripts/checkin.sh approve {story-key} {kind}\`
+2. Determine the follow-up command for the worktree:
+   - \`story-ready\` → \`/aped-dev {story-key}\`
+   - \`dev-done\`    → \`/aped-review {story-key}\`
+   - \`review-done\` → no follow-up; recommend the user run \`workmux merge\` in the worktree's window (or \`bash ${a}/scripts/worktree-cleanup.sh {worktree-path} --delete-branch\` if workmux is absent).
+3. Push it to the worktree's tmux window: \`bash ${a}/scripts/checkin.sh push {story-key} "{follow-up-command}"\`
+4. If \`push\` reports tmux absent: tell the user "Story Leader for {story-key} is waiting — re-invoke in its terminal: \`{follow-up-command}\`."
+
+## Applying Blocks (escalations user wants to reject)
+
+For escalations the user rejects, invoke:
+
+\`\`\`bash
+bash ${a}/scripts/checkin.sh block {story-key} {kind} "{reason}"
+\`\`\`
+
+This labels the ticket \`aped-blocked-{kind}\` and posts a comment. The Story Leader polling will see the block and know to fix before re-posting the check-in.
+
+## Teardown — Done Stories
+
+For every \`review-done\` check-in approved, if story just flipped to \`done\` in state.yaml:
+- If a worktree is still listed for the story, recommend cleanup to the user (workmux merge / worktree-cleanup.sh).
+- The skill does NOT delete worktrees autonomously — user keeps control of merge order.
+
+## Dispatch Follow-up
+
+After approvals, compute new capacity: how many stories flipped out of \`in-progress\` or \`review\`? If any, remind the user that \`/aped-sprint\` can now dispatch the unblocked stories.
+
+## Edge Cases
+
+- **No pending check-ins**: report and STOP; no side effects.
+- **Check-in without a matching state.yaml story**: report a stale inbox entry, ask the user whether to clear it (call \`checkin.sh block\` with reason "stale — story missing").
+- **Worktree deleted but check-in pending**: same as above; likely the user merged without approving. Suggest \`block\`.
+- **Conflicting responses on the same story/kind**: \`latest_status\` wins — the script is append-only JSONL with "last write wins" semantics.
+
+## Next Step
+
+Tell the user:
+> "{N} approved, {M} escalated, {K} blocked. Review any remaining escalations or re-run \`/aped-lead\` after new check-ins land. Use \`/aped-status\` for the sprint dashboard."
+
+**Do NOT auto-chain.** The user decides when to re-run.
+`,
+    },
     // ── aped-sprint ──────────────────────────────────────────────
     {
       path: `${a}/aped-sprint/SKILL.md`,
@@ -2907,16 +3082,21 @@ Two paths, picked by the Setup detection.
 
 ### Path A — workmux available (preferred)
 
-\`workmux\` handles worktree creation, tmux window creation, and auto-launches a Claude Code session with an initial prompt injected. One command per story:
+\`workmux\` creates the worktree, the tmux window, and launches Claude Code. **We intentionally do NOT pre-inject \`/aped-dev\`** — the Story Leader must wait for a \`story-ready\` approval from the Lead first. One command per story:
 
 \`\`\`bash
 workmux add "{ticket-id}" \\
   --branch "feature/{ticket-id}-{story-key}" \\
-  -a claude \\
-  -p "/aped-dev {story-key}"
+  -a claude
 \`\`\`
 
-**No marker gymnastics needed.** \`/aped-dev\` infers the story from the branch name (\`feature/{ticket}-{story-key}\`) when it starts, then writes \`.aped/WORKTREE\` itself as a cache. This avoids the race between \`workmux add\` launching Claude immediately and us trying to pre-write a marker.
+Right after each dispatch, post the \`story-ready\` check-in so the Lead can queue-validate:
+
+\`\`\`bash
+bash ${a}/scripts/checkin.sh post {story-key} story-ready
+\`\`\`
+
+The Story Leader's \`claude\` session is sitting idle in the tmux window. Once the user runs \`/aped-lead\` in the main project and approves, the Lead will \`tmux send-keys\` \`/aped-dev {story-key}\` into that window.
 
 If the project has no \`.workmux.yaml\` at the repo root, mention it once to the user: a sample lives at \`${a}/templates/workmux.yaml.example\` — recommend copying it and customising panes / post_create / files.
 
@@ -2931,6 +3111,14 @@ WORKTREE=$(bash ${a}/scripts/sprint-dispatch.sh <story-key> <ticket-id>)
 \`\`\`
 
 The helper creates the worktree, the branch, and the \`.aped/WORKTREE\` marker.
+
+Post the \`story-ready\` check-in the same way as Path A:
+
+\`\`\`bash
+bash ${a}/scripts/checkin.sh post {story-key} story-ready
+\`\`\`
+
+The user is expected to open a terminal per worktree **but wait to run \`/aped-dev\`** until \`/aped-lead\` has approved the story-ready check-in. The Lead prints the exact command to run (the fallback can't push via tmux).
 
 ### Shared post-dispatch
 
@@ -2981,7 +3169,7 @@ After success, update state.yaml **atomically** (one write at the end, not per s
 ## Next Step
 
 After dispatch, tell the user:
-> "Worktrees created. Open a terminal per worktree and run the commands above. When a story lands in review, run \`/aped-review {story-key}\` in its worktree. Come back to the main project and re-run \`/aped-sprint\` to dispatch more when capacity frees up. Use \`/aped-status\` here for the live dashboard."
+> "Worktrees created, \`story-ready\` check-ins posted. **In this main session, run \`/aped-lead\`** to approve the batch — the Lead will push \`/aped-dev\` into each worktree (via tmux, or prints the command to run manually in fallback mode). As stories progress, each Story Leader will post \`dev-done\` and \`review-done\` check-ins; re-run \`/aped-lead\` when \`/aped-status\` shows new pending ones. Come back to \`/aped-sprint\` to dispatch more when capacity frees up."
 
 **Do NOT auto-chain.** The user decides when to proceed.
 `,

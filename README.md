@@ -5,7 +5,7 @@
 [![Node](https://img.shields.io/node/v/aped-method.svg?style=flat-square)](https://nodejs.org)
 [![License](https://img.shields.io/npm/l/aped-method.svg?style=flat-square)](./LICENSE)
 
-CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — 16 slash commands, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, and **parallel sprint** mode via `git worktree`.
+CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — 17 slash commands, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, and **parallel sprint** mode via `git worktree` with a Lead Dev coordinator.
 
 ```
 npx aped-method
@@ -71,12 +71,13 @@ For the best experience, install [workmux](https://github.com/raine/workmux) (`b
 | `/aped-dev` | Dev | TDD red-green-refactor with a 5-condition GATE (+ 6th visual GATE for frontend), optional fullstack team mode |
 | `/aped-review` | Review | Adversarial review by a coordinated agent team (Eva, Marcus, Rex + domain specialists), binary outcome: `review → done` |
 
-## Utility commands (8)
+## Utility commands (9)
 
 | Command | What it does |
 |---------|-------------|
-| `/aped-sprint` | **Parallel sprint** — resolves story DAG, creates worktrees, prints the commands to open N sessions in parallel |
-| `/aped-status` | Multi-worktree dashboard — capacity, active worktrees, review queue, ready-to-dispatch |
+| `/aped-sprint` | **Parallel sprint** — resolves story DAG, creates worktrees, posts `story-ready` check-ins |
+| `/aped-lead` | **Lead Dev hub** — batch-processes check-ins from Story Leaders, auto-approves safe transitions, escalates the rest, pushes the next command into each worktree |
+| `/aped-status` | Multi-worktree dashboard — capacity, active worktrees, review queue, pending check-ins, ready-to-dispatch |
 | `/aped-course` | Correct course — scope change management with impact analysis (unlocks upstream docs while active) |
 | `/aped-context` | Brownfield analysis — generate project context from existing code |
 | `/aped-qa` | Generate E2E + integration tests from acceptance criteria |
@@ -143,13 +144,26 @@ Before implementing each story, `/aped-dev` checks `docs/aped/epic-{N}-context.m
 ### Spec isolation — `/aped-quick`
 Quick specs are independent files with a status field (`draft → in-progress → done`). Multiple can run in parallel. Resuming an in-progress spec is automatic.
 
-### Parallel sprint via worktrees — `/aped-sprint`
-When an epic has several stories ready to go, `/aped-sprint` resolves the story DAG (`depends_on:` in `epics.md` and `state.yaml`), then dispatches up to `parallel_limit` stories (default 3) — each in its own `git worktree` at `../{project}-{ticket}` on branch `feature/{ticket}-{story-key}`. Reviews are also bounded (`review_limit`, default 2) and spill to a `review-queued` status when the limit is reached. An `upstream-lock` PreToolUse hook denies any edit to `prd.md` / `architecture.md` / `ux/` while a story is in-progress; only `/aped-course` can temporarily unlock — and it notifies every active worktree ticket before and after the change.
+### Parallel sprint via worktrees — `/aped-sprint` + `/aped-lead`
+
+When an epic has several stories ready to go, `/aped-sprint` resolves the story DAG (`depends_on:` in `epics.md` and `state.yaml`), then dispatches up to `parallel_limit` stories (default 3) — each in its own `git worktree` at `../{project}-{ticket}` on branch `feature/{ticket}-{story-key}`. Reviews are bounded too (`review_limit`, default 2) and spill to a `review-queued` status when the limit is reached. An `upstream-lock` PreToolUse hook denies any edit to `prd.md` / `architecture.md` / `ux/` while a story is in-progress; only `/aped-course` can temporarily unlock — and it notifies every active worktree ticket before and after the change.
+
+**Two-tier architecture: Lead Dev ↔ Story Leaders**
+
+Stories don't run on autopilot. Each Story Leader (the Claude session inside a worktree) posts a check-in at every transition and HALTs:
+
+- `story-ready` — posted by `/aped-sprint` at dispatch
+- `dev-done` — posted by `/aped-dev` when implementation + tests converge
+- `review-done` — posted by `/aped-review` when the story flips to `done`
+
+You run `/aped-lead` in the main project whenever you want to process the batch. The Lead Dev applies **hard programmatic criteria** (deps resolved, tests passing 100%, no HALT logs, git clean, no blocking labels) to auto-approve what's safe, and escalates anything borderline to you. Approvals `tmux send-keys` the next command into the right worktree window (fallback: print the command for you to run manually). The result is a real distributed team — every transition gets a second pair of eyes, but only when it's worth the cognitive load.
 
 **Dispatch has two paths**, picked automatically:
 
-- **With [workmux](https://github.com/raine/workmux)** (recommended) — APED detects `workmux` in `$PATH` and calls `workmux add -a claude -p "/aped-dev <story-key>"` per story. This auto-creates the tmux window, launches Claude Code with the initial prompt already injected, and gives you a live TUI dashboard via `workmux dashboard`. No manual terminal opening. A starter `.workmux.yaml` ships at `.aped/templates/workmux.yaml.example` — copy it to your repo root and customise pane layout, file copy/symlink, and post-create hooks.
-- **Without workmux** (fallback) — `.aped/scripts/sprint-dispatch.sh` creates the worktree + branch + marker file and prints the exact `cd` + `claude` + `/aped-dev` commands you run in a new terminal per worktree.
+- **With [workmux](https://github.com/raine/workmux)** (recommended) — APED detects `workmux` in `$PATH` and calls `workmux add -a claude` per story. The Claude session sits idle in its tmux window until `/aped-lead` approves the `story-ready` check-in and pushes `/aped-dev {story-key}` via `tmux send-keys`. Live TUI dashboard via `workmux dashboard`, one-command cleanup via `workmux merge`. A starter `.workmux.yaml` ships at `.aped/templates/workmux.yaml.example`.
+- **Without workmux** (fallback) — `.aped/scripts/sprint-dispatch.sh` creates the worktree + branch + marker file. `/aped-lead` still gates transitions but prints the exact commands for you to run manually in each worktree.
+
+**Check-in backend**: ticket system (Linear / GitHub / GitLab / Jira) with `aped-checkin-*` / `aped-approved-*` / `aped-blocked-*` labels + structured comments. If `ticket_system: none`, falls back to JSONL inboxes under `.aped/checkins/`. Concurrent-safe via a portable `mkdir`-based lock (macOS-compatible).
 
 ## What gets scaffolded
 
@@ -162,7 +176,8 @@ When an epic has several stories ready to go, `/aped-sprint` resolves the story 
 ├── scripts/
 │   ├── sprint-dispatch.sh          # Creates worktree + branch + marker
 │   ├── worktree-cleanup.sh         # Removes worktree, optionally deletes branch
-│   └── sync-state.sh               # Atomic state.yaml mutations (flock)
+│   ├── sync-state.sh               # Atomic state.yaml mutations
+│   └── checkin.sh                  # Lead/Leader coordination (post/poll/approve/push)
 ├── templates/                      # Document templates (brief, PRD, epics, story, quick-spec)
 ├── aped-analyze/                   # Research personas (Mary/Derek/Tom)
 │   ├── SKILL.md
@@ -193,6 +208,7 @@ When an epic has several stories ready to go, `/aped-sprint` resolves the story 
 │   ├── scripts/git-audit.sh
 │   └── references/review-criteria.md
 ├── aped-sprint/                    # Parallel dispatch via worktrees
+├── aped-lead/                      # Lead Dev hub — batch-approves check-ins
 ├── aped-status/                    # Multi-worktree dashboard
 ├── aped-course/                    # Scope change (with worktree notification)
 ├── aped-context/                   # Brownfield analysis
@@ -213,7 +229,7 @@ docs/aped/                          # Output (evolves during project)
 └── quick-specs/                    # /aped-quick
 
 .claude/
-├── commands/aped-*.md              # 16 slash commands with argument-hints
+├── commands/aped-*.md              # 17 slash commands with argument-hints
 └── settings.local.json             # UserPromptSubmit + PreToolUse hooks + pre-approved Bash permissions
 ```
 
