@@ -605,6 +605,9 @@ For each epic, list the stories with:
 - **FRs covered** — which FR numbers this story addresses
 - **Acceptance Criteria** — high-level Given/When/Then (will be refined in /aped-story)
 - **Estimated complexity** — S / M / L
+- **Depends on** — comma-separated list of story keys this one blocks on, or \`none\`. Required for parallel sprint (\`/aped-sprint\`).
+
+Pick dependencies conservatively: if story B *needs* an artefact produced by story A (contract, schema, shared util), list A. If B only shares files with A but could technically be rebased after, no dep — parallel sprint wins. "Pure foundation" stories (1-1 auth scaffold, 1-1 schema base) usually have \`depends_on: none\` and unlock a fan-out.
 
 Do NOT create the detailed story files here. The user will run \`/aped-story\` to create each one individually before implementing it.
 
@@ -632,11 +635,12 @@ bash ${a}/aped-epics/scripts/validate-coverage.sh ${o}/epics.md ${o}/prd.md
 
 ## Output
 
-1. Write epics and story list to \`${o}/epics.md\`
+1. Write epics and story list to \`${o}/epics.md\` with \`**Depends on:**\` on every story
 2. Update \`${o}/state.yaml\`:
    - Set \`current_phase: "sprint"\` — this marks the transition from planning to execution
+   - Set \`sprint.active_epic\` to the epic the user wants to start with (usually \`1\`)
    - Add \`phases.epics\` with status \`done\` and output path
-   - Add \`sprint.stories\` with all stories listed as \`pending\`
+   - Add \`sprint.stories\` — one entry per story with \`status: pending\`, \`depends_on: [array of story keys]\`, \`ticket: null\` (filled by Ticket System Setup), \`worktree: null\`
    - \`"sprint"\` covers the entire story→dev→review cycle — no further phase changes needed
 3. Do NOT create \`${o}/stories/\` files — that is \`/aped-story\`'s job
 
@@ -980,12 +984,23 @@ Before writing ANY code for a story, verify you can check every box. If you can'
 
 ## Setup
 
-1. Read \`${a}/config.yaml\` — extract config including \`ticket_system\`, \`git_provider\`
-2. Read \`${o}/state.yaml\` — find next story
+1. **Worktree Mode Detection** — check for \`${a}/WORKTREE\` in the current project.
+   - If the marker exists (parallel-sprint mode), this session is pinned to the story it records:
+     - Read the marker to get \`story_key\`, \`ticket\`, \`branch\`, \`project_root\`
+     - Read state.yaml from \`project_root/${o}/state.yaml\` (the canonical one), not a local copy
+     - Verify the marker's \`story_key\` matches a story whose \`worktree\` field points to this directory; if not, HALT with an error — the worktree is stale or mislabelled
+     - Skip "Story Selection" below — this session only works on the pinned story
+     - Skip git branch creation at implementation time — the worktree already has \`branch\`
+   - If the marker does NOT exist (classic single-session mode), proceed normally.
+2. Read \`${a}/config.yaml\` — extract config including \`ticket_system\`, \`git_provider\`.
+3. Read \`${o}/state.yaml\` (or the main project's state.yaml if in worktree mode) — find the target story.
 
 ## Story Selection
 
-Scan \`sprint.stories\` top-to-bottom for first \`ready-for-dev\` story.
+**Worktree mode:** the story is already pinned by \`${a}/WORKTREE\`. Skip this section.
+
+**Classic mode:** scan \`sprint.stories\` top-to-bottom for the first \`ready-for-dev\` story.
+- If the user passed an argument (\`/aped-dev {story-key}\`), use that one instead
 - If none found: report "All stories implemented or in review" and stop
 - Check if story file exists at \`${o}/stories/{story-key}.md\`
   - If file missing: tell user "Story file not found. Run \`/aped-story\` first to prepare it." and stop
@@ -1260,9 +1275,31 @@ You are the **Lead Reviewer**. You orchestrate a team of specialist agents, each
 
 ## Step 1: Setup
 
-1. Read \`${a}/config.yaml\` — extract config (\`git_provider\`, \`ticket_system\`)
-2. Read \`${o}/state.yaml\` — find first story with status \`review\`
-   - If none: report "No stories pending review" and stop
+1. **Worktree Mode Detection** — if \`${a}/WORKTREE\` exists, read the marker and:
+   - Use its \`story_key\` instead of scanning state.yaml
+   - Read the canonical state.yaml from the marker's \`project_root\`
+2. Read \`${a}/config.yaml\` — extract config (\`git_provider\`, \`ticket_system\`)
+3. Read \`${o}/state.yaml\` — resolve the target story:
+   - If the user passed \`{story-key}\` as argument, use it
+   - Else if in worktree mode, use the marker's story
+   - Else find the first story with status \`review\`
+   - If none found: report "No stories pending review" and stop
+
+## Step 1b: Parallel Review Capacity
+
+Before spinning up specialists, check \`sprint.review_limit\` (default 2) against current reviews:
+
+\`\`\`
+reviews_running = count(stories where status == "review" AND story_key != this one)
+\`\`\`
+
+If \`reviews_running >= review_limit\`:
+- Update this story's status to \`review-queued\` in state.yaml
+- Post a comment on the ticket (if applicable): "Review capacity reached — queued."
+- Tell the user: "Review queue is full (\`{running}\`/\`{limit}\`). This story is \`review-queued\`. Re-run \`/aped-review {story-key}\` when a slot frees (see \`/aped-status\`)."
+- STOP — do not dispatch specialists.
+
+Otherwise, continue to Step 2. (Do NOT change status yet; it stays \`review\` until either \`done\` or queued again.)
 
 ## Step 2: Load Context
 
@@ -1880,80 +1917,120 @@ metadata:
 
 # APED Status — Sprint Dashboard
 
+Live dashboard for the pipeline and parallel sprint. Read-only — never writes, never changes status.
+
 ## Setup
 
-1. Read \`${a}/config.yaml\` — extract \`communication_language\`, \`ticket_system\`
-2. Read \`${o}/state.yaml\` — load full pipeline and sprint state
+1. Read \`${a}/config.yaml\` — extract \`communication_language\`, \`ticket_system\`, \`git_provider\`
+2. Read \`${o}/state.yaml\` — pipeline + sprint state (active_epic, parallel_limit, review_limit, stories with their \`status\`, \`worktree\`, \`depends_on\`, \`ticket\`)
 3. Read \`${a}/aped-status/references/status-format.md\` for display conventions
 
-## Pipeline Overview
-
-Display current pipeline phase and completion status:
+## 1. Pipeline Overview
 
 \`\`\`
-Pipeline: A[✓] → P[✓] → E[✓] → D[▶] → R[ ]
+Pipeline: A[✓] → P[✓] → UX[✓] → Arch[✓] → E[✓] → Sprint[▶]
 \`\`\`
 
-For each completed phase, show the output artifact path.
+Show the output path of each completed phase.
 
-## Sprint Progress
-
-For each epic in \`sprint.stories\`:
-
-1. Count stories by status: \`done\`, \`in-progress\`, \`review\`, \`ready-for-dev\`, \`backlog\`
-2. Calculate completion percentage
-3. Display as progress bar:
+## 2. Sprint Header
 
 \`\`\`
-Epic 1: User Authentication     [████████░░] 80% (4/5 stories)
-  ✓ 1-1-project-setup           done
-  ✓ 1-2-user-registration       done
-  ✓ 1-3-login-flow              done
-  ✓ 1-4-password-reset          done
-  ▶ 1-5-session-management      in-progress
+Active epic:  1 — Foundation & Validators
+Parallel:     2/3 in-progress      (limit: parallel_limit)
+Reviews:      1/2 running          (limit: review_limit)
+Queued:       1 story in review-queued
+Scope change: locked | active      (scope_change_active flag)
 \`\`\`
 
-## Blockers Detection
+## 3. Active Worktrees
 
-Scan for:
-- Stories with \`[AI-Review]\` items → **Review blockers**
-- Stories \`in-progress\` for more than 1 session → **Stuck stories**
-- Missing dependencies between stories → **Dependency blockers**
-- HALT conditions logged in Dev Agent Record → **Dev halts**
+For each story with \`status in {in-progress, review-queued, review}\` AND a non-null \`worktree\`:
 
-## Next Actions
+\`\`\`
+../cloudvault-KON-82  [1-1-zod-validators]   in-progress
+  Branch: feature/KON-82-zod-validators
+  Ticket: KON-82 · In Progress
+  Last commit: 18m ago — "feat(zod): add user schema"
+  Tests: ✓ 24/24 passing
+  Started: 2h 12m ago
+\`\`\`
 
-Based on current state, suggest the next logical command:
-- If stories \`ready-for-dev\`: suggest \`/aped-dev\`
-- If stories in \`review\`: suggest \`/aped-review\`
-- If all stories \`done\`: suggest pipeline complete
-- If blockers found: describe resolution path
+Gather this by:
+- \`git -C {worktree} log -1 --format='%ar — %s'\` for last commit
+- \`git -C {worktree} status --porcelain | wc -l\` for dirty count
+- If a \`package.json\` with a \`test\` script is present and the last test log is fresh (< 10 min old), report cached test status; otherwise mark \`tests: unknown\` (don't re-run tests from /aped-status)
+- Ticket status via \`gh\`/\`glab\`/linear as per \`ticket_system\`
 
-## Ticket System Sync
+For stories in \`review\`, also show:
+\`\`\`
+  Review: 5 findings (HIGH×2, MEDIUM×2, LOW×1) · specialists: Eva, Marcus, Rex, Diego
+\`\`\`
 
-Read \`${a}/aped-dev/references/ticket-git-workflow.md\` for status mapping.
+Read these from the story file's Review Record (no live specialist spawning here).
 
-If \`ticket_system\` is not \`none\`:
-- Show ticket ID alongside each story status
-- Flag any stories without ticket references
-- Check sync: compare state.yaml statuses with expected ticket statuses
-- If divergence detected: warn user — "state.yaml says X, ticket system should be Y"
-- Display mapping table:
-  - \`backlog\` → Backlog/Todo
-  - \`in-progress\` → In Progress
-  - \`review\` → In Review
-  - \`done\` → Done
+## 4. Review Queue
+
+\`\`\`
+Queue (waiting for a slot):
+  1-3-rpc-package    queued 8m  · KON-84
+\`\`\`
+
+Sorted by time in queue.
+
+## 5. Ready to Dispatch
+
+Stories with \`status == pending | ready-for-dev\` whose \`depends_on\` are all \`done\`:
+
+\`\`\`
+Ready to dispatch (DAG resolved):
+  1-4-handlers        [M]  no deps remaining
+  1-5-client-hooks    [S]  no deps remaining
+
+Blocked:
+  1-6-e2e-tests       waiting on 1-4, 1-5
+\`\`\`
+
+## 6. Done This Sprint
+
+\`\`\`
+Done (epic 1):
+  ✓ 1-1-zod-validators  · merged 1d ago
+\`\`\`
+
+## 7. Ticket Sync Check (if ticket_system != none)
+
+For each story with a ticket, compare local status to remote:
+
+| Local | Remote expected |
+|-------|-----------------|
+| pending / ready-for-dev | Backlog / Todo |
+| in-progress | In Progress |
+| review-queued / review | In Review |
+| done | Done |
+
+If divergent, surface: \`⚠ 1-2 local=in-progress, ticket=Done — investigate\`. Do not fix automatically.
+
+## 8. Suggested Next Actions
+
+Pick the most useful next step:
+
+- If \`parallel < parallel_limit\` AND \`ready_to_dispatch\` non-empty → "Run \`/aped-sprint\` to dispatch \`{N}\` more stories."
+- If stories in \`review\` AND \`reviews < review_limit\` → "Run \`/aped-review {key}\` in its worktree."
+- If stories queued AND capacity available → "A slot is free. Re-run \`/aped-review\` on the queued story."
+- If everything done in active epic → "Epic \`{N}\` complete. Set \`sprint.active_epic\` to the next epic and re-run \`/aped-sprint\`."
+- If pipeline not yet at sprint phase → show the phase-appropriate suggestion (\`/aped-analyze\`, \`/aped-prd\`, ...).
 
 ## Output
 
-Display only — no file writes, no state changes. Pure read-only dashboard.
+Display only — no writes, no state changes. Suggest commands but never run them.
 
-## Example
+## Classic Mode (no parallel sprint)
+
+If \`sprint.active_epic\` is \`null\` or no story has a \`worktree\` field set, fall back to the simpler pre-parallel display:
 
 \`\`\`
-Pipeline: A[✓] → P[✓] → UX[✓] → E[✓] → D[▶] → R[ ]
 Epic 1: User Auth        [████████░░] 80% (4/5)
-Epic 2: Dashboard         [██░░░░░░░░] 20% (1/5)
 Next: /aped-dev (story 1-5-session-mgmt is ready-for-dev)
 \`\`\`
 
@@ -1979,14 +2056,27 @@ metadata:
 
 # APED Correct Course — Managed Pivot
 
-Use when requirements change, priorities shift, or the current approach needs rethinking mid-pipeline.
+Use when requirements change, priorities shift, or the current approach needs rethinking mid-pipeline. During a parallel sprint this is the **only** way to modify upstream docs (PRD, architecture, UX) — the \`upstream-lock\` hook blocks all other attempts.
 
 ## Setup
 
-1. Read \`${a}/config.yaml\` — extract config
+1. Read \`${a}/config.yaml\` — extract config (incl. \`ticket_system\`, \`git_provider\`)
 2. Read \`${o}/state.yaml\` — understand current pipeline state
 3. Read existing artifacts: brief, PRD, epics, stories
 4. Read \`${a}/aped-course/references/scope-change-guide.md\` for impact matrix and process
+
+## Active-Worktree Check (parallel sprint awareness)
+
+Before touching any artifact, identify stories whose \`status\` is in \`{in-progress, review-queued, review}\` AND that have a non-null \`worktree\` — these are the sessions that will be impacted.
+
+If any exist:
+1. List them to the user with their branches + tickets.
+2. ⏸ **GATE:** "Continuing will invalidate epic context caches used by those worktrees. Proceed?"
+3. On confirmation, post a notification comment on each active ticket (via \`gh\`/\`glab\`/linear per \`ticket_system\`):
+   > "APED scope change in progress. Please pause your next commit until the update lands. A follow-up comment will confirm when it's safe to refresh your epic context and continue."
+4. Write \`sprint.scope_change_active: true\` in state.yaml (atomic — use \`${a}/scripts/sync-state.sh set-scope-change true\` if present, else direct edit under flock).
+
+If no active worktrees: skip this section entirely.
 
 ## Impact Assessment
 
@@ -2041,6 +2131,17 @@ corrections:
     reason: "{user's reason}"
     affected_stories: [...]
 \`\`\`
+
+## Release the Upstream Lock (parallel sprint only)
+
+If you set \`scope_change_active: true\` at the start, you MUST clear it before handing control back:
+
+1. Invalidate any now-stale epic-context caches — delete \`${o}/epic-*-context.md\` for the affected epic(s) so \`/aped-dev\` recompiles on the next story.
+2. Set \`sprint.scope_change_active: false\` in state.yaml (atomic).
+3. Post a follow-up comment on each previously notified ticket:
+   > "Scope change applied. If you're in an active worktree, pull the latest \`${o}/\` artefacts and restart your story loop — the epic-context cache has been invalidated."
+
+If you skip step 2, upstream writes remain unlocked — a real security issue, not a cosmetic one. Do not exit the skill with the lock still open.
 
 ## Guard Against Scope Creep
 
@@ -2693,6 +2794,140 @@ Before writing, present a summary:
 ## Next Step
 
 Tell the user: "CLAUDE.md updated. APED block is now at lines X-Y. Re-run \`/aped-claude\` anytime to refresh after APED updates."
+`,
+    },
+    // ── aped-sprint ──────────────────────────────────────────────
+    {
+      path: `${a}/aped-sprint/SKILL.md`,
+      content: `---
+name: aped-sprint
+description: 'Dispatches multiple stories in parallel via git worktrees. Use when user says "parallel sprint", "dispatch stories", "aped sprint", or invokes /aped-sprint. Only runs inside the main project (not inside an APED worktree).'
+disable-model-invocation: true
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '3.4.4'}
+---
+
+# APED Sprint — Parallel Story Dispatch
+
+## Critical Rules
+
+- Only run from the **main project root**. If \`${a}/WORKTREE\` exists in the current dir, HALT (you're inside a worktree, not the Lead).
+- Exactly **one active epic** at a time. Refuse if \`sprint.active_epic\` is set to a different epic and that epic still has stories not \`done\`.
+- Respect \`sprint.parallel_limit\` and \`sprint.review_limit\` in state.yaml.
+- NEVER dispatch a story whose \`depends_on\` list contains a story not yet \`done\`.
+- NEVER auto-launch Claude Code sessions. Create worktrees and print the exact commands the user must run. Zero auto-chain.
+
+## Setup
+
+1. Verify you are in the main project root: \`ls ${a}/WORKTREE\` must fail. If it exists, tell the user "You're inside a worktree. Switch to the main project to dispatch."
+2. Read \`${a}/config.yaml\` — extract \`ticket_system\`, \`git_provider\`, paths.
+3. Read \`${o}/state.yaml\` — must have \`current_phase: "sprint"\` and \`sprint.stories\` populated by \`/aped-epics\`.
+4. Read \`${o}/epics.md\` — for the DAG and story metadata.
+5. If \`sprint.active_epic\` is \`null\`: ask the user which epic to start. Write it to state.yaml.
+
+## DAG Resolution
+
+For the active epic, compute the three buckets:
+
+- **done** — status \`done\`
+- **running** — status in {\`in-progress\`, \`review-queued\`, \`review\`}
+- **ready** — status \`pending\` or \`ready-for-dev\` AND every key in \`depends_on\` is in **done**
+- **blocked** — not in the above; surface why (which dep is missing)
+
+Sanity check the graph: no cycles, no references to unknown story keys. If broken, tell the user exactly which edge is the problem and HALT.
+
+## Capacity Check
+
+\`\`\`
+slots_available = parallel_limit - len(running)
+reviews_running = count(status == "review")
+reviews_available = review_limit - reviews_running
+\`\`\`
+
+If \`slots_available == 0\`: tell the user "At parallel capacity. Wait for a story to finish review or merge, then re-run \`/aped-sprint\`."
+
+## Story Proposal
+
+Take up to \`slots_available\` stories from **ready**, preferring:
+1. Smaller complexity first (S before M before L) — unlocks deps faster
+2. Stories that unblock the most other stories (reverse-topological tiebreaker)
+3. User override: if the user asked for specific keys, dispatch those (still respecting deps)
+
+Present the proposal:
+
+\`\`\`
+Epic: 1 — Foundation & Validators
+Active worktrees: 1/3 — will dispatch 2 more.
+
+Proposed dispatch:
+  1-2-contract         [S]  no deps          -> new worktree
+  1-3-rpc-package      [M]  deps: 1-1 ✓     -> new worktree
+
+Blocked (waiting):
+  1-4-handlers         deps: 1-2 (pending)
+  1-5-client-hooks     deps: 1-2 (pending)
+\`\`\`
+
+⏸ **GATE: User validates the proposal.** If the user wants to swap, reduce, or reorder, adjust and re-present.
+
+## Ticket System Sync (if ticket_system != none)
+
+Read \`${a}/aped-dev/references/ticket-git-workflow.md\` for provider syntax.
+
+For each story to dispatch:
+1. Fetch the ticket — verify it exists and no one else is assigned
+2. Assign it to the current user
+3. Move status to \`In Progress\` (adapt label/status to provider)
+4. Post a comment: "APED parallel sprint started — worktree: \`../{project}-{ticket}\`."
+
+## Dispatch
+
+For each approved story, call the helper and capture the worktree path:
+
+\`\`\`bash
+WORKTREE=$(bash ${a}/scripts/sprint-dispatch.sh <story-key> <ticket-id>)
+\`\`\`
+
+If the script exits non-zero, halt the whole dispatch — do not create a half-populated state. Report the error.
+
+After success, update state.yaml **atomically** (one write at the end, not per story):
+- story \`status\` → \`in-progress\`
+- story \`worktree\` → the captured path
+- story \`started_at\` → current UTC ISO8601 timestamp
+
+## User Instructions (print exactly, one per worktree)
+
+Print a per-worktree block so the user can open a session:
+
+\`\`\`
+▶ Story 1-2-contract — KON-83
+  Worktree: ../cloudvault-KON-83
+  Branch:   feature/KON-83-contract
+
+  To work on this story, in a new terminal:
+    cd ../cloudvault-KON-83
+    claude
+    /aped-dev 1-2-contract
+\`\`\`
+
+**Do not offer to launch sessions yourself.** The user controls which workspace each session runs in. If there are 2 dispatches, print 2 blocks.
+
+## Edge Cases
+
+- **No active epic**: ask which epic to start; set \`sprint.active_epic\`.
+- **All stories blocked by one foundation story**: propose only that foundation story (fan-in).
+- **User wants multi-epic**: refuse politely — "APED parallel sprint runs one epic at a time. Finish the current one first, or mark its leftover stories as skipped."
+- **A worktree already exists for a proposed story**: skip it (don't overwrite), surface it as "already dispatched".
+- **State.yaml lock**: if \`.aped/.state.lock\` exists and is newer than 30s, another skill is writing — wait or warn the user.
+
+## Next Step
+
+After dispatch, tell the user:
+> "Worktrees created. Open a terminal per worktree and run the commands above. When a story lands in review, run \`/aped-review {story-key}\` in its worktree. Come back to the main project and re-run \`/aped-sprint\` to dispatch more when capacity frees up. Use \`/aped-status\` here for the live dashboard."
+
+**Do NOT auto-chain.** The user decides when to proceed.
 `,
     },
   ];

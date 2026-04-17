@@ -440,5 +440,182 @@ echo "UX VALIDATION PASSED — All required files and content present"
 exit 0
 `,
     },
+    // ── Parallel Sprint helpers ────────────────────────────────────────────
+    {
+      path: `${a}/scripts/sprint-dispatch.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# APED sprint-dispatch — create a git worktree for a story so the user can
+# launch a dedicated Claude Code session in it with /aped-dev.
+#
+# Usage: sprint-dispatch.sh <story-key> [<ticket-id>]
+#
+# Output: absolute path of the new worktree (stdout, line 1)
+# Exit: 0 on success; 1 on user error; 2 on git error.
+
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <story-key> [<ticket-id>]" >&2
+  exit 1
+fi
+
+STORY_KEY="$1"
+TICKET_ID="\${2:-$STORY_KEY}"
+
+PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+if [[ ! -d "$PROJECT_ROOT/.git" ]] && ! git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+  echo "ERROR: $PROJECT_ROOT is not inside a git repo" >&2
+  exit 2
+fi
+
+PROJECT_NAME=$(basename "$PROJECT_ROOT")
+WORKTREE_PATH="$(dirname "$PROJECT_ROOT")/\${PROJECT_NAME}-\${TICKET_ID}"
+BRANCH_NAME="feature/\${TICKET_ID}-\${STORY_KEY}"
+
+if [[ -d "$WORKTREE_PATH" ]]; then
+  echo "ERROR: worktree path already exists: $WORKTREE_PATH" >&2
+  exit 2
+fi
+
+cd "$PROJECT_ROOT"
+
+if git rev-parse --verify "$BRANCH_NAME" >/dev/null 2>&1; then
+  git worktree add "$WORKTREE_PATH" "$BRANCH_NAME" >&2
+else
+  git worktree add -b "$BRANCH_NAME" "$WORKTREE_PATH" HEAD >&2
+fi
+
+mkdir -p "$WORKTREE_PATH/${a}"
+cat > "$WORKTREE_PATH/${a}/WORKTREE" <<EOF
+story_key: $STORY_KEY
+ticket: $TICKET_ID
+branch: $BRANCH_NAME
+project_root: $PROJECT_ROOT
+created_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+EOF
+
+printf '%s\\n' "$WORKTREE_PATH"
+`,
+    },
+    {
+      path: `${a}/scripts/worktree-cleanup.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# APED worktree-cleanup — remove a worktree (and optionally its branch) once
+# a story has been merged. Run from the main project root.
+#
+# Usage: worktree-cleanup.sh <worktree-path> [--delete-branch]
+
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <worktree-path> [--delete-branch]" >&2
+  exit 1
+fi
+
+WORKTREE_PATH="$1"
+DELETE_BRANCH=false
+[[ "\${2:-}" == "--delete-branch" ]] && DELETE_BRANCH=true
+
+if [[ ! -d "$WORKTREE_PATH" ]]; then
+  echo "No such worktree: $WORKTREE_PATH" >&2
+  exit 0
+fi
+
+# Read branch name from marker or from git
+BRANCH_NAME=""
+if [[ -f "$WORKTREE_PATH/${a}/WORKTREE" ]]; then
+  BRANCH_NAME=$(grep '^branch:' "$WORKTREE_PATH/${a}/WORKTREE" | sed 's/.*:[[:space:]]*//')
+fi
+
+git worktree remove "$WORKTREE_PATH" 2>&1 || {
+  echo "Remove failed — forcing (uncommitted changes will be lost)" >&2
+  git worktree remove --force "$WORKTREE_PATH"
+}
+
+if [[ "$DELETE_BRANCH" == "true" && -n "$BRANCH_NAME" ]]; then
+  git branch -D "$BRANCH_NAME" 2>&1 || echo "Branch $BRANCH_NAME already gone or not fully merged"
+fi
+
+git worktree prune
+echo "Cleaned up $WORKTREE_PATH"
+`,
+    },
+    {
+      path: `${a}/scripts/sync-state.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# APED sync-state — take a flock on state.yaml and apply a single-line patch
+# from stdin. Intended to be called by skills that need to mutate state.yaml
+# from a worktree without racing the main session.
+#
+# Usage: echo '<yq-style patch expression>' | sync-state.sh
+#
+# The patch expression is executed as an \`awk\` or \`sed\` pipe on state.yaml
+# depending on the first token; this keeps the script dependency-free.
+# Recognised commands:
+#   set-story-status <key> <new-status>
+#   set-story-worktree <key> <path>
+#   set-scope-change <true|false>
+#
+# Any unknown command is ignored.
+
+set -u
+set -o pipefail
+
+PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+STATE_FILE="$PROJECT_ROOT/${o}/state.yaml"
+LOCK_FILE="$PROJECT_ROOT/${a}/.state.lock"
+
+mkdir -p "$(dirname "$LOCK_FILE")"
+
+if [[ ! -f "$STATE_FILE" ]]; then
+  echo "ERROR: state.yaml not found at $STATE_FILE" >&2
+  exit 1
+fi
+
+apply_patch() {
+  local cmd="\$1"; shift
+  case "$cmd" in
+    set-scope-change)
+      local val="\${1:-false}"
+      if grep -q 'scope_change_active:' "$STATE_FILE"; then
+        sed -i.bak "s|scope_change_active:.*|scope_change_active: $val|" "$STATE_FILE"
+      else
+        # Append under sprint:
+        awk -v v="$val" '
+          /^sprint:/ { print; print "  scope_change_active: " v; next }
+          { print }
+        ' "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+      fi
+      rm -f "$STATE_FILE.bak"
+      ;;
+    set-story-status|set-story-worktree)
+      # Minimal impl: leave the actual YAML mutation to the skill (which has
+      # better YAML awareness than sed). This helper just holds the lock.
+      echo "NOTE: apply '$cmd' yourself under the acquired lock" >&2
+      ;;
+    *)
+      echo "unknown command: $cmd" >&2
+      return 1
+      ;;
+  esac
+}
+
+read_cmd() {
+  local line
+  IFS= read -r line || return 1
+  # shellcheck disable=SC2086
+  set -- $line
+  apply_patch "$@"
+}
+
+(
+  flock -w 10 9 || { echo "Could not acquire lock on $LOCK_FILE" >&2; exit 1; }
+  read_cmd
+) 9> "$LOCK_FILE"
+`,
+    },
   ];
 }

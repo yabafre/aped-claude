@@ -5,7 +5,7 @@
 [![Node](https://img.shields.io/node/v/aped-method.svg?style=flat-square)](https://nodejs.org)
 [![License](https://img.shields.io/npm/l/aped-method.svg?style=flat-square)](./LICENSE)
 
-CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — 15 slash commands, a guardrail hook, named agent personas, and coordinated teams.
+CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — 16 slash commands, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, and **parallel sprint** mode via `git worktree`.
 
 ```
 npx aped-method
@@ -61,12 +61,13 @@ Then open Claude Code:
 | `/aped-dev` | Dev | TDD red-green-refactor with a 5-condition GATE (+ 6th visual GATE for frontend), optional fullstack team mode |
 | `/aped-review` | Review | Adversarial review by a coordinated agent team (Eva, Marcus, Rex + domain specialists), binary outcome: `review → done` |
 
-## Utility commands (7)
+## Utility commands (8)
 
 | Command | What it does |
 |---------|-------------|
-| `/aped-status` | Sprint dashboard — progress, blockers, next actions |
-| `/aped-course` | Correct course — scope change management with impact analysis |
+| `/aped-sprint` | **Parallel sprint** — resolves story DAG, creates worktrees, prints the commands to open N sessions in parallel |
+| `/aped-status` | Multi-worktree dashboard — capacity, active worktrees, review queue, ready-to-dispatch |
+| `/aped-course` | Correct course — scope change management with impact analysis (unlocks upstream docs while active) |
 | `/aped-context` | Brownfield analysis — generate project context from existing code |
 | `/aped-qa` | Generate E2E + integration tests from acceptance criteria |
 | `/aped-quick` | Quick fix / feature bypassing the full pipeline (with spec isolation) |
@@ -132,12 +133,21 @@ Before implementing each story, `/aped-dev` checks `docs/aped/epic-{N}-context.m
 ### Spec isolation — `/aped-quick`
 Quick specs are independent files with a status field (`draft → in-progress → done`). Multiple can run in parallel. Resuming an in-progress spec is automatic.
 
+### Parallel sprint via worktrees — `/aped-sprint`
+When an epic has several stories ready to go, `/aped-sprint` resolves the story DAG (`depends_on:` in `epics.md` and `state.yaml`), then dispatches up to `parallel_limit` stories (default 3) — each in its own `git worktree` at `../{project}-{ticket}` on branch `feature/{ticket}-{story-key}`. The user opens one Claude Code session per worktree and runs `/aped-dev` inside. Reviews are also bounded (`review_limit`, default 2) and spill to a `review-queued` status when the limit is reached. An `upstream-lock` PreToolUse hook denies any edit to `prd.md` / `architecture.md` / `ux/` while a story is in-progress; only `/aped-course` can temporarily unlock — and it notifies every active worktree ticket before and after the change.
+
 ## What gets scaffolded
 
 ```
 .aped/                              # Engine (update-safe)
 ├── config.yaml                     # Project settings, integrations
-├── hooks/guardrail.sh              # UserPromptSubmit coherence hook
+├── hooks/
+│   ├── guardrail.sh                # UserPromptSubmit coherence hook
+│   └── upstream-lock.sh            # PreToolUse hook (deny upstream writes during sprint)
+├── scripts/
+│   ├── sprint-dispatch.sh          # Creates worktree + branch + marker
+│   ├── worktree-cleanup.sh         # Removes worktree, optionally deletes branch
+│   └── sync-state.sh               # Atomic state.yaml mutations (flock)
 ├── templates/                      # Document templates (brief, PRD, epics, story, quick-spec)
 ├── aped-analyze/                   # Research personas (Mary/Derek/Tom)
 │   ├── SKILL.md
@@ -167,8 +177,9 @@ Quick specs are independent files with a status field (`draft → in-progress �
 │   ├── SKILL.md
 │   ├── scripts/git-audit.sh
 │   └── references/review-criteria.md
-├── aped-status/                    # Sprint dashboard
-├── aped-course/                    # Scope change
+├── aped-sprint/                    # Parallel dispatch via worktrees
+├── aped-status/                    # Multi-worktree dashboard
+├── aped-course/                    # Scope change (with worktree notification)
 ├── aped-context/                   # Brownfield analysis
 ├── aped-qa/                        # E2E + integration tests
 ├── aped-quick/                     # Quick fix (spec isolation)
@@ -187,8 +198,8 @@ docs/aped/                          # Output (evolves during project)
 └── quick-specs/                    # /aped-quick
 
 .claude/
-├── commands/aped-*.md              # 15 slash commands with argument-hints
-└── settings.local.json             # Guardrail hook + pre-approved Bash permissions
+├── commands/aped-*.md              # 16 slash commands with argument-hints
+└── settings.local.json             # UserPromptSubmit + PreToolUse hooks + pre-approved Bash permissions
 ```
 
 ## Integrations
@@ -217,9 +228,13 @@ Flow: `/aped-epics` seeds milestones + issues with labels (🆕 / 🔄 / 🔁) a
 
 - **`react-grab-mcp`** — live component inspection for UX design, visual verification in `/aped-dev` (at every GREEN pass on frontend tasks) and validation in `/aped-review` (Aria specialist).
 
-## Guardrail hook
+## Hooks
 
-Every prompt is intercepted by `guardrail.sh` which checks pipeline coherence against `state.yaml` and actual story statuses. The hook injects advisory context (never blocks), honours `$CLAUDE_PROJECT_DIR`, and validates `current_phase` against a whitelist (`none` / `analyze` / `prd` / `ux` / `architecture` / `sprint`) to reject any garbage in state.yaml.
+APED installs two hooks into `.claude/settings.local.json`:
+
+### `guardrail.sh` — UserPromptSubmit (advisory)
+
+Every prompt is intercepted. The hook checks pipeline coherence against `state.yaml` and actual story statuses, injects advisory context, and never blocks. It honours `$CLAUDE_PROJECT_DIR` and validates `current_phase` against a whitelist (`none` / `analyze` / `prd` / `ux` / `architecture` / `sprint`) to reject any garbage.
 
 | Situation | Reaction |
 |-----------|----------|
@@ -230,7 +245,13 @@ Every prompt is intercepted by `guardrail.sh` which checks pipeline coherence ag
 | Modifying PRD during sprint | Warns: use `/aped-course` for scope changes |
 | Quick fix request | Bypasses (that's what `/aped-quick` is for) |
 
-Hook timeout is set to 5s; JSON encoding prefers `jq` → `node` (no regex fallback, no context injection risk).
+Timeout 5s; JSON encoding prefers `jq` → `node` (no regex fallback, no context injection risk).
+
+### `upstream-lock.sh` — PreToolUse (enforcement)
+
+Matches `Write | Edit | NotebookEdit`. Denies any write into `prd.md` / `architecture.md` / `product-brief.md` / `ux/*` while any story in `state.yaml` has status `in-progress`. Only `/aped-course` can set `sprint.scope_change_active: true` to temporarily unlock; the skill is responsible for clearing the flag and invalidating epic-context caches before exit.
+
+This is what makes parallel sprint safe: several worktrees can implement on the upstream contract without risk of mid-sprint rug-pulls.
 
 ## Install / Update / Fresh
 

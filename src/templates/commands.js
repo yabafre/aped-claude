@@ -46,6 +46,12 @@ const COMMAND_DEFS = [
     description: 'Designs UX via the ANF framework (Assemble design system, Normalize with React preview, Fill all screens). Use when user says "design UX", "UX spec", "aped ux", or invokes /aped-ux. Runs between PRD and Epics phases.',
   },
   {
+    name: 'aped-sprint',
+    skill: 'aped-sprint',
+    description: 'Dispatches multiple stories in parallel via git worktrees. Use when user says "parallel sprint", "dispatch stories", "aped sprint", or invokes /aped-sprint. Only runs from the main project.',
+    argumentHint: '[story-keys...]',
+  },
+  {
     name: 'aped-status',
     skill: 'aped-status',
     description: 'Shows sprint status dashboard with progress, blockers, and next actions. Use when user says "sprint status", "show progress", "aped status", or invokes /aped-status.',
