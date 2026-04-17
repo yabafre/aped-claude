@@ -799,7 +799,7 @@ Tell the user: "Epics structure is ready. Run \`/aped-story\` to create the firs
       path: `${a}/aped-story/SKILL.md`,
       content: `---
 name: aped-story
-description: 'Creates a detailed story file for the next story to implement. Use when user says "create story", "prepare next story", "aped story", or invokes /aped-story.'
+description: 'Creates a detailed story file for the next story to implement, commits it on the feature branch, and posts the story-ready check-in. Use when user says "create story", "prepare next story", "aped story", or invokes /aped-story.'
 argument-hint: "[story-key]"
 license: MIT
 metadata:
@@ -817,6 +817,16 @@ Create a single, implementation-ready story file with all the context needed for
 - The story file must be self-contained — everything the dev agent needs to implement
 - Discuss the story with the user before finalizing — this is a collaborative process
 - Quality of story definition determines quality of implementation
+- **Branch-per-story is inviolable.** In parallel-sprint mode (worktree present), /aped-story runs **inside the worktree on the feature branch** and commits the story file there — never in main. The \`story-ready\` check-in is posted by this skill, not by /aped-sprint.
+
+## Mode Detection
+
+Before anything else, decide whether we are in **solo mode** (main project, no parallel sprint) or **worktree mode** (dispatched by /aped-sprint):
+
+- \`ls ${a}/WORKTREE\` succeeds → **worktree mode** (expected when invoked from a /aped-sprint dispatch). Read the marker to recover \`story_key\`, \`ticket\`, \`branch\`.
+- \`ls ${a}/WORKTREE\` fails → **solo mode** (user running /aped-story directly to prep the next story in main).
+
+In worktree mode, the story-key argument is optional — the marker tells us. If the user passed one and it mismatches, HALT and ask the user which is authoritative. If the current branch is \`main\` (not the feature branch), HALT: "Run \`/aped-story\` in the worktree's feature branch, not main. Branch-per-story rule."
 
 ## Setup
 
@@ -906,6 +916,24 @@ If \`ticket_system\` is not \`none\`:
    - \`github-issues\`: \`gh issue comment {id} --body "..."\`
    - \`gitlab-issues\`: \`glab issue note create {id} --message "..."\`
 
+### Worktree mode only — commit + story-ready
+
+In worktree mode, the story file and state.yaml edit must land on the feature branch, then a \`story-ready\` check-in is posted so \`/aped-lead\` can approve.
+
+1. Verify branch: \`git symbolic-ref --short HEAD\` must match the marker's \`branch\`. If not, HALT.
+2. Stage and commit on the feature branch:
+   \`\`\`bash
+   git add ${o}/stories/{story-key}.md ${o}/state.yaml
+   git commit -m "docs({ticket}): draft story file for {story-key}"
+   \`\`\`
+3. Post the check-in:
+   \`\`\`bash
+   bash ${a}/scripts/checkin.sh post {story-key} story-ready
+   \`\`\`
+4. Report to the user: "\`story-ready\` posted. Back in the main project, run \`/aped-lead\` to approve. Once approved, the Lead will \`tmux send-keys\` \`/aped-dev {story-key}\` into this window (or print the command to run here manually)."
+
+In solo mode, skip steps 1–3 and tell the user: "Story file ready. Run \`/aped-dev {story-key}\` to implement."
+
 ## Example
 
 User runs \`/aped-story\`:
@@ -926,7 +954,8 @@ User runs \`/aped-story\`:
 
 ## Next Step
 
-Tell the user: "Story file is ready at \`${o}/stories/{story-key}.md\`. Run \`/aped-dev\` to implement it."
+- **Solo mode**: "Story file is ready at \`${o}/stories/{story-key}.md\`. Run \`/aped-dev\` to implement it."
+- **Worktree mode**: "Story file committed on \`{branch}\`. \`story-ready\` check-in posted. Go to the main project and run \`/aped-lead\` — the Lead will approve and push \`/aped-dev {story-key}\` back into this window."
 
 **Do NOT auto-chain.** The user decides when to proceed.
 `,
@@ -2877,13 +2906,16 @@ You are the **Lead Dev**. Story Leaders running in worktrees post check-ins at e
 For each pending check-in, classify as **AUTO** or **ESCALATE** using these rules only.
 
 ### story-ready  (posted by /aped-story)
+Resolve the story's worktree first: \`WT = sprint.stories.{key}.worktree\` in state.yaml. The story file lives on the feature branch inside \`$WT\`, not in main.
+
 AUTO iff all of:
-- \`${o}/stories/{story-key}.md\` exists.
+- \`$WT/${o}/stories/{story-key}.md\` exists (read via \`git -C $WT show HEAD:${o}/stories/{story-key}.md\` or directly from the worktree path).
 - Story file has a numbered Acceptance Criteria section with ≥ 1 GIVEN/WHEN/THEN.
+- The feature branch has the story file committed: \`git -C $WT log --oneline -- ${o}/stories/{story-key}.md\` returns at least one commit.
 - Every key in \`depends_on\` has \`status: done\` in state.yaml.
 - If \`ticket_system != none\`: fetch the ticket; title + body are present; no comment posted after the checkin mentions an unresolved question (regex: \`\`\`?\`\`\`, \`TBD\`, \`need clarification\`).
 
-ESCALATE otherwise. Typical reasons: deps not done, ACs malformed, ticket/story divergence.
+ESCALATE otherwise. Typical reasons: worktree missing from state.yaml (sprint bypassed), story file absent (user skipped /aped-story or is still drafting), file exists but uncommitted, deps not done, ACs malformed, ticket/story divergence.
 
 ### dev-done  (posted by /aped-dev)
 AUTO iff all of:
@@ -2978,7 +3010,7 @@ Tell the user:
       path: `${a}/aped-sprint/SKILL.md`,
       content: `---
 name: aped-sprint
-description: 'Dispatches multiple stories in parallel via git worktrees. Use when user says "parallel sprint", "dispatch stories", "aped sprint", or invokes /aped-sprint. Only runs inside the main project (not inside an APED worktree).'
+description: 'Dispatches multiple stories in parallel via git worktrees. Creates worktrees only — does NOT post story-ready nor flip state.yaml to in-progress. That is /aped-story owning its feature branch. Use when user says "parallel sprint", "dispatch stories", "aped sprint", or invokes /aped-sprint. Only runs inside the main project (not inside an APED worktree).'
 disable-model-invocation: true
 license: MIT
 metadata:
@@ -2994,7 +3026,9 @@ metadata:
 - Exactly **one active epic** at a time. Refuse if \`sprint.active_epic\` is set to a different epic and that epic still has stories not \`done\`.
 - Respect \`sprint.parallel_limit\` and \`sprint.review_limit\` in state.yaml.
 - NEVER dispatch a story whose \`depends_on\` list contains a story not yet \`done\`.
-- NEVER auto-launch Claude Code sessions. Create worktrees and print the exact commands the user must run. Zero auto-chain.
+- NEVER auto-launch \`/aped-dev\`. The Story Leader's first action in its worktree is always \`/aped-story <story-key>\` — story files belong to the feature branch, never to main.
+- NEVER post the \`story-ready\` check-in from this skill. That is \`/aped-story\`'s responsibility once the file is committed on the feature branch.
+- NEVER flip \`sprint.stories.{key}.status\` to \`in-progress\` from this skill. Record the worktree path only; status changes are owned by \`/aped-story\` (→ \`ready-for-dev\`) and \`/aped-dev\` (→ \`in-progress\`).
 
 ## Setup
 
@@ -3003,7 +3037,11 @@ metadata:
 3. Read \`${o}/state.yaml\` — must have \`current_phase: "sprint"\` and \`sprint.stories\` populated by \`/aped-epics\`.
 4. Read \`${o}/epics.md\` — for the DAG and story metadata.
 5. If \`sprint.active_epic\` is \`null\`: ask the user which epic to start. Write it to state.yaml.
-6. **Detect workmux** (optional): run \`command -v workmux >/dev/null && echo WORKMUX_AVAILABLE || echo WORKMUX_MISSING\`. If available, prefer the workmux path for dispatch — it auto-creates a tmux window and launches Claude with the initial prompt already injected. Otherwise fall back to the built-in \`sprint-dispatch.sh\` + manual terminal flow.
+6. **Detect workmux** (preferred path):
+   - \`command -v workmux >/dev/null\` → workmux binary present.
+   - \`command -v tmux >/dev/null || command -v wezterm >/dev/null\` → a multiplexer exists. If \`wezterm\` binary is missing from \`$PATH\` but \`$WEZTERM_EXECUTABLE_DIR\` is set, export \`PATH="$WEZTERM_EXECUTABLE_DIR:$PATH"\` for the current shell — workmux shells out to the CLI. Mention this to the user once so they can persist it in \`~/.zshrc\`.
+   - If both present → use Path A. Else fall back to Path B.
+   - Do NOT reject Path A for cosmetic reasons (flag renames, missing \`.workmux.yaml\`). If syntax differs from what you expect, run \`workmux add --help\` to adapt. The current 0.1.x signature is \`workmux add [OPTIONS] [BRANCH_NAME]\` (positional, no \`--branch\`).
 
 ## DAG Resolution
 
@@ -3062,29 +3100,36 @@ For each story to dispatch:
 
 ## Dispatch
 
-Two paths, picked by the Setup detection.
+Two paths, picked by the Setup detection. **Neither path posts \`story-ready\` nor flips story \`status\` to \`in-progress\`** — /aped-story (running inside the worktree on the feature branch) owns both transitions.
 
 ### Path A — workmux available (preferred)
 
-\`workmux\` creates the worktree, the tmux window, and launches Claude Code. **We intentionally do NOT pre-inject \`/aped-dev\`** — the Story Leader must wait for a \`story-ready\` approval from the Lead first. One command per story:
+\`workmux\` creates the worktree, opens a terminal/tmux window, and launches Claude Code idle. The Story Leader's first command will be \`/aped-story <story-key>\`, NOT \`/aped-dev\`.
+
+If \`.workmux.yaml\` is missing at the repo root, bootstrap a minimal one from \`${a}/templates/workmux.yaml.example\` before dispatching. A functional default includes the \`claude\` agent pane, \`.env\` copy, \`node_modules\` symlink, and a \`pnpm install --frozen-lockfile\` post_create — otherwise Story Leaders land in worktrees without deps and fail on \`/aped-story\` ticket fetches or \`/aped-dev\` tests.
+
+For each approved story:
 
 \`\`\`bash
-workmux add "{ticket-id}" \\
-  --branch "feature/{ticket-id}-{story-key}" \\
-  -a claude
+BRANCH="feature/{ticket-id}-{story-key}"
+workmux add "$BRANCH" -a claude
 \`\`\`
 
-Right after each dispatch, post the \`story-ready\` check-in so the Lead can queue-validate:
+If \`workmux add\` rejects the invocation (API drift), fall back within Path A:
 
 \`\`\`bash
-bash ${a}/scripts/checkin.sh post {story-key} story-ready
+# Create worktree via git, then attach workmux to the existing one
+WORKTREE=$(bash ${a}/scripts/sprint-dispatch.sh <story-key> <ticket-id>)
+workmux open "$(basename "$WORKTREE")"
 \`\`\`
 
-The Story Leader's \`claude\` session is sitting idle in the tmux window. Once the user runs \`/aped-lead\` in the main project and approves, the Lead will \`tmux send-keys\` \`/aped-dev {story-key}\` into that window.
+Verify the windows exist before moving on:
 
-If the project has no \`.workmux.yaml\` at the repo root, mention it once to the user: a sample lives at \`${a}/templates/workmux.yaml.example\` — recommend copying it and customising panes / post_create / files.
+\`\`\`bash
+workmux list
+\`\`\`
 
-For the state.yaml update post-dispatch, read the worktree path with \`git worktree list --porcelain\` (filtering by the branch we just created) — no \`jq\` dependency.
+Capture the worktree path for the state.yaml write (below): \`git worktree list --porcelain\` filtered by the branch we just created (no \`jq\` dependency).
 
 ### Path B — fallback without workmux
 
@@ -3094,37 +3139,34 @@ For each approved story, call the built-in helper and capture the worktree path:
 WORKTREE=$(bash ${a}/scripts/sprint-dispatch.sh <story-key> <ticket-id>)
 \`\`\`
 
-The helper creates the worktree, the branch, and the \`.aped/WORKTREE\` marker.
-
-Post the \`story-ready\` check-in the same way as Path A:
-
-\`\`\`bash
-bash ${a}/scripts/checkin.sh post {story-key} story-ready
-\`\`\`
-
-The user is expected to open a terminal per worktree **but wait to run \`/aped-dev\`** until \`/aped-lead\` has approved the story-ready check-in. The Lead prints the exact command to run (the fallback can't push via tmux).
+The helper creates the worktree, the branch, and the \`${a}/WORKTREE\` marker. The user will open a terminal per worktree manually.
 
 ### Shared post-dispatch
 
 If any command exits non-zero, halt the whole dispatch — do not create a half-populated state. Report the error.
 
-After success, update state.yaml **atomically** (one write at the end, not per story):
-- story \`status\` → \`in-progress\`
+After success, update state.yaml **atomically** (one write at the end, not per story) with the **worktree path only**:
 - story \`worktree\` → the captured path
-- story \`started_at\` → current UTC ISO8601 timestamp
+
+Do NOT set \`status: in-progress\` and do NOT set \`started_at\` here. \`/aped-story\` will flip the story to \`ready-for-dev\` when the story file is committed on the feature branch; \`/aped-dev\` will flip it to \`in-progress\` when it starts the TDD loop.
 
 ## User Instructions
 
-**Path A (workmux)** — no manual terminal opening needed. Tell the user:
+**Path A (workmux)** — claude sessions are running idle in each window. Tell the user:
 
 \`\`\`
-▶ Dispatched 2 stories via workmux. Tmux windows are ready with Claude Code
-  already running and /aped-dev auto-invoked:
-    1-2-contract    tmux window "KON-83"    ../cloudvault-KON-83
-    1-3-rpc         tmux window "KON-84"    ../cloudvault-KON-84
+▶ Dispatched 2 stories via workmux. Claude Code is idle in each window.
+    1-2-contract   window: feature/KON-83-1-2-contract   ../cloudvault-KON-83
+    1-3-rpc        window: feature/KON-84-1-3-rpc        ../cloudvault-KON-84
 
-  Switch tmux windows to monitor. For a live view of all agents:
-    workmux dashboard
+  Next — in each window, run:
+    /aped-story <story-key>
+
+  /aped-story drafts the story file on the feature branch, commits it, and posts
+  the story-ready check-in. Then run /aped-lead from this main session to
+  approve — the Lead will push /aped-dev into each window via tmux send-keys.
+
+  Monitor: workmux list  ·  workmux dashboard  ·  workmux send <name> "<msg>"
 \`\`\`
 
 **Path B (fallback)** — print one block per worktree:
@@ -3132,15 +3174,16 @@ After success, update state.yaml **atomically** (one write at the end, not per s
 \`\`\`
 ▶ Story 1-2-contract — KON-83
   Worktree: ../cloudvault-KON-83
-  Branch:   feature/KON-83-contract
+  Branch:   feature/KON-83-1-2-contract
 
   In a new terminal:
     cd ../cloudvault-KON-83
     claude
-    /aped-dev 1-2-contract
+    /aped-story 1-2-contract      # NOT /aped-dev — story file must live on
+                                  # the feature branch, not main
 \`\`\`
 
-**In both paths, do not launch sessions from here.** Path A delegates that to workmux (safe, designed for it); Path B requires the user to open terminals themselves.
+**In both paths, never suggest running \`/aped-story\` in main.** Branch-per-story is non-negotiable — the story file is committed on the feature branch.
 
 ## Edge Cases
 
@@ -3153,7 +3196,7 @@ After success, update state.yaml **atomically** (one write at the end, not per s
 ## Next Step
 
 After dispatch, tell the user:
-> "Worktrees created, \`story-ready\` check-ins posted. **In this main session, run \`/aped-lead\`** to approve the batch — the Lead will push \`/aped-dev\` into each worktree (via tmux, or prints the command to run manually in fallback mode). As stories progress, each Story Leader will post \`dev-done\` and \`review-done\` check-ins; re-run \`/aped-lead\` when \`/aped-status\` shows new pending ones. Come back to \`/aped-sprint\` to dispatch more when capacity frees up."
+> "Worktrees created. **In each worktree's claude session, run \`/aped-story <story-key>\`** — that drafts the story file on the feature branch, commits it, and posts \`story-ready\`. Then come back to this main session and run \`/aped-lead\` to approve the batch — the Lead will push \`/aped-dev\` into each worktree. As stories progress, each Story Leader will post \`dev-done\` and \`review-done\` check-ins; re-run \`/aped-lead\` when \`/aped-status\` shows new pending ones. Come back to \`/aped-sprint\` to dispatch more when capacity frees up."
 
 **Do NOT auto-chain.** The user decides when to proceed.
 `,

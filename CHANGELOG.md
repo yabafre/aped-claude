@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.3] - 2026-04-17
+
+### Changed
+- **Branch-per-story contract enforced across `/aped-sprint`, `/aped-story`, `/aped-lead`.** The live test of 3.5.x surfaced a workflow bug: `/aped-sprint` was posting `story-ready` check-ins and flipping `sprint.stories.{key}.status` to `in-progress` **before** any story file existed, then `/aped-lead` escalated all three because the files were missing. Users were pushed toward running `/aped-story` in `main` (violating branch-per-story) as the recovery path.
+  - `/aped-sprint` now creates worktrees only. It records the `worktree` path in state.yaml but no longer touches `status`/`started_at` and no longer posts `story-ready`. Explicit "NEVER" rules added up top.
+  - `/aped-story` gains a mode detector (`${a}/WORKTREE` marker) and a **worktree mode**: commits the story file on the feature branch, then posts `story-ready` itself. Solo mode behavior unchanged. Refuses to run on `main` when the marker is present.
+  - `/aped-lead`'s `story-ready` AUTO criterion reads the story file from `sprint.stories.{key}.worktree` (the feature branch), not from `main`. Also checks that the story file has at least one commit on the feature branch before auto-approving.
+  - `/aped-sprint` "Next Step" rewritten: the user runs `/aped-story <key>` in each worktree first, **then** `/aped-lead` in main.
+- **workmux syntax corrected.** The prior SKILL used `workmux add --branch …` — that flag was removed in workmux 0.1.x. Now uses positional `workmux add <BRANCH_NAME> -a claude`, with a documented fallback to `sprint-dispatch.sh` + `workmux open <worktree-name>` when `workmux add` rejects the invocation.
+- **workmux + WezTerm CLI detection hardened.** `/aped-sprint` Setup now also probes for a multiplexer (tmux **or** wezterm) and, if the wezterm CLI is missing from `$PATH` but `$WEZTERM_EXECUTABLE_DIR` is set, exports it for the current shell before dispatching (workmux shells out to `wezterm cli`). Mentioned to the user so they can persist it in `~/.zshrc`.
+- **`.workmux.yaml` bootstrap rule.** `/aped-sprint` now explicitly copies from `${a}/templates/workmux.yaml.example` when the config is missing, instead of writing a stripped-down inline version. The template already includes `.env` copy, `node_modules` symlink, and `pnpm install --frozen-lockfile` post_create.
+
+### Fixed
+- Recovery option A in the sprint flow was "run `/aped-story` in main then rebase into worktrees" — this is now explicitly called out as wrong in the skill instructions. The canonical recovery is: in each worktree, run `/aped-story <key>` on the feature branch, commit, let the skill post `story-ready`.
+
 ## [3.5.2] - 2026-04-17
 
 ### Changed
