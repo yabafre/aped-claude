@@ -2,13 +2,24 @@
   "name": "aped-method",
   "version": "3.4.0",
   "type": "module",
-  "description": "Scaffold the APED pipeline (Analyze, PRD, Epics, Dev, Review) into any Claude Code project",
+  "description": "Scaffold the APED pipeline (Analyze, PRD, UX, Arch, Epics, Story, Dev, Review) into any Claude Code project",
   "bin": {
     "aped-method": "./bin/aped-method.js"
   },
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
   "files": [
-    "bin/",
-    "src/"
+    "bin/aped-method.js",
+    "src/index.js",
+    "src/scaffold.js",
+    "src/templates/*.js",
+    "src/templates/data/*.csv",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "keywords": [
     "claude-code",
@@ -20,13 +31,26 @@
     "aped"
   ],
   "license": "MIT",
+  "homepage": "https://github.com/yabafre/aped-claude#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yabafre/aped-claude.git"
+    "url": "git+https://github.com/yabafre/aped-claude.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yabafre/aped-claude/issues"
   },
   "author": "yabafre",
   "engines": {
     "node": ">=18"
+  },
+  "scripts": {
+    "smoke": "node bin/aped-method.js --version && node bin/aped-method.js --help > /dev/null",
+    "check": "node --check bin/aped-method.js && node --check src/index.js && node --check src/scaffold.js",
+    "prepublishOnly": "npm run check && npm run smoke"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "dependencies": {
     "@clack/prompts": "^1.2.0",

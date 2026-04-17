@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Smoke test (--version + --help)
+        run: npm run smoke
+
+      - name: Guardrail generates valid bash + JSON
+        run: |
+          node -e "
+            import('./src/templates/guardrail.js').then(m => {
+              const files = m.guardrail({ apedDir: '.aped', outputDir: 'docs/aped' });
+              process.stdout.write(files[0].content);
+            });
+          " > /tmp/aped-guardrail.sh
+          bash -n /tmp/aped-guardrail.sh
+          chmod +x /tmp/aped-guardrail.sh
+          echo '{"prompt":"test prompt"}' | bash /tmp/aped-guardrail.sh | node -e '
+            let d=""; process.stdin.on("data", c => d += c);
+            process.stdin.on("end", () => {
+              if (d.trim()) JSON.parse(d);
+              console.log("OK");
+            });
+          '
+
+      - name: Dry-run scaffold in temp dir
+        run: |
+          tmp=$(mktemp -d)
+          cd "$tmp"
+          node "$GITHUB_WORKSPACE/bin/aped-method.js" --yes --project=ci-test --author=ci
+          test -f .aped/config.yaml
+          test -f docs/aped/state.yaml
+          test -f .aped/hooks/guardrail.sh
+          test -x .aped/hooks/guardrail.sh
