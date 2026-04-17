@@ -1239,71 +1239,96 @@ A story can trigger multiple specialists. Example:
 
 ## Step 5: Dispatch Specialist Team
 
-Launch **all specialists in a single message, in parallel**, via the Agent tool. Each gets its own context and runs independently.
+Code review is a prime use case for **agent teams** — specialists need to share findings, challenge each other, and coordinate (e.g., backend flags an API contract issue, frontend needs that context for its typing review). A simple subagent dispatch would miss these cross-cutting insights.
 
-### Core Specialists (always dispatched)
+### Pattern selection
 
-**AC & Task Validator** — \`subagent_type: "feature-dev:code-explorer"\`
-- Inputs: story file, File List, ticket body (if changed from story)
+- **≥ 2 specialists needed** (almost always): use **agent team** (TeamCreate + Agent with \`team_name\` + SendMessage between teammates)
+- **Only 1 specialist** (rare — e.g., config-only change): use subagent (Agent tool, no team)
+
+### Create the team
+
+\`\`\`
+TeamCreate(name: "review-{story-key}")
+\`\`\`
+
+### Spawn specialists as team members
+
+Spawn ALL selected specialists in a single message (parallel, same team context). Each gets:
+- \`team_name: "review-{story-key}"\`
+- A unique \`name\` (e.g., \`ac-validator\`, \`backend\`, \`frontend\`)
+- A brief listing the other teammates ("You can SendMessage to: ac-validator, backend, devops")
+- Its own scope + output contract (see below)
+
+### Core Specialists (always in team)
+
+**ac-validator** — \`subagent_type: "feature-dev:code-explorer"\`
 - For each AC: search code for evidence. Rate IMPLEMENTED / PARTIAL / MISSING with file:line
-- For each \`[x]\` task: find proof in code. No evidence = **CRITICAL**
-- Output: structured table with AC, verdict, evidence
+- For each \`[x]\` task: find proof. No evidence = **CRITICAL**
+- Coordinates with: specialists (ask them to verify their domain's ACs)
 
-**Code Quality Reviewer** — \`subagent_type: "feature-dev:code-reviewer"\`
-- Scope: files in File List
-- Focus: security (injection, auth, secrets), performance (N+1, memory, loops), reliability (error handling, edge cases), test quality
-- Output: findings with severity and suggested fix
+**code-quality** — \`subagent_type: "feature-dev:code-reviewer"\`
+- Focus: security (injection, auth, secrets), performance (N+1, memory), reliability (errors, edge cases), test quality
+- Coordinates with: backend/frontend (domain-specific quality concerns)
 
-**Git Auditor** — \`subagent_type: "general-purpose"\`
+**git-auditor** — \`subagent_type: "general-purpose"\`
 - Runs \`bash ${a}/aped-review/scripts/git-audit.sh\`
-- Reports files changed but NOT in story's File List (out-of-scope)
-- Reports files in File List but NOT changed (suspicious)
-- Output: \`[MEDIUM]\` or \`[HIGH]\` findings
+- Reports out-of-scope changes and missing expected changes
 
 ### Conditional Specialists
 
-**Backend Specialist** — \`subagent_type: "feature-dev:code-reviewer"\` (dispatch if backend files)
-- Focus: API contracts, data validation at boundaries, transaction integrity, database schema, auth middleware, error propagation
-- Check: compliance with architecture.md patterns (if exists)
-- Output: backend-specific findings
+**backend** — \`subagent_type: "feature-dev:code-reviewer"\` (if backend files)
+- API contracts, validation at boundaries, transaction integrity, DB schema, auth middleware
+- Compliance with architecture.md
 
-**Frontend Specialist** — \`subagent_type: "feature-dev:code-reviewer"\` (dispatch if frontend files)
-- Focus: component hierarchy, state management, prop drilling, memoization, accessibility (ARIA, keyboard), forms, loading/error/empty states
-- Check: compliance with UX spec (design tokens, responsive breakpoints)
-- Output: frontend-specific findings
+**frontend** — \`subagent_type: "feature-dev:code-reviewer"\` (if frontend files)
+- Component hierarchy, state management, accessibility, forms, loading/error/empty states
+- Compliance with UX spec
 
-**Visual Reviewer** — \`subagent_type: "general-purpose"\` (dispatch if frontend files AND preview app exists)
-- Start dev server if not running
-- Use \`mcp__react-grab-mcp__get_element_context\` to inspect each implemented component
-- Compare rendered output vs \`${o}/ux/design-spec.md\`
-- Check: tokens, spacing, typography, responsive behavior, dark mode
-- Output: visual discrepancies
+**visual** — \`subagent_type: "general-purpose"\` (if frontend + preview app)
+- React Grab inspection, comparison with \`${o}/ux/design-spec.md\`
 
-**DevOps Specialist** — \`subagent_type: "feature-dev:code-reviewer"\` (dispatch if devops files)
-- Focus: CI/CD security (secrets, perms, OIDC), IaC (least privilege, drift), container hardening, deployment safety (blue-green, rollback)
-- Output: infra-specific findings
+**devops** — \`subagent_type: "feature-dev:code-reviewer"\` (if infra files)
+- CI/CD security, IaC least privilege, container hardening, deployment safety
 
-**Fullstack Specialist** — \`subagent_type: "feature-dev:code-explorer"\` (dispatch if story spans 2+ layers)
-- Trace data flow end-to-end: UI → API → DB → response → UI
-- Check: contract alignment (types, validation schemas), error handling at each layer, auth propagation
-- Output: integration findings
+**fullstack** — \`subagent_type: "feature-dev:code-explorer"\` (if story spans 2+ layers)
+- End-to-end data flow, contract alignment, auth propagation across layers
 
-### Communication Protocol
+### Team Communication Rules
 
-Every specialist must return a structured report:
-\`\`\`markdown
-## {Specialist Name} Report
+1. **Cross-specialist discussion** — if a specialist finds something that impacts another's domain, they MUST SendMessage to the relevant teammate BEFORE reporting the finding. Example:
+   - \`backend\` finds \`DELETE /files/:id\` returns no body type
+   - \`backend\` → SendMessage(\`frontend\`): "DELETE endpoint has no .output() — does your code assume a specific response?"
+   - \`frontend\` responds with its usage
+   - Both include the resolution in their reports (one finding, two perspectives)
 
-### Findings
-- [SEVERITY] Description [file:line] — Evidence: {what you found} — Suggested fix: {how to fix}
+2. **Shared task list** — teammates see each other's progress. If \`ac-validator\` can't verify AC3 because it needs backend context, it drops a task \`"Need backend to confirm validation scheme for FR5"\` that \`backend\` picks up.
 
-### Summary
-- Checked: {what was checked}
-- Verdict: APPROVED | CHANGES_REQUESTED
-- Confidence: HIGH | MEDIUM | LOW
-\`\`\`
+3. **Challenge each other** — if \`code-quality\` says "this is a security issue" and \`backend\` disagrees because the layer above sanitizes, they discuss in the team before escalating to the Lead.
 
-If a specialist needs something another specialist knows (e.g., frontend needs backend contract), the Lead relays — you can re-dispatch a specialist with context from another's report.
+4. **Final report format** — each teammate returns:
+   \`\`\`markdown
+   ## {specialist-name} Report
+
+   ### Findings (after team discussion)
+   - [SEVERITY] Description [file:line]
+     - Evidence: {what}
+     - Cross-ref: mentioned to {teammate} — {resolution}
+     - Suggested fix: {how}
+
+   ### Summary
+   - Checked: {scope}
+   - Verdict: APPROVED | CHANGES_REQUESTED
+   - Confidence: HIGH | MEDIUM | LOW
+   - Open questions for Lead: {if any}
+   \`\`\`
+
+### Lead's role during team work
+
+You (the Lead) do NOT micromanage the team during review. Let them discuss. Your job is:
+- Watch the shared task list for stalls (teammate stuck waiting)
+- Intervene only if a cross-specialist disagreement requires user input
+- Collect the final reports when all teammates are done
 
 ## Step 6: Merge Findings
 
