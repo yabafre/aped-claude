@@ -271,31 +271,40 @@ panes:
   #   split: horizontal
   #   size: 30
 
-# Copy these files into every new worktree.
+# Copy these paths into every new worktree.
 #
-# IMPORTANT: only gitignored files need to be listed here. Everything tracked
-# by git (.aped/**, .claude/commands/**, .claude/skills/**, .claude/settings.json,
-# source code, configs, etc.) is automatically present in the worktree because
-# a git worktree is a checkout of the feature branch — it already contains
-# every committed file. Listing tracked paths here is redundant and may cause
-# conflicts if the branch diverges from main.
+# We copy \`.claude/\` and \`.aped/\` in full on purpose: many APED users
+# gitignore them as user-local tooling (the CloudVault setup, for instance,
+# ignores both), so a fresh worktree on a feature branch has NEITHER the
+# APED skill/hook machinery NOR the Claude settings. Without the copy, the
+# worktree's Claude Code session would fail on the very first prompt — the
+# UserPromptSubmit hook tries to invoke \`.aped/hooks/guardrail.sh\` and
+# misses.
 #
-# The list below targets the gitignored files APED needs to function:
-#   .env*                           project secrets and per-env configs
-#   .mcp.json                       project-scoped Claude Code MCP servers
-#                                   (Linear, Stripe, etc. — critical for
-#                                   /aped-story ticket fetches and /aped-dev)
-#   .claude/settings.local.json     per-user permission allowances + hooks
-#                                   (copied so all worktrees share the same
-#                                   permissions — tune in the main project)
+# If your project tracks these paths (rare), the copy is a harmless duplicate
+# — git's tracked content is already there, workmux copies the same bytes on
+# top. No conflict, no divergence concern.
 #
-# Globs are supported. Add more entries here if your project has additional
-# gitignored-but-necessary files (e.g., .vscode/settings.json, credentials).
+# Paths:
+#   .env*                       project secrets and per-env configs
+#   .mcp.json                   project-scoped Claude Code MCP servers
+#                               (Linear, Stripe, etc. — critical for
+#                               /aped-story ticket fetches and /aped-dev)
+#   .claude/                    commands, skills, settings (including
+#                               settings.local.json for permission sharing)
+#   .aped/                      full APED pipeline: skills, hooks, scripts,
+#                               templates, config.yaml. Includes hooks/
+#                               so guardrail.sh / upstream-lock.sh resolve
+#                               in the worktree
+#
+# Globs are supported. Add more entries if your project has extra files
+# (e.g., .vscode/settings.json, credentials, local overrides).
 files:
   copy:
     - .env*
     - .mcp.json
-    - .claude/settings.local.json
+    - .claude/
+    - .aped/
   # Symlink heavy dirs instead of copying — saves disk and install time.
   symlink:
     - node_modules

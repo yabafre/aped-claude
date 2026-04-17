@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.7] - 2026-04-17
+
+### Fixed
+- **`workmux.yaml.example` now copies `.claude/` and `.aped/` in full.** 3.5.6 only copied `.claude/settings.local.json` under the assumption that `.aped/` and most of `.claude/` would be in the worktree via git. Live test surfaced that many APED users gitignore both directories entirely as user-local tooling (CloudVault's `.gitignore` excludes both). On those setups, a fresh worktree has NEITHER the APED machinery NOR the Claude settings — Claude Code fails on the very first prompt because its registered `UserPromptSubmit` hook points to `.aped/hooks/guardrail.sh` which isn't there.
+  - New `copy` list: `.env*`, `.mcp.json`, `.claude/`, `.aped/`.
+  - Template comments explain that copying is unconditional on purpose — harmless duplicate if the project tracks these paths, vital if it gitignores them.
+  - `/aped-sprint` SKILL description aligned: "copy" is what makes the worktree functional, not just secret/env handling.
+
 ## [3.5.6] - 2026-04-17
 
 ### Changed
