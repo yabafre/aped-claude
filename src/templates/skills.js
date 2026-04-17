@@ -984,16 +984,21 @@ Before writing ANY code for a story, verify you can check every box. If you can'
 
 ## Setup
 
-1. **Worktree Mode Detection** — check for \`${a}/WORKTREE\` in the current project.
-   - If the marker exists (parallel-sprint mode), this session is pinned to the story it records:
-     - Read the marker to get \`story_key\`, \`ticket\`, \`branch\`, \`project_root\`
-     - Read state.yaml from \`project_root/${o}/state.yaml\` (the canonical one), not a local copy
-     - Verify the marker's \`story_key\` matches a story whose \`worktree\` field points to this directory; if not, HALT with an error — the worktree is stale or mislabelled
-     - Skip "Story Selection" below — this session only works on the pinned story
-     - Skip git branch creation at implementation time — the worktree already has \`branch\`
-   - If the marker does NOT exist (classic single-session mode), proceed normally.
+1. **Worktree Mode Detection** — three-step lookup, in order:
+   1. If \`${a}/WORKTREE\` exists → read it (\`story_key\`, \`ticket\`, \`branch\`, \`project_root\`). Done.
+   2. Else, run \`git rev-parse --git-common-dir\` — if its parent differs from \`git rev-parse --show-toplevel\`, we're inside a git worktree (not the main checkout). Infer:
+      - \`branch\` from \`git symbolic-ref --short HEAD\`
+      - If branch matches \`feature/{ticket}-{story-key}\` (the APED/workmux convention), extract \`ticket\` (first dash-delimited segment after \`feature/\`) and \`story_key\` (the remainder). Example: \`feature/KON-83-1-2-contract\` → ticket=\`KON-83\`, story_key=\`1-2-contract\`
+      - \`project_root\` = \`dirname $(git rev-parse --git-common-dir)\`
+      - Write the marker now to cache the inference for future invocations.
+   3. Else, classic single-session mode (main project, no worktree). Proceed normally.
+
+   In worktree mode (1 or 2), this session is **pinned** to the inferred story. Read the **canonical** state.yaml from \`project_root/${o}/state.yaml\` (not any local copy in the worktree). Verify the story exists there; if not, HALT with a clear error — the worktree doesn't map to a known story.
+
+   In worktree mode, skip "Story Selection" and skip any git branch creation — the worktree already has the right branch.
+
 2. Read \`${a}/config.yaml\` — extract config including \`ticket_system\`, \`git_provider\`.
-3. Read \`${o}/state.yaml\` (or the main project's state.yaml if in worktree mode) — find the target story.
+3. Read state.yaml (canonical one in worktree mode, local one otherwise) — find the target story.
 
 ## Story Selection
 
@@ -1519,11 +1524,20 @@ If \`ticket_system\` != \`none\`: post the review report as a comment on the tic
 If story → \`done\`:
 1. Approve/merge the PR (adapt to \`git_provider\`)
 2. Move ticket to **Done**
-3. Delete the feature branch
+3. Delete the feature branch (see "Worktree cleanup" below — different commands in parallel-sprint mode vs classic)
 
 If story stays \`review\`:
 1. Post each finding as a PR comment with line anchor
 2. Ticket stays **In Review**
+
+### Worktree cleanup (\`done\` only, parallel sprint)
+
+If this review ran inside a worktree (marker \`${a}/WORKTREE\` exists), bundle the cleanup:
+
+- **workmux detected** (\`command -v workmux\`) → one-shot: \`workmux merge\` merges the branch, removes the worktree, closes its tmux window, and deletes the local branch in a single command. Recommend it to the user rather than running the three steps yourself.
+- **workmux absent** → call the fallback: \`bash \${project_root}/${a}/scripts/worktree-cleanup.sh \${worktree_path} --delete-branch\` (run from the main project, not the worktree).
+
+In classic (non-parallel) mode, just delete the feature branch as usual.
 
 ## Step 12: Update Local State
 
@@ -2070,6 +2084,8 @@ Use when requirements change, priorities shift, or the current approach needs re
 ## Active-Worktree Check (parallel sprint awareness)
 
 Before touching any artifact, identify stories whose \`status\` is in \`{in-progress, review-queued, review}\` AND that have a non-null \`worktree\` — these are the sessions that will be impacted.
+
+Source of truth: \`state.yaml\`. Cross-check: if \`command -v workmux\` succeeds, also run \`workmux list --format json\` (or the plain \`workmux list\` if json isn't supported) to confirm each state.yaml worktree is actually open. If a worktree is in state.yaml but workmux doesn't know about it, the session was likely closed without marking the story \`done\` — flag it to the user as a stale entry and ask whether to drop the \`worktree\` field.
 
 If any exist:
 1. List them to the user with their branches + tickets.
@@ -2900,21 +2916,11 @@ workmux add "{ticket-id}" \\
   -p "/aped-dev {story-key}"
 \`\`\`
 
-After workmux returns, write our own \`.aped/WORKTREE\` marker inside the newly created worktree so \`/aped-dev\` and \`/aped-review\` can pin to the right story:
-
-\`\`\`bash
-WORKTREE_PATH=$(workmux list --format json | jq -r '.worktrees[] | select(.branch=="feature/{ticket-id}-{story-key}") | .path')
-mkdir -p "$WORKTREE_PATH/${a}"
-cat > "$WORKTREE_PATH/${a}/WORKTREE" <<EOF
-story_key: {story-key}
-ticket: {ticket-id}
-branch: feature/{ticket-id}-{story-key}
-project_root: $(pwd)
-created_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-EOF
-\`\`\`
+**No marker gymnastics needed.** \`/aped-dev\` infers the story from the branch name (\`feature/{ticket}-{story-key}\`) when it starts, then writes \`.aped/WORKTREE\` itself as a cache. This avoids the race between \`workmux add\` launching Claude immediately and us trying to pre-write a marker.
 
 If the project has no \`.workmux.yaml\` at the repo root, mention it once to the user: a sample lives at \`${a}/templates/workmux.yaml.example\` — recommend copying it and customising panes / post_create / files.
+
+For the state.yaml update post-dispatch, read the worktree path with \`git worktree list --porcelain\` (filtering by the branch we just created) — no \`jq\` dependency.
 
 ### Path B — fallback without workmux
 

@@ -48,6 +48,16 @@ Then open Claude Code:
 /aped-analyze    # Start with guided discovery
 ```
 
+### Optional: parallel sprints
+
+Once you reach the sprint phase (after `/aped-epics`), you can run several stories in parallel via `git worktree`:
+
+```
+/aped-sprint     # DAG resolver + capacity check + dispatch
+```
+
+For the best experience, install [workmux](https://github.com/raine/workmux) (`brew install raine/workmux/workmux`) — APED detects it and will auto-create a tmux window with Claude Code pre-launched per story. Without workmux, `/aped-sprint` prints the exact `cd` + `claude` + `/aped-dev` commands to run in new terminals.
+
 ## Pipeline commands (8)
 
 | Command | Phase | What it produces |
