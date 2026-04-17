@@ -3122,22 +3122,27 @@ workmux add "$BRANCH" -a claude
 \`\`\`bash
 # 1. Create the worktree via the built-in helper (idempotent — skips if already there)
 WORKTREE=$(bash ${a}/scripts/sprint-dispatch.sh <story-key> <ticket-id>)
+NAME=$(basename "$WORKTREE")
 
-# 2. Open the workmux window and run the copy/symlink/post_create hooks
-workmux open "$(basename "$WORKTREE")" --run-hooks --force-files
-
-# 3. workmux open does NOT bind an agent — the -a flag only exists on \`workmux add\`.
-#    Push \`claude\` into the freshly-opened window so it comes up idle:
-workmux send "$(basename "$WORKTREE")" "claude"
+# 2. Force a clean window re-open so the configured pane \`command: <agent>\`
+#    executes. \`workmux open\` only runs pane commands when creating a NEW
+#    window — if the window already exists, it just switches to it (claude
+#    will NOT auto-launch). Closing first guarantees re-creation.
+workmux close "$NAME" 2>/dev/null || true
+workmux open "$NAME" --run-hooks --force-files
 \`\`\`
+
+**Why not \`workmux send "$NAME" "claude"\`?** \`workmux send\` talks to an already-running agent — it cannot launch one. **Why not \`workmux run\`?** \`run\` executes with output capture (artifacts), not interactively in the existing pane. The close+open cycle is the only clean way to (re)start the configured agent.
 
 Verify the windows exist and have the agent running before moving on:
 
 \`\`\`bash
-workmux list   # AGENT column should show "claude" (or "✓" depending on workmux version)
+workmux list   # MUX column must be ✓; AGENT column shows claude status IF hooks are installed
 \`\`\`
 
-If the \`AGENT\` column is empty after \`workmux send ... "claude"\`, tell the user: "Switch to each window and type \`claude\` yourself — workmux 0.1.x can't always auto-launch agents when re-opening an existing worktree."
+**About the \`AGENT\` column.** Workmux tracks agent status via plugin hooks injected into Claude Code's settings. If \`workmux setup\` has never been run, the AGENT column stays \`-\` even when claude is actually running. Tell the user once: "Run \`workmux setup\` in the main project to enable agent status tracking — optional but makes \`workmux list\` and \`workmux dashboard\` actually useful."
+
+If after \`workmux open\` \`claude\` did not launch (verify with \`workmux capture "$NAME" | tail -5\` — the pane should show claude's banner, not a bare shell prompt), tell the user: "Switch to each window and type \`claude\` — your \`.workmux.yaml\` may not declare an agent pane, or the pane command didn't take."
 
 Capture the worktree path for the state.yaml write (below): \`git worktree list --porcelain\` filtered by the branch we just created (no \`jq\` dependency).
 
@@ -3179,12 +3184,16 @@ Do NOT set \`status: in-progress\` and do NOT set \`started_at\` here. \`/aped-s
   Monitor: workmux list  ·  workmux dashboard  ·  workmux send <name> "<msg>"
 \`\`\`
 
-**If the recovery path was used** (\`workmux open\` instead of \`workmux add\`), the agent binding is not automatic. In that case, add this line to the user instructions:
+**If the recovery path was used** (\`close\` + \`open\` instead of \`workmux add\`), add this line to the user instructions:
 
 \`\`\`
-  NOTE: workmux open re-ran the hooks but did NOT bind claude to the pane
-  (flag -a only exists on \`workmux add\`). If \`workmux list\` shows AGENT=-,
-  switch to each window and type \`claude\` before running /aped-story.
+  NOTE: windows were re-created via workmux close+open so the agent pane runs.
+  If you still see a bare shell (no claude banner), type \`claude\` yourself —
+  the .workmux.yaml may be missing a \`command: <agent>\` pane.
+
+  AGENT column in \`workmux list\` shows \`-\`? Run \`workmux setup\` once in the
+  main project to install the agent-tracking hooks. Status icons won't update
+  until then, but the agent is running.
 \`\`\`
 
 **Path B (fallback)** — print one block per worktree:

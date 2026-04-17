@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.5] - 2026-04-17
+
+### Fixed
+- **Recovery Path A in `/aped-sprint` no longer uses `workmux send` to launch claude.** Live test confirmed `workmux send` only talks to an already-running agent — it cannot launch one. `workmux run` also isn't right (it captures output as artifacts, blocks by default, not interactive). The canonical way to (re)start the configured agent pane in an existing worktree is a close+open cycle, because `workmux open` only executes pane `command:` entries when **creating** a window; on an existing window it just switches to it.
+  - New recovery sequence: \`workmux close "$NAME" 2>/dev/null || true; workmux open "$NAME" --run-hooks --force-files\`.
+  - SKILL explicitly documents why `send` and `run` don't work so the rationale survives future edits.
+
+### Added
+- **`workmux setup` recommendation.** The AGENT column in `workmux list` stays `-` unless the plugin hooks are installed into Claude Code's settings (via `workmux setup`). SKILL now tells the user once to run `workmux setup` in the main project to enable agent status tracking — optional but makes `workmux list` / `workmux dashboard` actually informative.
+- Verification step after recovery open: `workmux capture "$NAME" | tail -5` should show the claude banner; if it shows a bare shell, the `.workmux.yaml` lacks an `<agent>` pane or the command didn't take — fallback to the user typing `claude` manually.
+
 ## [3.5.4] - 2026-04-17
 
 ### Fixed
