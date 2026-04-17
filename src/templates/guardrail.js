@@ -215,10 +215,25 @@ printf '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalCon
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/${a}/hooks/guardrail.sh"
+            "command": "\${CLAUDE_PROJECT_DIR}/${a}/hooks/guardrail.sh",
+            "timeout": 5
           }
         ]
       }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(glab:*)",
+      "Bash(npm:*)",
+      "Bash(pnpm:*)",
+      "Bash(pnpx:*)",
+      "Bash(npx:*)",
+      "Bash(node:*)",
+      "Bash(bash:*)",
+      "Bash(python3:*)"
     ]
   }
 }

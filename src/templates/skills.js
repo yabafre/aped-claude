@@ -796,6 +796,7 @@ Tell the user: "Epics structure is ready. Run \`/aped-story\` to create the firs
       content: `---
 name: aped-story
 description: 'Creates a detailed story file for the next story to implement. Use when user says "create story", "prepare next story", "aped story", or invokes /aped-story.'
+argument-hint: "[story-key]"
 license: MIT
 metadata:
   author: yabafre
@@ -932,6 +933,7 @@ Tell the user: "Story file is ready at \`${o}/stories/{story-key}.md\`. Run \`/a
       content: `---
 name: aped-dev
 description: 'Implements next story with TDD red-green-refactor cycle. Use when user says "start dev", "implement story", "aped dev", or invokes /aped-dev.'
+argument-hint: "[story-key]"
 disable-model-invocation: true
 license: MIT
 metadata:
@@ -1235,6 +1237,7 @@ Story "1-2-user-registration":
       content: `---
 name: aped-review
 description: 'Reviews completed stories adversarially with minimum 3 findings. Use when user says "review code", "run review", "aped review", or invokes /aped-review.'
+argument-hint: "[story-key]"
 disable-model-invocation: true
 license: MIT
 metadata:
@@ -1957,6 +1960,7 @@ Next: /aped-dev (story 1-5-session-mgmt is ready-for-dev)
       content: `---
 name: aped-course
 description: 'Manages scope changes and pivots during development with impact analysis. Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes /aped-course.'
+argument-hint: "[description of the change]"
 disable-model-invocation: true
 license: MIT
 metadata:
@@ -2180,6 +2184,7 @@ Scanning a Next.js SaaS project → project-context.md:
       content: `---
 name: aped-qa
 description: 'Generates E2E and integration tests from acceptance criteria for completed features. Use when user says "generate tests", "E2E tests", "integration tests", "aped qa", or invokes /aped-qa.'
+argument-hint: "[story-key]"
 license: MIT
 metadata:
   author: yabafre
@@ -2308,6 +2313,7 @@ Epic 1 completed (3 stories) → generate QA:
       content: `---
 name: aped-quick
 description: 'Implements quick fixes and small features bypassing the full pipeline. Use when user says "quick fix", "quick feature", "hotfix", "aped quick", or invokes /aped-quick.'
+argument-hint: "<title> [fix|feature|refactor]"
 license: MIT
 metadata:
   author: yabafre
@@ -2418,6 +2424,7 @@ User: "quick fix the login button not submitting"
       content: `---
 name: aped-checkpoint
 description: 'Human-in-the-loop review of recent changes. Summarizes what changed, highlights concerns, and halts for user approval. Use when user says "checkpoint", "review changes", "walk me through this", or invokes /aped-check.'
+allowed-tools: "Read Grep Glob Bash"
 license: MIT
 metadata:
   author: yabafre
