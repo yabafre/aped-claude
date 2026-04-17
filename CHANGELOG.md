@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.8] - 2026-04-17
+
+### Added
+- **`/aped-sprint` auto-injects `/aped-story` into each Story Leader via `workmux add -p`.** Previously the skill told the user to manually type `/aped-story <key>` in each window. With the `-p` flag (inline prompt, supported since workmux 0.1.x), claude launches with the prompt already queued — zero manual step per worktree. This is not an auto-chain of approvals: `/aped-story` is the Leader's own first act on its own branch, nothing is approved or merged yet.
+- **`/aped-lead` now delegates merge to the workmux `/merge` skill** when `review-done` is approved. `workmux setup` installs `/merge`, `/rebase`, `/coordinator`, `/worktree`, `/open-pr` as companion skills; `/merge` handles commit+rebase+merge+cleanup in one step. Lead pushes `/merge` via `workmux send` instead of recommending the raw `workmux merge` CLI. Fallback preserved for setups without `workmux setup`.
+- **Handle convention documented.** Workmux slugifies branches into handles and places worktrees at `<project>__worktrees/<handle>`. SKILL explains how to recover handle/path via `workmux list` and `workmux path`.
+
+### Changed
+- **`.workmux.yaml.example` uses `claude --permission-mode bypassPermissions` as the pane command.** Parallel sprints launching N Story Leaders cannot stop at every tool-call prompt — the copied `.claude/settings.local.json` already captures allow/deny rules, so bypassPermissions trusts that inventory. Users who prefer interactive permissions can swap to `claude` or restore the `<agent>` placeholder.
+- **`/aped-sprint` Path A drops `-a claude`.** The pane command now defines how claude launches (with flags), so the `-a` override is redundant. Workmux still auto-detects the built-in `claude` agent for prompt injection.
+- **`/aped-lead` push step prefers `workmux send` over raw `tmux send-keys`** when workmux is available (handle resolves naturally, output lands in the right pane, plus agent-status hooks fire).
+- User instructions after dispatch rewritten to reflect the new "no manual per-window step" reality.
+
 ## [3.5.7] - 2026-04-17
 
 ### Fixed

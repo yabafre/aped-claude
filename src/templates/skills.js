@@ -2966,9 +2966,11 @@ For each approved check-in:
 2. Determine the follow-up command for the worktree:
    - \`story-ready\` → \`/aped-dev {story-key}\`
    - \`dev-done\`    → \`/aped-review {story-key}\`
-   - \`review-done\` → no follow-up; recommend the user run \`workmux merge\` in the worktree's window (or \`bash ${a}/scripts/worktree-cleanup.sh {worktree-path} --delete-branch\` if workmux is absent).
-3. Push it to the worktree's tmux window: \`bash ${a}/scripts/checkin.sh push {story-key} "{follow-up-command}"\`
-4. If \`push\` reports tmux absent: tell the user "Story Leader for {story-key} is waiting — re-invoke in its terminal: \`{follow-up-command}\`."
+   - \`review-done\` → \`/merge\` (the workmux companion skill installed via \`workmux setup\`). It commits remaining changes, rebases onto the base branch, merges, and removes the worktree + window + branch in one step. If \`workmux setup\` was never run, fall back to: \`bash ${a}/scripts/worktree-cleanup.sh {worktree-path} --delete-branch\` and remind the user to merge the PR manually.
+3. Push it to the worktree's tmux window, preferring workmux when available:
+   - \`workmux send "{handle}" "{follow-up-command}"\` (handle = \`basename {worktree}\` or \`workmux list\`), OR
+   - \`bash ${a}/scripts/checkin.sh push {story-key} "{follow-up-command}"\` (tmux-send-keys fallback).
+4. If both push paths fail: tell the user "Story Leader for {story-key} is waiting — re-invoke in its terminal: \`{follow-up-command}\`."
 
 ## Applying Blocks (escalations user wants to reject)
 
@@ -2982,9 +2984,10 @@ This labels the ticket \`aped-blocked-{kind}\` and posts a comment. The Story Le
 
 ## Teardown — Done Stories
 
-For every \`review-done\` check-in approved, if story just flipped to \`done\` in state.yaml:
-- If a worktree is still listed for the story, recommend cleanup to the user (workmux merge / worktree-cleanup.sh).
-- The skill does NOT delete worktrees autonomously — user keeps control of merge order.
+For every \`review-done\` check-in approved, if the story just flipped to \`done\` in state.yaml:
+- The Lead already pushed \`/merge\` to the worktree in step 3 above (via \`workmux send\`). The worktree agent handles commit+rebase+merge+cleanup itself.
+- If \`workmux setup\` was never run (no \`/merge\` skill), recommend to the user: "Run \`workmux merge\` in the worktree window, or \`bash ${a}/scripts/worktree-cleanup.sh {worktree} --delete-branch\` from main."
+- The Lead does NOT delete worktrees autonomously beyond pushing \`/merge\` — user keeps control of merge order and PR strategy.
 
 ## Dispatch Follow-up
 
@@ -3105,46 +3108,59 @@ Two paths, picked by the Setup detection. **Neither path posts \`story-ready\` n
 
 ### Path A — workmux available (preferred)
 
-\`workmux\` creates the worktree, opens a tmux/wezterm window, and — via \`workmux add -a claude\` — launches Claude Code idle inside it. The Story Leader's first command will be \`/aped-story <story-key>\`, NOT \`/aped-dev\`.
+\`workmux\` creates the worktree, opens a tmux/wezterm window, launches Claude Code per the configured pane command, **and auto-injects the first prompt via \`-p\`**. There is no manual step per window — \`/aped-story\` runs as soon as claude is up.
 
-If \`.workmux.yaml\` is missing at the repo root, bootstrap from \`${a}/templates/workmux.yaml.example\` before dispatching. The template copies everything the worktree needs to run Claude Code + APED end-to-end: \`.env*\`, \`.mcp.json\` (project-scoped MCPs — Linear/Stripe/etc., critical for /aped-story ticket fetches), **the full \`.claude/\` directory** (commands, skills, settings.local.json — permissions shared across worktrees), and **the full \`${a}/\` directory** (APED skills, hooks, scripts, templates, config.yaml — without this the UserPromptSubmit hook fails immediately because \`${a}/hooks/guardrail.sh\` is missing). It symlinks \`node_modules\` and runs \`pnpm install --frozen-lockfile\` post_create. Many APED users gitignore \`.claude/\` and \`${a}/\` as user-local tooling, so the copy is not redundant — it's what makes the worktree functional at all.
+If \`.workmux.yaml\` is missing at the repo root, bootstrap from \`${a}/templates/workmux.yaml.example\` before dispatching. The template copies everything the worktree needs to run Claude Code + APED end-to-end: \`.env*\`, \`.mcp.json\` (project-scoped MCPs — Linear/Stripe/etc., critical for /aped-story ticket fetches), **the full \`.claude/\` directory** (commands, skills, settings.local.json — permissions shared across worktrees), and **the full \`${a}/\` directory** (APED skills, hooks, scripts, templates, config.yaml — without this the UserPromptSubmit hook fails immediately because \`${a}/hooks/guardrail.sh\` is missing). It symlinks \`node_modules\`, runs \`pnpm install --frozen-lockfile\` post_create, and uses \`claude --permission-mode bypassPermissions\` as the pane command so parallel Story Leaders don't block on approval prompts (the copied \`settings.local.json\` is the source of truth for permissions). Many APED users gitignore \`.claude/\` and \`${a}/\` as user-local tooling, so the copy is not redundant — it's what makes the worktree functional at all.
 
-For each approved story (fresh worktree, no prior git state):
+For each approved story (fresh worktree):
 
 \`\`\`bash
 BRANCH="feature/{ticket-id}-{story-key}"
-WORKTREE_NAME="{project}-{ticket-id}"   # e.g. cloudvault-KON-84
-workmux add "$BRANCH" -a claude
+workmux add "$BRANCH" -p "/aped-story {story-key}"
 \`\`\`
 
-**If a git worktree already exists for the story** (user ran \`sprint-dispatch.sh\` earlier, or /aped-sprint was interrupted), or if \`workmux add\` rejects the invocation (API drift), use the two-step recovery path:
+No \`-a\` flag — the pane config (\`command: claude --permission-mode bypassPermissions\`) already defines how claude launches. Workmux auto-detects the built-in \`claude\` agent in the pane command and injects \`-p\` via the supported prompt-injection path (writes a prompt file, claude reads it on startup).
+
+Workmux slugifies the branch into a **handle** (\`feature/KON-84-1-3-foo\` → \`feature-kon-84-1-3-foo\`) and places the worktree at \`<project>__worktrees/<handle>\`. Recover the handle and path via:
 
 \`\`\`bash
-# 1. Create the worktree via the built-in helper (idempotent — skips if already there)
+HANDLE=$(workmux list --format name | grep -F "$BRANCH" | awk '{print $1}')   # or compute from slug
+WORKTREE=$(workmux path "$HANDLE")
+\`\`\`
+
+**If a git worktree already exists for the story** (user ran \`sprint-dispatch.sh\` earlier, or /aped-sprint was interrupted), use the recovery path:
+
+\`\`\`bash
+# 1. Ensure the worktree exists (idempotent)
 WORKTREE=$(bash ${a}/scripts/sprint-dispatch.sh <story-key> <ticket-id>)
-NAME=$(basename "$WORKTREE")
+HANDLE=$(basename "$WORKTREE")
 
-# 2. Force a clean window re-open so the configured pane \`command: <agent>\`
-#    executes. \`workmux open\` only runs pane commands when creating a NEW
-#    window — if the window already exists, it just switches to it (claude
-#    will NOT auto-launch). Closing first guarantees re-creation.
-workmux close "$NAME" 2>/dev/null || true
-workmux open "$NAME" --run-hooks --force-files
+# 2. Force a clean window re-open so the pane command re-executes.
+#    \`workmux open\` runs pane commands only when CREATING the window; if
+#    the window already exists it just switches to it (claude won't
+#    auto-launch). Close first to guarantee re-creation.
+workmux close "$HANDLE" 2>/dev/null || true
+workmux open "$HANDLE" --run-hooks --force-files
+
+# 3. Push the initial prompt. \`workmux send\` requires a running agent —
+#    claude is up from step 2's pane command, so this works. (It wouldn't
+#    work as a launcher — that's what step 2 is for.)
+workmux send "$HANDLE" "/aped-story <story-key>"
 \`\`\`
 
-**Why not \`workmux send "$NAME" "claude"\`?** \`workmux send\` talks to an already-running agent — it cannot launch one. **Why not \`workmux run\`?** \`run\` executes with output capture (artifacts), not interactively in the existing pane. The close+open cycle is the only clean way to (re)start the configured agent.
+**Why not \`workmux run "$HANDLE" -- claude\`?** \`run\` captures output as artifacts and blocks by default — it's for scripted commands, not for launching an interactive agent in the existing pane. The close+open cycle is the clean way to (re)start the configured agent pane.
 
-Verify the windows exist and have the agent running before moving on:
+Verify the windows exist and the agent is running before moving on:
 
 \`\`\`bash
-workmux list   # MUX column must be ✓; AGENT column shows claude status IF hooks are installed
+workmux list   # MUX column must be ✓; AGENT column shows claude status if hooks are installed
 \`\`\`
 
-**About the \`AGENT\` column.** Workmux tracks agent status via plugin hooks injected into Claude Code's settings. If \`workmux setup\` has never been run, the AGENT column stays \`-\` even when claude is actually running. Tell the user once: "Run \`workmux setup\` in the main project to enable agent status tracking — optional but makes \`workmux list\` and \`workmux dashboard\` actually useful."
+**About the \`AGENT\` column.** Workmux tracks agent status via plugin hooks injected into Claude Code's settings. \`workmux setup\` installs them and also adds useful companion skills (\`/merge\`, \`/rebase\`, \`/worktree\`, \`/coordinator\`, \`/open-pr\`, \`/workmux\` reference). If \`workmux setup\` has never been run, the AGENT column stays \`-\` even when claude is actually running. Tell the user once: "Run \`workmux setup\` in the main project once — it installs status tracking hooks and the \`/merge\`, \`/rebase\`, \`/coordinator\` companion skills APED's Lead later delegates to."
 
-If after \`workmux open\` \`claude\` did not launch (verify with \`workmux capture "$NAME" | tail -5\` — the pane should show claude's banner, not a bare shell prompt), tell the user: "Switch to each window and type \`claude\` — your \`.workmux.yaml\` may not declare an agent pane, or the pane command didn't take."
+If after the recovery path claude did not launch (verify with \`workmux capture "$HANDLE" | tail -5\` — the pane should show claude's banner, not a bare shell prompt), tell the user: "Switch to the window and type \`claude --permission-mode bypassPermissions\` — your \`.workmux.yaml\` may not declare an agent pane, or the pane command didn't take."
 
-Capture the worktree path for the state.yaml write (below): \`git worktree list --porcelain\` filtered by the branch we just created (no \`jq\` dependency).
+Capture the worktree path for the state.yaml write (below): \`workmux path "$HANDLE"\` or \`git worktree list --porcelain\` filtered by the branch we just created.
 
 ### Path B — fallback without workmux
 
@@ -3167,33 +3183,39 @@ Do NOT set \`status: in-progress\` and do NOT set \`started_at\` here. \`/aped-s
 
 ## User Instructions
 
-**Path A (workmux)** — claude sessions are running idle in each window. Tell the user:
+**Path A (workmux)** — claude is running in each window AND \`/aped-story\` was auto-injected via \`-p\`. Tell the user:
 
 \`\`\`
-▶ Dispatched 2 stories via workmux. Claude Code is idle in each window.
-    1-2-contract   window: feature/KON-83-1-2-contract   ../cloudvault-KON-83
-    1-3-rpc        window: feature/KON-84-1-3-rpc        ../cloudvault-KON-84
+▶ Dispatched 2 stories via workmux. Each Story Leader is already running
+  /aped-story on its own feature branch — no manual step needed.
 
-  Next — in each window, run:
-    /aped-story <story-key>
+    1-2-contract   handle: feature-kon-83-1-2-contract   <project>__worktrees/feature-kon-83-1-2-contract
+    1-3-rpc        handle: feature-kon-84-1-3-rpc        <project>__worktrees/feature-kon-84-1-3-rpc
 
-  /aped-story drafts the story file on the feature branch, commits it, and posts
-  the story-ready check-in. Then run /aped-lead from this main session to
-  approve — the Lead will push /aped-dev into each window via tmux send-keys.
+  Each /aped-story will: draft the story file on the feature branch, commit it,
+  post the story-ready check-in, then HALT. Come back here and run /aped-lead
+  to approve — the Lead will push /aped-dev into each window via workmux send.
 
-  Monitor: workmux list  ·  workmux dashboard  ·  workmux send <name> "<msg>"
+  Monitor:
+    workmux list                       status of every worktree
+    workmux dashboard                  TUI with live agent output
+    workmux capture <handle> -n 50     last 50 lines of a window
+    workmux send <handle> "<prompt>"   send a prompt to a running agent
 \`\`\`
 
-**If the recovery path was used** (\`close\` + \`open\` instead of \`workmux add\`), add this line to the user instructions:
+**If the recovery path was used** (\`close\` + \`open\` + \`send\` instead of \`workmux add -p\`), add this line to the user instructions:
 
 \`\`\`
-  NOTE: windows were re-created via workmux close+open so the agent pane runs.
-  If you still see a bare shell (no claude banner), type \`claude\` yourself —
-  the .workmux.yaml may be missing a \`command: <agent>\` pane.
+  NOTE: worktrees existed, so windows were re-created via workmux close+open
+  and /aped-story was pushed via workmux send. If you see a bare shell in any
+  window (no claude banner), type:
+    claude --permission-mode bypassPermissions
+  then /aped-story <story-key> yourself. The .workmux.yaml may be missing a
+  \`command: claude …\` pane.
 
-  AGENT column in \`workmux list\` shows \`-\`? Run \`workmux setup\` once in the
-  main project to install the agent-tracking hooks. Status icons won't update
-  until then, but the agent is running.
+  AGENT column in \`workmux list\` shows \`-\`? Run \`workmux setup\` once in
+  the main project to install the agent-tracking hooks AND the /merge,
+  /rebase, /coordinator companion skills APED leverages later.
 \`\`\`
 
 **Path B (fallback)** — print one block per worktree:
@@ -3223,9 +3245,9 @@ Do NOT set \`status: in-progress\` and do NOT set \`started_at\` here. \`/aped-s
 ## Next Step
 
 After dispatch, tell the user:
-> "Worktrees created. **In each worktree's claude session, run \`/aped-story <story-key>\`** — that drafts the story file on the feature branch, commits it, and posts \`story-ready\`. Then come back to this main session and run \`/aped-lead\` to approve the batch — the Lead will push \`/aped-dev\` into each worktree. As stories progress, each Story Leader will post \`dev-done\` and \`review-done\` check-ins; re-run \`/aped-lead\` when \`/aped-status\` shows new pending ones. Come back to \`/aped-sprint\` to dispatch more when capacity frees up."
+> "Worktrees created and \`/aped-story\` auto-injected into each window via workmux. Each Story Leader will draft its story file on the feature branch, commit it, post \`story-ready\`, and HALT. **Come back to this main session and run \`/aped-lead\`** to approve the batch — the Lead will push \`/aped-dev\` into each worktree via \`workmux send\`. As stories progress, each Story Leader will post \`dev-done\` and \`review-done\` check-ins; re-run \`/aped-lead\` when \`/aped-status\` shows new pending ones. Come back to \`/aped-sprint\` to dispatch more when capacity frees up."
 
-**Do NOT auto-chain.** The user decides when to proceed.
+**Do NOT auto-chain beyond \`/aped-story\`.** Auto-injecting \`/aped-story\` is fine because it IS the Story Leader's legitimate first act on its own branch (nothing is approved yet, nothing merges). The user controls \`/aped-dev\` and \`/aped-review\` via \`/aped-lead\`.
 `,
     },
   ];

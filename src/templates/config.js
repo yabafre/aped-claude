@@ -262,9 +262,21 @@ sprint:
 # Docs: https://workmux.raine.dev/
 
 # Pane layout inside each worktree window.
-# <agent> is replaced by the agent launcher (claude, codex, opencode, ...).
+#
+# We hardcode \`claude --permission-mode bypassPermissions\` instead of the
+# generic \`<agent>\` placeholder for two reasons:
+#   1. Parallel sprints launch N worktrees at once; stopping to approve
+#      every tool call would defeat the whole point of parallelism.
+#   2. The project's \`.claude/settings.local.json\` (copied via files.copy
+#      below) already captures the allow/deny rules — bypassPermissions
+#      trusts that inventory. Keep that settings file honest.
+# If you prefer interactive permissions per worktree, swap the command to
+# \`claude\` (or \`<agent>\` with \`agent: claude\` in global config).
+# Workmux auto-detects built-in agents (claude/gemini/codex/opencode/…) in
+# the pane command even with flags, so prompt injection via \`workmux add -p\`
+# still works.
 panes:
-  - command: <agent>
+  - command: claude --permission-mode bypassPermissions
     focus: true
   # Uncomment a dev-server pane if you want one automatically:
   # - command: pnpm dev
