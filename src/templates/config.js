@@ -271,11 +271,31 @@ panes:
   #   split: horizontal
   #   size: 30
 
-# Copy these files into every new worktree (good for secrets / local env).
+# Copy these files into every new worktree.
+#
+# IMPORTANT: only gitignored files need to be listed here. Everything tracked
+# by git (.aped/**, .claude/commands/**, .claude/skills/**, .claude/settings.json,
+# source code, configs, etc.) is automatically present in the worktree because
+# a git worktree is a checkout of the feature branch — it already contains
+# every committed file. Listing tracked paths here is redundant and may cause
+# conflicts if the branch diverges from main.
+#
+# The list below targets the gitignored files APED needs to function:
+#   .env*                           project secrets and per-env configs
+#   .mcp.json                       project-scoped Claude Code MCP servers
+#                                   (Linear, Stripe, etc. — critical for
+#                                   /aped-story ticket fetches and /aped-dev)
+#   .claude/settings.local.json     per-user permission allowances + hooks
+#                                   (copied so all worktrees share the same
+#                                   permissions — tune in the main project)
+#
+# Globs are supported. Add more entries here if your project has additional
+# gitignored-but-necessary files (e.g., .vscode/settings.json, credentials).
 files:
   copy:
-    - .env
-    - .env.local
+    - .env*
+    - .mcp.json
+    - .claude/settings.local.json
   # Symlink heavy dirs instead of copying — saves disk and install time.
   symlink:
     - node_modules

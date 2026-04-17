@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.6] - 2026-04-17
+
+### Changed
+- **`workmux.yaml.example` copy list now covers the gitignored files APED actually needs.** Previous minimal default (`.env`, `.env.local`) left dispatched worktrees missing the project-scoped MCP config (`/.mcp.json`) and the local Claude settings (`.claude/settings.local.json`), which caused `/aped-story` to fail on Linear ticket fetches and broke any tool/permission customization inherited from main. New defaults:
+  - `copy: [.env*, .mcp.json, .claude/settings.local.json]` (glob catches `.env`, `.env.local`, `.env.development`, `.env.production`)
+  - `symlink: [node_modules]` (unchanged)
+  - `post_create: pnpm install --frozen-lockfile || npm install` (unchanged)
+- **Template comments explain the tracked-vs-gitignored distinction.** Users were tempted to list `.aped/` and `.claude/` in `files.copy` to "make it work" — those come in automatically via the git worktree because they're committed on the branch. Listing tracked paths is redundant and can conflict with branch divergence.
+- `/aped-sprint` SKILL now describes the template accurately (MCP + settings.local.json callout) so the skill and template stay in sync.
+
 ## [3.5.5] - 2026-04-17
 
 ### Fixed

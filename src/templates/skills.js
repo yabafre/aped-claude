@@ -3107,7 +3107,7 @@ Two paths, picked by the Setup detection. **Neither path posts \`story-ready\` n
 
 \`workmux\` creates the worktree, opens a tmux/wezterm window, and — via \`workmux add -a claude\` — launches Claude Code idle inside it. The Story Leader's first command will be \`/aped-story <story-key>\`, NOT \`/aped-dev\`.
 
-If \`.workmux.yaml\` is missing at the repo root, bootstrap a minimal one from \`${a}/templates/workmux.yaml.example\` before dispatching. A functional default includes the \`claude\` agent pane, \`.env\` copy, \`node_modules\` symlink, and a \`pnpm install --frozen-lockfile\` post_create — otherwise Story Leaders land in worktrees without deps and fail on \`/aped-story\` ticket fetches or \`/aped-dev\` tests.
+If \`.workmux.yaml\` is missing at the repo root, bootstrap from \`${a}/templates/workmux.yaml.example\` before dispatching. The template copies **gitignored** files the worktree needs: \`.env*\`, \`.mcp.json\` (project-scoped Claude Code MCPs — Linear/Stripe/etc., critical for /aped-story ticket fetches), and \`.claude/settings.local.json\` (permission allowances shared across worktrees). It symlinks \`node_modules\` and runs \`pnpm install --frozen-lockfile\` post_create. Tracked files (\`${a}/**\`, \`.claude/commands/\`, \`.claude/skills/\`, source) come in automatically via git — do NOT list them in \`files.copy\`.
 
 For each approved story (fresh worktree, no prior git state):
 
