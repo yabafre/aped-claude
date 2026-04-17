@@ -1,6 +1,6 @@
 import * as p from '@clack/prompts';
 import { existsSync, readFileSync, writeFileSync as writeFS } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import color from 'picocolors';
 import { scaffold } from './scaffold.js';
@@ -35,6 +35,104 @@ const GIT_OPTIONS = [
   { value: 'bitbucket', label: 'Bitbucket' },
 ];
 
+const VALID_TICKET_VALUES = new Set(TICKET_OPTIONS.map((o) => o.value));
+const VALID_GIT_VALUES = new Set(GIT_OPTIONS.map((o) => o.value));
+
+// Keys we accept from a user-edited config.yaml. Anything else is ignored silently
+// (logged in debug mode) to avoid loading attacker-controlled values.
+const VALID_YAML_KEYS = new Set([
+  'project_name',
+  'user_name',
+  'communication_language',
+  'document_output_language',
+  'aped_path',
+  'output_path',
+  'aped_version',
+  'ticket_system',
+  'git_provider',
+]);
+
+// Whitelist of CLI flag keys (camelCased). Unknown flags produce a warning but do not abort.
+const VALID_ARG_KEYS = new Set([
+  'yes', 'y', 'update', 'u', 'fresh', 'force', 'version', 'v', 'help', 'h', 'debug',
+  'project', 'projectName',
+  'author', 'authorName',
+  'lang', 'communicationLang',
+  'docLang', 'documentLang',
+  'aped', 'apedDir',
+  'output', 'outputDir',
+  'commands', 'commandsDir',
+  'tickets', 'ticketSystem',
+  'git', 'gitProvider',
+]);
+
+const HELP_TEXT = `aped-method — Scaffold the APED pipeline into any Claude Code project
+
+USAGE
+  aped-method [options]
+
+OPTIONS
+  --yes, -y                Non-interactive mode (use defaults or existing config)
+  --update, -u             Update engine files (preserve state + artifacts)
+  --fresh, --force         Delete existing installation and reinstall from zero
+  --version, -v            Print version
+  --help, -h               Print this help
+  --debug                  Print stack traces on error
+
+NON-INTERACTIVE FLAGS (with --yes)
+  --project=NAME           Project name
+  --author=NAME            Author name
+  --lang=LANG              Communication language (english, french, ...)
+  --doc-lang=LANG          Document output language
+  --aped=DIR               APED engine directory (default: .aped)
+  --output=DIR             Output artifacts directory (default: docs/aped)
+  --commands=DIR           Slash commands directory (default: .claude/commands)
+  --tickets=SYSTEM         Ticket system (none|linear|jira|github-issues|gitlab-issues)
+  --git=PROVIDER           Git provider (github|gitlab|bitbucket)
+
+ENVIRONMENT
+  NO_COLOR                 Disable coloured output
+  FORCE_COLOR              Force coloured output even when piped
+  DEBUG                    Print stack traces on error
+
+EXAMPLES
+  aped-method                            Interactive install
+  aped-method --yes --project=my-app     Non-interactive install
+  aped-method --update                   Upgrade engine, preserve state
+  aped-method --fresh                    Wipe & reinstall (creates backup)
+
+DOCS
+  https://github.com/yabafre/aped-claude
+`;
+
+// ── UserError: surfaced with exit 1 (bad input). Other errors → exit 2 via bin wrapper. ──
+class UserError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'UserError';
+    this.isUserError = true;
+  }
+}
+
+// ── Path safety ──
+function validateSafePath(value, keyName) {
+  if (value === undefined || value === null || value === '') return value;
+  if (typeof value !== 'string') {
+    throw new UserError(`${keyName} must be a string`);
+  }
+  if (value.includes('\0')) {
+    throw new UserError(`${keyName} contains a null byte`);
+  }
+  if (isAbsolute(value)) {
+    throw new UserError(`${keyName} must be a relative path (got: ${value})`);
+  }
+  const parts = value.split(/[\\/]/);
+  if (parts.includes('..')) {
+    throw new UserError(`${keyName} may not contain ".." segments (got: ${value})`);
+  }
+  return value;
+}
+
 // ── Semver compare (1=a>b, -1=a<b, 0=equal) ──
 function semverCompare(va, vb) {
   const pa = va.split('.').map(Number);
@@ -46,7 +144,7 @@ function semverCompare(va, vb) {
   return 0;
 }
 
-// ── Detect existing install & read config ──
+// ── Detect existing install & read config (whitelisted keys only) ──
 function detectExisting(apedDir) {
   const cwd = process.cwd();
   const configPath = join(cwd, apedDir, 'config.yaml');
@@ -55,39 +153,57 @@ function detectExisting(apedDir) {
   const existing = {};
   try {
     const content = readFileSync(configPath, 'utf-8');
-    for (const line of content.split('\n')) {
-      const match = line.match(/^(\w[\w_]*)\s*:\s*(.+)$/);
-      if (match) existing[match[1]] = match[2].trim().replace(/^["']|["']$/g, '');
+    for (const rawLine of content.split('\n')) {
+      const line = rawLine.split('#')[0];
+      const match = line.match(/^([a-z][a-z0-9_]*)\s*:\s*(.+)$/i);
+      if (!match) continue;
+      const key = match[1];
+      if (!VALID_YAML_KEYS.has(key)) continue;
+      const value = match[2].trim().replace(/^["']|["']$/g, '');
+      existing[key] = value;
     }
-  } catch { /* ignore */ }
+  } catch {
+    return null;
+  }
+
+  const apedPath = validateSafePath(existing.aped_path, 'aped_path') || apedDir;
+  const outputPath = validateSafePath(existing.output_path, 'output_path') || DEFAULTS.outputDir;
 
   return {
     projectName: existing.project_name || '',
     authorName: existing.user_name || '',
     communicationLang: existing.communication_language || DEFAULTS.communicationLang,
     documentLang: existing.document_output_language || DEFAULTS.documentLang,
-    apedDir: existing.aped_path || apedDir,
-    outputDir: existing.output_path || DEFAULTS.outputDir,
-    ticketSystem: existing.ticket_system || DEFAULTS.ticketSystem,
-    gitProvider: existing.git_provider || DEFAULTS.gitProvider,
+    apedDir: apedPath,
+    outputDir: outputPath,
+    ticketSystem: VALID_TICKET_VALUES.has(existing.ticket_system) ? existing.ticket_system : DEFAULTS.ticketSystem,
+    gitProvider: VALID_GIT_VALUES.has(existing.git_provider) ? existing.git_provider : DEFAULTS.gitProvider,
     installedVersion: existing.aped_version || '0.0.0',
   };
 }
 
 // ── Args ──
 function parseArgs(argv) {
-  const args = {};
+  const args = { _unknown: [] };
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--yes' || arg === '-y') { args.yes = true; continue; }
     if (arg === '--update' || arg === '-u') { args.mode = 'update'; continue; }
     if (arg === '--fresh' || arg === '--force') { args.mode = 'fresh'; continue; }
     if (arg === '--version' || arg === '-v') { args.version = true; continue; }
-    const match = arg.match(/^--(\w[\w-]*)=(.+)$/);
+    if (arg === '--help' || arg === '-h') { args.help = true; continue; }
+    if (arg === '--debug') { args.debug = true; continue; }
+    const match = arg.match(/^--([a-z][a-z0-9-]*)=(.*)$/i);
     if (match) {
       const key = match[1].replace(/-([a-z])/g, (_, ch) => ch.toUpperCase());
-      args[key] = match[2];
+      if (VALID_ARG_KEYS.has(key)) {
+        args[key] = match[2];
+      } else {
+        args._unknown.push(arg);
+      }
+      continue;
     }
+    args._unknown.push(arg);
   }
   return args;
 }
@@ -96,18 +212,32 @@ function parseArgs(argv) {
 export async function run() {
   const args = parseArgs(process.argv);
 
-  let detectedProject = '';
-  try {
-    const pkg = JSON.parse(readFileSync('package.json', 'utf-8'));
-    detectedProject = pkg.name || '';
-  } catch {
-    detectedProject = process.cwd().split('/').pop();
+  if (args.debug) process.env.DEBUG = '1';
+
+  if (args.help) {
+    process.stdout.write(HELP_TEXT);
+    return;
   }
 
-  // ── Version flag ──
   if (args.version) {
     console.log(`aped-method v${CLI_VERSION}`);
     return;
+  }
+
+  if (args._unknown.length > 0) {
+    // Non-fatal: warn and continue. Fatal flags (e.g. --help) are handled above.
+    for (const flag of args._unknown) {
+      console.warn(`${color.yellow('warn')} unknown flag: ${flag}`);
+    }
+    console.warn(color.dim('Run `aped-method --help` for the full list.'));
+  }
+
+  let detectedProject = '';
+  try {
+    const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8'));
+    detectedProject = pkg.name || '';
+  } catch {
+    detectedProject = process.cwd().split('/').pop() || '';
   }
 
   // ── Banner ──
@@ -137,8 +267,8 @@ export async function run() {
   p.intro(`${color.green(color.bold('APED Method'))} ${color.dim(`v${CLI_VERSION}`)}`);
   p.log.message(PIPELINE);
 
-  // ── Detect existing installation ──
-  const apedDir = args.aped || args.apedDir || DEFAULTS.apedDir;
+  // ── Detect existing installation (with path-safety validation on config) ──
+  const apedDir = validateSafePath(args.aped || args.apedDir, '--aped') || DEFAULTS.apedDir;
   const existing = detectExisting(apedDir);
 
   // ── Version upgrade detection ──
@@ -154,7 +284,7 @@ export async function run() {
   }
 
   if (args.yes) {
-    // Non-interactive mode
+    // ── Non-interactive mode ──
     let mode = args.mode || (existing ? 'update' : 'install');
 
     const defaults = existing || DEFAULTS;
@@ -163,13 +293,20 @@ export async function run() {
       authorName: args.author || args.authorName || defaults.authorName || '',
       communicationLang: args.lang || args.communicationLang || defaults.communicationLang,
       documentLang: args.docLang || args.documentLang || defaults.documentLang,
-      apedDir: args.aped || args.apedDir || defaults.apedDir || DEFAULTS.apedDir,
-      outputDir: args.output || args.outputDir || defaults.outputDir || DEFAULTS.outputDir,
-      commandsDir: args.commands || args.commandsDir || DEFAULTS.commandsDir,
+      apedDir: validateSafePath(args.aped || args.apedDir, '--aped') || defaults.apedDir || DEFAULTS.apedDir,
+      outputDir: validateSafePath(args.output || args.outputDir, '--output') || defaults.outputDir || DEFAULTS.outputDir,
+      commandsDir: validateSafePath(args.commands || args.commandsDir, '--commands') || DEFAULTS.commandsDir,
       ticketSystem: args.tickets || args.ticketSystem || defaults.ticketSystem || DEFAULTS.ticketSystem,
       gitProvider: args.git || args.gitProvider || defaults.gitProvider || DEFAULTS.gitProvider,
       cliVersion: CLI_VERSION,
     };
+
+    if (!VALID_TICKET_VALUES.has(config.ticketSystem)) {
+      throw new UserError(`invalid --tickets value: ${config.ticketSystem} (allowed: ${[...VALID_TICKET_VALUES].join(', ')})`);
+    }
+    if (!VALID_GIT_VALUES.has(config.gitProvider)) {
+      throw new UserError(`invalid --git value: ${config.gitProvider} (allowed: ${[...VALID_GIT_VALUES].join(', ')})`);
+    }
 
     await runScaffold(config, mode);
     return;
@@ -231,16 +368,19 @@ export async function run() {
         message: 'APED dir (engine)',
         placeholder: defaults.apedDir || DEFAULTS.apedDir,
         initialValue: defaults.apedDir || DEFAULTS.apedDir,
+        validate: (v) => pathPromptValidator(v, 'APED dir'),
       }),
       outputDir: () => p.text({
         message: 'Output dir (artifacts)',
         placeholder: defaults.outputDir || DEFAULTS.outputDir,
         initialValue: defaults.outputDir || DEFAULTS.outputDir,
+        validate: (v) => pathPromptValidator(v, 'Output dir'),
       }),
       commandsDir: () => p.text({
         message: 'Commands dir',
         placeholder: DEFAULTS.commandsDir,
         initialValue: DEFAULTS.commandsDir,
+        validate: (v) => pathPromptValidator(v, 'Commands dir'),
       }),
       ticketSystem: () => p.select({
         message: 'Ticket system',
@@ -256,7 +396,7 @@ export async function run() {
     {
       onCancel: () => {
         p.cancel('Operation cancelled.');
-        process.exit(0);
+        process.exit(130);
       },
     }
   );
@@ -285,6 +425,22 @@ export async function run() {
     `Summary${modeTag}`
   );
 
+  // Fresh mode is destructive — ask a second explicit confirmation listing what will be removed.
+  if (mode === 'fresh') {
+    p.log.warn(color.red(color.bold('Fresh install will delete:')));
+    p.log.message([
+      `  • ${config.apedDir}/ ${color.dim('(engine)')}`,
+      `  • ${config.outputDir}/ ${color.dim('(artifacts — brief, PRD, epics, stories, state.yaml)')}`,
+      `  • ${config.commandsDir}/aped-*.md ${color.dim('(slash commands)')}`,
+    ].join('\n'));
+    p.log.info(color.dim('A compressed backup will be written to .aped-backups/ before deletion.'));
+    const confirmFresh = await p.confirm({ message: 'Confirm fresh install (destructive)?', initialValue: false });
+    if (p.isCancel(confirmFresh) || !confirmFresh) {
+      p.cancel('Fresh install cancelled.');
+      return;
+    }
+  }
+
   const shouldProceed = await p.confirm({ message: 'Proceed?' });
 
   if (p.isCancel(shouldProceed) || !shouldProceed) {
@@ -293,6 +449,16 @@ export async function run() {
   }
 
   await runScaffold(config, mode);
+}
+
+function pathPromptValidator(value, label) {
+  if (value === undefined || value === '') return undefined;
+  try {
+    validateSafePath(value, label);
+    return undefined;
+  } catch (err) {
+    return err.message;
+  }
 }
 
 async function runScaffold(config, mode) {
@@ -304,9 +470,19 @@ async function runScaffold(config, mode) {
 
   p.log.step(`${modeLabel} ${color.dim('Scaffolding APED Method...')}`);
 
-  // ── Phase 1: Clean if fresh ──
+  // ── Phase 1: Clean if fresh (with backup) ──
   if (mode === 'fresh') {
     await p.tasks([
+      {
+        title: 'Backing up existing installation...',
+        async task() {
+          const backupPath = await backupExisting(config);
+          await sleep(200);
+          return backupPath
+            ? `Backup written to ${color.dim(backupPath)}`
+            : 'No existing installation to back up';
+        },
+      },
       {
         title: 'Removing existing installation...',
         async task() {
@@ -320,7 +496,7 @@ async function runScaffold(config, mode) {
               if (f.startsWith('aped-')) rmSync(join(cmdDir, f), { force: true });
             }
           } catch { /* ok */ }
-          await sleep(400);
+          await sleep(300);
           return 'Previous installation removed';
         },
       },
@@ -336,14 +512,14 @@ async function runScaffold(config, mode) {
     {
       title: 'Installing guardrail hook...',
       async task() {
-        await sleep(500);
+        await sleep(400);
         return 'Guardrail hook installed';
       },
     },
     {
       title: 'Verifying installation...',
       async task() {
-        await sleep(400);
+        await sleep(300);
         return `Verified — ${color.bold(String(total))} files`;
       },
     },
@@ -351,6 +527,25 @@ async function runScaffold(config, mode) {
 
   // ── Done ──
   printDone(created, updated, skipped, mode);
+}
+
+// Write a timestamped tar.gz backup of the existing install. Silently skips if
+// `tar` is unavailable or nothing to back up — never blocks the fresh install.
+async function backupExisting(config) {
+  const { existsSync, mkdirSync } = await import('node:fs');
+  const { spawnSync } = await import('node:child_process');
+  const cwd = process.cwd();
+  const targets = [config.apedDir, config.outputDir].filter((d) => existsSync(join(cwd, d)));
+  if (targets.length === 0) return null;
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupDir = join(cwd, '.aped-backups');
+  mkdirSync(backupDir, { recursive: true });
+  const archive = join(backupDir, `aped-${stamp}.tar.gz`);
+
+  const result = spawnSync('tar', ['-czf', archive, ...targets], { cwd, stdio: 'ignore' });
+  if (result.status !== 0) return null;
+  return archive.replace(cwd + '/', '');
 }
 
 async function scaffoldWithProgress(config, mode) {
@@ -384,6 +579,7 @@ async function scaffoldWithProgress(config, mode) {
     else                                                       groupMap.config.items.push(tpl);
   }
 
+  // Artifacts that must survive an `--update`.
   const preserveOnUpdate = new Set([
     join(config.outputDir, 'state.yaml'),
   ]);
@@ -441,7 +637,6 @@ async function scaffoldWithProgress(config, mode) {
             skipped++;
           }
 
-          // Small delay per file for visible animation
           await sleep(30 + Math.random() * 50);
         }
 
@@ -528,3 +723,5 @@ function printDone(created, updated, skipped, mode) {
 
   p.outro(color.dim('Guardrail hook active — pipeline coherence enforced'));
 }
+
+export { UserError };

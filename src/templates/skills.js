@@ -1125,6 +1125,8 @@ Detect if this is a frontend story:
 
 This is systematic — every frontend task gets a visual check at GREEN, not just at review time.
 
+**If React Grab MCP is unavailable** (connection error, not configured): log a WARNING to the user, proceed without the visual check, and mention in the Dev Agent Record that visual verification was deferred to review. Never block dev on MCP availability — \`/aped-review\` (Aria) will catch missed visual issues.
+
 ## TDD Implementation
 
 Read \`${a}/aped-dev/references/tdd-engine.md\` for detailed rules.
@@ -1355,7 +1357,10 @@ Each specialist has a **persona** (name + defining trait). Include the persona i
 
 **visual** — **Aria**, Design Engineer — "Pixel-perfect or nothing. I live in the devtools." (if frontend + preview app)
 - \`subagent_type: "general-purpose"\`
-- React Grab inspection, comparison with \`${o}/ux/design-spec.md\`
+- **Ownership**: dev already ran React Grab at each GREEN (see \`aped-dev\` § Frontend Detection). Aria's job is to **validate** that work, not redo it from scratch.
+- **Validate**: design-spec compliance (tokens, spacing, typography), cross-screen consistency, edge cases dev may have skipped (loading / empty / error / disabled states), responsive behaviour
+- **Re-inspect with React Grab only when**: dev flagged an unresolved visual issue, a design-spec violation is suspected, or a cross-component consistency check is needed
+- **If React Grab MCP is unavailable**: fall back to static screenshots + code review; explicitly note in the report that a deep visual audit wasn't possible (do not silently pass)
 
 **devops** — **Kai**, Platform Engineer, on-call veteran — "If it's not automated, it's not done." (if infra files)
 - \`subagent_type: "feature-dev:code-reviewer"\`
@@ -1444,8 +1449,11 @@ Format the final report:
 
 For findings the user wants fixed:
 
-- **Simple fix** (< 20 lines, single file): Lead applies directly
+- **Simple fix** (< 20 lines, single file, ownership clear): Lead applies directly, then \`SendMessage\` to the specialist who raised the finding for quick validation (one-line ACK is enough). This keeps the team in the loop without spinning another fix agent.
+- **Cross-specialist fix** (finding touches another domain, or ownership ambiguous): Lead \`SendMessage\`(s) the affected specialist(s) BEFORE writing code to confirm the approach. Apply only after ACK.
 - **Complex fix** (multi-file, architectural): Lead re-dispatches the relevant specialist as a fix agent with the finding + suggested approach. Specialist applies the fix and reports back.
+
+Rule of thumb: if a specialist raised the finding, the specialist sees the fix. No silent Lead patches that bypass the team.
 
 After each fix: run tests. Commit: \`fix({ticket-id}): description of fix\`
 
