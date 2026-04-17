@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-04-17
+
 ### Added
 - **Lead Dev coordination layer** — new `/aped-lead` skill turns `/aped-sprint` from "N isolated worktrees" into a coordinated team. Story Leaders post `story-ready` / `dev-done` / `review-done` check-ins at every transition; the Lead batch-processes them from the main project, auto-approving what's safe on hard programmatic criteria (deps resolved, tests passing 100%, no HALT logs, git clean, no blocking labels) and escalating anything borderline to the user. Approvals `tmux send-keys` the next command into the right worktree window (fallback: print the command for manual invocation).
 - **`checkin.sh` helper** at `.aped/scripts/` with six sub-commands (`post`, `poll`, `approve`, `block`, `status`, `push`). Backend routes to ticket-system labels + comments when `ticket_system != none`, falls back to JSONL inboxes under `.aped/checkins/` otherwise (both concurrent-safe via a portable `mkdir`-based lock — works on macOS where `flock` is absent).
@@ -146,7 +148,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Zero auto-chaining between phases: every skill ends on "Run `/aped-X` when ready" — the user controls the pace.
 
-[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.4.4...HEAD
+[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.5.0...HEAD
+[3.5.0]: https://github.com/yabafre/aped-claude/compare/v3.4.4...v3.5.0
 [3.4.4]: https://github.com/yabafre/aped-claude/compare/v3.4.3...v3.4.4
 [3.4.3]: https://github.com/yabafre/aped-claude/compare/v3.4.2...v3.4.3
 [3.4.2]: https://github.com/yabafre/aped-claude/compare/v3.4.1...v3.4.2
