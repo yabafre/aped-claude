@@ -97,9 +97,11 @@ TaskCreate: "Validate brief with user"
 
 Read \`${a}/aped-analyze/references/research-prompts.md\` for detailed agent prompts.
 
-Launch **3 Agent tool calls in a single message** (parallel execution) with \`run_in_background: true\`:
+Launch **3 Agent tool calls in a single message** (parallel execution) with \`run_in_background: true\`.
 
-### Agent 1: Market Research
+Each agent has a persona — include it in the prompt to keep them in character.
+
+### Agent 1: Market Research — **Mary**, Strategic Business Analyst — "Show me the data, not opinions."
 - \`subagent_type: "Explore"\`
 - Customer behavior and pain points in the target segment
 - Competitive landscape: direct and indirect competitors (names, pricing, strengths, weaknesses)
@@ -107,7 +109,7 @@ Launch **3 Agent tool calls in a single message** (parallel execution) with \`ru
 - Pricing models and monetization patterns in the space
 - Use WebSearch for current data
 
-### Agent 2: Domain Research
+### Agent 2: Domain Research — **Derek**, Domain Expert, industry veteran — "I know where the bodies are buried."
 - \`subagent_type: "Explore"\`
 - Industry analysis and key trends
 - Regulatory requirements and compliance needs
@@ -115,7 +117,7 @@ Launch **3 Agent tool calls in a single message** (parallel execution) with \`ru
 - Standards, certifications, and legal requirements
 - Use WebSearch for current data
 
-### Agent 3: Technical Research
+### Agent 3: Technical Research — **Tom**, Technical Architect, pragmatist — "Boring tech for MVP. Cleverness costs."
 - \`subagent_type: "Explore"\`
 - Technology stack options with trade-offs
 - Integration patterns and APIs available
@@ -1047,9 +1049,68 @@ With epic context loaded, launch **2 Agent tool calls in parallel** for story-sp
 - Use MCP context7 (\`resolve-library-id\` then \`query-docs\`) for libraries in Dev Notes
 - Extract relevant API patterns and usage examples
 
+## Story Classification
+
+Analyze the story's File List to determine the implementation mode.
+
+Detect:
+- **backend files** — server code (apps/api, services/, packages/*/src, .py/.go/.rs/.java, business logic)
+- **frontend files** — \`.tsx/.jsx/.vue/.svelte\`, apps/web, src/pages, src/components
+- **devops files** — .github/workflows, Dockerfile, terraform, k8s, cdk
+
+### Single-layer mode (default)
+If the story touches ONE layer only: you (main Claude) implement directly. No team spawning. Continue to **Frontend Detection** and **TDD Implementation** below.
+
+### Fullstack team mode
+If the story touches 2+ layers (backend + frontend is the typical case): spawn a **dev team** to align on the contract and implement in parallel. This prevents the classic "frontend and backend diverge, mismatch at integration" trap.
+
+Fullstack mode:
+\`\`\`
+TeamCreate(name: "dev-{story-key}")
+\`\`\`
+
+Spawn 3 team members (in parallel, same message):
+
+**api-designer** — **Kenji**, API Architect, contract-first — "The contract is law."
+- \`subagent_type: "general-purpose"\`
+- Goes FIRST (others wait for the contract)
+- Reads the story, relevant FRs from PRD, architecture.md for conventions
+- Writes the contract: types, endpoints/procedures, validation schemas, error codes
+- Commits to the shared \`packages/contract\` (or equivalent)
+- Posts contract summary in team: "Contract ready at {path}"
+
+**backend-dev** — **Amelia**, Senior Backend Engineer — "Tests first, always."
+- \`subagent_type: "general-purpose"\`
+- Waits for Kenji's contract, then starts TDD on backend
+- Implements endpoints/handlers against the contract
+- If the contract needs adjustment: SendMessage(kenji) to negotiate; kenji updates contract; Amelia rebases
+- Follows the full TDD cycle (RED → GREEN → REFACTOR → GATE)
+
+**frontend-dev** — **Leo**, Senior Frontend Engineer — "The user never waits in silence."
+- \`subagent_type: "general-purpose"\`
+- Waits for Kenji's contract, then starts TDD on frontend
+- Implements UI against the contract (types, validators)
+- Uses React Grab at each GREEN (see Frontend Detection below)
+- If UX needs backend support (e.g., a field not in contract): SendMessage(kenji) to request
+- Follows the full TDD cycle
+
+### Team Rules
+
+1. **Kenji first** — backend and frontend block until contract is ready
+2. **Contract changes are negotiations** — no teammate modifies the contract unilaterally. Always propose via SendMessage(kenji), kenji decides.
+3. **Divergence detection** — if backend and frontend end up with conflicting assumptions, the team halts and escalates to the Lead (you)
+4. **Shared tests** — contract-level integration tests live where both can reference them
+
+### When all teammates are done
+- Lead (you) verifies all team GATEs passed
+- Lead merges the work, runs full test suite (including integration tests)
+- Lead handles the completion workflow (git, ticket)
+
 ## Frontend Detection & Visual Dev Loop
 
-Before starting TDD, detect if this is a frontend story:
+(Applies to both single-layer frontend mode and Leo in fullstack mode.)
+
+Detect if this is a frontend story:
 - Check if the story's File List contains \`.tsx\`, \`.jsx\`, \`.vue\`, \`.svelte\` files
 - Check if \`${o}/ux/\` exists
 
@@ -1260,38 +1321,48 @@ Spawn ALL selected specialists in a single message (parallel, same team context)
 - A brief listing the other teammates ("You can SendMessage to: ac-validator, backend, devops")
 - Its own scope + output contract (see below)
 
+Each specialist has a **persona** (name + defining trait). Include the persona in the agent's prompt — it keeps them focused and in character.
+
 ### Core Specialists (always in team)
 
-**ac-validator** — \`subagent_type: "feature-dev:code-explorer"\`
+**ac-validator** — **Eva**, QA Lead — "I trust nothing without proof in the code."
+- \`subagent_type: "feature-dev:code-explorer"\`
 - For each AC: search code for evidence. Rate IMPLEMENTED / PARTIAL / MISSING with file:line
 - For each \`[x]\` task: find proof. No evidence = **CRITICAL**
 - Coordinates with: specialists (ask them to verify their domain's ACs)
 
-**code-quality** — \`subagent_type: "feature-dev:code-reviewer"\`
+**code-quality** — **Marcus**, Staff Engineer, 15 years experience — "Security and performance are non-negotiable."
+- \`subagent_type: "feature-dev:code-reviewer"\`
 - Focus: security (injection, auth, secrets), performance (N+1, memory), reliability (errors, edge cases), test quality
 - Coordinates with: backend/frontend (domain-specific quality concerns)
 
-**git-auditor** — \`subagent_type: "general-purpose"\`
+**git-auditor** — **Rex**, Code Archaeologist — "Every commit tells a story."
+- \`subagent_type: "general-purpose"\`
 - Runs \`bash ${a}/aped-review/scripts/git-audit.sh\`
 - Reports out-of-scope changes and missing expected changes
 
 ### Conditional Specialists
 
-**backend** — \`subagent_type: "feature-dev:code-reviewer"\` (if backend files)
+**backend** — **Diego**, Senior Backend Engineer, distributed systems — "Data integrity is sacred." (if backend files)
+- \`subagent_type: "feature-dev:code-reviewer"\`
 - API contracts, validation at boundaries, transaction integrity, DB schema, auth middleware
 - Compliance with architecture.md
 
-**frontend** — \`subagent_type: "feature-dev:code-reviewer"\` (if frontend files)
+**frontend** — **Lucas**, Senior Frontend Engineer, a11y advocate — "Consistency is kindness." (if frontend files)
+- \`subagent_type: "feature-dev:code-reviewer"\`
 - Component hierarchy, state management, accessibility, forms, loading/error/empty states
 - Compliance with UX spec
 
-**visual** — \`subagent_type: "general-purpose"\` (if frontend + preview app)
+**visual** — **Aria**, Design Engineer — "Pixel-perfect or nothing. I live in the devtools." (if frontend + preview app)
+- \`subagent_type: "general-purpose"\`
 - React Grab inspection, comparison with \`${o}/ux/design-spec.md\`
 
-**devops** — \`subagent_type: "feature-dev:code-reviewer"\` (if infra files)
+**devops** — **Kai**, Platform Engineer, on-call veteran — "If it's not automated, it's not done." (if infra files)
+- \`subagent_type: "feature-dev:code-reviewer"\`
 - CI/CD security, IaC least privilege, container hardening, deployment safety
 
-**fullstack** — \`subagent_type: "feature-dev:code-explorer"\` (if story spans 2+ layers)
+**fullstack** — **Sam**, Tech Lead, system thinker — "I see the pipeline, not the layers." (if story spans 2+ layers)
+- \`subagent_type: "feature-dev:code-explorer"\`
 - End-to-end data flow, contract alignment, auth propagation across layers
 
 ### Team Communication Rules
