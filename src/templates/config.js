@@ -253,6 +253,43 @@ sprint:
 `,
     },
     {
+      path: `${a}/templates/workmux.yaml.example`,
+      content: `# Example .workmux.yaml — copy to your repo root if you use workmux
+# (https://github.com/raine/workmux) alongside APED. /aped-sprint detects
+# workmux automatically and will use it to spawn tmux windows with Claude
+# Code pre-launched per story.
+#
+# Docs: https://workmux.raine.dev/
+
+# Pane layout inside each worktree window.
+# <agent> is replaced by the agent launcher (claude, codex, opencode, ...).
+panes:
+  - command: <agent>
+    focus: true
+  # Uncomment a dev-server pane if you want one automatically:
+  # - command: pnpm dev
+  #   split: horizontal
+  #   size: 30
+
+# Copy these files into every new worktree (good for secrets / local env).
+files:
+  copy:
+    - .env
+    - .env.local
+  # Symlink heavy dirs instead of copying — saves disk and install time.
+  symlink:
+    - node_modules
+
+# Commands run once per worktree right after creation.
+post_create:
+  - pnpm install --frozen-lockfile || npm install
+
+# Optional: automatic branch naming via LLM when you run \`workmux add -A\`.
+# auto_name:
+#   cli: claude
+`,
+    },
+    {
       path: `${a}/templates/quick-spec.md`,
       content: `# Quick Spec: {{title}}
 

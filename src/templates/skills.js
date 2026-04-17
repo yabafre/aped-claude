@@ -1924,6 +1924,7 @@ Live dashboard for the pipeline and parallel sprint. Read-only — never writes,
 1. Read \`${a}/config.yaml\` — extract \`communication_language\`, \`ticket_system\`, \`git_provider\`
 2. Read \`${o}/state.yaml\` — pipeline + sprint state (active_epic, parallel_limit, review_limit, stories with their \`status\`, \`worktree\`, \`depends_on\`, \`ticket\`)
 3. Read \`${a}/aped-status/references/status-format.md\` for display conventions
+4. Probe optional tooling once: \`command -v workmux >/dev/null\` — if available, surface a "Live agents: \`workmux dashboard\`" hint in the header so the user knows where the fuller TUI view is.
 
 ## 1. Pipeline Overview
 
@@ -1941,6 +1942,7 @@ Parallel:     2/3 in-progress      (limit: parallel_limit)
 Reviews:      1/2 running          (limit: review_limit)
 Queued:       1 story in review-queued
 Scope change: locked | active      (scope_change_active flag)
+Live agents:  workmux dashboard    (only shown if workmux is installed)
 \`\`\`
 
 ## 3. Active Worktrees
@@ -2826,6 +2828,7 @@ metadata:
 3. Read \`${o}/state.yaml\` — must have \`current_phase: "sprint"\` and \`sprint.stories\` populated by \`/aped-epics\`.
 4. Read \`${o}/epics.md\` — for the DAG and story metadata.
 5. If \`sprint.active_epic\` is \`null\`: ask the user which epic to start. Write it to state.yaml.
+6. **Detect workmux** (optional): run \`command -v workmux >/dev/null && echo WORKMUX_AVAILABLE || echo WORKMUX_MISSING\`. If available, prefer the workmux path for dispatch — it auto-creates a tmux window and launches Claude with the initial prompt already injected. Otherwise fall back to the built-in \`sprint-dispatch.sh\` + manual terminal flow.
 
 ## DAG Resolution
 
@@ -2884,35 +2887,82 @@ For each story to dispatch:
 
 ## Dispatch
 
-For each approved story, call the helper and capture the worktree path:
+Two paths, picked by the Setup detection.
+
+### Path A — workmux available (preferred)
+
+\`workmux\` handles worktree creation, tmux window creation, and auto-launches a Claude Code session with an initial prompt injected. One command per story:
+
+\`\`\`bash
+workmux add "{ticket-id}" \\
+  --branch "feature/{ticket-id}-{story-key}" \\
+  -a claude \\
+  -p "/aped-dev {story-key}"
+\`\`\`
+
+After workmux returns, write our own \`.aped/WORKTREE\` marker inside the newly created worktree so \`/aped-dev\` and \`/aped-review\` can pin to the right story:
+
+\`\`\`bash
+WORKTREE_PATH=$(workmux list --format json | jq -r '.worktrees[] | select(.branch=="feature/{ticket-id}-{story-key}") | .path')
+mkdir -p "$WORKTREE_PATH/${a}"
+cat > "$WORKTREE_PATH/${a}/WORKTREE" <<EOF
+story_key: {story-key}
+ticket: {ticket-id}
+branch: feature/{ticket-id}-{story-key}
+project_root: $(pwd)
+created_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+EOF
+\`\`\`
+
+If the project has no \`.workmux.yaml\` at the repo root, mention it once to the user: a sample lives at \`${a}/templates/workmux.yaml.example\` — recommend copying it and customising panes / post_create / files.
+
+### Path B — fallback without workmux
+
+For each approved story, call the built-in helper and capture the worktree path:
 
 \`\`\`bash
 WORKTREE=$(bash ${a}/scripts/sprint-dispatch.sh <story-key> <ticket-id>)
 \`\`\`
 
-If the script exits non-zero, halt the whole dispatch — do not create a half-populated state. Report the error.
+The helper creates the worktree, the branch, and the \`.aped/WORKTREE\` marker.
+
+### Shared post-dispatch
+
+If any command exits non-zero, halt the whole dispatch — do not create a half-populated state. Report the error.
 
 After success, update state.yaml **atomically** (one write at the end, not per story):
 - story \`status\` → \`in-progress\`
 - story \`worktree\` → the captured path
 - story \`started_at\` → current UTC ISO8601 timestamp
 
-## User Instructions (print exactly, one per worktree)
+## User Instructions
 
-Print a per-worktree block so the user can open a session:
+**Path A (workmux)** — no manual terminal opening needed. Tell the user:
+
+\`\`\`
+▶ Dispatched 2 stories via workmux. Tmux windows are ready with Claude Code
+  already running and /aped-dev auto-invoked:
+    1-2-contract    tmux window "KON-83"    ../cloudvault-KON-83
+    1-3-rpc         tmux window "KON-84"    ../cloudvault-KON-84
+
+  Switch tmux windows to monitor. For a live view of all agents:
+    workmux dashboard
+\`\`\`
+
+**Path B (fallback)** — print one block per worktree:
 
 \`\`\`
 ▶ Story 1-2-contract — KON-83
   Worktree: ../cloudvault-KON-83
   Branch:   feature/KON-83-contract
 
-  To work on this story, in a new terminal:
+  In a new terminal:
     cd ../cloudvault-KON-83
     claude
     /aped-dev 1-2-contract
 \`\`\`
 
-**Do not offer to launch sessions yourself.** The user controls which workspace each session runs in. If there are 2 dispatches, print 2 blocks.
+**In both paths, do not launch sessions from here.** Path A delegates that to workmux (safe, designed for it); Path B requires the user to open terminals themselves.
 
 ## Edge Cases
 

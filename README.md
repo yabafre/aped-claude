@@ -134,7 +134,12 @@ Before implementing each story, `/aped-dev` checks `docs/aped/epic-{N}-context.m
 Quick specs are independent files with a status field (`draft → in-progress → done`). Multiple can run in parallel. Resuming an in-progress spec is automatic.
 
 ### Parallel sprint via worktrees — `/aped-sprint`
-When an epic has several stories ready to go, `/aped-sprint` resolves the story DAG (`depends_on:` in `epics.md` and `state.yaml`), then dispatches up to `parallel_limit` stories (default 3) — each in its own `git worktree` at `../{project}-{ticket}` on branch `feature/{ticket}-{story-key}`. The user opens one Claude Code session per worktree and runs `/aped-dev` inside. Reviews are also bounded (`review_limit`, default 2) and spill to a `review-queued` status when the limit is reached. An `upstream-lock` PreToolUse hook denies any edit to `prd.md` / `architecture.md` / `ux/` while a story is in-progress; only `/aped-course` can temporarily unlock — and it notifies every active worktree ticket before and after the change.
+When an epic has several stories ready to go, `/aped-sprint` resolves the story DAG (`depends_on:` in `epics.md` and `state.yaml`), then dispatches up to `parallel_limit` stories (default 3) — each in its own `git worktree` at `../{project}-{ticket}` on branch `feature/{ticket}-{story-key}`. Reviews are also bounded (`review_limit`, default 2) and spill to a `review-queued` status when the limit is reached. An `upstream-lock` PreToolUse hook denies any edit to `prd.md` / `architecture.md` / `ux/` while a story is in-progress; only `/aped-course` can temporarily unlock — and it notifies every active worktree ticket before and after the change.
+
+**Dispatch has two paths**, picked automatically:
+
+- **With [workmux](https://github.com/raine/workmux)** (recommended) — APED detects `workmux` in `$PATH` and calls `workmux add -a claude -p "/aped-dev <story-key>"` per story. This auto-creates the tmux window, launches Claude Code with the initial prompt already injected, and gives you a live TUI dashboard via `workmux dashboard`. No manual terminal opening. A starter `.workmux.yaml` ships at `.aped/templates/workmux.yaml.example` — copy it to your repo root and customise pane layout, file copy/symlink, and post-create hooks.
+- **Without workmux** (fallback) — `.aped/scripts/sprint-dispatch.sh` creates the worktree + branch + marker file and prints the exact `cd` + `claude` + `/aped-dev` commands you run in a new terminal per worktree.
 
 ## What gets scaffolded
 
@@ -280,6 +285,11 @@ Flags honour `NO_COLOR` / `FORCE_COLOR`. Exit codes are meaningful: `0` success,
 
 - [Claude Code](https://claude.ai/download)
 - Node.js ≥ 18
+
+### Recommended companion tools
+
+- **[workmux](https://github.com/raine/workmux)** — enables the parallel-sprint sweet spot: `/aped-sprint` auto-creates tmux windows with Claude Code pre-launched in each worktree. Install with `brew install raine/workmux/workmux` (macOS/Linux). Fully optional: APED falls back to manual worktree + terminal instructions if absent.
+- **[jq](https://jqlang.github.io/jq/)** — speeds up the guardrail hooks' JSON encoding. Also optional; APED falls back to `node -e` when `jq` is not installed.
 
 ## Changelog
 
