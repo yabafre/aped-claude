@@ -3039,8 +3039,9 @@ metadata:
 5. If \`sprint.active_epic\` is \`null\`: ask the user which epic to start. Write it to state.yaml.
 6. **Detect workmux** (preferred path):
    - \`command -v workmux >/dev/null\` → workmux binary present.
-   - \`command -v tmux >/dev/null || command -v wezterm >/dev/null\` → a multiplexer exists. If \`wezterm\` binary is missing from \`$PATH\` but \`$WEZTERM_EXECUTABLE_DIR\` is set, export \`PATH="$WEZTERM_EXECUTABLE_DIR:$PATH"\` for the current shell — workmux shells out to the CLI. Mention this to the user once so they can persist it in \`~/.zshrc\`.
-   - If both present → use Path A. Else fall back to Path B.
+   - \`command -v tmux >/dev/null || command -v wezterm >/dev/null\` → a multiplexer exists.
+   - **Apply the WezTerm PATH fix automatically** — workmux shells out to the \`wezterm\` CLI. If \`command -v wezterm\` fails but \`$WEZTERM_EXECUTABLE_DIR\` is set, run \`export PATH="$WEZTERM_EXECUTABLE_DIR:$PATH"\` in the skill's shell **before any workmux invocation**, and tell the user once: "Add \`[[ -n \\"\\$WEZTERM_EXECUTABLE_DIR\\" ]] && export PATH=\\"\\$WEZTERM_EXECUTABLE_DIR:\\$PATH\\"\` to your \`~/.zshrc\` so workmux finds the CLI in every new shell." Don't just mention it — export it here so dispatch works in this session.
+   - If workmux + a multiplexer present → use Path A. Else fall back to Path B.
    - Do NOT reject Path A for cosmetic reasons (flag renames, missing \`.workmux.yaml\`). If syntax differs from what you expect, run \`workmux add --help\` to adapt. The current 0.1.x signature is \`workmux add [OPTIONS] [BRANCH_NAME]\` (positional, no \`--branch\`).
 
 ## DAG Resolution
@@ -3104,30 +3105,39 @@ Two paths, picked by the Setup detection. **Neither path posts \`story-ready\` n
 
 ### Path A — workmux available (preferred)
 
-\`workmux\` creates the worktree, opens a terminal/tmux window, and launches Claude Code idle. The Story Leader's first command will be \`/aped-story <story-key>\`, NOT \`/aped-dev\`.
+\`workmux\` creates the worktree, opens a tmux/wezterm window, and — via \`workmux add -a claude\` — launches Claude Code idle inside it. The Story Leader's first command will be \`/aped-story <story-key>\`, NOT \`/aped-dev\`.
 
 If \`.workmux.yaml\` is missing at the repo root, bootstrap a minimal one from \`${a}/templates/workmux.yaml.example\` before dispatching. A functional default includes the \`claude\` agent pane, \`.env\` copy, \`node_modules\` symlink, and a \`pnpm install --frozen-lockfile\` post_create — otherwise Story Leaders land in worktrees without deps and fail on \`/aped-story\` ticket fetches or \`/aped-dev\` tests.
 
-For each approved story:
+For each approved story (fresh worktree, no prior git state):
 
 \`\`\`bash
 BRANCH="feature/{ticket-id}-{story-key}"
+WORKTREE_NAME="{project}-{ticket-id}"   # e.g. cloudvault-KON-84
 workmux add "$BRANCH" -a claude
 \`\`\`
 
-If \`workmux add\` rejects the invocation (API drift), fall back within Path A:
+**If a git worktree already exists for the story** (user ran \`sprint-dispatch.sh\` earlier, or /aped-sprint was interrupted), or if \`workmux add\` rejects the invocation (API drift), use the two-step recovery path:
 
 \`\`\`bash
-# Create worktree via git, then attach workmux to the existing one
+# 1. Create the worktree via the built-in helper (idempotent — skips if already there)
 WORKTREE=$(bash ${a}/scripts/sprint-dispatch.sh <story-key> <ticket-id>)
-workmux open "$(basename "$WORKTREE")"
+
+# 2. Open the workmux window and run the copy/symlink/post_create hooks
+workmux open "$(basename "$WORKTREE")" --run-hooks --force-files
+
+# 3. workmux open does NOT bind an agent — the -a flag only exists on \`workmux add\`.
+#    Push \`claude\` into the freshly-opened window so it comes up idle:
+workmux send "$(basename "$WORKTREE")" "claude"
 \`\`\`
 
-Verify the windows exist before moving on:
+Verify the windows exist and have the agent running before moving on:
 
 \`\`\`bash
-workmux list
+workmux list   # AGENT column should show "claude" (or "✓" depending on workmux version)
 \`\`\`
+
+If the \`AGENT\` column is empty after \`workmux send ... "claude"\`, tell the user: "Switch to each window and type \`claude\` yourself — workmux 0.1.x can't always auto-launch agents when re-opening an existing worktree."
 
 Capture the worktree path for the state.yaml write (below): \`git worktree list --porcelain\` filtered by the branch we just created (no \`jq\` dependency).
 
@@ -3167,6 +3177,14 @@ Do NOT set \`status: in-progress\` and do NOT set \`started_at\` here. \`/aped-s
   approve — the Lead will push /aped-dev into each window via tmux send-keys.
 
   Monitor: workmux list  ·  workmux dashboard  ·  workmux send <name> "<msg>"
+\`\`\`
+
+**If the recovery path was used** (\`workmux open\` instead of \`workmux add\`), the agent binding is not automatic. In that case, add this line to the user instructions:
+
+\`\`\`
+  NOTE: workmux open re-ran the hooks but did NOT bind claude to the pane
+  (flag -a only exists on \`workmux add\`). If \`workmux list\` shows AGENT=-,
+  switch to each window and type \`claude\` before running /aped-story.
 \`\`\`
 
 **Path B (fallback)** — print one block per worktree:

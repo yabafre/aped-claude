@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.4] - 2026-04-17
+
+### Fixed
+- **`/aped-sprint` WezTerm PATH fix is now applied, not just mentioned.** When \`wezterm\` is missing from \`$PATH\` but \`$WEZTERM_EXECUTABLE_DIR\` is set, the skill now runs \`export PATH="$WEZTERM_EXECUTABLE_DIR:$PATH"\` in its own shell before any workmux call — otherwise \`workmux open\` / \`add\` fail with \`wezterm cli list: No such file or directory\`. The user is still told once to persist it in \`~/.zshrc\`.
+- **Recovery Path A documents the agent-binding gap.** \`workmux open\` (used when a worktree already exists or \`workmux add\` drifts) does NOT bind an agent — the \`-a\` flag only exists on \`workmux add\`. The skill now instructs \`workmux send <name> "claude"\` after \`workmux open\`, and falls back to asking the user to type \`claude\` manually if \`workmux list\` still shows \`AGENT=-\`. The "User Instructions" section surfaces this to the user when the recovery path was used.
+
 ## [3.5.3] - 2026-04-17
 
 ### Changed
