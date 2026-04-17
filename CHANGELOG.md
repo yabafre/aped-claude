@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.1] - 2026-04-17
+
 ### Added
 - `--help` / `-h` flag with full usage documentation.
 - `--debug` flag and `DEBUG=1` env var for stack traces.
@@ -15,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `NO_COLOR` / `FORCE_COLOR` support (via picocolors).
 - `exports` map, `sideEffects: false`, `homepage`, `bugs`, `publishConfig` in `package.json`.
 - `smoke` / `check` / `prepublishOnly` npm scripts.
-- GitHub Actions workflows: `ci.yml` (lint/smoke on PR) and `publish.yml` (npm publish with provenance on `v*` tag).
+- GitHub Actions workflows: `ci.yml` (check + smoke + real scaffold on Node 18/20/22) and `release.yml` (manual release builder).
 - `LICENSE` and `CHANGELOG.md` files.
 
 ### Changed
@@ -23,10 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI flag parser now warns on unknown flags instead of silently accepting them.
 - `guardrail.sh` now uses `set -u` / `set -o pipefail`, validates `current_phase` against a whitelist, and prefers `jq` → `node` for JSON encoding (no more regex fallback).
 - Exit codes are now meaningful: `0` success, `1` user error, `2` internal error, `130` user cancellation.
+- `/aped-review` Aria (visual specialist): clarified ownership — dev owns React Grab at each GREEN, Aria validates rather than re-running from scratch.
+- `/aped-review` Step 8: Lead direct-fix must now `SendMessage` an ACK to the specialist who raised the finding, preventing silent patches that bypass the team.
+- `/aped-dev`: explicit fallback documented for when React Grab MCP is unavailable (warn + defer to review, never block dev).
+- `files` field in `package.json` restricted to publishable assets, excluding auto-generated `CLAUDE.md` artefacts and the legacy `bin/create-aped.js` alias.
 
 ### Security
 - Removed regex-based JSON escaping in `guardrail.sh` that could have allowed context injection via a crafted `state.yaml`.
-- Path traversal protection on `aped_path`, `output_path`, and `--commands`/`--output`/`--aped` CLI flags.
+- Path traversal protection on `aped_path`, `output_path`, and `--commands`/`--output`/`--aped` CLI flags (reject `..` segments and absolute paths).
+- Whitelisted CLI flags, ticket systems, and git providers to reject unknown or malicious values early.
 
 ## [3.4.0] - 2026-04-17
 
@@ -87,7 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Zero auto-chaining between phases: every skill ends on "Run `/aped-X` when ready" — the user controls the pace.
 
-[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.4.0...HEAD
+[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.4.1...HEAD
+[3.4.1]: https://github.com/yabafre/aped-claude/compare/v3.4.0...v3.4.1
 [3.4.0]: https://github.com/yabafre/aped-claude/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/yabafre/aped-claude/compare/v3.3.0...v3.3.1
 [3.3.0]: https://github.com/yabafre/aped-claude/compare/v3.2.1...v3.3.0
