@@ -1179,151 +1179,217 @@ metadata:
   version: ${c.cliVersion || '1.7.1'}
 ---
 
-# APED Review — Adversarial Code Review
+# APED Review — Adversarial Code Review (Team-Based)
+
+You are the **Lead Reviewer**. You orchestrate a team of specialist agents, each with a focused scope. You gather their reports, merge findings, present to the user, and route fixes back to the right specialists. You are the bridge between the user and the team.
 
 ## Critical Rules
 
-- MINIMUM 3 findings — if you found fewer, you didn't look hard enough. Re-examine.
+- MINIMUM 3 findings across the team — if you found fewer, specialists didn't look hard enough. Re-dispatch.
 - NEVER skip the git audit — it catches undocumented file changes
-- Take your time — thoroughness is more important than speed
-- Do not rubber-stamp. Your job is to find problems, not to validate.
+- NEVER change story status without user approval
+- Review is binary: \`review\` → \`done\` (or stays \`review\` until findings addressed)
+- Do not rubber-stamp. The team's job is to find problems, not to validate.
 
-## Setup
+## Step 1: Setup
 
-1. Read \`${a}/config.yaml\` — extract config including \`git_provider\`
+1. Read \`${a}/config.yaml\` — extract config (\`git_provider\`, \`ticket_system\`)
 2. Read \`${o}/state.yaml\` — find first story with status \`review\`
    - If none: report "No stories pending review" and stop
 
-## Load Story
+## Step 2: Load Context
 
-Read story from \`${o}/stories/{story-key}.md\`
+Load everything the team will need:
 
-## Git Audit
+1. **Story file** — \`${o}/stories/{story-key}.md\`
+2. **Ticket** (if \`ticket_system\` != \`none\`) — fetch via CLI
+   - Read title, body, labels, **all comments** (comments may contain clarifications or decisions made during dev)
+   - If ticket body diverges from story ACs: flag it to the user before proceeding
+3. **Epic context** — \`${o}/epic-{N}-context.md\` if exists (the cache from \`/aped-dev\`)
+4. **Architecture** — \`${o}/architecture.md\` if exists (for pattern compliance checks)
+5. **UX spec** — \`${o}/ux/\` if exists (for frontend stories)
 
-\`\`\`bash
-bash ${a}/aped-review/scripts/git-audit.sh ${o}/stories/{story-key}.md
+## Step 3: Task Tracking
+
+\`\`\`
+TaskCreate: "Setup + context load"
+TaskCreate: "Story classification"
+TaskCreate: "Dispatch specialist team"
+TaskCreate: "Merge findings"
+TaskCreate: "Present to user + gate"
+TaskCreate: "Apply fixes"
+TaskCreate: "Re-verify"
+TaskCreate: "Update ticket + state"
 \`\`\`
 
-## Task Tracking
+## Step 4: Story Classification
 
-\`\`\`
-TaskCreate: "Git audit"
-TaskCreate: "AC validation"
-TaskCreate: "Task audit"
-TaskCreate: "Code quality review"
-TaskCreate: "Generate review report"
-\`\`\`
+As the Lead, analyze the story's File List to determine which specialists to dispatch.
 
-## Frontend Detection
+Detect categories:
+- **backend** — \`apps/api/\`, \`apps/server/\`, \`services/\`, \`packages/*/src/\`, \`.py\`, \`.go\`, \`.rs\`, \`.java\`, business logic files
+- **frontend** — \`.tsx\`, \`.jsx\`, \`.vue\`, \`.svelte\`, \`apps/web/\`, \`src/pages/\`, \`src/components/\`
+- **devops** — \`.github/workflows/\`, \`Dockerfile\`, \`docker-compose\`, \`terraform/\`, \`k8s/\`, \`cdk/\`, infra code
+- **fullstack** — story spans 2+ layers (e.g., an API + its consumer UI). Dispatch a fullstack agent to check integration.
 
-Before starting the review, detect if this is a frontend story:
-- Check if the story's File List contains \`.tsx\`, \`.jsx\`, \`.vue\`, \`.svelte\` files
-- Check if the story references UI components, screens, or visual elements
-- Check if \`${o}/ux/\` exists (UX phase was run)
+A story can trigger multiple specialists. Example:
+- Backend-only story: \`AC-validator\` + \`code-quality\` + \`backend-specialist\` + \`git-auditor\`
+- Frontend-only story: \`AC-validator\` + \`code-quality\` + \`frontend-specialist\` + \`visual-reviewer\` + \`git-auditor\`
+- Fullstack story: add \`fullstack-specialist\` on top of backend + frontend
 
-**If frontend story detected:**
-1. Ensure the dev server is running (\`npm run dev\` or equivalent)
-2. Use \`mcp__react-grab-mcp__get_element_context\` to inspect implemented UI elements
-3. Compare the rendered output with the UX spec (\`${o}/ux/design-spec.md\`) and the live preview app
-4. Add a **Visual Review** section to the review report with visual findings
+## Step 5: Dispatch Specialist Team
 
-This is automatic — do not ask the user whether to do visual review. If it's frontend code, review it visually.
+Launch **all specialists in a single message, in parallel**, via the Agent tool. Each gets its own context and runs independently.
 
-## Adversarial Review
+### Core Specialists (always dispatched)
 
-Read \`${a}/aped-review/references/review-criteria.md\` for detailed criteria.
-
-Launch **3 Agent tool calls in parallel** for the review:
-
-### Agent 1: AC & Task Validation (\`subagent_type: "feature-dev:code-explorer"\`)
-- For each AC: search code for evidence (file:line). Rate: IMPLEMENTED / PARTIAL / MISSING
+**AC & Task Validator** — \`subagent_type: "feature-dev:code-explorer"\`
+- Inputs: story file, File List, ticket body (if changed from story)
+- For each AC: search code for evidence. Rate IMPLEMENTED / PARTIAL / MISSING with file:line
 - For each \`[x]\` task: find proof in code. No evidence = **CRITICAL**
+- Output: structured table with AC, verdict, evidence
 
-### Agent 2: Code Quality (\`subagent_type: "feature-dev:code-reviewer"\`)
-- Security, Performance, Reliability, Test Quality
-- Focus on files listed in the story's File List section
+**Code Quality Reviewer** — \`subagent_type: "feature-dev:code-reviewer"\`
+- Scope: files in File List
+- Focus: security (injection, auth, secrets), performance (N+1, memory, loops), reliability (error handling, edge cases), test quality
+- Output: findings with severity and suggested fix
 
-### Agent 3: Visual Review (frontend only — skip if no frontend files)
-- \`subagent_type: "general-purpose"\`
+**Git Auditor** — \`subagent_type: "general-purpose"\`
+- Runs \`bash ${a}/aped-review/scripts/git-audit.sh\`
+- Reports files changed but NOT in story's File List (out-of-scope)
+- Reports files in File List but NOT changed (suspicious)
+- Output: \`[MEDIUM]\` or \`[HIGH]\` findings
+
+### Conditional Specialists
+
+**Backend Specialist** — \`subagent_type: "feature-dev:code-reviewer"\` (dispatch if backend files)
+- Focus: API contracts, data validation at boundaries, transaction integrity, database schema, auth middleware, error propagation
+- Check: compliance with architecture.md patterns (if exists)
+- Output: backend-specific findings
+
+**Frontend Specialist** — \`subagent_type: "feature-dev:code-reviewer"\` (dispatch if frontend files)
+- Focus: component hierarchy, state management, prop drilling, memoization, accessibility (ARIA, keyboard), forms, loading/error/empty states
+- Check: compliance with UX spec (design tokens, responsive breakpoints)
+- Output: frontend-specific findings
+
+**Visual Reviewer** — \`subagent_type: "general-purpose"\` (dispatch if frontend files AND preview app exists)
 - Start dev server if not running
 - Use \`mcp__react-grab-mcp__get_element_context\` to inspect each implemented component
-- Compare with UX spec: correct tokens, spacing, typography, responsive behavior?
-- Check: correct component hierarchy, proper prop usage, accessibility attributes
-- Report visual discrepancies as findings
+- Compare rendered output vs \`${o}/ux/design-spec.md\`
+- Check: tokens, spacing, typography, responsive behavior, dark mode
+- Output: visual discrepancies
 
-Once all agents return, merge findings. Update tasks to \`completed\`.
+**DevOps Specialist** — \`subagent_type: "feature-dev:code-reviewer"\` (dispatch if devops files)
+- Focus: CI/CD security (secrets, perms, OIDC), IaC (least privilege, drift), container hardening, deployment safety (blue-green, rollback)
+- Output: infra-specific findings
 
-### Minimum 3 findings enforced.
+**Fullstack Specialist** — \`subagent_type: "feature-dev:code-explorer"\` (dispatch if story spans 2+ layers)
+- Trace data flow end-to-end: UI → API → DB → response → UI
+- Check: contract alignment (types, validation schemas), error handling at each layer, auth propagation
+- Output: integration findings
 
-## Report
+### Communication Protocol
 
-Severity: CRITICAL > HIGH > MEDIUM > LOW. Format: \`[Severity] Description [file:line]\`
-
-## Present Findings to User
-
-Present the full review report. Do NOT change any status yet.
-
-⏸ **GATE: The user decides what to do. NEVER change story status without user approval.**
-
-Ask the user for each finding: **fix now** or **dismiss** (user disagrees or defers).
-
-## Apply Fixes
-
-For each finding the user wants fixed:
-1. Apply the fix
-2. Run tests to verify no regression
-3. Commit with \`fix({ticket-id}): description of fix\`
-
-After all fixes: re-run the review checklist on the fixed code.
-
-## Status Update
-
-**Review is binary: \`review\` → \`done\`. No other transition.**
-
-- All findings resolved (fixed or dismissed) → story \`done\`
-- Unresolved findings remain → story stays \`review\`, user fixes and re-runs \`/aped-review\`
-
-## Ticket & Git Update
-
-Read \`ticket_system\` and \`git_provider\` from \`${a}/config.yaml\`.
-Read \`${a}/aped-dev/references/ticket-git-workflow.md\` for details.
-
-### Always: Post Review Report to Ticket
-
-If \`ticket_system\` is not \`none\`: post the review findings as a comment on the ticket:
-
+Every specialist must return a structured report:
 \`\`\`markdown
-## Code Review — {date}
+## {Specialist Name} Report
 
-**Outcome:** {APPROVED | CHANGES_REQUESTED}
-**Findings:** {count} total ({critical}/{high}/{medium}/{low})
+### Findings
+- [SEVERITY] Description [file:line] — Evidence: {what you found} — Suggested fix: {how to fix}
 
-### Critical / High
-- [CRITICAL] Description [file:line]
-- [HIGH] Description [file:line]
-
-### Medium / Low
-- [MEDIUM] Description [file:line]
-- [LOW] Description [file:line]
-
-### Visual Review (frontend only)
-- [finding if any]
+### Summary
+- Checked: {what was checked}
+- Verdict: APPROVED | CHANGES_REQUESTED
+- Confidence: HIGH | MEDIUM | LOW
 \`\`\`
 
-### If story → \`done\`
-1. If PR exists: approve/merge (adapt to \`git_provider\`)
-2. If \`ticket_system\` is not \`none\`: move ticket to **Done**
-3. Cleanup: delete feature branch after merge
+If a specialist needs something another specialist knows (e.g., frontend needs backend contract), the Lead relays — you can re-dispatch a specialist with context from another's report.
 
-### If story stays \`review\`
-1. Post findings as PR comments (one per finding, with line anchors)
-2. Ticket stays in **In Review**
+## Step 6: Merge Findings
 
-## Next Step
+As the Lead, collect all specialist reports and merge:
+
+1. **Deduplicate** — same issue flagged by multiple specialists = one finding (mention all perspectives in evidence)
+2. **Cross-reference** — if backend says "API returns unknown" and frontend says "no type for delete response", they're the same issue
+3. **Prioritize** — CRITICAL > HIGH > MEDIUM > LOW
+4. **Verify minimum 3** — if total findings across team < 3, **re-dispatch** the most relevant specialist with stricter instructions ("look harder at edge cases, error handling, security surface")
+5. **Check ticket comments** — if a team member commented on the ticket about a known limitation, don't re-flag it as a finding; note it as "acknowledged"
+
+## Step 7: Present Report to User
+
+Format the final report:
+
+\`\`\`markdown
+## Review Report — {story-key}
+
+**Ticket:** {ticket-id}
+**Specialists dispatched:** {list}
+**Total findings:** {N} ({critical}/{high}/{medium}/{low})
+**Verdict:** APPROVED | CHANGES_REQUESTED
+
+### Findings
+
+#### Critical / High
+- [SEVERITY] Description [file:line]
+  - Evidence: {summary}
+  - Suggested fix: {approach}
+  - Source: {specialist name}
+
+#### Medium / Low
+- ...
+
+### Ticket sync
+- {summary of ticket comments referenced or new info added}
+\`\`\`
+
+⏸ **GATE: User decides per finding — fix now / dismiss.** Do NOT change status.
+
+## Step 8: Apply Fixes
+
+For findings the user wants fixed:
+
+- **Simple fix** (< 20 lines, single file): Lead applies directly
+- **Complex fix** (multi-file, architectural): Lead re-dispatches the relevant specialist as a fix agent with the finding + suggested approach. Specialist applies the fix and reports back.
+
+After each fix: run tests. Commit: \`fix({ticket-id}): description of fix\`
+
+## Step 9: Re-Verify
+
+After all fixes applied:
+- Re-dispatch the specialists that flagged the fixed findings — they verify the fix is correct and no new issues introduced
+- If any specialist reports the fix is incomplete or introduces a regression: loop back to Step 8
+
+## Step 10: Status Decision
+
+Binary transition:
+- All findings resolved (fixed or dismissed) → story \`done\`
+- Unresolved findings remain → story stays \`review\`
+
+## Step 11: Update Remote (ticket + PR)
+
+Do this BEFORE local state — remote failures are recoverable, but state.yaml getting ahead of reality is not.
+
+If \`ticket_system\` != \`none\`: post the review report as a comment on the ticket.
 
 If story → \`done\`:
-- If more stories in sprint: "Run \`/aped-story\` to prepare the next story."
-- If all stories done: report sprint completion.
+1. Approve/merge the PR (adapt to \`git_provider\`)
+2. Move ticket to **Done**
+3. Delete the feature branch
+
+If story stays \`review\`:
+1. Post each finding as a PR comment with line anchor
+2. Ticket stays **In Review**
+
+## Step 12: Update Local State
+
+1. Update story file: Dev Agent Record → Review Record (findings, outcome, specialists)
+2. Update \`${o}/state.yaml\`: story → \`done\` or stays \`review\`
+
+## Step 13: Next Step
+
+If story → \`done\`:
+- Stories remaining: "Run \`/aped-story\` to prepare the next story."
+- Sprint complete: report completion.
 
 If story stays \`review\`:
 - "Fix the remaining findings, then re-run \`/aped-review\`."
@@ -1332,16 +1398,24 @@ If story stays \`review\`:
 
 ## Example
 
-Review of story "1-2-user-registration":
-- [HIGH] No input validation on email field [src/auth/register.ts:42]
-- [MEDIUM] Password stored without hashing [src/auth/register.ts:58]
-- [LOW] Missing error message i18n [src/auth/register.ts:71]
+Story: \`1-2-contract-package-scaffold\` (backend + shared packages)
 
-User: "Fix the HIGH and MEDIUM. Dismiss the LOW."
-→ Apply fixes → re-verify → story → done → "Run /aped-story for the next."
+Classification: backend files only
+Dispatched: \`ac-validator\`, \`code-quality\`, \`backend-specialist\`, \`git-auditor\` (4 agents in parallel)
 
-User: "I'll fix later."
-→ Story stays review → "Fix findings, then re-run /aped-review."
+Reports return:
+- ac-validator: 6 ACs, 5 IMPLEMENTED + 1 PARTIAL (build hang unrelated)
+- code-quality: 2 HIGH (DoS via unbounded password, missing .output())
+- backend-specialist: 1 HIGH (path traversal in filename), 1 MEDIUM (phantom deps)
+- git-auditor: clean
+
+Lead merges: 3 HIGH + 1 MEDIUM. Minimum met.
+
+User: "Fix all HIGH, dismiss the MEDIUM."
+→ Lead applies 2 simple fixes, re-dispatches backend-specialist for the path traversal fix
+→ All specialists re-verify → clean → story \`done\`
+→ Ticket comment posted, PR merged, state updated
+→ "Run /aped-story for the next."
 
 ## What NOT to Do
 
