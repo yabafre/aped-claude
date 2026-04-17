@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.4] - 2026-04-17
+
+### Added
+- `/aped-dev` fullstack mode now calls `TeamDelete(name: "dev-{story-key}")` when the Lead finalises, freeing teammate threads early instead of leaking them until session end.
+- `/aped-review` Step 13 renamed to "Tear Down + Next Step" and now calls `TeamDelete(name: "review-{story-key}")` unconditionally before returning to the user.
+- Team coordination rule in `/aped-review` now documents `TaskList` + `TaskUpdate` (claim pattern with `owner`) so teammates can self-serve pending work instead of waiting for Lead dispatch.
+
 ## [3.4.3] - 2026-04-17
 
 ### Added
@@ -115,7 +122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Zero auto-chaining between phases: every skill ends on "Run `/aped-X` when ready" — the user controls the pace.
 
-[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.4.3...HEAD
+[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.4.4...HEAD
+[3.4.4]: https://github.com/yabafre/aped-claude/compare/v3.4.3...v3.4.4
 [3.4.3]: https://github.com/yabafre/aped-claude/compare/v3.4.2...v3.4.3
 [3.4.2]: https://github.com/yabafre/aped-claude/compare/v3.4.1...v3.4.2
 [3.4.1]: https://github.com/yabafre/aped-claude/compare/v3.4.0...v3.4.1

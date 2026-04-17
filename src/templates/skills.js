@@ -1107,6 +1107,7 @@ Spawn 3 team members (in parallel, same message):
 - Lead (you) verifies all team GATEs passed
 - Lead merges the work, runs full test suite (including integration tests)
 - Lead handles the completion workflow (git, ticket)
+- Lead calls \`TeamDelete(name: "dev-{story-key}")\` to release the team threads early (they would otherwise linger until session end)
 
 ## Frontend Detection & Visual Dev Loop
 
@@ -1381,7 +1382,7 @@ Each specialist has a **persona** (name + defining trait). Include the persona i
    - \`frontend\` responds with its usage
    - Both include the resolution in their reports (one finding, two perspectives)
 
-2. **Shared task list** — teammates see each other's progress. If \`ac-validator\` can't verify AC3 because it needs backend context, it drops a task \`"Need backend to confirm validation scheme for FR5"\` that \`backend\` picks up.
+2. **Shared task list** — teammates see each other's progress. A teammate looking for its next piece of work calls \`TaskList\` to pick up anything \`pending\` with no owner, then \`TaskUpdate\` to claim it (set \`owner\`) and to flip to \`in_progress\` / \`completed\`. Example: \`ac-validator\` can't verify AC3 without backend context, so it \`TaskCreate\`s \`"Need backend to confirm validation scheme for FR5"\` — \`backend\` picks it up via \`TaskList\` next cycle.
 
 3. **Challenge each other** — if \`code-quality\` says "this is a security issue" and \`backend\` disagrees because the layer above sanitizes, they discuss in the team before escalating to the Lead.
 
@@ -1492,7 +1493,15 @@ If story stays \`review\`:
 1. Update story file: Dev Agent Record → Review Record (findings, outcome, specialists)
 2. Update \`${o}/state.yaml\`: story → \`done\` or stays \`review\`
 
-## Step 13: Next Step
+## Step 13: Tear Down + Next Step
+
+Whatever the outcome, release the specialist team before returning:
+
+\`\`\`
+TeamDelete(name: "review-{story-key}")
+\`\`\`
+
+This frees the teammates' threads; skipping it only wastes context until the session ends.
 
 If story → \`done\`:
 - Stories remaining: "Run \`/aped-story\` to prepare the next story."
