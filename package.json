@@ -1,6 +1,6 @@
 {
   "name": "aped-method",
-  "version": "3.3.1",
+  "version": "3.4.0",
   "type": "module",
   "description": "Scaffold the APED pipeline (Analyze, PRD, Epics, Dev, Review) into any Claude Code project",
   "bin": {
