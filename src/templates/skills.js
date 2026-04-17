@@ -1364,6 +1364,10 @@ A story can trigger multiple specialists. Example:
 
 Code review is a prime use case for **agent teams** — specialists need to share findings, challenge each other, and coordinate (e.g., backend flags an API contract issue, frontend needs that context for its typing review). A simple subagent dispatch would miss these cross-cutting insights.
 
+### Parallelism cap — max 3 specialists at once
+
+Claude Code's experimental agent-teams renders each teammate in a separate tmux pane. **A 2×2 or 3×3 grid in a standard terminal window produces panes ~40 columns wide** — the \`claude --agent-id …\` commands wrap 7–8 lines deep and their output becomes unreadable. To stay usable, APED dispatches **at most 3 specialists in parallel** and batches the rest.
+
 ### Pattern selection
 
 - **≥ 2 specialists needed** (almost always): use **agent team** (TeamCreate + Agent with \`team_name\` + SendMessage between teammates)
@@ -1375,35 +1379,65 @@ Code review is a prime use case for **agent teams** — specialists need to shar
 TeamCreate(name: "review-{story-key}")
 \`\`\`
 
-### Spawn specialists as team members
+### Spawn plan — Batch 1 (≤ 3 specialists, parallel)
 
-Spawn ALL selected specialists in a single message (parallel, same team context). Each gets:
+Always in batch 1:
+- **Eva** (ac-validator)
+- **Marcus** (code-quality)
+
+Plus **at most one** conditional specialist, picked by the story's primary surface:
+- If backend files dominate → **Diego**
+- Else if frontend files dominate → **Lucas** (Aria comes in batch 2 if the story has a preview app)
+- Else if infra files dominate → **Kai**
+- Else if the story spans ≥ 2 layers roughly equally → **Sam** (fullstack)
+- Else → no conditional in batch 1 (just Eva + Marcus)
+
+Spawn these 2–3 specialists in a **single message** (parallel, same team context). Each gets:
 - \`team_name: "review-{story-key}"\`
 - A unique \`name\` (e.g., \`ac-validator\`, \`backend\`, \`frontend\`)
-- A brief listing the other teammates ("You can SendMessage to: ac-validator, backend, devops")
+- A brief listing the other batch-1 teammates ("You can SendMessage to: ac-validator, backend")
 - Its own scope + output contract (see below)
+
+Wait for batch 1 reports before starting batch 2 — specialists in batch 2 get the batch-1 findings in their initial prompt (context-rich).
+
+### Spawn plan — Batch 2 (sequential, ≤ 3 more if needed)
+
+Add after batch 1 converges:
+
+- **Rex** (git-auditor) — always in batch 2. It needs the batch-1 findings to cross-reference commit scope with the issues they raised.
+- **Aria** (visual) — if the story has a preview app AND frontend was in batch 1.
+- **Kai** (infra) — if the story also touches infra files but wasn't the primary surface.
+- **Sam** (fullstack) — if the story spans ≥ 2 layers and wasn't the primary surface.
+- Any other conditional specialist whose domain was secondary.
+
+Again, cap batch 2 at **3 specialists in parallel**. If you need more than 3, split into batch 3.
+
+All batches share the same team (\`TeamCreate(name: "review-{story-key}")\` stays alive until Step 13 teardown). SendMessage works across batches because the team is persistent.
+
+### Specialist personas
 
 Each specialist has a **persona** (name + defining trait). Include the persona in the agent's prompt — it keeps them focused and in character.
 
-### Core Specialists (always in team)
+### Core Specialists (batches 1 and 2)
 
-**ac-validator** — **Eva**, QA Lead — "I trust nothing without proof in the code."
+**ac-validator** — **Eva**, QA Lead — "I trust nothing without proof in the code." *(batch 1 always)*
 - \`subagent_type: "feature-dev:code-explorer"\`
 - For each AC: search code for evidence. Rate IMPLEMENTED / PARTIAL / MISSING with file:line
 - For each \`[x]\` task: find proof. No evidence = **CRITICAL**
 - Coordinates with: specialists (ask them to verify their domain's ACs)
 
-**code-quality** — **Marcus**, Staff Engineer, 15 years experience — "Security and performance are non-negotiable."
+**code-quality** — **Marcus**, Staff Engineer, 15 years experience — "Security and performance are non-negotiable." *(batch 1 always)*
 - \`subagent_type: "feature-dev:code-reviewer"\`
 - Focus: security (injection, auth, secrets), performance (N+1, memory), reliability (errors, edge cases), test quality
 - Coordinates with: backend/frontend (domain-specific quality concerns)
 
-**git-auditor** — **Rex**, Code Archaeologist — "Every commit tells a story."
+**git-auditor** — **Rex**, Code Archaeologist — "Every commit tells a story." *(batch 2 always)*
 - \`subagent_type: "general-purpose"\`
 - Runs \`bash ${a}/aped-review/scripts/git-audit.sh\`
 - Reports out-of-scope changes and missing expected changes
+- Cross-references findings from batch 1 specialists against commit scope
 
-### Conditional Specialists
+### Conditional Specialists (at most one in batch 1, rest in batch 2)
 
 **backend** — **Diego**, Senior Backend Engineer, distributed systems — "Data integrity is sacred." (if backend files)
 - \`subagent_type: "feature-dev:code-reviewer"\`

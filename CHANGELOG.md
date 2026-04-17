@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.1] - 2026-04-17
+
+### Fixed
+- **`/aped-review` parallelism cap** — specialists are now dispatched in batches of at most 3 in parallel. Claude Code's experimental agent-teams renders each teammate in a separate tmux pane; a 2×2+ grid on a standard terminal produced unreadable 40-column panes where the `claude --agent-id …` bootstrap command wrapped 7–8 lines deep. The team (`TeamCreate` + `SendMessage`) stays fully functional — we just avoid over-saturating tmux.
+  - Batch 1: Eva (ac-validator) + Marcus (code-quality) + one conditional specialist picked by the story's primary surface (Diego / Lucas / Kai / Sam).
+  - Batch 2: Rex (git-auditor) + additional conditionals (Aria, cross-layer specialists) if the story spans extra layers. Batch 2 receives batch-1 findings in its initial prompt — richer context, better cross-referencing.
+  - Team persists across batches; `SendMessage` works between batch-1 and batch-2 teammates.
+
 ## [3.5.0] - 2026-04-17
 
 ### Added
@@ -148,7 +156,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Zero auto-chaining between phases: every skill ends on "Run `/aped-X` when ready" — the user controls the pace.
 
-[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.5.0...HEAD
+[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.5.1...HEAD
+[3.5.1]: https://github.com/yabafre/aped-claude/compare/v3.5.0...v3.5.1
 [3.5.0]: https://github.com/yabafre/aped-claude/compare/v3.4.4...v3.5.0
 [3.4.4]: https://github.com/yabafre/aped-claude/compare/v3.4.3...v3.4.4
 [3.4.3]: https://github.com/yabafre/aped-claude/compare/v3.4.2...v3.4.3
