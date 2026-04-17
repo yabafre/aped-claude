@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.2] - 2026-04-17
+
+### Fixed
+- `publishConfig.provenance` removed — npm requires a recognised CI provider (GitHub Actions, GitLab CI) for automatic provenance, which blocked local publishes. Provenance can still be enabled per-publish from CI with `npm publish --provenance`.
+- `bin/aped-method` path normalised (no leading `./`) to silence `npm publish` warning.
+
+### Note
+- Version `3.4.1` was tagged on GitHub but never published to npm because of the provenance issue above. `3.4.2` contains the same code plus this fix.
+
 ## [3.4.1] - 2026-04-17
 
 ### Added
@@ -94,7 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Zero auto-chaining between phases: every skill ends on "Run `/aped-X` when ready" — the user controls the pace.
 
-[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.4.1...HEAD
+[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.4.2...HEAD
+[3.4.2]: https://github.com/yabafre/aped-claude/compare/v3.4.1...v3.4.2
 [3.4.1]: https://github.com/yabafre/aped-claude/compare/v3.4.0...v3.4.1
 [3.4.0]: https://github.com/yabafre/aped-claude/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/yabafre/aped-claude/compare/v3.3.0...v3.3.1
