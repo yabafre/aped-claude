@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.2] - 2026-04-17
+
+### Changed
+- **`/aped-review` reverts to plain subagents** — no more `TeamCreate` / `team_name` / `SendMessage` for the review specialists. Review is a set of independent validations; the Lead merges findings and cross-references domains manually (human-in-the-loop relay, not real-time negotiation). The agent-team machinery was too heavy for this use case and triggered Claude Code's experimental tmux-pane rendering, which becomes unreadable beyond ~3 agents.
+- Removes the batching rules introduced in `3.5.1` — no parallelism cap is needed for subagents. All selected specialists (Eva + Marcus + Rex + conditionals by file surface) are dispatched in a single message.
+- Step 8 (Apply Fixes): Lead either applies simple fixes directly or re-dispatches the relevant specialist as a one-shot subagent for cross-domain sanity checks — no `SendMessage` ACK loops.
+- Step 13: no `TeamDelete` needed (no team exists).
+
+### Kept
+- `/aped-dev` fullstack team mode (Kenji / Amelia / Leo) — unchanged. Still uses `TeamCreate` + `SendMessage` because the three agents genuinely co-edit a shared API contract (Kenji is the owner, Amelia and Leo negotiate changes). That's where a team earns its complexity.
+
 ## [3.5.1] - 2026-04-17
 
 ### Fixed
@@ -156,7 +167,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Zero auto-chaining between phases: every skill ends on "Run `/aped-X` when ready" — the user controls the pace.
 
-[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.5.1...HEAD
+[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.5.2...HEAD
+[3.5.2]: https://github.com/yabafre/aped-claude/compare/v3.5.1...v3.5.2
 [3.5.1]: https://github.com/yabafre/aped-claude/compare/v3.5.0...v3.5.1
 [3.5.0]: https://github.com/yabafre/aped-claude/compare/v3.4.4...v3.5.0
 [3.4.4]: https://github.com/yabafre/aped-claude/compare/v3.4.3...v3.4.4

@@ -96,8 +96,8 @@ Independent parallel work, no coordination needed.
 - **Derek** — Domain Expert. *"I know where the bodies are buried."*
 - **Tom** — Staff Engineer. *"Every choice has a tax."*
 
-### Review team — `/aped-review`
-Agent team using `TeamCreate` + `SendMessage` between specialists. Core 3 always dispatched, conditionals triggered by file scope.
+### Review specialists — `/aped-review`
+Plain subagents (no `TeamCreate`, no `SendMessage`), dispatched in parallel. Each specialist returns its findings to the Lead, who merges and cross-references manually. Keeps the workflow focused on validation, avoids tmux-pane rendering issues of the experimental agent-teams mode, and scales to N specialists without a parallelism cap.
 
 - **Eva** — AC Validator / QA Lead (always) — *"I trust nothing without proof in the code."*
 - **Marcus** — Code Quality / Staff Engineer (always) — *"Security and performance are non-negotiable."*
@@ -116,7 +116,7 @@ Triggered when a story touches ≥ 2 layers. Contract-first coordination via `Se
 - **Leo** — Senior Frontend. UI against the contract + visual verification via React Grab.
 
 ### Tool surface used
-`Agent`, `SendMessage`, `TeamCreate`, `TeamDelete`, `TaskCreate`, `TaskUpdate`, `TaskList` — the Lead explicitly tears down teams on completion, and teammates self-serve pending tasks via `TaskList` instead of waiting for dispatch.
+`Agent` (all specialist dispatches), `TaskCreate`/`TaskUpdate`/`TaskList` (sprint task tracking), plus `TeamCreate` / `TeamDelete` / `SendMessage` in `/aped-dev` fullstack mode only — because Kenji, Amelia and Leo genuinely co-edit a shared contract. Review is pure validation, so it skips the team machinery entirely.
 
 ## Design principles
 
