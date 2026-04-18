@@ -2967,10 +2967,18 @@ For each approved check-in:
    - \`story-ready\` → \`/aped-dev {story-key}\`
    - \`dev-done\`    → \`/aped-review {story-key}\`
    - \`review-done\` → \`/merge\` (the workmux companion skill installed via \`workmux setup\`). It commits remaining changes, rebases onto the base branch, merges, and removes the worktree + window + branch in one step. If \`workmux setup\` was never run, fall back to: \`bash ${a}/scripts/worktree-cleanup.sh {worktree-path} --delete-branch\` and remind the user to merge the PR manually.
-3. Push it to the worktree's tmux window, preferring workmux when available:
-   - \`workmux send "{handle}" "{follow-up-command}"\` (handle = \`basename {worktree}\` or \`workmux list\`), OR
-   - \`bash ${a}/scripts/checkin.sh push {story-key} "{follow-up-command}"\` (tmux-send-keys fallback).
-4. If both push paths fail: tell the user "Story Leader for {story-key} is waiting — re-invoke in its terminal: \`{follow-up-command}\`."
+3. **Clear context before pushing.** Each APED phase (story → dev → review → merge) should start with a fresh conversation to avoid cross-phase hallucinations (e.g., /aped-dev relitigating scope decisions from /aped-story, or /aped-review being anchored by /aped-dev's rationale). Send \`/clear\` first, then the follow-up command as a separate message — workmux's send API sends sequentially, and \`/clear\` is a Claude Code built-in that resets the session context while keeping it alive. Preferring workmux when available:
+   \`\`\`bash
+   HANDLE="{basename-or-workmux-list-lookup}"
+   workmux send "$HANDLE" "/clear"
+   workmux send "$HANDLE" "{follow-up-command}"
+   \`\`\`
+   If workmux isn't available, the tmux-send-keys fallback must also send \`/clear\` first:
+   \`\`\`bash
+   bash ${a}/scripts/checkin.sh push {story-key} "/clear"
+   bash ${a}/scripts/checkin.sh push {story-key} "{follow-up-command}"
+   \`\`\`
+4. If both push paths fail: tell the user "Story Leader for {story-key} is waiting — in its terminal, run \`/clear\` then \`{follow-up-command}\`."
 
 ## Applying Blocks (escalations user wants to reject)
 
@@ -3040,10 +3048,12 @@ metadata:
 3. Read \`${o}/state.yaml\` — must have \`current_phase: "sprint"\` and \`sprint.stories\` populated by \`/aped-epics\`.
 4. Read \`${o}/epics.md\` — for the DAG and story metadata.
 5. If \`sprint.active_epic\` is \`null\`: ask the user which epic to start. Write it to state.yaml.
-6. **Detect workmux** (preferred path):
+6. **Detect workmux + multiplexer** (preferred path):
    - \`command -v workmux >/dev/null\` → workmux binary present.
    - \`command -v tmux >/dev/null || command -v wezterm >/dev/null\` → a multiplexer exists.
    - **Apply the WezTerm PATH fix automatically** — workmux shells out to the \`wezterm\` CLI. If \`command -v wezterm\` fails but \`$WEZTERM_EXECUTABLE_DIR\` is set, run \`export PATH="$WEZTERM_EXECUTABLE_DIR:$PATH"\` in the skill's shell **before any workmux invocation**, and tell the user once: "Add \`[[ -n \\"\\$WEZTERM_EXECUTABLE_DIR\\" ]] && export PATH=\\"\\$WEZTERM_EXECUTABLE_DIR:\\$PATH\\"\` to your \`~/.zshrc\` so workmux finds the CLI in every new shell." Don't just mention it — export it here so dispatch works in this session.
+   - **Check tmux session state.** Workmux auto-picks its backend: if \`\$TMUX\` is set you get tmux windows (sidebar/dashboard work); if empty it falls back to WezTerm native tabs (sidebar/dashboard do NOT work). If \`\$TMUX\` is empty, warn the user ONCE before proceeding: "You're not inside a tmux session. workmux will dispatch to WezTerm native tabs — \`workmux sidebar\` and the tmux-based \`workmux dashboard\` pane will be blind to these agents. If you want live status tracking, exit and re-enter via: \`tmux new-session -As aped\` → \`claude --permission-mode bypassPermissions\` → \`/aped-sprint\`. Otherwise proceed — dispatch still works, you just won't get the live bar."
+   - **Verify \`workmux setup\` has been run.** Status tracking hooks (the \`AGENT\` column icons, agent-waiting detection) and the companion skills (\`/merge\`, \`/rebase\`, \`/coordinator\`, \`/worktree\`, \`/open-pr\`, \`/workmux\`) are installed by \`workmux setup --skills\`. Detect absence: if \`~/.claude/skills/workmux\` is missing, say once: "Run \`workmux setup\` (one-time, user-level) to enable agent-status icons and install the \`/merge\` skill the Lead delegates to." Don't block on it — APED falls back to \`worktree-cleanup.sh\` if \`/merge\` is absent.
    - If workmux + a multiplexer present → use Path A. Else fall back to Path B.
    - Do NOT reject Path A for cosmetic reasons (flag renames, missing \`.workmux.yaml\`). If syntax differs from what you expect, run \`workmux add --help\` to adapt. The current 0.1.x signature is \`workmux add [OPTIONS] [BRANCH_NAME]\` (positional, no \`--branch\`).
 

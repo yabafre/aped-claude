@@ -270,8 +270,18 @@ sprint:
 #   2. The project's \`.claude/settings.local.json\` (copied via files.copy
 #      below) already captures the allow/deny rules — bypassPermissions
 #      trusts that inventory. Keep that settings file honest.
+#
 # If you prefer interactive permissions per worktree, swap the command to
 # \`claude\` (or \`<agent>\` with \`agent: claude\` in global config).
+#
+# Alternative — named agent in global config (~/.config/workmux/config.yaml):
+#     agents:
+#       claude-yolo: "claude --permission-mode bypassPermissions"
+# Then here: \`command: <claude-yolo>\` (placeholder syntax). The agents map
+# is global-only (no project override), so hardcoding here keeps the project
+# self-contained — no user setup required beyond \`workmux setup\` for
+# status hooks + companion skills.
+#
 # Workmux auto-detects built-in agents (claude/gemini/codex/opencode/…) in
 # the pane command even with flags, so prompt injection via \`workmux add -p\`
 # still works.

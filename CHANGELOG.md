@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.9] - 2026-04-18
+
+### Added
+- **`/aped-lead` sends `/clear` before each follow-up command.** Phase transitions (story → dev → review → merge) now reset the Story Leader's conversation context via Claude Code's built-in `/clear`, preventing cross-phase hallucinations (e.g., `/aped-dev` re-litigating scope from `/aped-story`, or `/aped-review` being anchored by `/aped-dev`'s rationale). Applied to all three push paths (`workmux send`, `checkin.sh push`, and the manual fallback instruction).
+- **`/aped-sprint` detects tmux session state.** When `$TMUX` is empty, workmux auto-picks WezTerm native tabs as backend, which means `workmux sidebar` and the tmux-based `workmux dashboard` pane can't see the dispatched agents. SKILL now warns the user once and suggests `tmux new-session -As aped` → `claude --permission-mode bypassPermissions` → `/aped-sprint` if they want live status. Dispatch still works in the WezTerm-only path.
+- **`/aped-sprint` checks for `workmux setup`.** If `~/.claude/skills/workmux` is missing, SKILL tells the user once: "Run `workmux setup` (one-time, user-level) to enable agent-status icons and install the `/merge` skill the Lead delegates to." Non-blocking — APED falls back to `worktree-cleanup.sh` if `/merge` is absent.
+- **Template documents the `agents:` global alternative.** Users who want to centralize the claude flags across all workmux projects can define `agents: { claude-yolo: "claude --permission-mode bypassPermissions" }` in `~/.config/workmux/config.yaml` and reference it via `command: <claude-yolo>`. The project template keeps the hardcoded pane command for self-containment.
+
+### Why these came in
+Live testing surfaced (1) no way to see live worktree status because workmux was running WezTerm-backend (no tmux wrapping), and (2) the Story Leader's context would carry over between /aped-story → /aped-dev → /aped-review, risking phase bleed and scope creep. Fixes are additive — existing dispatches keep working.
+
 ## [3.5.8] - 2026-04-17
 
 ### Added
