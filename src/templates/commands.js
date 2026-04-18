@@ -57,6 +57,11 @@ const COMMAND_DEFS = [
     description: 'Lead Dev hub for parallel sprints. Batch-processes Story Leader check-ins, auto-approves what is safe, escalates what is not, and pushes the next command into each worktree. Use when user says "lead", "approvals", "aped lead", or invokes /aped-lead. Only runs from the main project.',
   },
   {
+    name: 'aped-ship',
+    skill: 'aped-ship',
+    description: 'End-of-sprint batch merge + pre-push composite review on main. Merges all done stories in conflict-minimizing order, runs secret scan, typecheck, lint, db:generate, state.yaml + worktree consistency. Never pushes — HALTs for user. Use when user says "ship", "merge sprint", "pre-push", "aped ship", or invokes /aped-ship. Only runs from the main project on the main branch.',
+  },
+  {
     name: 'aped-status',
     skill: 'aped-status',
     description: 'Shows sprint status dashboard with progress, blockers, and next actions. Use when user says "sprint status", "show progress", "aped status", or invokes /aped-status.',

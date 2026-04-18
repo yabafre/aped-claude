@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-04-18
+
+### Added
+- **`/aped-ship` — end-of-sprint merge + pre-push composite review.** New skill that closes the loop on parallel sprints. Detects all `status: done` stories with unmerged feature branches, proposes a conflict-minimizing merge order (smaller diff first), executes the batch with `--ours` on `state.yaml` conflicts (main is authoritative — `/aped-lead` already flipped statuses there) and HALT on any other conflict, then runs a composite pre-push review on `origin/main..main`:
+  - secret / credential scan (with noise filtering for type declarations, redact list keys, `.env.example` placeholders)
+  - debug / TODO / FIXME scan
+  - typecheck (detects `scripts.typecheck` or falls back to `tsc --noEmit`)
+  - lint (if `scripts.lint` exists)
+  - `db:generate` for Prisma projects (surfaces env-var coalesce bugs as BLOCKERS)
+  - state.yaml consistency (merged stories have `status: done` + `worktree: null`)
+  - leftover worktrees / unmerged branches
+  - Findings triaged into BLOCKER / WARNING / INFO. GATE before push — skill PRINTS `git push origin main` but never executes it.
+
+### Changed
+- **`/aped-lead` no longer pushes `/merge` on `review-done` approvals.** Per-story merges from parallel worktrees race on main's state.yaml and produce avoidable conflicts. Instead, on `review-done` approval the Lead flips `sprint.stories.{key}.status` to `done` in main's state.yaml and stops. The feature branch and worktree stay live until `/aped-ship` batches the teardown. This is a contract change — existing `/aped-lead` flows will now surface an "X stories ready to ship — run `/aped-ship`" prompt instead of merging per-story.
+- **`/aped-lead` dispatch follow-up** now surfaces both dimensions: free parallel-sprint slots AND done-but-unmerged ship candidates.
+- **`/aped-lead` Next Step** recommends `/aped-ship` when there are done stories ready to merge.
+
+### Why
+Live testing of the parallel-sprint flow in CloudVault revealed two structural gaps:
+1. No orchestrator for end-of-sprint batch merge. Users had to manually determine merge order, resolve state.yaml conflicts, and clean up worktree paths — exactly the kind of repetitive work a skill should automate.
+2. No pre-push review on the composite main. Individual stories passed `/aped-review`, but the composite (after merges) could have typecheck errors, missing `db:generate`, or accidental secret exposure that no per-story review catches. The push step had no gate.
+
+Together these two gaps meant the user had to ad-hoc-review before push every sprint. `/aped-ship` gives that workflow a home.
+
+### Migration notes
+- Existing `/aped-lead` flows using per-story `/merge` no longer receive that push. Run `/aped-ship` after `/aped-lead` to complete the merge + review phase.
+- No file format changes — state.yaml schema is unchanged.
+- Minor bump because this is additive (new skill + behavior shift on `/aped-lead` review-done) with no removed commands or renamed fields.
+
 ## [3.5.9] - 2026-04-18
 
 ### Added
