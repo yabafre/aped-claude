@@ -4,12 +4,14 @@ import { references } from './references.js';
 import { configFiles } from './config.js';
 import { commands } from './commands.js';
 import { guardrail } from './guardrail.js';
+import { symlinks } from './symlinks.js';
 
 export function getTemplates(config) {
   return [
     ...configFiles(config),
     ...commands(config),
     ...skills(config),
+    ...symlinks(config),
     ...scripts(config),
     ...references(config),
     ...guardrail(config),

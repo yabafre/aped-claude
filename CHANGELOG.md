@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-04-22
+
+### Added
+- **`/aped-brainstorm` — divergent ideation.** New upstream skill for generating 100+ ideas before convergence. Anti-bias protocol (shift domain every 10 ideas), quota enforcement (50 minimum, 100 target), 10-technique library (SCAMPER, What If, Pre-mortem, Reverse Engineering, First Principles, etc.). Output at `${outputDir}/brainstorm/session-{date}.md`. Does not update `state.yaml` — it's a creative tool usable at any time.
+- **`/aped-prfaq` — Working Backwards challenge.** Amazon-style press-release-first discipline in 5 stages: Ignition → Press Release → Customer FAQ → Internal FAQ → Verdict. Parallel research subagents (artifact scanner + web researcher). Concept-type detection (commercial / internal / open-source / community) adapts FAQ framing. Verdict includes a PRD Distillate ready to seed `/aped-analyze`. `--headless` flag for autonomous first-draft mode.
+- **`/aped-retro` — post-epic retrospective.** Systemic post-mortem with 3 parallel specialists (Mia Struggle Analyzer, Leo Velocity Analyzer, Ava Previous-Retro Auditor). Detects significant discoveries that trigger `/aped-course`, enforces SMART action items with owners, produces a readiness assessment for the next epic. Persists lessons to `${outputDir}/lessons.md` for cross-epic continuity.
+- **`/aped-elicit` — horizontal critique toolkit.** 19 methods across 9 categories (core, risk, competitive, advanced, creative, research, retrospective, philosophical, learning). Invokable standalone or from inside any APED skill mid-workflow. Iterative loop with y/n-per-method consent. Smart menu selection based on target type (architectural, product, technical, etc.).
+
+### Changed
+- **`/aped-arch` — Architecture Council (Phase 2b).** For high-stakes decisions (DB, auth, API, frontend, infra), dispatches 3-4 specialist subagents in parallel: Winston (systems), Lena (pragmatic), Raj (security/compliance), Nina (cost/ops), Maya (edge cases). Each runs independently for genuine divergent perspectives. User picks final option, minority view is documented as signal for future pivots. Escape hatch for MVP-scale decisions.
+- **Cross-tool skill distribution via symlinks.** On macOS/Linux the scaffolder now creates relative symlinks in `.claude/skills/`, `.opencode/skills/`, `.agents/skills/`, and `.codex/skills/` that point back to the canonical `${apedDir}/aped-*` directories. One edit in `.aped/` propagates to every tool — no manual sync, no drift. Claude Code still uses the real files under `${commandsDir}/aped-*.md` for slash command registration. Windows hosts are auto-skipped (symlinks require developer mode + `core.symlinks=true`). Fresh mode cleans stale `aped-*` entries in all four target directories before rebuilding.
+
+### Why
+Ideation and critique tooling was missing upstream of `/aped-analyze` and orthogonally across all phases. `/aped-brainstorm` and `/aped-prfaq` fill the "idea is still fuzzy" gap before committing to a PRD. `/aped-elicit` gives every phase access to structured critique methods without forcing them into the pipeline linearly. Post-epic review was ad-hoc — `/aped-retro` turns it into a repeatable discipline with specialist parallelism and continuity enforcement. Single-brain architecture decisions converge to groupthink — the Architecture Council surfaces genuine disagreement on decisions that cost weeks to reverse. Cross-tool distribution via symlinks replaces the "copy & hope" pattern with a single source of truth that every tool (Claude Code, OpenCode, Codex, agents.md readers) sees instantly.
+
 ## [3.6.0] - 2026-04-18
 
 ### Added

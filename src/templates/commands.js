@@ -99,6 +99,30 @@ const COMMAND_DEFS = [
     skill: 'aped-claude',
     description: 'Update CLAUDE.md with APED working rules and project config. Smart merge — preserves user content. Use when user says "update CLAUDE.md", "sync claude rules", "aped claude".',
   },
+  {
+    name: 'aped-brainstorm',
+    skill: 'aped-brainstorm',
+    description: 'Structured brainstorming with diverse creative techniques to generate 100+ ideas before convergence. Use when user says "brainstorm", "help me ideate", "explore ideas". Runs before /aped-analyze when the idea is still fuzzy.',
+    argumentHint: '[topic]',
+  },
+  {
+    name: 'aped-prfaq',
+    skill: 'aped-prfaq',
+    description: 'Working Backwards challenge: press release, customer FAQ, internal FAQ, verdict. Stress-tests product concepts before commit. Use when user says "PRFAQ", "work backwards", "press release first". Optional upstream of /aped-analyze.',
+    argumentHint: '[--headless]',
+  },
+  {
+    name: 'aped-retro',
+    skill: 'aped-retro',
+    description: 'Post-epic retrospective: extracts systemic lessons, assesses readiness, detects significant discoveries. Use when user says "retro", "retrospective", "review the epic".',
+    argumentHint: '[epic-number]',
+  },
+  {
+    name: 'aped-elicit',
+    skill: 'aped-elicit',
+    description: 'Advanced critique toolkit (socratic, first principles, pre-mortem, red team, tree of thoughts...). Horizontally invokable in any phase. Use when user says "critique this", "stress-test", "deeper review", "socratic", "pre-mortem", "red team".',
+    argumentHint: '[method-name | target-file]',
+  },
 ];
 
 function renderFrontmatter({ name, description, argumentHint }) {

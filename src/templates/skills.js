@@ -343,7 +343,9 @@ From a restaurant inventory brief → PRD generates:
       path: `${a}/aped-arch/SKILL.md`,
       content: `---
 name: aped-arch
-description: 'Collaborative architecture decisions for consistent AI implementation. Use when user says "create architecture", "technical architecture", "solution design", or invokes /aped-arch. Runs between PRD and Epics.'
+description: 'Collaborative architecture decisions with specialist council for high-stakes choices (DB, auth, API, frontend, infra). Use when user says "create architecture", "technical architecture", "solution design", or invokes /aped-arch. Runs between PRD and Epics.'
+allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate
+disable-model-invocation: true
 license: MIT
 metadata:
   author: yabafre
@@ -360,6 +362,7 @@ Create architecture decisions through step-by-step discovery so that all downstr
 - Architecture is NOT implementation — define WHAT and WHY, not the code
 - Do NOT proceed to next section without user validation
 - Decisions made here are LAW for /aped-dev and /aped-review
+- For **major decisions** (Database, Auth, API style, Frontend framework, Infra platform) — dispatch an **Architecture Council** of specialist subagents to surface genuine divergent perspectives. Single-brain reasoning converges to groupthink; real subagents disagree.
 
 ## Setup
 
@@ -427,6 +430,56 @@ For each category:
 4. Record the decision
 
 ⏸ **GATE: User validates all technology decisions.**
+
+## Phase 2b: Architecture Council (for major decisions)
+
+**When to invoke:** For any decision in Phase 2 flagged as **high stakes** — the kind that would cost weeks to reverse later (primary database choice, auth model, API paradigm, frontend framework, infra platform). Skip for low-stakes choices (e.g., a logging library).
+
+The Council is a parallel subagent dispatch via the \`Agent\` tool. Each specialist thinks independently — no shared context, no convergence pressure — and produces a genuine divergent perspective. You orchestrate, the user decides.
+
+### Council Roster (pick 3-4 for each major decision)
+
+**Winston — Systems Architect** (always include)
+> \`subagent_type: Explore\`. Persona: "Boring tech for MVP. Cleverness costs operationally." Focus: scalability, reliability, operational burden, known failure modes.
+
+**Lena — Pragmatic Engineer**
+> \`subagent_type: Explore\`. Persona: "What ships fastest without regret?" Focus: developer ergonomics, iteration speed, ecosystem maturity, hiring pool.
+
+**Raj — Security & Compliance Reviewer**
+> \`subagent_type: Explore\`. Persona: "Assume breach. Assume audit." Focus: threat model, data flows, compliance gaps (GDPR, HIPAA, SOC2 as applicable), supply chain risk.
+
+**Nina — Cost & Ops Analyst**
+> \`subagent_type: Explore\`. Persona: "What does this cost at 10× scale? And when does it page us at 3am?" Focus: unit economics, operational cadence, lock-in, migration cost.
+
+**Maya — Edge Case Hunter**
+> \`subagent_type: Explore\`. Persona: "Where does this break?" Focus: boundary conditions, failure modes, unusual use cases the PRD doesn't mention but will appear.
+
+### Dispatch Pattern
+
+1. Frame the decision in one paragraph with the candidate options (e.g., "Primary database: Postgres vs FoundationDB vs managed DynamoDB. PRD context: {summary}. NFR context: {summary}.")
+2. Dispatch the selected specialists **in a single message, parallel**, via \`Agent\` tool calls. Each gets:
+   - Their persona (as above)
+   - The decision framing
+   - The candidate options
+   - The relevant PRD / NFR excerpts
+3. Each specialist returns a structured verdict: **preferred option**, **one-line rationale**, **top 2 risks**, **disqualifying conditions**.
+4. You (the orchestrator) merge the reports — present to the user:
+   - Summary table: specialist × option × verdict
+   - Areas of consensus
+   - Areas of genuine disagreement (these are the important ones)
+   - Your own synthesized recommendation with rationale
+
+⏸ **GATE: User reviews the Council verdicts and picks the final option. Document the decision AND the minority view in \`${o}/architecture.md\` — the dissent is signal for future pivots.**
+
+### When to Re-Dispatch
+
+- All specialists agreed on the weakest option: something is wrong with the framing — re-dispatch with sharpened options
+- Specialists split 50/50 with equally strong arguments: user must decide based on values, not technical merit — present both paths, let user pick
+- A specialist returned a thin report (<3 sentences on rationale): that specialist didn't engage — re-dispatch with clarified framing
+
+### Escape Hatch
+
+For truly MVP-scale decisions where the Council would be overkill, skip Phase 2b and proceed directly to Phase 3. Document in the architecture that the decision was made without Council — this flags it for reconsideration in a later retrospective.
 
 ## Phase 3: Implementation Patterns
 
@@ -520,6 +573,9 @@ Phase 2 discussion:
 - **User unsure about a choice**: Present the simplest option as default — "start with X, migrate to Y if needed"
 - **Requirements conflict**: Flag it explicitly — "FR-12 wants real-time but NFR-3 wants minimal infra. Pick one."
 - **Over-engineering**: For MVP, prefer boring tech. Save the clever architecture for v2.
+- **Council specialists converge on the same answer**: that's valid signal — note it as unusually high consensus in \`${o}/architecture.md\`. If the consensus feels suspicious, re-dispatch with a persona explicitly asked to steel-man the minority option.
+- **Council dispatch fails or subagents unavailable**: fallback to a single-brain comparison with explicit trade-off table. Flag in \`${o}/architecture.md\`: "Decision made without Council — revisit in next retro."
+- **User wants to skip Council for every decision**: respect it, but document that the architecture was made single-brain. Future retros should catch weak spots.
 
 ## Next Step
 
@@ -3546,6 +3602,956 @@ If the user chose "Fix blockers first" or "Abandon":
 > "Nothing pushed. {N} merges are already in main locally — they persist. Re-run \`/aped-ship\` to retry the review once blockers are resolved."
 
 **Do NOT auto-chain to \`/aped-sprint\`.** The user decides when to start the next batch.
+`,
+    },
+    // ── aped-brainstorm ─────────────────────────────────────────
+    {
+      path: `${a}/aped-brainstorm/SKILL.md`,
+      content: `---
+name: aped-brainstorm
+description: 'Structured brainstorming with diverse creative techniques to generate 100+ ideas before convergence.'
+when_to_use: 'Use when user says "brainstorm", "help me ideate", "explore ideas". Runs before /aped-analyze when the idea is still fuzzy.'
+argument-hint: "[topic]"
+allowed-tools: Read Write Edit Glob Grep Bash TaskCreate TaskUpdate
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
+---
+
+# APED Brainstorm — Divergent Ideation Before Convergence
+
+## Critical Rules
+
+- NEVER organize or converge before the divergence quota is met — stay in generative mode
+- NEVER accept "I think that's enough" before 50 ideas — the magic is in ideas 50-100
+- Shift creative domain every 10 ideas to fight LLM semantic clustering bias
+- Capture every idea verbatim, even the bad ones — they feed better ones
+- No time estimates, no effort sizing during brainstorm — that's for later phases
+
+## Guiding Principles
+
+### 1. Quantity Before Quality
+The first 20 ideas are obvious. Ideas 20-50 require effort. Ideas 50-100 are where the breakthrough lives. Never settle before the quota — push through the "I've run out of ideas" wall at least twice.
+
+### 2. Anti-Bias Protocol
+LLMs drift toward semantic clustering (similar ideas chain together). Every 10 ideas, force an orthogonal domain shift: if you've been in technical, pivot to UX. If UX, pivot to business model. If business model, pivot to edge cases or black swans.
+
+### 3. Help the User Think, Don't Just Ask
+Many users know what they want but struggle to articulate. Your job is to offer concrete suggestions they can react to, not just repeat "what else?" When stuck, draft 2-3 alternatives yourself — the user sharpens faster with something to push against than with silence.
+
+### 4. Divergence First, Convergence Later
+Resist the urge to evaluate, prioritize, or cluster during divergence. Write ideas down, keep moving. Convergence is a separate phase at the end.
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract \`user_name\`, \`communication_language\`
+2. Check for an existing session file: \`${o}/brainstorm/session-{date}.md\`
+   - If one exists and is <7 days old: ask user — resume or start fresh?
+3. Ensure output directory exists:
+   \`\`\`bash
+   mkdir -p ${o}/brainstorm
+   \`\`\`
+4. If the user passed a topic argument, use it. Otherwise ask: "What are we brainstorming today? One sentence."
+
+## Phase 1: Framing
+
+Before diverging, lock the frame in 3 questions (adapt to \`communication_language\`):
+
+- **Target:** What are we generating ideas about? (a feature, a business model, a technical approach, a user persona?)
+- **Lens:** From whose perspective? (user, business, engineer, skeptic?)
+- **Constraints:** Any hard constraints to keep in mind? (none, a specific platform, a budget, a deadline)
+
+Write the frame at the top of \`${o}/brainstorm/session-{date}.md\`:
+\`\`\`markdown
+# Brainstorm — {topic}
+Date: {date}
+Target: {what}
+Lens: {perspective}
+Constraints: {list}
+Techniques used: []
+Total ideas: 0
+\`\`\`
+
+⏸ **GATE: Confirm the frame with the user before diverging.**
+
+## Phase 2: Technique Selection
+
+Pick a technique based on the frame. Suggest 3 options, let the user pick one. If they're unsure, pick for them and explain why.
+
+### Technique Library
+
+| Technique | Best For | How It Works |
+|---|---|---|
+| **SCAMPER** | Improving an existing concept | Substitute / Combine / Adapt / Modify / Put to other use / Eliminate / Reverse — 7 lenses |
+| **What If Scenarios** | Exploring possibility space | "What if X were 10x cheaper?" "What if users had infinite time?" Push extremes |
+| **Reverse Engineering** | Goal is clear, path is not | Start from desired end state, walk backwards to now |
+| **Random Input Stimulus** | Stuck in a rut | Pick a random word/concept, force connections to the topic |
+| **5 Whys** | Root-causing a problem | Start with the symptom, ask why 5 times |
+| **First Principles** | Breaking received wisdom | Strip assumptions, rebuild from physics/logic |
+| **Pre-mortem** | Evaluating risk | Imagine it's 1 year from now and this failed — why? |
+| **Genre Mashup** | Seeking novelty | Combine 2 unrelated domains (e.g., "restaurant" + "dungeon crawl") |
+| **Customer Support Theater** | Finding pain points | Roleplay an angry user and a support rep |
+| **Time Traveler Council** | Long-term thinking | Past-you and future-you advise present-you |
+
+Log the chosen technique in the session file.
+
+## Phase 3: Divergence
+
+### Quota
+
+- **Minimum:** 50 ideas
+- **Target:** 100 ideas
+- **Hard stop:** user explicitly says "stop" AND quota ≥ 50
+
+### Cadence
+
+Generate ideas in batches of 10 with the chosen technique. After each batch:
+1. Append to the session file under \`## Batch {n} — {technique}\`
+2. **Anti-bias check:** What domain did this batch cluster in? Pivot to an orthogonal domain for batch {n+1}.
+3. Re-engage the user: "{summary of batch}. Any of these spark something? Want to push in a direction?"
+
+### When the User Freezes
+
+- Don't repeat "what else?" — draft 3 concrete alternatives they can react to
+- Suggest a technique switch (e.g., "We've been in SCAMPER — want to try a pre-mortem?")
+- Inject a random stimulus — pick a word from a different field and force a connection
+
+### When You Freeze
+
+- Shift the lens (user → business → engineer → skeptic)
+- Shift the time horizon (now → 1 year → 10 years → 100 years)
+- Shift the scale (one user → a million users → one user with infinite resources)
+
+## Phase 4: Convergence
+
+Only once the quota is hit AND the user calls time:
+
+1. **Cluster** — group similar ideas (you do this, not the user — they're tired)
+2. **Rank** — for each cluster, pick the 1-2 strongest by a simple criterion the user chooses (novelty, feasibility, impact)
+3. **Present** — show the user the top 5-10 ideas across clusters with a 1-line rationale each
+
+⏸ **GATE: Ask the user which ideas survive. Don't over-filter — the user decides.**
+
+## Phase 5: Output
+
+Finalize \`${o}/brainstorm/session-{date}.md\` with:
+
+\`\`\`markdown
+# Brainstorm — {topic}
+Date: {date}
+Target: {what}
+Lens: {perspective}
+Constraints: {list}
+Techniques used: [{list}]
+Total ideas: {N}
+
+## Top Survivors
+1. {idea} — {1-line rationale}
+2. ...
+
+## Raw Ideas (archived)
+### Batch 1 — {technique}
+- ...
+### Batch 2 — {technique}
+- ...
+\`\`\`
+
+Present the file path to the user.
+
+## State Update
+
+Brainstorm is not a formal pipeline phase — it does NOT update \`${o}/state.yaml\`. It's a creative tool usable at any time.
+
+If the brainstorm was a precursor to \`/aped-analyze\`, tell the user:
+> "Brainstorm saved at \`${o}/brainstorm/session-{date}.md\`. When you're ready, run \`/aped-analyze\` to turn one of these survivors into a validated product brief."
+
+## Next Step
+
+**Do NOT auto-chain.** The user decides what to do with the survivors — maybe keep brainstorming, maybe go analyze, maybe park for later.
+
+## Example
+
+User: "aide-moi à brainstormer des idées de features pour bonjour-overlay"
+
+1. Framing: Target = "features pour overlay", Lens = "utilisateurs finaux d'un mail server", Constraints = "doit rester lean, Bun/Elysia"
+2. Technique: propose SCAMPER + What If + Customer Support Theater — user picks SCAMPER
+3. Batch 1 (SCAMPER — Substitute): 10 ideas on what could be swapped in the overlay's role
+4. Anti-bias: batch was about auth layers. Batch 2 pivots to operational/observability lens.
+5. ... continue until 50+ ideas ...
+6. Convergence: cluster into auth, observability, dev-experience, integrations
+7. Top 5 survivors presented with 1-liner rationale
+8. Session saved to \`${o}/brainstorm/session-2026-04-21.md\`
+
+## Common Issues
+
+- **User wants to stop at 20 ideas**: Remind them the quota is 50 minimum. If they insist, document it and move on — but note in the session file that divergence was cut short.
+- **Ideas all feel similar**: Semantic clustering. Force a domain pivot (user → infra → legal → marketing).
+- **User rejects every idea**: They may be in evaluation mode. Remind them: during divergence, even bad ideas feed better ones. Write it down, move on.
+- **Technique feels wrong for the topic**: Switch mid-session. Log the switch in the session file.
+- **Resume a paused session**: Read the previous \`session-{date}.md\`, pick up at the next batch number.
+`,
+    },
+    // ── aped-prfaq ──────────────────────────────────────────────
+    {
+      path: `${a}/aped-prfaq/SKILL.md`,
+      content: `---
+name: aped-prfaq
+description: 'Working Backwards challenge: press release, customer FAQ, internal FAQ, verdict. Stress-tests product concepts before commit.'
+when_to_use: 'Use when user says "PRFAQ", "work backwards", "press release first". Optional upstream of /aped-analyze.'
+argument-hint: "[--headless]"
+allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate WebSearch WebFetch
+disable-model-invocation: true
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
+---
+
+# APED PRFAQ — Working Backwards Challenge
+
+## Critical Rules
+
+- NEVER let a vague claim pass — every sentence must survive "so what?"
+- NEVER accept a solution-first pitch — redirect to the customer's problem
+- NEVER ship a press release with jargon, weasel words, or unverified claims
+- ALWAYS proceed one stage at a time (1 → 2 → 3 → 4 → 5), with user validation between each
+- ALWAYS research before asserting competitive / market / feasibility claims — no "yesterday's assumptions"
+
+## Guiding Principles
+
+### 1. Customer-First or Nothing
+If the user leads with "I want to build X" (a solution), redirect to the customer's problem. If they lead with "I want to use AI/blockchain" (a technology), redirect twice — technology is a how, not a why. Strip the buzzword and ask if anyone still cares.
+
+### 2. Tough Love, Not Tough Silence
+Challenge every vague answer. When the user is stuck, offer 2-3 concrete alternatives they can react to — don't repeat "be more specific" harder. The user sharpens faster against a draft than against silence.
+
+### 3. Research-Grounded
+Every competitive / market / feasibility claim must be verified against current data. Spawn research subagents when gaps appear — don't guess.
+
+### 4. Both Outcomes Are Wins
+User walks out with a battle-hardened concept = win. User walks out with the honest realization the concept isn't ready = also a win (saves months of wasted effort).
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract \`user_name\`, \`communication_language\`, \`document_output_language\`
+2. Check for existing PRFAQ: \`${o}/prfaq.md\`
+   - If exists: read its frontmatter \`stage\` field, offer to resume from the next stage
+3. Ensure output directory exists:
+   \`\`\`bash
+   mkdir -p ${o}
+   \`\`\`
+4. **Mode detection** — parse \`--headless\` / \`-H\` flag:
+   - \`--headless\`: autonomous first-draft from the provided context. User input schema: customer (specific persona), problem (concrete), stakes (why it matters), solution (concept). Missing/vague → return error with specific guidance.
+   - Default: full interactive coaching (the gauntlet).
+
+## Phase 1: Ignition
+
+**Goal:** Lock the customer, problem, stakes, and initial solution concept before drafting the press release.
+
+### Open Strong
+
+Frame this as a challenge, not an exploratory chat: "You're about to write the press release for a finished product — before building it. Survive this and the concept is ready. Fail here and you save months of wasted effort. Either way, we win. Ready?"
+
+Then brief the user: PRFAQ = Amazon's Working Backwards method. Press release first, then customer FAQ, then internal FAQ, then verdict.
+
+### Capture the Essentials
+
+Four items minimum before progressing:
+- **Customer** — specific persona, not "everyone"
+- **Problem** — concrete and felt, not abstract
+- **Stakes** — why it matters to them, consequences
+- **Solution concept** — even rough
+
+**Concept type detection:** Identify early — commercial product / internal tool / open-source project / community initiative. Store as \`{concept_type}\`. Non-commercial concepts don't have "unit economics" — adapt FAQ framing downstream (stakeholder value, adoption paths, sustainability).
+
+### Contextual Research (parallel subagents)
+
+Once the concept is sketched, fan out research in parallel via \`Agent\` tool (\`subagent_type: Explore\`):
+
+**Agent 1 — Artifact Scanner** (only if user has existing docs)
+> Scan \`${o}/\`, \`${o}/brainstorm/\`, and any user-provided paths for documents relevant to this concept. Return the 3-5 most relevant findings with 2-line summaries.
+
+**Agent 2 — Web Researcher**
+> Research competitive landscape, market context, and current industry data for: {concept}. Return direct competitors (names, pricing, strengths, weaknesses), market size/growth, 2-3 recent trends. Use WebSearch for current data — no assumptions older than 6 months.
+
+### Graceful Redirect
+
+If after 2-3 exchanges the user can't articulate a customer or problem, suggest the idea needs brainstorm first:
+> "We're not landing on a clear customer yet. Want to run \`/aped-brainstorm\` first to develop the idea, then come back here?"
+
+### Create Working Document
+
+Create \`${o}/prfaq.md\` with frontmatter:
+\`\`\`yaml
+---
+stage: 1
+concept_type: {commercial|internal|open-source|community}
+customer: {persona}
+problem: {one-line}
+stakes: {why}
+solution: {concept}
+inputs: [{list of docs/research sources used}]
+created: {date}
+updated: {date}
+---
+\`\`\`
+
+Append coaching notes as HTML comments: \`<!-- coaching-notes-stage-1 --> {initial assumptions challenged, why this direction, subagent findings that shaped framing} <!-- / -->\`
+
+⏸ **GATE: User validates essentials + research surfaces before proceeding to Stage 2.**
+
+## Phase 2: The Press Release
+
+**Goal:** A press release a real customer would stop scrolling for.
+
+### Structure (each section forces a specific clarity)
+
+| Section | What It Forces |
+|---|---|
+| Headline | One sentence a customer understands |
+| Subheadline | Who benefits, what changes |
+| Opening paragraph | What you're announcing + who + why they care |
+| Problem paragraph | Make the reader feel the pain — no solution yet |
+| Solution paragraph | What changes for the customer (not what you built) |
+| Leader quote | Vision beyond the feature list |
+| How It Works | Customer's experience, not implementation |
+| Customer quote | Would a real person say this? |
+| Getting Started | Is the path to value clear? |
+
+### Coaching Loop
+
+For each section: **draft → self-challenge → invite → deepen**.
+1. Draft the section yourself
+2. Out loud, challenge your own draft (model the critical thinking)
+3. Invite user to sharpen it
+4. Push one level deeper — specifics over generalities
+
+### Quality Bars (embed in challenges, don't enumerate)
+
+- **No jargon** — if a customer wouldn't use the word, cut it
+- **No weasel words** — "significantly", "revolutionary", "best-in-class" are banned
+- **Mom test** — could a non-industry person understand why it matters?
+- **So what test** — every sentence survives one "so what?"
+- **Honest framing** — no overselling (customer FAQ will expose it)
+
+### Headless Mode
+
+If \`--headless\` is active: draft the full press release, apply quality bars internally, write to doc. No interaction.
+
+### Update
+
+Append the refined press release to \`${o}/prfaq.md\`. Update frontmatter: \`stage: 2\`, \`updated: {date}\`. Append \`<!-- coaching-notes-stage-2 --> {rejected framings, competitive positioning, differentiators explored, out-of-scope details} <!-- / -->\`.
+
+⏸ **GATE: Press release passes all 5 quality bars per user AND drafting agent.**
+
+## Phase 3: Customer FAQ
+
+**Goal:** Devil's advocate questions a skeptical customer would actually ask.
+
+Generate 8-12 questions across these axes:
+- **Value:** "Why would I pay for this when {free alternative} exists?"
+- **Trust:** "Why should I believe you can deliver this?"
+- **Fit:** "I'm not your target — why should I care?"
+- **Effort:** "What do I have to change about how I work today?"
+- **Risk:** "What happens if this fails or the company disappears?"
+
+For each question, draft a **brutally honest** answer. If the answer is weak, the concept is weak — don't hide it. Surface it as a finding.
+
+Update \`${o}/prfaq.md\`: \`stage: 3\`. Append coaching notes.
+
+⏸ **GATE: User confirms the answers are honest, not marketing.**
+
+## Phase 4: Internal FAQ
+
+**Goal:** The hard questions a stakeholder (investor, exec, team lead) would ask before committing resources.
+
+Generate 8-12 questions across:
+- **Feasibility:** "Can we actually build this? With what team? With what tech?"
+- **Unit economics / sustainability:** (commercial) "What's the CAC / LTV?" (non-commercial) "How does this sustain itself?"
+- **Competition:** "Why won't {big player} crush us in 6 months?"
+- **Timing:** "Why now? Why not 2 years ago or 2 years from now?"
+- **Risks:** Top 3 ways this fails, with mitigations
+- **Moat:** "What makes this defensible?"
+
+Answer each with the same honesty as Stage 3.
+
+Update \`${o}/prfaq.md\`: \`stage: 4\`. Append coaching notes.
+
+⏸ **GATE: User confirms the answers would survive a real stakeholder grilling.**
+
+## Phase 5: The Verdict
+
+**Goal:** Synthesize a strength assessment. Either the concept survived the gauntlet or it didn't — both are wins.
+
+### Synthesis
+
+Produce a concise verdict section at the end of \`${o}/prfaq.md\`:
+
+\`\`\`markdown
+## Verdict
+
+**Strength:** {STRONG | PROMISING | WEAK}
+
+**Signals of strength:**
+- {specific — cite the PR or FAQ answer}
+- {specific}
+
+**Signals of weakness:**
+- {specific}
+- {specific}
+
+**Recommendation:**
+- If STRONG: proceed to \`/aped-analyze\` — this concept is ready for pipeline entry
+- If PROMISING: address {specific gaps} before proceeding
+- If WEAK: step back to \`/aped-brainstorm\` — this concept needs more exploration
+
+**PRD Distillate (for downstream consumption):**
+- Customer: {persona}
+- Problem: {one sentence}
+- Proposed solution: {one sentence}
+- Key differentiators: {2-3 bullets}
+- Non-negotiable requirements: {2-3 bullets from customer FAQ}
+- Known risks to mitigate: {top 2 from internal FAQ}
+\`\`\`
+
+Update frontmatter: \`stage: 5\`, \`strength: {STRONG|PROMISING|WEAK}\`, \`updated: {date}\`.
+
+## State Update
+
+PRFAQ is optional upstream tooling — it does NOT update \`${o}/state.yaml\` phases directly. But if the verdict is STRONG, tell the user:
+> "PRFAQ complete (\`${o}/prfaq.md\`). Verdict: STRONG. When you're ready, run \`/aped-analyze\` — the PRD distillate at the bottom of the PRFAQ is ready to seed it."
+
+## Next Step
+
+**Do NOT auto-chain.** The user decides whether to proceed to \`/aped-analyze\`, refine the PRFAQ further, or abandon the concept.
+
+## Example
+
+User: "I want to build a SaaS for restaurant inventory"
+
+1. Ignition: redirect from solution to problem — "What does a restaurant owner feel on a Tuesday morning that makes them pay?"
+2. User: "Waste tracking — they throw away 30% and don't know why"
+3. Capture essentials: Customer = small restaurant owner, Problem = invisible food waste, Stakes = razor-thin margins, Solution = automated waste tracking via photos
+4. Research fan-out: Market (competitors like FoodWaste Pro, KitchenTrack), Domain (margins, regulation)
+5. Stage 2 — Press release drafted in 6 sections with challenge-invite-deepen on each
+6. Stage 3 — Customer FAQ: "Why not a spreadsheet?" "Why should I trust photo recognition?"
+7. Stage 4 — Internal FAQ: "What's the moat?" "Why won't Toast acquire this?"
+8. Stage 5 — Verdict: PROMISING (strong problem, weak moat) — recommendation: address moat before /aped-analyze
+
+## Common Issues
+
+- **User pitches a solution**: redirect to customer + problem. Repeat as many times as needed.
+- **User pitches a technology**: redirect twice. Strip the buzzword.
+- **User gives vague answers**: offer 2-3 concrete alternatives, not "be more specific"
+- **Research agents return thin data**: retry with different keywords, broaden the search, or note the gap in the verdict
+- **User wants to skip stages**: each stage builds on the last. Skipping Stage 2 means Stage 3 has no press release to critique. Don't skip — speed-run if the user wants, but cover each stage.
+`,
+    },
+    // ── aped-retro ──────────────────────────────────────────────
+    {
+      path: `${a}/aped-retro/SKILL.md`,
+      content: `---
+name: aped-retro
+description: 'Post-epic retrospective: extracts systemic lessons, assesses readiness, detects significant discoveries.'
+when_to_use: 'Use when user says "retro", "retrospective", "review the epic".'
+argument-hint: "[epic-number]"
+allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate
+disable-model-invocation: true
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
+---
+
+# APED Retro — Post-Epic Review & Next-Epic Readiness
+
+## Critical Rules
+
+- NEVER name individuals as failure causes — focus on systems, processes, and patterns
+- NEVER mark a retro complete without at least 3 concrete action items with owners
+- NEVER skip the readiness assessment — a "done" epic that isn't production-ready blocks the next one
+- ALWAYS check if retro discoveries require updates to the next epic's plan
+- Persist all lessons to \`${o}/lessons.md\` — retros must be actionable across epics
+
+## Guiding Principles
+
+### 1. Systems Over People
+Every "mistake" is a system gap. If the dev struggled with migrations, the doc was insufficient or the review process missed a signal. Root-cause the system, not the human.
+
+### 2. Continuity Matters
+Retros without follow-through are theater. Always cross-reference the previous retro's action items — did we do them? Did they help?
+
+### 3. Forward and Backward
+Half of a retro is looking back (what did we learn). The other half is looking forward (what does the next epic need). Both halves are mandatory.
+
+### 4. Specific Examples Beat Generalizations
+"Testing was hard" is useless. "Story 1-3 had 5 review rounds because the AC wording allowed two valid interpretations" is actionable.
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract \`user_name\`, \`communication_language\`
+2. Read \`${o}/state.yaml\` — find the target epic:
+   - If user passed \`{epic-number}\`: use it
+   - Else: find the highest epic number with all stories at \`status: done\`
+   - If no epic is fully done: ask the user which epic to review (partial retro possible with a warning)
+3. Verify epic completeness:
+   \`\`\`
+   For epic N, list all stories matching key prefix "N-"
+   Count total vs done
+   If not all done: ask user — proceed with partial retro or wait for completion?
+   \`\`\`
+
+## Phase 1: Deep Story Analysis (parallel specialists)
+
+Dispatch 3 specialists in parallel via \`Agent\` tool (\`subagent_type: Explore\`, \`run_in_background: false\`):
+
+### Specialist A — Struggle Analyzer (Mia)
+> You are **Mia**, a systemic analyst reading post-mortem data. Read every story file in \`${o}/stories/\` with prefix \`{epic-number}-\`. Extract:
+> - **Dev Notes / Implementation Notes / Development Log** — where devs struggled, unexpected complexity, failed technical decisions
+> - **Review Feedback patterns** — recurring findings across stories
+> - **Lessons Learned sections** — explicit takeaways
+> - **Technical Debt sections** — shortcuts taken and why
+>
+> Synthesize: what patterns appear in 2+ stories? What systemic gaps do they reveal? Return a structured report — no blame, no individuals, only patterns.
+
+### Specialist B — Velocity & Quality Analyzer (Leo)
+> You are **Leo**, a delivery analyst. Read every story file with prefix \`{epic-number}-\` and related ticket data (via \`gh\` CLI if \`ticket_system: github\`, or \`linear-cli\` for Linear).
+> - Count review rounds per story — which stories needed the most iteration?
+> - Classify each story's complexity vs actual effort (tasks count, files touched, commits)
+> - Identify quality signals — bugs found in review, regressions caught, test coverage shifts
+> - Flag breakthroughs — caching patterns, helper extractions, test strategies that should propagate
+>
+> Return a structured report of velocity patterns and quality signals.
+
+### Specialist C — Previous-Retro Auditor (Ava)
+> You are **Ava**, a continuity auditor. Check if \`${o}/retros/epic-{N-1}-retro.md\` exists.
+> - If yes: extract every action item, lesson, and team agreement from the previous retro
+> - Cross-reference against \`${o}/stories/\` for epic {N} — was each action item applied? What's the evidence?
+> - For each prior action item: mark ✅ Completed / ⏳ In Progress / ❌ Not Addressed with evidence
+> - For each prior lesson: note where it was applied successfully OR where the team repeated the same mistake
+>
+> If no prior retro exists: return a one-line "First retro for this project" note.
+
+Wait for all 3 to complete.
+
+## Phase 2: Next-Epic Preview
+
+Read \`${o}/epics.md\` (or \`${o}/epics/epic-{N+1}.md\` if sharded) to surface the next epic's outline.
+
+Analyze:
+- **Dependencies on epic {N}** — what does epic {N+1} rely on that we just built?
+- **Technical prerequisites** — APIs, schemas, infra that must be ready
+- **Knowledge gaps** — topics the team hasn't touched yet
+- **Risk indicators** — unknowns, fragile assumptions
+
+If no epic {N+1} exists: note "final epic — no forward dependencies to check".
+
+## Phase 3: Synthesis & User Discussion
+
+Present to the user, structured:
+
+### Section A — Epic {N} Summary
+- Stories completed: {count}/{total}
+- Review iterations: avg {N} per story, worst: story {K} with {M} rounds
+- Technical debt logged: {count} items
+- Key patterns from Mia: {top 3}
+- Velocity signals from Leo: {top 3}
+- Previous-retro follow-through from Ava: {summary}
+
+### Section B — Discussion Prompts
+Ask the user directly (adapt to \`communication_language\`):
+1. "What went well? Cite a specific story or moment."
+2. "What didn't go well? Same — cite specifics."
+3. "What surprised you? (positive or negative)"
+4. "What would you do differently in epic {N+1}?"
+
+⏸ **GATE: Wait for the user's reflections before synthesizing action items.**
+
+## Phase 4: Action Items
+
+Based on Phase 1 specialist reports + Phase 3 user input, draft action items.
+
+Each action item MUST be SMART:
+- **Specific:** Clear, unambiguous
+- **Measurable:** Can verify completion
+- **Achievable:** Realistic given constraints
+- **Relevant:** Addresses a real pattern from this retro
+- **Time-bound:** Has a deadline tied to epic {N+1}
+
+Categorize:
+- **Process improvements** (review process, story splitting, ticket format)
+- **Technical debt** (items to address before epic {N+1} to avoid blockers)
+- **Documentation** (missing docs that caused struggle)
+- **Team agreements** (rules the team commits to follow)
+
+Minimum 3 action items across categories. If fewer: the specialists missed something — re-dispatch.
+
+Present to user, refine with their input.
+
+⏸ **GATE: User validates the action item list + owners + deadlines.**
+
+## Phase 5: Significant Discovery Detection
+
+Check against these triggers (be honest — don't suppress to avoid scope change):
+
+- Architectural assumption from planning proven wrong during epic {N}
+- Major scope change or descope that affects epic {N+1}
+- Technical approach needs fundamental change
+- Dependencies discovered that epic {N+1} doesn't account for
+- User needs significantly different than originally scoped
+- Performance / security / compliance issue that changes the approach
+- Integration assumption proven incorrect
+
+If ANY trigger fires:
+- Present to the user as \`🚨 Significant Discovery\`
+- Recommend: update epic {N+1} definition, hold a planning-review session, OR invoke \`/aped-course\` to formally pivot
+- Add "Epic {N+1} planning review" to the critical path
+
+## Phase 6: Readiness Assessment
+
+Before closing, check epic {N} is truly production-ready:
+
+- **Testing:** All tests passing? Coverage sufficient?
+- **Deployment:** Shipped to production, or staged?
+- **Acceptance:** Stakeholders signed off?
+- **Technical health:** Codebase stable, or fragile?
+- **Blockers carried forward:** Any unresolved issues affecting epic {N+1}?
+
+For each, ask the user directly. Any concern → add to critical path before epic {N+1} kickoff.
+
+⏸ **GATE: User confirms the readiness assessment.**
+
+## Phase 7: Persist Outputs
+
+### 1. Retro file
+
+Write \`${o}/retros/epic-{N}-retro-{date}.md\`:
+
+\`\`\`markdown
+# Epic {N} Retrospective — {date}
+
+## Summary
+- Stories: {count}
+- Duration: {span from first to last merge}
+- Patterns: {top 3 from Mia}
+- Velocity signals: {top 3 from Leo}
+- Previous retro follow-through: {summary from Ava}
+
+## What Went Well
+{bullet list — cite stories}
+
+## What Didn't
+{bullet list — cite stories}
+
+## Key Lessons
+{distilled — 3-5 bullets}
+
+## Action Items
+| # | Action | Owner | Deadline | Category | Success Criteria |
+|---|---|---|---|---|---|
+| 1 | ... | ... | ... | ... | ... |
+
+## Significant Discoveries
+{none | list + impact on epic N+1}
+
+## Readiness Assessment — Epic {N}
+| Dimension | Status | Notes |
+|---|---|---|
+| Testing | ✅/⚠️/❌ | ... |
+| Deployment | ... | ... |
+| Acceptance | ... | ... |
+| Technical health | ... | ... |
+| Blockers forward | ... | ... |
+
+## Critical Path Before Epic {N+1}
+{ordered list with owners + deadlines — empty if none}
+\`\`\`
+
+Ensure output directory:
+\`\`\`bash
+mkdir -p ${o}/retros
+\`\`\`
+
+### 2. Lessons file
+
+Append distilled lessons to \`${o}/lessons.md\`:
+
+\`\`\`markdown
+---
+## Epic {N} — {date}
+
+### Mistake: {systemic pattern from retro}
+**Correction:** {what should change}
+**Rule:** {pattern to apply going forward}
+**Scope:** {affects /aped-dev | /aped-review | /aped-story | all}
+
+(repeat for each significant lesson)
+\`\`\`
+
+## State Update
+
+Update \`${o}/state.yaml\`:
+
+\`\`\`yaml
+pipeline:
+  phases:
+    sprint:
+      active_epic: {N+1 if exists, else null}
+      retros:
+        epic_{N}:
+          status: done
+          file: ${o}/retros/epic-{N}-retro-{date}.md
+          action_items_count: {N}
+          critical_path_count: {N}
+          significant_discoveries: {bool}
+          completed_at: {date}
+\`\`\`
+
+## Next Step
+
+Tell the user (adapt to \`communication_language\`):
+> "Retro saved at \`${o}/retros/epic-{N}-retro-{date}.md\`. Lessons appended to \`${o}/lessons.md\`.
+>
+> Next: {depending on outcomes}
+> - No significant discoveries + no critical path → \`/aped-story\` to start epic {N+1}'s first story
+> - Critical path items → address them in order, then \`/aped-story\`
+> - Significant discoveries → \`/aped-course\` to formally pivot OR re-run \`/aped-epics\` to update the epic plan"
+
+**Do NOT auto-chain.** The user decides the next move.
+
+## Example
+
+User: "retro on epic 1"
+
+1. Setup: epic 1 found in state.yaml, all 5 stories done
+2. Phase 1: dispatch Mia + Leo + Ava in parallel
+   - Mia: 3 stories had review rounds >3, all flagging unclear error handling
+   - Leo: velocity trend improved story 3 onward after helper extraction
+   - Ava: no prior retro (first epic)
+3. Phase 2: epic 2 exists, depends on auth middleware from epic 1
+4. Phase 3: user reflects on what went well/didn't
+5. Phase 4: 4 action items (error handling convention, review checklist, helper library, TDD gate tweak)
+6. Phase 5: no significant discoveries
+7. Phase 6: readiness assessment — all green except "deployment not yet scheduled"
+8. Phase 7: retro file written, lessons appended, state.yaml updated
+9. Next step: "Schedule the deploy, then /aped-story for epic 2 first story"
+
+## Common Issues
+
+- **Partial epic (not all stories done)**: warn the user, allow partial retro but flag it in the retro file's header.
+- **Specialists return thin data**: retry with broader scope or merge inline if 2 out of 3 have enough signal.
+- **User resists negative findings**: hold the line — retros without honest findings are theater. Reframe as "the system failed you, let's fix the system".
+- **Action items without owners**: push back. Every action needs a human or a role. "The team" is not an owner.
+- **Repeated lesson from previous retro**: this is the most important finding. Flag it explicitly: "We committed to X in epic {N-1}, didn't do it, and paid for it here".
+`,
+    },
+    // ── aped-elicit ─────────────────────────────────────────────
+    {
+      path: `${a}/aped-elicit/SKILL.md`,
+      content: `---
+name: aped-elicit
+description: 'Advanced critique toolkit: socratic, first principles, pre-mortem, red team, tree of thoughts, etc. Horizontally invokable in any phase.'
+when_to_use: 'Use when user says "critique this", "stress-test", "deeper review", "socratic", "pre-mortem", "red team".'
+argument-hint: "[method-name | target-file]"
+allowed-tools: Read Write Edit Glob Grep Bash TaskCreate TaskUpdate
+license: MIT
+metadata:
+  author: yabafre
+  version: ${c.cliVersion || '1.7.1'}
+---
+
+# APED Elicit — Deep Critique Toolkit
+
+## Critical Rules
+
+- NEVER apply changes without explicit user consent (y/n per method)
+- NEVER batch multiple methods without asking — each method is a separate iteration
+- ALWAYS show the enhanced version alongside the original so the user sees what changed
+- Stay relevant — tie every critique to the specific section being reviewed
+- If the user selects 'x' (proceed), return enhanced content as final — no further methods applied
+
+## Guiding Principles
+
+### 1. Horizontal Tool, Not a Phase
+Elicit is invokable from anywhere — inside \`/aped-prd\`, \`/aped-arch\`, \`/aped-story\`, \`/aped-review\`, or standalone. It does NOT appear in the pipeline linearly.
+
+### 2. One Method at a Time
+Each method is a distinct lens. Applying two at once muddles the signal. Run them sequentially, show results, re-offer the menu.
+
+### 3. Surface the Invisible
+The value of elicitation is revealing what was implicit: unstated assumptions, missing alternatives, unexamined risks, weak reasoning. If the method didn't surface something new, try another.
+
+## Setup
+
+1. Read \`${a}/config.yaml\` — extract \`user_name\`, \`communication_language\`
+2. Determine the **target**:
+   - If user passed a file path: read that file, work on its current top-level content OR ask which section
+   - If user passed a method name (e.g., \`pre-mortem\`): skip selection, apply directly to the conversation's most recent substantive content
+   - If neither: ask "What do you want to put through elicitation?" — a file, a recent decision, a draft section
+3. Confirm the target before proceeding:
+   > "Target: {file/section/decision}. Content being critiqued: {1-line summary}. Correct?"
+
+⏸ **GATE: User confirms the target.**
+
+## Method Registry
+
+Context-aware selection. Pick 5 based on the target's characteristics:
+
+| # | Category | Method | Use For | Output Pattern |
+|---|---|---|---|---|
+| 1 | core | **Socratic Questioning** | Hidden assumptions, underexamined claims | questions → revelations → understanding |
+| 2 | core | **First Principles Analysis** | Received wisdom, conventional solutions | assumptions → truths → new approach |
+| 3 | core | **5 Whys Deep Dive** | Symptoms presented as causes | why chain → root cause → solution |
+| 4 | risk | **Pre-mortem Analysis** | Pre-launch decisions, plans with hidden failure modes | failure scenario → causes → prevention |
+| 5 | risk | **Red Team vs Blue Team** | Security, robustness, competitive threats | defense → attack → hardening |
+| 6 | risk | **Failure Mode Analysis** | Component designs, system architectures | components → failures → prevention |
+| 7 | risk | **Identify Potential Risks** | Plans and proposals | categories → risks → mitigations |
+| 8 | competitive | **Devil's Advocate Challenge** | Groupthink, weakly justified choices | assumptions → challenges → strengthening |
+| 9 | competitive | **Shark Tank Pitch** | Business claims, value propositions | pitch → challenges → refinement |
+| 10 | advanced | **Tree of Thoughts** | Multiple viable paths, branching decisions | paths → evaluation → selection |
+| 11 | advanced | **Self-Consistency Validation** | High-stakes decisions needing verification | approaches → comparison → consensus |
+| 12 | advanced | **Meta-Prompting Analysis** | The approach itself may be suboptimal | current → analysis → optimization |
+| 13 | creative | **SCAMPER** | Improving existing concepts (substitute/combine/adapt/modify/put/eliminate/reverse) | 7 lenses |
+| 14 | creative | **What If Scenarios** | Constraint relaxation, extreme exploration | scenarios → implications → insights |
+| 15 | creative | **Reverse Engineering** | Goal is clear, path is unclear | end state → steps backward → path forward |
+| 16 | research | **Comparative Analysis Matrix** | Multi-option decisions with weighted criteria | options → criteria → scores → recommendation |
+| 17 | retrospective | **Hindsight Reflection** | Imagining future selves evaluating today's choice | future view → insights → application |
+| 18 | philosophical | **Occam's Razor Application** | Overengineered solutions, unnecessary complexity | options → simplification → selection |
+| 19 | learning | **Feynman Technique** | Complex explanations that may hide gaps | complex → simple → gaps → mastery |
+
+## Smart Selection (Default Menu)
+
+Based on the target, pre-select 5 methods with diverse categories. Always bias batch 1 toward the 2 most relevant for this specific target.
+
+### Selection Heuristics
+
+- **Architectural decision** → Tree of Thoughts, Pre-mortem, First Principles, Failure Mode Analysis, Devil's Advocate
+- **Product decision / PRD** → Socratic, Pre-mortem, Shark Tank, What If, Devil's Advocate
+- **Technical design** → First Principles, Failure Mode, Tree of Thoughts, Occam's Razor, Red Team
+- **User-facing copy / PR** → Feynman, Devil's Advocate, Socratic, What If, Meta-Prompting
+- **Risk assessment / plan** → Pre-mortem, Identify Potential Risks, Red Team, Failure Mode, Hindsight
+- **Default (mixed content)** → Socratic, First Principles, Pre-mortem, Devil's Advocate, Tree of Thoughts
+
+## The Loop
+
+### Display
+
+\`\`\`
+**APED Elicitation Options**
+Target: {what's being critiqued}
+
+Choose a number (1-5), [r] reshuffle, [a] list all, or [x] proceed:
+
+1. {Method Name} — {one-line summary}
+2. {Method Name} — {one-line summary}
+3. {Method Name} — {one-line summary}
+4. {Method Name} — {one-line summary}
+5. {Method Name} — {one-line summary}
+r. Reshuffle with 5 new options
+a. List all methods
+x. Proceed / no more critique
+\`\`\`
+
+### Case Handling
+
+**1-5 (numbered selection)**
+1. Execute the method against the target content
+2. Show the enhanced / critiqued version alongside what changed
+3. Ask: "Apply these changes to the source? (y/n/other)" — HALT
+4. On \`y\`: apply changes to the file/content. On \`n\`: discard. On other: follow the user's instruction.
+5. Re-present the same 1-5,r,a,x menu for another iteration
+
+**r (reshuffle)**
+- Pick 5 new methods from different categories than the previous menu
+- Present the same menu format
+
+**a (list all)**
+- Show the full method registry in a compact table
+- Let user select by name or number
+- Execute as in case 1-5
+
+**x (proceed)**
+- Return the fully enhanced content as final
+- If invoked from another skill: signal completion back and return control
+- If standalone: write the final content to the target file if applicable, summarize what was applied
+
+**Direct feedback (user types a critique instead of a number)**
+- Apply the user's change directly, re-present the menu
+
+**Multiple numbers (e.g., "1 and 4")**
+- Execute them sequentially, show the compounding result, then re-offer the menu
+
+## Execution Guidelines
+
+- Stay relevant: every critique must tie to THE SPECIFIC CONTENT, not generic advice
+- Scale complexity to the target: a one-paragraph decision doesn't need 10 Socratic rounds
+- Identify personas: for multi-persona methods (Devil's Advocate, Shark Tank, Red Team), clearly name and separate viewpoints
+- Preserve prior enhancements: each iteration builds on the current enhanced version, not the original
+- Halt immediately when the user says "x" or expresses satisfaction — don't push more critique than wanted
+
+## Integration (invoked from another skill)
+
+When another APED skill invokes \`/aped-elicit\` mid-workflow:
+
+1. Receive the current section content as target
+2. Apply elicitation iteratively until user selects 'x'
+3. Return the final enhanced version back to the invoking skill
+4. The invoking skill continues its workflow with the enhanced content
+
+Example use from \`/aped-prd\`:
+> "Section 3 draft complete. Run \`/aped-elicit\` to stress-test before user review? (y/n)"
+> If yes: hand off to \`/aped-elicit\`, receive enhanced draft back, present to user for validation.
+
+## State Update
+
+Elicit does NOT update \`${o}/state.yaml\`. It's a horizontal tool.
+
+If elicit produced material changes to a document that feeds \`state.yaml\` phases, it's the invoking skill's responsibility to update state, not elicit's.
+
+## Next Step
+
+When 'x' is selected:
+- Standalone mode: summarize what was applied, return control to user
+- Integration mode: return enhanced content to invoking skill
+
+**Do NOT chain to another skill automatically.**
+
+## Example (standalone)
+
+User: "/aped-elicit ${o}/architecture.md"
+
+1. Setup: confirm target = \`${o}/architecture.md\`, section = "Database choice (Postgres vs Foundation)"
+2. Smart selection: First Principles, Tree of Thoughts, Pre-mortem, Occam's Razor, Shark Tank
+3. User picks 3 (Pre-mortem): "It's 1 year from now and we regret the DB choice — why?"
+4. Generate 4 failure scenarios tied to the specific trade-offs in the arch doc
+5. Show diff: added "Failure Scenarios" subsection with mitigations
+6. User: "y" — applied to the file
+7. Re-present menu: user picks 2 (Tree of Thoughts)
+8. Explore 3 branching paths (Postgres-only, FoundationDB-only, hybrid) with pros/cons
+9. Show diff: rewrote the "Decision" paragraph to acknowledge all 3 paths and why hybrid won
+10. User: "y" then "x"
+11. Summary: "Applied Pre-mortem + Tree of Thoughts to ${o}/architecture.md. 2 subsections enhanced."
+
+## Example (integrated from /aped-prd)
+
+\`/aped-prd\` Section 4 is complete. Auto-prompt: "Run \`/aped-elicit\` on this section? (y/n)"
+
+User: y
+
+Elicit runs: Socratic → user picks → "What if the constraint you listed as 'must-have' is actually a 'should-have'?" exposes a hidden assumption.
+
+User iterates: Pre-mortem → finds 2 new risks → added to the PRD.
+
+User: x → enhanced content returns to \`/aped-prd\`, which presents to user for final validation before writing to \`${o}/prd.md\`.
+
+## Common Issues
+
+- **User overwhelmed by options**: pick 2 methods and start — less menu friction
+- **Method produces thin critique**: try another method. Not every lens works on every content.
+- **Method loops without new insight**: signal to move on — don't pad
+- **User applies changes then changes mind**: support undo by showing the diff clearly before apply, and keep a 1-step history of the previous version
+- **User wants a method not in the registry**: ask them to describe it, run it ad-hoc, add it to the menu for the session
 `,
     },
   ];

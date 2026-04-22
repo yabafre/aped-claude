@@ -432,6 +432,7 @@ export async function run() {
       `  • ${config.apedDir}/ ${color.dim('(engine)')}`,
       `  • ${config.outputDir}/ ${color.dim('(artifacts — brief, PRD, epics, stories, state.yaml)')}`,
       `  • ${config.commandsDir}/aped-*.md ${color.dim('(slash commands)')}`,
+      `  • .claude/skills/aped-*, .opencode/skills/aped-*, .agents/skills/aped-*, .codex/skills/aped-* ${color.dim('(skill symlinks)')}`,
     ].join('\n'));
     p.log.info(color.dim('A compressed backup will be written to .aped-backups/ before deletion.'));
     const confirmFresh = await p.confirm({ message: 'Confirm fresh install (destructive)?', initialValue: false });
@@ -487,6 +488,7 @@ async function runScaffold(config, mode) {
         title: 'Removing existing installation...',
         async task() {
           const { rmSync, readdirSync } = await import('node:fs');
+          const { DEFAULT_SKILL_SYMLINK_TARGETS } = await import('./templates/symlinks.js');
           const cwd = process.cwd();
           try { rmSync(join(cwd, config.apedDir), { recursive: true, force: true }); } catch { /* ok */ }
           try { rmSync(join(cwd, config.outputDir), { recursive: true, force: true }); } catch { /* ok */ }
@@ -496,6 +498,14 @@ async function runScaffold(config, mode) {
               if (f.startsWith('aped-')) rmSync(join(cmdDir, f), { force: true });
             }
           } catch { /* ok */ }
+          for (const targetBase of DEFAULT_SKILL_SYMLINK_TARGETS) {
+            try {
+              const dir = join(cwd, targetBase);
+              for (const f of readdirSync(dir)) {
+                if (f.startsWith('aped-')) rmSync(join(dir, f), { force: true, recursive: true });
+              }
+            } catch { /* dir may not exist */ }
+          }
           await sleep(300);
           return 'Previous installation removed';
         },
@@ -550,7 +560,7 @@ async function backupExisting(config) {
 
 async function scaffoldWithProgress(config, mode) {
   const { getTemplates } = await import('./templates/index.js');
-  const { mkdirSync, writeFileSync, chmodSync, existsSync } = await import('node:fs');
+  const { mkdirSync, writeFileSync, chmodSync, existsSync, symlinkSync, lstatSync, readlinkSync, rmSync } = await import('node:fs');
   const { join, dirname } = await import('node:path');
 
   const cwd = process.cwd();
@@ -561,6 +571,7 @@ async function scaffoldWithProgress(config, mode) {
     { key: 'templates',  label: 'Templates',         items: [] },
     { key: 'commands',   label: 'Slash Commands',     items: [] },
     { key: 'skills',     label: 'Skills',             items: [] },
+    { key: 'symlinks',   label: 'Skill Symlinks',     items: [] },
     { key: 'scripts',    label: 'Validation Scripts', items: [] },
     { key: 'references', label: 'Reference Docs',    items: [] },
     { key: 'hooks',      label: 'Hooks & Settings',  items: [] },
@@ -569,6 +580,7 @@ async function scaffoldWithProgress(config, mode) {
   const groupMap = Object.fromEntries(groups.map((g) => [g.key, g]));
 
   for (const tpl of templates) {
+    if (tpl.type === 'symlink')                                { groupMap.symlinks.items.push(tpl); continue; }
     const pt = tpl.path;
     if (pt.includes('/hooks/') || pt.includes('settings'))     groupMap.hooks.items.push(tpl);
     else if (pt.includes('/scripts/'))                         groupMap.scripts.items.push(tpl);
@@ -601,13 +613,36 @@ async function scaffoldWithProgress(config, mode) {
         for (let i = 0; i < group.items.length; i++) {
           const tpl = group.items[i];
           const fullPath = join(cwd, tpl.path);
-          const fileExists = existsSync(fullPath);
           const fileName = tpl.path.split('/').pop();
 
           message(`${group.label} ${color.dim(`(${i + 1}/${group.items.length})`)} ${color.dim(fileName)}`);
 
           mkdirSync(dirname(fullPath), { recursive: true });
 
+          if (tpl.type === 'symlink') {
+            let existingLink = null;
+            try { existingLink = lstatSync(fullPath); } catch { /* absent */ }
+            if (existingLink && existingLink.isSymbolicLink() && readlinkSync(fullPath) === tpl.target) {
+              groupSkipped++;
+              skipped++;
+            } else if (existingLink && existingLink.isSymbolicLink()) {
+              rmSync(fullPath, { force: true });
+              symlinkSync(tpl.target, fullPath, 'dir');
+              groupUpdated++;
+              updated++;
+            } else if (existingLink) {
+              groupSkipped++;
+              skipped++;
+            } else {
+              symlinkSync(tpl.target, fullPath, 'dir');
+              groupCreated++;
+              created++;
+            }
+            await sleep(10);
+            continue;
+          }
+
+          const fileExists = existsSync(fullPath);
           if (!fileExists) {
             writeFileSync(fullPath, tpl.content, 'utf-8');
             if (tpl.executable) chmodSync(fullPath, 0o755);
@@ -722,6 +757,7 @@ function printDone(created, updated, skipped, mode) {
   );
 
   p.outro(color.dim('Guardrail hook active — pipeline coherence enforced'));
+  process.stdout.write('\n\n');
 }
 
 export { UserError };
