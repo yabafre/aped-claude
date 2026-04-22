@@ -1,7 +1,20 @@
 name: Release
 
-# Manual trigger only — npm 2FA OTP must be entered locally for the actual publish.
-# This workflow creates a GitHub release from a tag and verifies the published tarball.
+# Creates a GitHub release from a tag and, if an NPM_TOKEN secret is configured,
+# publishes the package to npm with provenance attestation.
+#
+# Two publish modes:
+#
+#   1. Automated with provenance (recommended for OSS trust):
+#      - Store an npm automation token as the NPM_TOKEN repository secret.
+#        (npm → Access Tokens → Generate New Token → "Automation"; this type
+#        bypasses 2FA OTP, which is required for CI publishing.)
+#      - `publish_to_npm: true` (default) will run `npm publish --provenance`.
+#
+#   2. Local publish with 2FA OTP:
+#      - Leave NPM_TOKEN unset and set `publish_to_npm: false` on dispatch.
+#      - Run `npm publish` from your workstation after the workflow finishes.
+#      - Provenance is not available in this mode.
 on:
   workflow_dispatch:
     inputs:
@@ -9,6 +22,11 @@ on:
         description: Tag to release (e.g. v3.5.0)
         required: true
         type: string
+      publish_to_npm:
+        description: Publish to npm with provenance (requires NPM_TOKEN secret)
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -17,6 +35,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,6 +67,20 @@ jobs:
           echo "body<<EOF" >> "$GITHUB_OUTPUT"
           cat release-notes.md >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to npm with provenance
+        if: ${{ inputs.publish_to_npm && env.NPM_TOKEN != '' }}
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Note — npm publish skipped
+        if: ${{ !inputs.publish_to_npm || env.NPM_TOKEN == '' }}
+        run: |
+          echo "::notice::npm publish was skipped."
+          echo "  publish_to_npm input: ${{ inputs.publish_to_npm }}"
+          echo "  NPM_TOKEN secret set:  ${{ env.NPM_TOKEN != '' }}"
+          echo "Run 'npm publish' locally (with OTP) if you need to publish without provenance."
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2

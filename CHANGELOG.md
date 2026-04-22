@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.1] - 2026-04-22
+
+### Added
+- **Security policy.** Added `SECURITY.md` with the disclosure policy, supported versions, hardening notes, and the current dev-only `esbuild` advisory context.
+- **Troubleshooting guide.** Added `docs/TROUBLESHOOTING.md` covering the most common install, upgrade, hook, symlink, and color-output problems.
+- **Automated test coverage.** Added 41 unit tests for argument parsing, path validation, semver comparison, settings merge behavior, and existing-install detection.
+- **Scaffold end-to-end CI.** Added `.github/scripts/scaffold-e2e.sh` and wired it into CI, including a dedicated macOS scaffold job.
+
+### Changed
+- **Skill templates now live as Markdown files.** Extracted the scaffolded APED skills into `src/templates/skills/*.md` and replaced the giant inline JS blob with a small loader module.
+- **Release workflow supports npm provenance.** The manual release workflow now publishes with `npm publish --provenance --access public` when `NPM_TOKEN` is configured, and otherwise skips publish cleanly.
+- **Prepublish now runs tests.** `prepublishOnly` now runs syntax checks, smoke tests, and the Vitest suite before publish.
+- **Package contents updated.** The npm package now explicitly includes the extracted skill templates and `SECURITY.md`.
+
 ## [3.7.0] - 2026-04-22
 
 ### Added
@@ -286,7 +300,11 @@ Live testing surfaced (1) no way to see live worktree status because workmux was
 ### Changed
 - Zero auto-chaining between phases: every skill ends on "Run `/aped-X` when ready" — the user controls the pace.
 
-[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.5.2...HEAD
+[Unreleased]: https://github.com/yabafre/aped-claude/compare/v3.7.1...HEAD
+[3.7.1]: https://github.com/yabafre/aped-claude/compare/v3.7.0...v3.7.1
+[3.7.0]: https://github.com/yabafre/aped-claude/compare/v3.6.0...v3.7.0
+[3.6.0]: https://github.com/yabafre/aped-claude/compare/v3.5.9...v3.6.0
+[3.5.9]: https://github.com/yabafre/aped-claude/compare/v3.5.8...v3.5.9
 [3.5.2]: https://github.com/yabafre/aped-claude/compare/v3.5.1...v3.5.2
 [3.5.1]: https://github.com/yabafre/aped-claude/compare/v3.5.0...v3.5.1
 [3.5.0]: https://github.com/yabafre/aped-claude/compare/v3.4.4...v3.5.0

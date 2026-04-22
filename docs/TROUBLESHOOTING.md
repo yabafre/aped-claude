@@ -20,7 +20,7 @@ npx -y aped-method@latest
 npm cache clean --force
 ```
 
-You can also pin the exact version: `npx aped-method@3.7.0`.
+You can also pin the exact version: `npx aped-method@3.7.1`.
 
 ---
 
