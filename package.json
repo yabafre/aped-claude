@@ -1,6 +1,6 @@
 {
   "name": "aped-method",
-  "version": "3.7.3",
+  "version": "3.7.4",
   "type": "module",
   "description": "Scaffold the APED pipeline (Analyze, PRD, UX, Arch, Epics, Story, Dev, Review) into any Claude Code project",
   "bin": {
@@ -49,7 +49,7 @@
   },
   "author": "yabafre",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "scripts": {
     "smoke": "node bin/aped-method.js --version && node bin/aped-method.js --help > /dev/null && node scripts/smoke-pack.js",

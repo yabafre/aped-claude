@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.4] - 2026-04-22
+
+### Changed
+- **`engines.node` bumped from `>=18` to `>=20`.** `@clack/core@1.2` — the transitive dep behind `@clack/prompts` — imports `styleText` from `node:util`, which only exists in Node 20+. Node 18 CLI startup fails with `SyntaxError: The requested module 'node:util' does not provide an export named 'styleText'`. Node 18 has been EOL since 2025-04 so the practical impact is small; users still on 18 should upgrade to 20 LTS or 22.
+- **CI matrix narrowed to `[20, 22]`.** The Node 18 slot only ever "passed" because nothing in our own code broke on it — the CLI fails at the first `import` of `@clack/prompts`, which the existing smoke covers now that `smoke:pack` was added in 3.7.3.
+
+### Why
+3.7.3 added `smoke:pack` and re-ran CI for the first time on the refreshed workflow file. CI surfaced that Node 18 has been silently broken for a while because its job only ran `--version` / `--help` against the local checkout, which behaved differently from a real installed package. The fix is to acknowledge the reality instead of papering over it.
+
 ## [3.7.3] - 2026-04-22
 
 ### Fixed
