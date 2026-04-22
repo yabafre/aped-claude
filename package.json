@@ -20,7 +20,8 @@
     "src/templates/skills/*.md",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "SECURITY.md"
   ],
   "keywords": [
     "claude-code",

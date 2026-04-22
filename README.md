@@ -371,6 +371,14 @@ Flags honour `NO_COLOR` / `FORCE_COLOR`. Exit codes are meaningful: `0` success,
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full version history.
 
+## Troubleshooting
+
+Common issues (symlinks not appearing, `--update` overwrote a file, guardrail blocking prompts, etc.) are covered in [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md).
+
+## Security
+
+Threat model, hardening already in place, and how to report a vulnerability: see [SECURITY.md](./SECURITY.md). Use GitHub Security Advisories for private reports; do not file public issues for security problems.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).
