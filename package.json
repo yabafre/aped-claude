@@ -17,6 +17,7 @@
     "src/scaffold.js",
     "src/templates/*.js",
     "src/templates/data/*.csv",
+    "src/templates/skills/*.md",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
@@ -46,7 +47,9 @@
   "scripts": {
     "smoke": "node bin/aped-method.js --version && node bin/aped-method.js --help > /dev/null",
     "check": "node --check bin/aped-method.js && node --check src/index.js && node --check src/scaffold.js",
-    "prepublishOnly": "npm run check && npm run smoke"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run check && npm run smoke && npm test"
   },
   "publishConfig": {
     "access": "public"
@@ -54,5 +57,8 @@
   "dependencies": {
     "@clack/prompts": "^1.2.0",
     "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
   }
 }

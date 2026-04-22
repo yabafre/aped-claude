@@ -760,4 +760,13 @@ function printDone(created, updated, skipped, mode) {
   process.stdout.write('\n\n');
 }
 
-export { UserError };
+// Exported for unit tests. Not part of the stable public API — may be renamed
+// or moved between modules without a major version bump.
+export {
+  UserError,
+  validateSafePath,
+  semverCompare,
+  detectExisting,
+  parseArgs,
+  mergeSettings,
+};

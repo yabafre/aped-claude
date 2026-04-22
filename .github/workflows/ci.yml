@@ -8,6 +8,7 @@ on:
 
 jobs:
   check:
+    name: check (node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -32,6 +33,9 @@ jobs:
       - name: Smoke test (--version + --help)
         run: npm run smoke
 
+      - name: Unit tests
+        run: npm test
+
       - name: Guardrail generates valid bash + JSON
         run: |
           node -e "
@@ -50,12 +54,22 @@ jobs:
             });
           '
 
-      - name: Dry-run scaffold in temp dir
-        run: |
-          tmp=$(mktemp -d)
-          cd "$tmp"
-          node "$GITHUB_WORKSPACE/bin/aped-method.js" --yes --project=ci-test --author=ci
-          test -f .aped/config.yaml
-          test -f docs/aped/state.yaml
-          test -f .aped/hooks/guardrail.sh
-          test -x .aped/hooks/guardrail.sh
+      - name: Scaffold e2e (install → update → idempotent)
+        run: bash .github/scripts/scaffold-e2e.sh
+
+  scaffold-macos:
+    name: scaffold e2e (macos)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Scaffold e2e
+        run: bash .github/scripts/scaffold-e2e.sh
