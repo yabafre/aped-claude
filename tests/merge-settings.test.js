@@ -109,4 +109,30 @@ describe('mergeSettings', () => {
     expect(out.endsWith('\n')).toBe(true);
     expect(out).toContain('\n  '); // pretty-printed indentation
   });
+
+  it('merges allow permissions additively', () => {
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        permissions: { allow: ['Bash(git:*)'] },
+      }),
+      'utf-8',
+    );
+    const incoming = JSON.stringify({
+      permissions: { allow: ['Bash(node:*)'] },
+    });
+    mergeSettings(settingsPath, incoming);
+    const merged = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+    expect(merged.permissions.allow).toEqual(['Bash(git:*)', 'Bash(node:*)']);
+  });
+
+  it('adds statusLine when it is missing', () => {
+    writeFileSync(settingsPath, JSON.stringify({ hooks: {} }), 'utf-8');
+    const incoming = JSON.stringify({
+      statusLine: { type: 'command', command: '$CLAUDE_PROJECT_DIR/.aped/scripts/statusline.js' },
+    });
+    mergeSettings(settingsPath, incoming, { overwriteStatusLine: true });
+    const merged = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+    expect(merged.statusLine.command).toBe('$CLAUDE_PROJECT_DIR/.aped/scripts/statusline.js');
+  });
 });

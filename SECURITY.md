@@ -56,6 +56,20 @@ For context on the existing threat model:
 - **No dynamic `require`/`eval`**: the CLI does not execute user-supplied code.
 - **Scaffolder never deletes outside of `config.apedDir`, `config.outputDir`, `config.commandsDir`, and the whitelisted symlink targets** (`.claude/skills`, `.opencode/skills`, `.agents/skills`, `.codex/skills`).
 
+## What the `safe-bash` hook does and does not do
+
+APED ships an opt-in `safe-bash` hook (install via `aped-method safe-bash`) that checks Bash commands against a short regex allow/deny list before Claude Code runs them.
+
+**It is a best-effort UX safety net, not a security boundary.** It helps catch obvious typos and copy-paste accidents (`rm -rf /`, `curl | bash`, `chmod -R 777`, etc.) and asks before elevated operations (`sudo`). It cannot and does not:
+
+- parse shell syntax (aliases, heredocs, here-strings, process substitution)
+- resolve variable indirection (`CMD=$(…); $CMD`)
+- decode obfuscated payloads (base64, hex via `printf`, ROT, etc.)
+- observe runtime state (env vars, earlier commands in the same shell)
+- replace OS-level isolation (containers, seccomp, user separation)
+
+Crafted commands bypass the regex matcher in one line. The rule set in `src/bash-safety.js` and the mirrored list inside `src/templates/hooks/safe-bash.js` are deliberately narrow to keep false positives low at the cost of false negatives. If you need an adversarial defense, use a container or a dedicated user account — do not treat the hook as one.
+
 ## Supply chain
 
 - Only two runtime dependencies (`@clack/prompts`, `picocolors`). Transitive tree is audited manually before each release.

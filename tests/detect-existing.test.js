@@ -38,6 +38,7 @@ describe('detectExisting', () => {
         'document_output_language: english',
         'aped_path: .aped',
         'output_path: docs/aped',
+        'commands_path: .claude/commands',
         'aped_version: 3.7.0',
         'ticket_system: linear',
         'git_provider: github',
@@ -51,6 +52,7 @@ describe('detectExisting', () => {
       documentLang: 'english',
       apedDir: '.aped',
       outputDir: 'docs/aped',
+      commandsDir: '.claude/commands',
       ticketSystem: 'linear',
       gitProvider: 'github',
       installedVersion: '3.7.0',
@@ -92,6 +94,7 @@ describe('detectExisting', () => {
     expect(existing.authorName).toBe('');
     expect(existing.communicationLang).toBe('english');
     expect(existing.documentLang).toBe('english');
+    expect(existing.commandsDir).toBe('.claude/commands');
     expect(existing.ticketSystem).toBe('none');
     expect(existing.gitProvider).toBe('github');
     expect(existing.installedVersion).toBe('0.0.0');
@@ -116,6 +119,11 @@ describe('detectExisting', () => {
 
   it('rejects a malicious "../" output_path', () => {
     writeConfig('.aped', 'output_path: ../outside');
+    expect(() => detectExisting('.aped')).toThrow(UserError);
+  });
+
+  it('rejects a malicious absolute commands_path', () => {
+    writeConfig('.aped', 'commands_path: /tmp/commands');
     expect(() => detectExisting('.aped')).toThrow(UserError);
   });
 

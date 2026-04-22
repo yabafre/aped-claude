@@ -36,6 +36,14 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Command catalog is up to date
+        run: |
+          npm run generate:catalog
+          if ! git diff --exit-code -- docs/COMMANDS.md; then
+            echo "::error::docs/COMMANDS.md is stale. Run 'npm run generate:catalog' locally and commit the result." >&2
+            exit 1
+          fi
+
       - name: Guardrail generates valid bash + JSON
         run: |
           node -e "

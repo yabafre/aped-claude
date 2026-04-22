@@ -67,6 +67,18 @@ describe('parseArgs', () => {
     });
   });
 
+  it('parses supported subcommands as command', () => {
+    expect(parseArgs(argv('doctor'))).toEqual({
+      _unknown: [],
+      command: 'doctor',
+    });
+    expect(parseArgs(argv('statusline', '--aped=.aped'))).toEqual({
+      _unknown: [],
+      command: 'statusline',
+      aped: '.aped',
+    });
+  });
+
   it('combines multiple flags', () => {
     expect(
       parseArgs(argv('--yes', '--project=app', '--tickets=linear', '--git=github')),

@@ -1,6 +1,7 @@
 export function configFiles(c) {
   const a = c.apedDir;
   const o = c.outputDir;
+  const cmd = c.commandsDir || '.claude/commands';
   const ts = c.ticketSystem || 'none';
   const gp = c.gitProvider || 'github';
   const ver = c.cliVersion || '0.0.0';
@@ -14,6 +15,7 @@ communication_language: ${c.communicationLang}
 document_output_language: ${c.documentLang}
 aped_path: ${a}
 output_path: ${o}
+commands_path: ${cmd}
 aped_version: ${ver}
 
 # Integrations

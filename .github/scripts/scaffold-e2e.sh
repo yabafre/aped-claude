@@ -122,4 +122,56 @@ test -f .aped/config.yaml
 test -f docs/aped/state.yaml
 echo "::endgroup::"
 
+echo "::group::Phase 9 — doctor passes on a healthy scaffold"
+node "$BIN" doctor
+doctor_exit=$?
+if (( doctor_exit != 0 )); then
+  echo "::error::doctor exited $doctor_exit on a fresh scaffold" >&2
+  exit 1
+fi
+echo "::endgroup::"
+
+echo "::group::Phase 10 — symlink repair recreates a broken link"
+# Pick the first aped-* symlink under .claude/skills, delete it, then repair.
+broken_link="$(find .claude/skills -maxdepth 1 -name 'aped-*' -print -quit 2>/dev/null || true)"
+if [[ -n "$broken_link" && -L "$broken_link" ]]; then
+  rm "$broken_link"
+  test ! -e "$broken_link"
+  node "$BIN" symlink
+  if [[ ! -L "$broken_link" ]]; then
+    echo "::error::symlink repair did not recreate $broken_link" >&2
+    exit 1
+  fi
+  target="$(readlink "$broken_link")"
+  echo "  repaired: $broken_link → $target"
+else
+  echo "::warning::no symlink candidate under .claude/skills (skip test)"
+fi
+echo "::endgroup::"
+
+echo "::group::Phase 11 — optional subcommands install without errors"
+# statusline (with --yes to bypass the overwrite prompt)
+node "$BIN" statusline --yes
+test -f .aped/scripts/statusline.js  || { echo "::error::statusline.js missing";           exit 1; }
+test -x .aped/scripts/statusline.js  || { echo "::error::statusline.js not executable";    exit 1; }
+
+# safe-bash
+node "$BIN" safe-bash
+test -f .aped/hooks/safe-bash.js     || { echo "::error::safe-bash.js missing";            exit 1; }
+test -x .aped/hooks/safe-bash.js     || { echo "::error::safe-bash.js not executable";     exit 1; }
+node --check .aped/hooks/safe-bash.js
+
+# post-edit-typescript
+node "$BIN" post-edit-typescript
+test -f .aped/hooks/post-edit-typescript.js || { echo "::error::post-edit-typescript.js missing"; exit 1; }
+node --check .aped/hooks/post-edit-typescript.js
+
+# settings.local.json still parses after three merges
+node -e 'JSON.parse(require("node:fs").readFileSync(".claude/settings.local.json","utf-8"))'
+echo "::endgroup::"
+
+echo "::group::Phase 12 — doctor still passes after optional installs"
+node "$BIN" doctor
+echo "::endgroup::"
+
 echo "scaffold e2e: OK"

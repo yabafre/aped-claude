@@ -1,9 +1,10 @@
 import * as p from '@clack/prompts';
-import { existsSync, readFileSync, writeFileSync as writeFS } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync as writeFS, chmodSync, lstatSync, readlinkSync, rmSync, symlinkSync } from 'node:fs';
 import { join, dirname, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import color from 'picocolors';
-import { scaffold } from './scaffold.js';
+import { statuslineTemplates, safeBashTemplates, typeScriptQualityTemplates } from './templates/optional-features.js';
+import { runSubcommand } from './subcommands.js';
 
 // ── CLI version (read from package.json) ──
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -37,6 +38,13 @@ const GIT_OPTIONS = [
 
 const VALID_TICKET_VALUES = new Set(TICKET_OPTIONS.map((o) => o.value));
 const VALID_GIT_VALUES = new Set(GIT_OPTIONS.map((o) => o.value));
+const SUBCOMMANDS = new Set([
+  'doctor',
+  'statusline',
+  'safe-bash',
+  'symlink',
+  'post-edit-typescript',
+]);
 
 // Keys we accept from a user-edited config.yaml. Anything else is ignored silently
 // (logged in debug mode) to avoid loading attacker-controlled values.
@@ -47,6 +55,7 @@ const VALID_YAML_KEYS = new Set([
   'document_output_language',
   'aped_path',
   'output_path',
+  'commands_path',
   'aped_version',
   'ticket_system',
   'git_provider',
@@ -66,10 +75,18 @@ const VALID_ARG_KEYS = new Set([
   'git', 'gitProvider',
 ]);
 
-const HELP_TEXT = `aped-method — Scaffold the APED pipeline into any Claude Code project
+const HELP_TEXT = `aped-method — Scaffold and operate the APED pipeline in Claude Code
 
 USAGE
   aped-method [options]
+  aped-method <subcommand> [options]
+
+SUBCOMMANDS
+  doctor                  Verify that an APED scaffold is healthy
+  statusline              Install or refresh the APED Claude Code status line
+  safe-bash               Install the optional APED Bash safety hook
+  symlink                 Repair APED cross-tool skill symlinks
+  post-edit-typescript    Install the optional TypeScript post-edit quality hook
 
 OPTIONS
   --yes, -y                Non-interactive mode (use defaults or existing config)
@@ -168,6 +185,7 @@ function detectExisting(apedDir) {
 
   const apedPath = validateSafePath(existing.aped_path, 'aped_path') || apedDir;
   const outputPath = validateSafePath(existing.output_path, 'output_path') || DEFAULTS.outputDir;
+  const commandsPath = validateSafePath(existing.commands_path, 'commands_path') || DEFAULTS.commandsDir;
 
   return {
     projectName: existing.project_name || '',
@@ -176,6 +194,7 @@ function detectExisting(apedDir) {
     documentLang: existing.document_output_language || DEFAULTS.documentLang,
     apedDir: apedPath,
     outputDir: outputPath,
+    commandsDir: commandsPath,
     ticketSystem: VALID_TICKET_VALUES.has(existing.ticket_system) ? existing.ticket_system : DEFAULTS.ticketSystem,
     gitProvider: VALID_GIT_VALUES.has(existing.git_provider) ? existing.git_provider : DEFAULTS.gitProvider,
     installedVersion: existing.aped_version || '0.0.0',
@@ -187,6 +206,10 @@ function parseArgs(argv) {
   const args = { _unknown: [] };
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
+    if (!arg.startsWith('-') && !args.command && SUBCOMMANDS.has(arg)) {
+      args.command = arg;
+      continue;
+    }
     if (arg === '--yes' || arg === '-y') { args.yes = true; continue; }
     if (arg === '--update' || arg === '-u') { args.mode = 'update'; continue; }
     if (arg === '--fresh' || arg === '--force') { args.mode = 'fresh'; continue; }
@@ -221,6 +244,11 @@ export async function run() {
 
   if (args.version) {
     console.log(`aped-method v${CLI_VERSION}`);
+    return;
+  }
+
+  if (args.command) {
+    await runSubcommand(args.command, args);
     return;
   }
 
@@ -295,7 +323,7 @@ export async function run() {
       documentLang: args.docLang || args.documentLang || defaults.documentLang,
       apedDir: validateSafePath(args.aped || args.apedDir, '--aped') || defaults.apedDir || DEFAULTS.apedDir,
       outputDir: validateSafePath(args.output || args.outputDir, '--output') || defaults.outputDir || DEFAULTS.outputDir,
-      commandsDir: validateSafePath(args.commands || args.commandsDir, '--commands') || DEFAULTS.commandsDir,
+      commandsDir: validateSafePath(args.commands || args.commandsDir, '--commands') || defaults.commandsDir || DEFAULTS.commandsDir,
       ticketSystem: args.tickets || args.ticketSystem || defaults.ticketSystem || DEFAULTS.ticketSystem,
       gitProvider: args.git || args.gitProvider || defaults.gitProvider || DEFAULTS.gitProvider,
       cliVersion: CLI_VERSION,
@@ -378,8 +406,8 @@ export async function run() {
       }),
       commandsDir: () => p.text({
         message: 'Commands dir',
-        placeholder: DEFAULTS.commandsDir,
-        initialValue: DEFAULTS.commandsDir,
+        placeholder: defaults.commandsDir || DEFAULTS.commandsDir,
+        initialValue: defaults.commandsDir || DEFAULTS.commandsDir,
         validate: (v) => pathPromptValidator(v, 'Commands dir'),
       }),
       ticketSystem: () => p.select({
@@ -564,7 +592,10 @@ async function scaffoldWithProgress(config, mode) {
   const { join, dirname } = await import('node:path');
 
   const cwd = process.cwd();
-  const templates = getTemplates(config);
+  const templates = [
+    ...getTemplates(config),
+    ...getInstalledOptionalTemplates(config, cwd),
+  ];
 
   const groups = [
     { key: 'config',     label: 'Config & State',    items: [] },
@@ -689,7 +720,25 @@ async function scaffoldWithProgress(config, mode) {
   return { created, updated, skipped };
 }
 
-function mergeSettings(filePath, newContent) {
+function getInstalledOptionalTemplates(config, cwd = process.cwd()) {
+  const templates = [];
+  const settingsPath = join(cwd, '.claude/settings.local.json');
+  const settingsContent = existsSync(settingsPath) ? readFileSync(settingsPath, 'utf-8') : '';
+
+  if (existsSync(join(cwd, config.apedDir, 'scripts', 'statusline.js')) || settingsContent.includes('/scripts/statusline.js')) {
+    templates.push(...statuslineTemplates(config));
+  }
+  if (existsSync(join(cwd, config.apedDir, 'hooks', 'safe-bash.js')) || settingsContent.includes('/hooks/safe-bash.js')) {
+    templates.push(...safeBashTemplates(config));
+  }
+  if (existsSync(join(cwd, config.apedDir, 'hooks', 'post-edit-typescript.js')) || settingsContent.includes('/hooks/post-edit-typescript.js')) {
+    templates.push(...typeScriptQualityTemplates(config));
+  }
+
+  return templates;
+}
+
+function mergeSettings(filePath, newContent, options = {}) {
   try {
     const existing = JSON.parse(readFileSync(filePath, 'utf-8'));
     const incoming = JSON.parse(newContent);
@@ -712,6 +761,27 @@ function mergeSettings(filePath, newContent) {
             }
           }
         }
+      }
+    }
+
+    if (incoming.permissions?.allow) {
+      const allow = new Set([
+        ...((existing.permissions && existing.permissions.allow) || []),
+        ...incoming.permissions.allow,
+      ]);
+      existing.permissions = {
+        ...(existing.permissions || {}),
+        allow: [...allow],
+      };
+    }
+
+    if (incoming.statusLine) {
+      const shouldOverwrite = options.overwriteStatusLine
+        || !existing.statusLine
+        || existing.statusLine.command === incoming.statusLine.command
+        || String(existing.statusLine.command || '').includes('/.aped/scripts/statusline.');
+      if (shouldOverwrite) {
+        existing.statusLine = incoming.statusLine;
       }
     }
 
@@ -760,10 +830,14 @@ function printDone(created, updated, skipped, mode) {
   process.stdout.write('\n\n');
 }
 
-// Exported for unit tests. Not part of the stable public API — may be renamed
-// or moved between modules without a major version bump.
+// Exported for unit tests AND for the subcommands module (circular import:
+// subcommands.js reads DEFAULTS / CLI_VERSION / validateSafePath / UserError /
+// mergeSettings / detectExisting via this barrel). Not part of the stable
+// public API — may be renamed or moved between modules without a major bump.
 export {
   UserError,
+  DEFAULTS,
+  CLI_VERSION,
   validateSafePath,
   semverCompare,
   detectExisting,

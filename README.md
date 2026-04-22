@@ -60,44 +60,31 @@ Once you reach the sprint phase (after `/aped-epics`), you can run several stori
 
 For the best experience, install [workmux](https://github.com/raine/workmux) (`brew install raine/workmux/workmux`) — APED detects it and will auto-create a tmux window with Claude Code pre-launched per story. Without workmux, `/aped-sprint` prints the exact `cd` + `claude` + `/aped-dev` commands to run in new terminals.
 
-## Pipeline commands (8)
+### Maintenance & optional add-ons
 
-| Command | Phase | What it produces |
-|---------|-------|-----------------|
-| `/aped-analyze` | Analyze | Product brief from 4-round guided discovery + 3 parallel research agents (Mary, Derek, Tom) |
-| `/aped-prd` | PRD | PRD with numbered FRs/NFRs, validated by script, with domain-complexity detection |
-| `/aped-ux` | UX | Live React prototype (Vite), design spec, component catalog — the **ANF framework** |
-| `/aped-arch` | Architecture | Technology decisions, implementation patterns, project structure (5 phases). High-stakes choices (DB, auth, API, frontend, infra) dispatch the **Architecture Council** — 3-4 specialist subagents in parallel (Winston, Lena, Raj, Nina, Maya) |
-| `/aped-epics` | Epics | Epic structure + story list with FR coverage map + ticket-system seed (milestones, issues) |
-| `/aped-story` | Story | One detailed story file at a time, fetching the ticket as source of truth |
-| `/aped-dev` | Dev | TDD red-green-refactor with a 5-condition GATE (+ 6th visual GATE for frontend), optional fullstack team mode |
-| `/aped-review` | Review | Adversarial review by a coordinated agent team (Eva, Marcus, Rex + domain specialists), binary outcome: `review → done` |
+```bash
+aped-method doctor                # verify an installed scaffold
+aped-method statusline            # install the APED status line
+aped-method safe-bash             # install the optional Bash safety hook
+aped-method symlink               # repair APED skill symlinks
+aped-method post-edit-typescript  # install the optional TS quality hook
+```
 
-## Ideation, critique & retrospective (4)
+## Command catalog
 
-Four skills that sit outside the linear pipeline — ideation upstream of `/aped-analyze`, horizontal critique anywhere, retrospective after a sprint.
+APED ships 22 slash commands across the core pipeline, upstream ideation, critique, sprint operations, and maintenance flows. The detailed catalog is generated from the same `COMMAND_DEFS` source that produces the scaffolded slash commands, so it stays in sync as the product evolves.
 
-| Command | Position | What it produces |
-|---------|----------|-----------------|
-| `/aped-brainstorm` | **Upstream** | 50-100 idea session with anti-bias protocol (domain shift every 10 ideas) and 10-technique library (SCAMPER, What If, Pre-mortem, Reverse Engineering, First Principles, Random Input Stimulus, 5 Whys, Genre Mashup, Customer Support Theater, Time Traveler Council). Output at `docs/aped/brainstorm/session-{date}.md`. |
-| `/aped-prfaq` | **Upstream** | Amazon-style Working Backwards challenge in 5 stages — Ignition → Press Release → Customer FAQ → Internal FAQ → Verdict. Parallel research subagents (artifact scanner + web researcher) ground competitive claims. Output includes a PRD Distillate ready to seed `/aped-analyze`. `--headless` flag for autonomous first-draft mode. |
-| `/aped-retro` | **Post-epic** | Systemic post-mortem with 3 parallel specialists: **Mia** (Struggle Analyzer), **Leo** (Velocity & Quality Analyzer), **Ava** (Previous-Retro Auditor). Detects significant discoveries, enforces SMART action items with owners, produces a readiness assessment for the next epic. Persists to `docs/aped/retros/` and appends to `docs/aped/lessons.md`. |
-| `/aped-elicit` | **Horizontal** | 19-method critique toolkit (Socratic, First Principles, 5 Whys, Pre-mortem, Red Team, Failure Mode, Devil's Advocate, Shark Tank, Tree of Thoughts, Self-Consistency, Meta-Prompting, SCAMPER, What If, Reverse Engineering, Comparative Matrix, Hindsight, Occam's Razor, Feynman, Identify Potential Risks). Invokable standalone or from inside any APED skill mid-workflow. Iterative y/n-per-method consent. |
+See [`docs/COMMANDS.md`](./docs/COMMANDS.md) for the full generated catalog, including phase, arguments, purpose, and likely outputs.
 
-## Utility commands (10)
+## Operational commands
 
-| Command | What it does |
-|---------|-------------|
-| `/aped-sprint` | **Parallel sprint** — resolves story DAG, creates worktrees, posts `story-ready` check-ins |
-| `/aped-lead` | **Lead Dev hub** — batch-processes check-ins from Story Leaders, auto-approves safe transitions, escalates the rest, pushes the next command into each worktree |
-| `/aped-ship` | **End-of-sprint** — batch-merges all `status: done` stories in conflict-minimizing order, runs a pre-push composite review (secret scan, typecheck, lint, `db:generate`, state.yaml consistency), prints but never executes `git push` |
-| `/aped-status` | Multi-worktree dashboard — capacity, active worktrees, review queue, pending check-ins, ready-to-dispatch |
-| `/aped-course` | Correct course — scope change management with impact analysis (unlocks upstream docs while active) |
-| `/aped-context` | Brownfield analysis — generate project context from existing code |
-| `/aped-qa` | Generate E2E + integration tests from acceptance criteria |
-| `/aped-quick` | Quick fix / feature bypassing the full pipeline (with spec isolation) |
-| `/aped-check` | Checkpoint — review recent changes, highlight concerns, halt for approval |
-| `/aped-claude` | Sync APED rules into `CLAUDE.md` (smart merge — preserves your content) |
+The CLI also includes a few maintenance subcommands for installed APED projects:
+
+- `aped-method doctor` — verify the scaffold, hooks, state, commands, symlinks, and optional binaries
+- `aped-method statusline` — install an APED-aware Claude Code status line
+- `aped-method safe-bash` — install the optional Bash safety hook
+- `aped-method symlink` — repair APED cross-tool skill symlinks
+- `aped-method post-edit-typescript` — install the optional TypeScript post-edit quality hook
 
 ## Personas & teams
 
@@ -311,7 +298,7 @@ Flow: `/aped-epics` seeds milestones + issues with labels (🆕 / 🔄 / 🔁) a
 
 ## Hooks
 
-APED installs two hooks into `.claude/settings.local.json`:
+Core APED installs two hooks into `.claude/settings.local.json`:
 
 ### `guardrail.sh` — UserPromptSubmit (advisory)
 
@@ -333,6 +320,14 @@ Timeout 5s; JSON encoding prefers `jq` → `node` (no regex fallback, no context
 Matches `Write | Edit | NotebookEdit`. Denies any write into `prd.md` / `architecture.md` / `product-brief.md` / `ux/*` while any story in `state.yaml` has status `in-progress`. Only `/aped-course` can set `sprint.scope_change_active: true` to temporarily unlock; the skill is responsible for clearing the flag and invalidating epic-context caches before exit.
 
 This is what makes parallel sprint safe: several worktrees can implement on the upstream contract without risk of mid-sprint rug-pulls.
+
+### Optional hooks
+
+These are installed explicitly when you want them:
+
+- `aped-method safe-bash` adds a focused `PreToolUse` Bash validator for obviously dangerous shell commands (`rm -rf /`, `rm -rf $HOME`, `curl | bash`, disk utilities, broad `chmod -R 777`, and `sudo` confirmation). **Best-effort UX safety net, not a security boundary** — crafted commands bypass it trivially. See [SECURITY.md](./SECURITY.md) for scope and limits.
+- `aped-method post-edit-typescript` adds a `PostToolUse` hook for `Write|Edit|MultiEdit` that detects TypeScript files and runs local `prettier --write` / `eslint --fix` only when those binaries are already available in the project. Silent no-op when they are not installed.
+- `aped-method statusline` installs a Claude Code status line that renders the current APED phase, active epic / story, review queue, worktree count, and git branch from `docs/aped/state.yaml`. If a `statusLine` is already configured, the install prompts before overwriting.
 
 ## Install / Update / Fresh
 

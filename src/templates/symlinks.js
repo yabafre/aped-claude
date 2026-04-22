@@ -20,6 +20,10 @@ export const DEFAULT_SKILL_SYMLINK_TARGETS = [
 ];
 
 export function symlinks(c) {
+  return buildSkillSymlinkEntries(c);
+}
+
+export function buildSkillSymlinkEntries(c) {
   if (c.skillSymlinks === false) return [];
   if (platform() === 'win32') return [];
 
@@ -45,7 +49,7 @@ export function symlinks(c) {
   return entries;
 }
 
-function deriveSkillNames(c) {
+export function deriveSkillNames(c) {
   const pattern = new RegExp(`^${escapeRegex(c.apedDir)}/(aped-[a-z0-9-]+)/SKILL\\.md$`);
   return skills(c)
     .map((t) => {
