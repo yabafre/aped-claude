@@ -1,6 +1,6 @@
 {
   "name": "aped-method",
-  "version": "3.7.1",
+  "version": "3.7.2",
   "type": "module",
   "description": "Scaffold the APED pipeline (Analyze, PRD, UX, Arch, Epics, Story, Dev, Review) into any Claude Code project",
   "bin": {
@@ -15,8 +15,13 @@
     "bin/aped-method.js",
     "src/index.js",
     "src/scaffold.js",
+    "src/doctor.js",
+    "src/symlink-manager.js",
+    "src/bash-safety.js",
     "src/templates/*.js",
     "src/templates/data/*.csv",
+    "src/templates/hooks/*.js",
+    "src/templates/scripts/*.js",
     "src/templates/skills/*.md",
     "README.md",
     "CHANGELOG.md",
@@ -47,7 +52,8 @@
   },
   "scripts": {
     "smoke": "node bin/aped-method.js --version && node bin/aped-method.js --help > /dev/null",
-    "check": "node --check bin/aped-method.js && node --check src/index.js && node --check src/scaffold.js",
+    "check": "node --check bin/aped-method.js && node --check src/*.js && node --check src/templates/*.js && node --check src/templates/hooks/*.js && node --check src/templates/scripts/*.js && node --check scripts/generate-command-catalog.js",
+    "generate:catalog": "node scripts/generate-command-catalog.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run check && npm run smoke && npm test"

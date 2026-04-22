@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.2] - 2026-04-22
+
+### Added
+- **`aped-method doctor`** — verifies an installation (required files, hook executability, slash command count, installed skill dirs, symlink health, `settings.local.json` validity, optional binaries `jq`/`gh`/`workmux`). Exits non-zero only on required failures.
+- **`aped-method statusline`** — installs an APED-aware Claude Code status line that renders `current_phase`, active epic, active story, review queue count, worktree count, and git branch from `docs/aped/state.yaml`. Prompts before overwriting a pre-existing non-APED `statusLine` (bypass with `--yes`).
+- **`aped-method safe-bash`** — optional `PreToolUse` hook that intercepts obviously destructive shell commands (`rm -rf /`, `rm -rf $HOME`, `rm -rf ~`, `rm -rf /*`, `curl|bash` / `wget|sh` / `curl|zsh`, `dd`/`mkfs`/`fdisk` with trailing arg, `chmod -R 777`) and asks before `sudo`. **Explicitly labelled as a best-effort UX safety net, not a security boundary** (`SECURITY.md` documents the bypass surface).
+- **`aped-method symlink`** — inspects and repairs cross-tool skill symlinks (`.claude/skills`, `.opencode/skills`, `.agents/skills`, `.codex/skills`). Recreates missing/broken APED links without touching real directories.
+- **`aped-method post-edit-typescript`** — optional `PostToolUse` hook for `Write|Edit|MultiEdit` that runs local `prettier --write` and `eslint --fix` on `.ts`/`.tsx`/`.mts`/`.cts` files when the binaries are already installed. Silent no-op otherwise.
+- **`docs/COMMANDS.md`** — generated command catalog. `npm run generate:catalog` rebuilds it from `COMMAND_DEFS`; CI enforces no drift via `git diff --exit-code`.
+- **`commands_path` persisted in `config.yaml`** — survives `--update`, read back by `detectExisting`.
+- **Scaffold e2e coverage extended** — 12 phases (was 8). New phases: `doctor` pass, symlink repair of a broken link, optional subcommand install (`statusline`/`safe-bash`/`post-edit-typescript`), doctor re-pass after optional installs.
+- **Unit tests up to 63** — bash-safety bypass documentation (`eval`, base64, hex), symlink manager inspect/repair, doctor healthiness snapshot, parse-args / detect-existing / merge-settings additions.
+
+### Changed
+- **Opt-in hook scripts extracted to disk** — `src/templates/hooks/safe-bash.js`, `src/templates/hooks/post-edit-typescript.js`, and `src/templates/scripts/statusline.js` now live as standalone files with `{{APED_DIR}}` / `{{OUTPUT_DIR}}` placeholders (same pattern as skills in 3.7.1). `src/templates/optional-features.js` becomes a small loader — reviewable diffs, syntax highlighting, and `node --check` on every template.
+- **`mergeSettings` now unions `permissions.allow`** — existing entries are preserved and deduplicated against incoming ones instead of being replaced.
+- **Subcommand handlers extracted to `src/subcommands.js`** — 243 lines moved out of `src/index.js` (1048 → 846). Circular helper import (`DEFAULTS`, `CLI_VERSION`, `validateSafePath`, `UserError`, `mergeSettings`, `detectExisting`) is safe: all consumed only inside function bodies.
+- **`package.json` `files` allowlist is now explicit** — replaced the `src/*.js` glob with the five named source files. Prevents accidental publication of future internal helpers.
+- **`npm run check` covers the new template subdirectories** — `src/templates/hooks/*.js` and `src/templates/scripts/*.js` are now syntax-checked on every CI run.
+
+### Notes
+- This is the first release that actually uses `npm publish --provenance` — `NPM_TOKEN` is now configured in the release workflow.
+- No change to the primary scaffolder contract. Existing installations upgrade via `--update` without migration. All new subcommands are opt-in; nothing runs unless installed.
+
 ## [3.7.1] - 2026-04-22
 
 ### Added
