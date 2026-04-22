@@ -129,8 +129,12 @@ IN_SPRINT=false
 
 HAS_STORY_IN_REVIEW=false
 if [[ -f "\$STATE_FILE" ]]; then
-  grep -q 'status:.*\\(in-progress\\|review\\|ready-for-dev\\)' "\$STATE_FILE" 2>/dev/null && IN_SPRINT=true
-  grep -q 'status:.*review' "\$STATE_FILE" 2>/dev/null && HAS_STORY_IN_REVIEW=true
+  # Strip comment lines first — the scaffolded template documents the status
+  # lifecycle in a comment ("# Per-story status: pending → … → in-progress → …"),
+  # and we don't want those strings to trip the sprint detector.
+  STATE_BODY=\$(grep -v '^[[:space:]]*#' "\$STATE_FILE" 2>/dev/null || true)
+  printf '%s' "\$STATE_BODY" | grep -q 'status:[[:space:]]*"*\\(in-progress\\|review\\|ready-for-dev\\)"*' && IN_SPRINT=true
+  printf '%s' "\$STATE_BODY" | grep -q 'status:[[:space:]]*"*review"*' && HAS_STORY_IN_REVIEW=true
 fi
 
 # ── Rules ──────────────────────────────────────────────────────────────────

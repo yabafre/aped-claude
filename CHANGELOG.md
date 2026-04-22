@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.6] - 2026-04-22
+
+### Fixed
+- **False `SCOPE_CHANGE` warning on fresh scaffolds.** Running `/aped-analyze` (or `/aped-prd`) in a brand-new project — no brief, no PRD, no epics, `current_phase: "none"` — surfaced a phantom "Sprint is active" warning and asked the user to confirm a scope change. The scaffolded `state.yaml` template included a comment documenting the story lifecycle (`# Per-story status: pending → ready-for-dev → in-progress → …`), and the guardrail's `grep 'status:.*\(in-progress\|review\|ready-for-dev\)'` matched that comment instead of real `status: "in-progress"` YAML. Every fresh scaffold tripped the sprint detector.
+
+### Changed
+- **Guardrail strips comment lines before scanning `state.yaml`.** `grep -v '^[[:space:]]*#'` is applied first, then the sprint-status match runs against YAML body only. Pattern also tightened from `status:.*<keyword>` to `status:[[:space:]]*"*<keyword>"*` so it only matches actual YAML values (`status: "in-progress"`), not prose that happens to mention the word "status".
+- **`state.yaml` template comment reformulated** to `# Per-story status values (ordered): …` — defense in depth so existing installs without the new guardrail also stop tripping the old pattern.
+
+### Migration notes for existing installs
+No action required. The new guardrail ignores the old comment, so projects scaffolded with ≤ 3.7.5 stop emitting the phantom warning as soon as `.aped/hooks/guardrail.sh` is updated (via `aped-method --update` or a fresh install). If you prefer to also refresh the `state.yaml` comment, replace the `# Per-story status:` line in your project's `docs/aped/state.yaml` with the 3.7.6 version — cosmetic only.
+
 ## [3.7.5] - 2026-04-22
 
 ### Fixed

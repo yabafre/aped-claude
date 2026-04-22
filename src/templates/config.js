@@ -38,7 +38,7 @@ pipeline:
 # review_limit   — max reviews running concurrently (spec-teams are token-heavy)
 # active_epic    — number of the epic currently in sprint (only one at a time)
 #
-# Per-story status: pending → ready-for-dev → in-progress → review-queued → review → done
+# Per-story status values (ordered): pending → ready-for-dev → in-progress → review-queued → review → done
 # Per-story fields:
 #   ticket:       external ticket ID (Linear/Jira/GitHub/GitLab), optional
 #   worktree:     path to the git worktree hosting this story, set by /aped-sprint
