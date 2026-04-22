@@ -25,20 +25,79 @@ process.stdin.on('end', () => {
   const worktrees = countWorktrees(projectDir, summary);
   const model = data.model?.display_name || data.model?.id || 'Claude';
   const project = basename(projectDir);
+  const ctx = contextBar(data);
 
+  // Color scheme (no reuse on the same line, semantics-driven):
+  //   red           model      (identity, primary)
+  //   white         ctx        (neutral data / progress bar)
+  //   bright blue   project    (location context)
+  //   yellow        phase      (workflow progress)
+  //   magenta       epic       (grouping)
+  //   cyan          story      (active focus)
+  //   bright yellow review     (queue / attention — not an error, so not red)
+  //   bright magenta worktrees (parallel / branching work)
+  //   green/bright red git     (clean / dirty)
   const parts = [
-    color('36', '[' + model + ']'),
-    color('32', project),
+    color('31', model),
+    ctx ? color('37', 'ctx:' + ctx) : null,
+    color('94', project),
     summary.phase ? color('33', 'phase:' + summary.phase) : null,
     summary.epic ? color('35', 'epic:' + summary.epic) : null,
-    summary.story ? color('34', 'story:' + summary.story) : null,
-    summary.reviewCount > 0 ? color('31', 'review:' + summary.reviewCount) : null,
-    worktrees > 0 ? color('36', 'worktrees:' + worktrees) : null,
-    branch ? color(summary.dirty ? '31' : '32', 'git:' + branch + (summary.dirty ? '*' : '')) : null,
+    summary.story ? color('36', 'story:' + summary.story) : null,
+    summary.reviewCount > 0 ? color('93', 'review:' + summary.reviewCount) : null,
+    worktrees > 0 ? color('95', 'worktrees:' + worktrees) : null,
+    branch ? color(summary.dirty ? '91' : '32', 'git:' + branch + (summary.dirty ? '*' : '')) : null,
   ].filter(Boolean);
 
   process.stdout.write(parts.join(' | ') + '\n');
 });
+
+// Context usage bar. Reads the last assistant turn's usage from the transcript
+// (input + cache_read + cache_creation = total context used that turn) and
+// renders `[█████░░░░░] 235k/1M (23%)`. Silent on any failure — it's advisory.
+function contextBar(data) {
+  const transcriptPath = data?.transcript_path;
+  if (!transcriptPath || !existsSync(transcriptPath)) return null;
+
+  let used = 0;
+  try {
+    const lines = readFileSync(transcriptPath, 'utf8').split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const raw = lines[i].trim();
+      if (!raw) continue;
+      let entry;
+      try { entry = JSON.parse(raw); } catch { continue; }
+      const usage = entry?.message?.usage;
+      if (!usage) continue;
+      used = (usage.input_tokens || 0)
+        + (usage.cache_read_input_tokens || 0)
+        + (usage.cache_creation_input_tokens || 0);
+      break;
+    }
+  } catch { return null; }
+
+  if (used <= 0) return null;
+
+  const limit = detectContextWindow(data);
+  const pct = Math.min(used / limit, 1);
+  const width = 10;
+  const filled = Math.round(pct * width);
+  const bar = '█'.repeat(filled) + '░'.repeat(width - filled);
+  return '[' + bar + '] ' + formatTokens(used) + '/' + formatTokens(limit) + ' (' + Math.round(pct * 100) + '%)';
+}
+
+function detectContextWindow(data) {
+  const id = (data?.model?.id || '').toLowerCase();
+  const name = (data?.model?.display_name || '').toLowerCase();
+  if (id.includes('[1m]') || name.includes('1m context') || name.includes('1m ')) return 1_000_000;
+  return 200_000;
+}
+
+function formatTokens(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, '') + 'M';
+  if (n >= 1_000) return Math.round(n / 1_000) + 'k';
+  return String(n);
+}
 
 function summarizeState(statePath) {
   if (!existsSync(statePath)) {

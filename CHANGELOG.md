@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.7] - 2026-04-22
+
+### Added
+- **Context-window progress bar in the APED statusline.** The optional statusline now renders `ctx:[█░░░░░░░░░] 126k/1M (13%)` right after the model segment. Reads the last assistant turn's usage from `$transcript_path` (`input_tokens + cache_read_input_tokens + cache_creation_input_tokens` = total context consumed at that turn) and renders a 10-block bar plus absolute + percentage readout. Auto-detects 1M-context models via `[1m]` in `model.id` or "1M context" in `display_name`, otherwise assumes a 200k window. Silent on any missing/malformed transcript — it's advisory, never blocks the line.
+
+### Changed
+- **Statusline color palette retuned.** No color is reused on the same line, and each segment's hue hints at its role: model → red (identity anchor), ctx → white (neutral data), project → bright blue, phase → yellow, epic → magenta, story → cyan, review → bright yellow (attention, not error), worktrees → bright magenta, git → green clean / bright red dirty. Brackets around the model name dropped; the red color carries the identity role on its own.
+
+### Migration notes for existing installs
+Re-run `aped-method statusline` (or `npx aped-method@3.7.7 statusline`) to refresh `.aped/scripts/statusline.js`. No other APED artifacts change.
+
 ## [3.7.6] - 2026-04-22
 
 ### Fixed
