@@ -24,9 +24,10 @@ You are the **Lead Dev**. Story Leaders running in worktrees post check-ins at e
 
 1. Verify you are in the main project root: `ls {{APED_DIR}}/WORKTREE` must fail. If it succeeds, HALT.
 2. Read `{{APED_DIR}}/config.yaml` — extract `ticket_system`, `git_provider`.
-3. Read `{{OUTPUT_DIR}}/state.yaml` — load `sprint.stories` (DAG, worktrees, statuses).
-4. Run `bash {{APED_DIR}}/scripts/checkin.sh poll --format json` — this is the list of pending check-ins.
-5. If empty: report "No pending check-ins." and STOP.
+3. **Validate state integrity:** run `bash {{APED_DIR}}/scripts/validate-state.sh`. Non-zero → HALT with the reported error and tell the user to inspect state.yaml (backup at `{{APED_DIR}}/state.yaml.backup` if needed). Never auto-mutate state.yaml when validation fails.
+4. Read `{{OUTPUT_DIR}}/state.yaml` — load `sprint.stories` (DAG, worktrees, statuses).
+5. Run `bash {{APED_DIR}}/scripts/checkin.sh poll --format json` — this is the list of pending check-ins.
+6. If empty: report "No pending check-ins." and STOP.
 
 ## Auto-Approve Criteria (hard, programmatic)
 

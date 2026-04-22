@@ -24,10 +24,11 @@ metadata:
 
 1. Verify you are in the main project root: `ls {{APED_DIR}}/WORKTREE` must fail. If it exists, tell the user "You're inside a worktree. Switch to the main project to dispatch."
 2. Read `{{APED_DIR}}/config.yaml` — extract `ticket_system`, `git_provider`, paths.
-3. Read `{{OUTPUT_DIR}}/state.yaml` — must have `current_phase: "sprint"` and `sprint.stories` populated by `/aped-epics`.
-4. Read `{{OUTPUT_DIR}}/epics.md` — for the DAG and story metadata.
-5. If `sprint.active_epic` is `null`: ask the user which epic to start. Write it to state.yaml.
-6. **Detect workmux + multiplexer** (preferred path):
+3. **Validate state integrity:** run `bash {{APED_DIR}}/scripts/validate-state.sh`. Exit code 0 = proceed; non-zero = HALT and show the user the reported error (missing file, bad YAML, or invalid status value). Do NOT attempt to repair state.yaml automatically — tell the user to inspect and fix, or restore from `{{APED_DIR}}/state.yaml.backup` if present.
+4. Read `{{OUTPUT_DIR}}/state.yaml` — must have `current_phase: "sprint"` and `sprint.stories` populated by `/aped-epics`.
+5. Read `{{OUTPUT_DIR}}/epics.md` — for the DAG and story metadata.
+6. If `sprint.active_epic` is `null`: ask the user which epic to start. Write it to state.yaml.
+7. **Detect workmux + multiplexer** (preferred path):
    - `command -v workmux >/dev/null` → workmux binary present.
    - `command -v tmux >/dev/null || command -v wezterm >/dev/null` → a multiplexer exists.
    - **Apply the WezTerm PATH fix automatically** — workmux shells out to the `wezterm` CLI. If `command -v wezterm` fails but `$WEZTERM_EXECUTABLE_DIR` is set, run `export PATH="$WEZTERM_EXECUTABLE_DIR:$PATH"` in the skill's shell **before any workmux invocation**, and tell the user once: "Add `[[ -n \"\$WEZTERM_EXECUTABLE_DIR\" ]] && export PATH=\"\$WEZTERM_EXECUTABLE_DIR:\$PATH\"` to your `~/.zshrc` so workmux finds the CLI in every new shell." Don't just mention it — export it here so dispatch works in this session.

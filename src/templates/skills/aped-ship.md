@@ -26,9 +26,10 @@ The end-of-sprint counterpart to `/aped-sprint`. Where `/aped-sprint` fans out i
 1. Verify you are in the main project root: `ls {{APED_DIR}}/WORKTREE` must fail.
 2. Verify branch: `git symbolic-ref --short HEAD` must return `main` (or the configured base branch if the project uses a different name — read `{{APED_DIR}}/config.yaml` for `base_branch` if present).
 3. Verify clean tree: `git status --porcelain` must be empty. If not, HALT and tell the user to commit/stash first.
-4. Read `{{OUTPUT_DIR}}/state.yaml`, `{{APED_DIR}}/config.yaml`.
-5. Detect workmux + WezTerm PATH like `/aped-sprint` Setup step 6 (reuse the same rules; export PATH if needed).
-6. Fetch remote to compute accurate "ahead" count: `git fetch origin --quiet`.
+4. **Validate state integrity:** run `bash {{APED_DIR}}/scripts/validate-state.sh`. Non-zero → HALT with the reported error. `/aped-ship` must never merge from a state file of unknown structure — it's the last checkpoint before pushing to main.
+5. Read `{{OUTPUT_DIR}}/state.yaml`, `{{APED_DIR}}/config.yaml`.
+6. Detect workmux + WezTerm PATH like `/aped-sprint` Setup step 7 (reuse the same rules; export PATH if needed).
+7. Fetch remote to compute accurate "ahead" count: `git fetch origin --quiet`.
 
 ## Discovery
 

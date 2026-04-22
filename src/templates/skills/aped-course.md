@@ -16,9 +16,11 @@ Use when requirements change, priorities shift, or the current approach needs re
 ## Setup
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config (incl. `ticket_system`, `git_provider`)
-2. Read `{{OUTPUT_DIR}}/state.yaml` — understand current pipeline state
-3. Read existing artifacts: brief, PRD, epics, stories
-4. Read `{{APED_DIR}}/aped-course/references/scope-change-guide.md` for impact matrix and process
+2. **Validate state integrity:** run `bash {{APED_DIR}}/scripts/validate-state.sh`. Non-zero → HALT with the reported error. Corrupt state makes the "scope_change_active" toggle dangerous.
+3. **Stuck-lock detection.** If `scope_change_active: true` is already set in `state.yaml` when this skill starts, a previous `/aped-course` session crashed before clearing it — every subsequent scope-change attempt would then refuse to proceed. Check how old the flag is: compute `now - stat_mtime({{OUTPUT_DIR}}/state.yaml)`. If the mtime is > 2 hours (7200s), auto-clear the stale flag with `bash {{APED_DIR}}/scripts/sync-state.sh` (command: `set-scope-change false`) and warn the user: "Stale scope_change_active cleared from a previous crashed /aped-course run (state.yaml was last touched {X}h ago). Verify no partial PRD/architecture/UX edits were left behind before starting the new scope change." If the mtime is < 2h, HALT and tell the user another scope-change session may still be active — they can either wait for it, or manually reset via `bash {{APED_DIR}}/scripts/sync-state.sh` + the `set-scope-change false` stdin command.
+4. Read `{{OUTPUT_DIR}}/state.yaml` — understand current pipeline state
+5. Read existing artifacts: brief, PRD, epics, stories
+6. Read `{{APED_DIR}}/aped-course/references/scope-change-guide.md` for impact matrix and process
 
 ## Active-Worktree Check (parallel sprint awareness)
 

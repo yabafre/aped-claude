@@ -451,51 +451,94 @@ exit 0
 # Usage: sprint-dispatch.sh <story-key> [<ticket-id>]
 #
 # Output: absolute path of the new worktree (stdout, line 1)
-# Exit: 0 on success; 1 on user error; 2 on git error.
+# Exit: 0 on success; 1 on user error; 2 on git error; 3 on concurrent dispatch.
+#
+# Concurrency: acquires a per-story mkdir lock at \${APED_DIR}/.sprint-locks/
+# to prevent two /aped-sprint sessions from racing on the same story key
+# (both calling \`git worktree add\` simultaneously and one failing cryptically).
+# Stale locks older than SPRINT_LOCK_STALE_SECONDS (default 900s = 15min —
+# worktree + initial push can be slow on large repos) are auto-reclaimed.
 
 set -euo pipefail
 
-if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <story-key> [<ticket-id>]" >&2
+SPRINT_LOCK_STALE_SECONDS=\${APED_SPRINT_LOCK_STALE_SECONDS:-900}
+SPRINT_LOCK_TIMEOUT_SECONDS=\${APED_SPRINT_LOCK_TIMEOUT_SECONDS:-30}
+
+if [[ \$# -lt 1 ]]; then
+  echo "Usage: \$0 <story-key> [<ticket-id>]" >&2
   exit 1
 fi
 
-STORY_KEY="$1"
-TICKET_ID="\${2:-$STORY_KEY}"
+STORY_KEY="\$1"
+TICKET_ID="\${2:-\$STORY_KEY}"
 
-PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-if [[ ! -d "$PROJECT_ROOT/.git" ]] && ! git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
-  echo "ERROR: $PROJECT_ROOT is not inside a git repo" >&2
+PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-\$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+if [[ ! -d "\$PROJECT_ROOT/.git" ]] && ! git -C "\$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+  echo "ERROR: \$PROJECT_ROOT is not inside a git repo" >&2
   exit 2
 fi
 
-PROJECT_NAME=$(basename "$PROJECT_ROOT")
-WORKTREE_PATH="$(dirname "$PROJECT_ROOT")/\${PROJECT_NAME}-\${TICKET_ID}"
+# ── Fleet-lock (per-story, portable mkdir) ───────────────────────────────
+SPRINT_LOCK_DIR="\$PROJECT_ROOT/${a}/.sprint-locks/\$STORY_KEY"
+mkdir -p "\$(dirname "\$SPRINT_LOCK_DIR")"
+
+mtime_age() {
+  local target="\$1" now mtime
+  now=\$(date +%s)
+  mtime=\$(stat -c %Y "\$target" 2>/dev/null || stat -f %m "\$target" 2>/dev/null || echo "\$now")
+  echo \$((now - mtime))
+}
+
+if [[ -d "\$SPRINT_LOCK_DIR" ]]; then
+  age=\$(mtime_age "\$SPRINT_LOCK_DIR")
+  if (( age > SPRINT_LOCK_STALE_SECONDS )); then
+    echo "WARN: stale dispatch lock for \$STORY_KEY (age \${age}s > \${SPRINT_LOCK_STALE_SECONDS}s) — previous dispatch likely crashed. Reclaiming." >&2
+    rm -rf "\$SPRINT_LOCK_DIR"
+  fi
+fi
+
+waited=0
+until mkdir "\$SPRINT_LOCK_DIR" 2>/dev/null; do
+  if (( waited >= SPRINT_LOCK_TIMEOUT_SECONDS * 10 )); then
+    echo "ERROR: another /aped-sprint session is dispatching \$STORY_KEY (lock: \$SPRINT_LOCK_DIR). Wait for it to finish and retry, or remove the lock if you're certain it's stale." >&2
+    exit 3
+  fi
+  sleep 0.1
+  waited=\$((waited + 1))
+done
+# Clear the lock on any exit (success, error, signal). Keep it if the whole
+# dispatch succeeded so a later replay catches the collision — no, release
+# unconditionally: a successful dispatch means the worktree now exists, and
+# the "path already exists" check below becomes the next safety net.
+trap "rm -rf '\$SPRINT_LOCK_DIR' 2>/dev/null || true" EXIT INT TERM
+
+PROJECT_NAME=\$(basename "\$PROJECT_ROOT")
+WORKTREE_PATH="\$(dirname "\$PROJECT_ROOT")/\${PROJECT_NAME}-\${TICKET_ID}"
 BRANCH_NAME="feature/\${TICKET_ID}-\${STORY_KEY}"
 
-if [[ -d "$WORKTREE_PATH" ]]; then
-  echo "ERROR: worktree path already exists: $WORKTREE_PATH" >&2
+if [[ -d "\$WORKTREE_PATH" ]]; then
+  echo "ERROR: worktree path already exists: \$WORKTREE_PATH" >&2
   exit 2
 fi
 
-cd "$PROJECT_ROOT"
+cd "\$PROJECT_ROOT"
 
-if git rev-parse --verify "$BRANCH_NAME" >/dev/null 2>&1; then
-  git worktree add "$WORKTREE_PATH" "$BRANCH_NAME" >&2
+if git rev-parse --verify "\$BRANCH_NAME" >/dev/null 2>&1; then
+  git worktree add "\$WORKTREE_PATH" "\$BRANCH_NAME" >&2
 else
-  git worktree add -b "$BRANCH_NAME" "$WORKTREE_PATH" HEAD >&2
+  git worktree add -b "\$BRANCH_NAME" "\$WORKTREE_PATH" HEAD >&2
 fi
 
-mkdir -p "$WORKTREE_PATH/${a}"
-cat > "$WORKTREE_PATH/${a}/WORKTREE" <<EOF
-story_key: $STORY_KEY
-ticket: $TICKET_ID
-branch: $BRANCH_NAME
-project_root: $PROJECT_ROOT
-created_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+mkdir -p "\$WORKTREE_PATH/${a}"
+cat > "\$WORKTREE_PATH/${a}/WORKTREE" <<EOF
+story_key: \$STORY_KEY
+ticket: \$TICKET_ID
+branch: \$BRANCH_NAME
+project_root: \$PROJECT_ROOT
+created_at: \$(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
 
-printf '%s\\n' "$WORKTREE_PATH"
+printf '%s\\n' "\$WORKTREE_PATH"
 `,
     },
     {
@@ -546,59 +589,186 @@ echo "Cleaned up $WORKTREE_PATH"
       path: `${a}/scripts/sync-state.sh`,
       executable: true,
       content: `#!/usr/bin/env bash
-# APED sync-state — take a flock on state.yaml and apply a single-line patch
-# from stdin. Intended to be called by skills that need to mutate state.yaml
-# from a worktree without racing the main session.
+# APED sync-state — atomic, backed-up mutations to state.yaml.
 #
-# Usage: echo '<yq-style patch expression>' | sync-state.sh
+# Takes a portable mkdir lock, writes via temp-file + mv (atomic on POSIX),
+# and keeps a one-deep backup at \${APED_DIR}/state.yaml.backup for disaster
+# recovery. Stale locks older than STALE_LOCK_SECONDS are auto-cleared with
+# a warning (covers the "skill crashed mid-write" case).
 #
-# The patch expression is executed as an \`awk\` or \`sed\` pipe on state.yaml
-# depending on the first token; this keeps the script dependency-free.
+# Usage: echo '<command> <args...>' | sync-state.sh
+#
 # Recognised commands:
-#   set-story-status <key> <new-status>
-#   set-story-worktree <key> <path>
-#   set-scope-change <true|false>
+#   set-scope-change       <true|false>
+#   set-story-status       <key> <new-status>
+#   set-story-worktree     <key> <path>
+#   clear-story-worktree   <key>
 #
-# Any unknown command is ignored.
+# Exit codes: 0 ok, 1 generic error, 2 stale lock cleared + state untouched,
+#             3 invalid command, 4 state.yaml missing or unreadable.
 
 set -u
 set -o pipefail
 
-PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-STATE_FILE="$PROJECT_ROOT/${o}/state.yaml"
-LOCK_FILE="$PROJECT_ROOT/${a}/.state.lock"
+STALE_LOCK_SECONDS=\${APED_STALE_LOCK_SECONDS:-300}
+LOCK_TIMEOUT_SECONDS=\${APED_LOCK_TIMEOUT_SECONDS:-5}
 
-mkdir -p "$(dirname "$LOCK_FILE")"
+PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-\$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+STATE_FILE="\$PROJECT_ROOT/${o}/state.yaml"
+LOCK_DIR="\$PROJECT_ROOT/${a}/.state.lock"
+BACKUP_FILE="\$PROJECT_ROOT/${a}/state.yaml.backup"
 
-if [[ ! -f "$STATE_FILE" ]]; then
-  echo "ERROR: state.yaml not found at $STATE_FILE" >&2
-  exit 1
+mkdir -p "\$(dirname "\$LOCK_DIR")"
+
+if [[ ! -f "\$STATE_FILE" ]]; then
+  echo "ERROR: state.yaml not found at \$STATE_FILE" >&2
+  exit 4
 fi
 
+# ── Stale-lock auto-recovery ─────────────────────────────────────────────
+# mkdir is atomic on every POSIX fs, so the lock dir is our mutex. If the
+# last holder crashed (OOM, SIGKILL, power loss), the dir persists forever.
+# We check its age via the stamp file written right after acquisition; if
+# >STALE_LOCK_SECONDS old, we assume orphan and reclaim with a warning.
+lock_age_seconds() {
+  local stamp="\$LOCK_DIR/stamp"
+  [[ -f "\$stamp" ]] || { stat_mtime "\$LOCK_DIR"; return; }
+  stat_mtime "\$stamp"
+}
+
+stat_mtime() {
+  local target="\$1"
+  local now mtime
+  now=\$(date +%s)
+  # Linux: stat -c; macOS/BSD: stat -f
+  mtime=\$(stat -c %Y "\$target" 2>/dev/null || stat -f %m "\$target" 2>/dev/null || echo "\$now")
+  echo \$((now - mtime))
+}
+
+reclaim_stale_lock_if_any() {
+  [[ -d "\$LOCK_DIR" ]] || return 0
+  local age
+  age=\$(lock_age_seconds)
+  if (( age > STALE_LOCK_SECONDS )); then
+    echo "WARN: stale lock \$LOCK_DIR (age \${age}s > \${STALE_LOCK_SECONDS}s) — the previous sync-state run likely crashed. Reclaiming. Verify state.yaml integrity." >&2
+    rm -rf "\$LOCK_DIR"
+  fi
+}
+
+acquire_lock() {
+  local waited=0
+  reclaim_stale_lock_if_any
+  until mkdir "\$LOCK_DIR" 2>/dev/null; do
+    (( waited >= LOCK_TIMEOUT_SECONDS * 10 )) && {
+      echo "ERROR: could not acquire \$LOCK_DIR within \${LOCK_TIMEOUT_SECONDS}s. Another sync-state may be running. If you believe it is stuck, remove \$LOCK_DIR manually." >&2
+      return 1
+    }
+    sleep 0.1
+    waited=\$((waited + 1))
+  done
+  date +%s > "\$LOCK_DIR/stamp"
+  # shellcheck disable=SC2064
+  trap "rm -rf '\$LOCK_DIR' 2>/dev/null || true" EXIT INT TERM
+}
+
+# ── Atomic write + backup ────────────────────────────────────────────────
+# All mutations flow through write_atomic: snapshot the current file to
+# BACKUP_FILE, write the new content to a .tmp sibling, then rename. mv
+# within the same filesystem is atomic on POSIX — a crash mid-write leaves
+# either the old state (if before rename) or the new state (if after), but
+# never a truncated file. BACKUP_FILE is the one-deep safety net: doctor
+# can offer to restore if the current file is unreadable.
+write_atomic() {
+  local new_content_path="\$1"
+  cp -f "\$STATE_FILE" "\$BACKUP_FILE" 2>/dev/null || true
+  mv -f "\$new_content_path" "\$STATE_FILE"
+  # Best-effort fsync via dd (POSIX tool). Silent if unavailable.
+  command -v sync >/dev/null 2>&1 && sync || true
+}
+
+# ── Commands ─────────────────────────────────────────────────────────────
+set_scope_change() {
+  local val="\${1:-false}"
+  [[ "\$val" == "true" || "\$val" == "false" ]] || { echo "ERROR: set-scope-change expects true|false (got: \$val)" >&2; return 3; }
+  local tmp="\$STATE_FILE.tmp"
+  if grep -q 'scope_change_active:' "\$STATE_FILE"; then
+    sed "s|scope_change_active:.*|scope_change_active: \$val|" "\$STATE_FILE" > "\$tmp"
+  elif grep -q '^sprint:' "\$STATE_FILE"; then
+    awk -v v="\$val" '
+      /^sprint:/ { print; print "  scope_change_active: " v; next }
+      { print }
+    ' "\$STATE_FILE" > "\$tmp"
+  else
+    # No sprint section — append one.
+    { cat "\$STATE_FILE"; echo "sprint:"; echo "  scope_change_active: \$val"; } > "\$tmp"
+  fi
+  write_atomic "\$tmp"
+}
+
+set_story_field() {
+  local key="\$1" field="\$2" value="\$3"
+  [[ -n "\$key" && -n "\$field" ]] || { echo "ERROR: missing story key or field" >&2; return 3; }
+  local tmp="\$STATE_FILE.tmp"
+  # We enter "in_story" when we see "    KEY:" at the story-header depth and
+  # leave when we hit another header at the same depth or a shallower line.
+  # Inside the story, any line matching "<indent>FIELD:" is rewritten,
+  # preserving the exact original indentation of that field (capture via awk
+  # match() and substr on RSTART of the leading spaces).
+  awk -v k="\$key" -v f="\$field" -v v="\$value" '
+    function is_story_header(s,    idx) {
+      # "    KEY:" (4+ leading spaces, the key token, trailing colon)
+      return match(s, "^[[:space:]]+[A-Za-z0-9_-]+:[[:space:]]*\$")
+    }
+    BEGIN { in_story = 0 }
+    {
+      line = \$0
+      if (match(line, "^([[:space:]]+)" k ":[[:space:]]*\$")) {
+        in_story = 1
+        print line
+        next
+      }
+      if (in_story && is_story_header(line)) {
+        in_story = 0
+      }
+      if (in_story && match(line, "^([[:space:]]+)" f ":[[:space:]]")) {
+        # RSTART=1, RLENGTH covers "<indent>field: "; grab the indent only by
+        # splitting on the field name token.
+        split(line, arr, f ":")
+        indent = arr[1]
+        print indent f ": " v
+        next
+      }
+      print line
+    }
+  ' "\$STATE_FILE" > "\$tmp"
+  write_atomic "\$tmp"
+}
+
 apply_patch() {
-  local cmd="\$1"; shift
-  case "$cmd" in
+  local cmd="\${1:-}"; shift || true
+  case "\$cmd" in
     set-scope-change)
-      local val="\${1:-false}"
-      if grep -q 'scope_change_active:' "$STATE_FILE"; then
-        sed -i.bak "s|scope_change_active:.*|scope_change_active: $val|" "$STATE_FILE"
-      else
-        # Append under sprint:
-        awk -v v="$val" '
-          /^sprint:/ { print; print "  scope_change_active: " v; next }
-          { print }
-        ' "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
-      fi
-      rm -f "$STATE_FILE.bak"
+      set_scope_change "\${1:-false}"
       ;;
-    set-story-status|set-story-worktree)
-      # Minimal impl: leave the actual YAML mutation to the skill (which has
-      # better YAML awareness than sed). This helper just holds the lock.
-      echo "NOTE: apply '$cmd' yourself under the acquired lock" >&2
+    set-story-status)
+      [[ \$# -eq 2 ]] || { echo "Usage: set-story-status <key> <status>" >&2; return 3; }
+      set_story_field "\$1" "status" "\\"\$2\\""
+      ;;
+    set-story-worktree)
+      [[ \$# -eq 2 ]] || { echo "Usage: set-story-worktree <key> <path>" >&2; return 3; }
+      set_story_field "\$1" "worktree" "\\"\$2\\""
+      ;;
+    clear-story-worktree)
+      [[ \$# -eq 1 ]] || { echo "Usage: clear-story-worktree <key>" >&2; return 3; }
+      set_story_field "\$1" "worktree" "null"
+      ;;
+    "")
+      echo "ERROR: no command on stdin" >&2
+      return 3
       ;;
     *)
-      echo "unknown command: $cmd" >&2
-      return 1
+      echo "ERROR: unknown command '\$cmd' (known: set-scope-change | set-story-status | set-story-worktree | clear-story-worktree)" >&2
+      return 3
       ;;
   esac
 }
@@ -607,14 +777,79 @@ read_cmd() {
   local line
   IFS= read -r line || return 1
   # shellcheck disable=SC2086
-  set -- $line
-  apply_patch "$@"
+  set -- \$line
+  apply_patch "\$@"
 }
 
-(
-  flock -w 10 9 || { echo "Could not acquire lock on $LOCK_FILE" >&2; exit 1; }
-  read_cmd
-) 9> "$LOCK_FILE"
+acquire_lock || exit 1
+read_cmd
+`,
+    },
+    {
+      path: `${a}/scripts/validate-state.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# APED validate-state — check that state.yaml is syntactically valid and
+# every story status is in the allowed whitelist. Skills call this at
+# Setup so a hand-edited or half-corrupted state.yaml produces a clear
+# message instead of silent grep/awk failures downstream.
+#
+# Exit codes:
+#   0 ok
+#   1 state.yaml missing
+#   2 yaml parse error (if yq is available)
+#   3 invalid status value
+
+set -u
+set -o pipefail
+
+PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-\$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+STATE_FILE="\$PROJECT_ROOT/${o}/state.yaml"
+BACKUP_FILE="\$PROJECT_ROOT/${a}/state.yaml.backup"
+
+if [[ ! -f "\$STATE_FILE" ]]; then
+  echo "ERROR: \$STATE_FILE not found." >&2
+  if [[ -f "\$BACKUP_FILE" ]]; then
+    echo "HINT: a backup exists at \$BACKUP_FILE — restore with: cp \$BACKUP_FILE \$STATE_FILE" >&2
+  fi
+  exit 1
+fi
+
+# ── YAML syntax (best-effort via yq if present) ──────────────────────────
+if command -v yq >/dev/null 2>&1; then
+  if ! yq eval 'true' "\$STATE_FILE" >/dev/null 2>&1; then
+    echo "ERROR: \$STATE_FILE is not valid YAML." >&2
+    if [[ -f "\$BACKUP_FILE" ]]; then
+      echo "HINT: backup at \$BACKUP_FILE — inspect with: diff \$STATE_FILE \$BACKUP_FILE" >&2
+    fi
+    exit 2
+  fi
+fi
+
+# ── Status whitelist check (grep-based, dependency-free) ─────────────────
+# Accepted statuses: pending | ready-for-dev | in-progress | dev-done |
+# review | review-queued | review-done | done
+VALID_STATUSES_PATTERN='(pending|ready-for-dev|in-progress|dev-done|review|review-queued|review-done|done)'
+
+# Extract all status: "xxx" lines and complain about any that don't match.
+invalid_found=0
+while IFS= read -r line; do
+  # Skip comment lines and empty status values
+  [[ "\$line" =~ ^[[:space:]]*# ]] && continue
+  val=\$(echo "\$line" | sed -E 's/.*status:[[:space:]]*"?([^"#]*)"?.*/\\1/' | sed 's/[[:space:]]*\$//')
+  [[ -z "\$val" ]] && continue
+  if ! [[ "\$val" =~ ^\${VALID_STATUSES_PATTERN}\$ ]]; then
+    echo "ERROR: invalid story status '\$val' in state.yaml" >&2
+    invalid_found=1
+  fi
+done < <(grep -E '^[[:space:]]+status:' "\$STATE_FILE" 2>/dev/null || true)
+
+if (( invalid_found )); then
+  echo "HINT: valid values are: pending, ready-for-dev, in-progress, dev-done, review, review-queued, review-done, done" >&2
+  exit 3
+fi
+
+exit 0
 `,
     },
     {

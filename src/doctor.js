@@ -1,8 +1,12 @@
-import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { deriveSkillNames } from './templates/symlinks.js';
 import { inspectSkillSymlinks, summarizeSymlinkInspection } from './symlink-manager.js';
+
+const STATE_LOCK_STALE_SECONDS = 300;     // sync-state.sh threshold
+const SPRINT_LOCK_STALE_SECONDS = 900;    // sprint-dispatch.sh threshold
+const SCOPE_CHANGE_STALE_SECONDS = 7200;  // /aped-course threshold (2h)
 
 export function inspectInstallation(config, cwd = process.cwd()) {
   const checks = [];
@@ -87,6 +91,11 @@ export function inspectInstallation(config, cwd = process.cwd()) {
         : null,
   });
 
+  checks.push(checkStateLock(cwd, config));
+  checks.push(checkSprintLocks(cwd, config));
+  checks.push(checkScopeChangeFlag(cwd, config));
+  checks.push(checkStateBackup(cwd, config));
+
   for (const binary of ['jq', 'gh', 'workmux']) {
     const exists = commandExists(binary);
     checks.push({
@@ -149,4 +158,177 @@ function commandExists(binary) {
   const tool = process.platform === 'win32' ? 'where' : 'which';
   const result = spawnSync(tool, [binary], { stdio: 'ignore' });
   return result.status === 0;
+}
+
+function mtimeAgeSeconds(path) {
+  try {
+    const stats = statSync(path);
+    return Math.max(0, Math.floor((Date.now() - stats.mtimeMs) / 1000));
+  } catch {
+    return null;
+  }
+}
+
+function checkStateLock(cwd, config) {
+  const lockDir = join(cwd, config.apedDir, '.state.lock');
+  if (!existsSync(lockDir)) {
+    return {
+      id: 'state-lock',
+      label: 'state.yaml lock',
+      required: false,
+      status: 'pass',
+      message: 'no active lock',
+      fix: null,
+    };
+  }
+  const age = mtimeAgeSeconds(lockDir);
+  const isStale = age != null && age > STATE_LOCK_STALE_SECONDS;
+  return {
+    id: 'state-lock',
+    label: 'state.yaml lock',
+    required: false,
+    status: isStale ? 'warn' : 'pass',
+    message: isStale
+      ? `stale lock detected (${age}s old, threshold ${STATE_LOCK_STALE_SECONDS}s) — previous sync-state.sh likely crashed`
+      : `lock held (${age}s old) — another sync-state.sh may be running`,
+    fix: isStale
+      ? `Remove the stale lock with: rm -rf ${join(config.apedDir, '.state.lock')}. Then verify ${join(config.outputDir, 'state.yaml')} is intact.`
+      : null,
+  };
+}
+
+function checkSprintLocks(cwd, config) {
+  const locksDir = join(cwd, config.apedDir, '.sprint-locks');
+  if (!existsSync(locksDir)) {
+    return {
+      id: 'sprint-locks',
+      label: 'sprint dispatch locks',
+      required: false,
+      status: 'pass',
+      message: 'no active dispatch locks',
+      fix: null,
+    };
+  }
+  let entries = [];
+  try { entries = readdirSync(locksDir); } catch { entries = []; }
+  if (entries.length === 0) {
+    return {
+      id: 'sprint-locks',
+      label: 'sprint dispatch locks',
+      required: false,
+      status: 'pass',
+      message: 'no active dispatch locks',
+      fix: null,
+    };
+  }
+  const stale = [];
+  for (const entry of entries) {
+    const age = mtimeAgeSeconds(join(locksDir, entry));
+    if (age != null && age > SPRINT_LOCK_STALE_SECONDS) stale.push({ entry, age });
+  }
+  if (stale.length === 0) {
+    return {
+      id: 'sprint-locks',
+      label: 'sprint dispatch locks',
+      required: false,
+      status: 'pass',
+      message: `${entries.length} active dispatch lock(s) — none stale`,
+      fix: null,
+    };
+  }
+  return {
+    id: 'sprint-locks',
+    label: 'sprint dispatch locks',
+    required: false,
+    status: 'warn',
+    message: `${stale.length} stale dispatch lock(s): ${stale.map((s) => `${s.entry} (${s.age}s)`).join(', ')}`,
+    fix: `Remove stale dispatch locks with: rm -rf ${join(config.apedDir, '.sprint-locks')}/{${stale.map((s) => s.entry).join(',')}}`,
+  };
+}
+
+function checkScopeChangeFlag(cwd, config) {
+  const statePath = join(cwd, config.outputDir, 'state.yaml');
+  if (!existsSync(statePath)) {
+    return {
+      id: 'scope-change',
+      label: 'scope_change_active flag',
+      required: false,
+      status: 'pass',
+      message: 'state.yaml not present yet',
+      fix: null,
+    };
+  }
+  let content = '';
+  try { content = readFileSync(statePath, 'utf8'); } catch {
+    return {
+      id: 'scope-change',
+      label: 'scope_change_active flag',
+      required: false,
+      status: 'fail',
+      message: `cannot read ${config.outputDir}/state.yaml`,
+      fix: 'Restore the file from backup or rerun `aped-method --update`.',
+    };
+  }
+  const match = content.match(/scope_change_active:\s*(true|false)/);
+  if (!match || match[1] !== 'true') {
+    return {
+      id: 'scope-change',
+      label: 'scope_change_active flag',
+      required: false,
+      status: 'pass',
+      message: 'clear',
+      fix: null,
+    };
+  }
+  const age = mtimeAgeSeconds(statePath);
+  const isStale = age != null && age > SCOPE_CHANGE_STALE_SECONDS;
+  return {
+    id: 'scope-change',
+    label: 'scope_change_active flag',
+    required: false,
+    status: isStale ? 'warn' : 'pass',
+    message: isStale
+      ? `set for ${Math.round(age / 3600)}h — likely stuck from a crashed /aped-course run`
+      : `set (age ${age}s) — an /aped-course session may still be active`,
+    fix: isStale
+      ? `Clear with: echo 'set-scope-change false' | bash ${join(config.apedDir, 'scripts', 'sync-state.sh')}`
+      : null,
+  };
+}
+
+function checkStateBackup(cwd, config) {
+  const backupPath = join(cwd, config.apedDir, 'state.yaml.backup');
+  const statePath = join(cwd, config.outputDir, 'state.yaml');
+  if (!existsSync(backupPath)) {
+    return {
+      id: 'state-backup',
+      label: 'state.yaml backup',
+      required: false,
+      status: 'pass',
+      message: 'no backup yet (normal until first mutation via sync-state.sh)',
+      fix: null,
+    };
+  }
+  const backupAge = mtimeAgeSeconds(backupPath);
+  const stateReadable = existsSync(statePath) && (() => {
+    try { readFileSync(statePath, 'utf8'); return true; } catch { return false; }
+  })();
+  if (!stateReadable) {
+    return {
+      id: 'state-backup',
+      label: 'state.yaml backup',
+      required: false,
+      status: 'warn',
+      message: 'current state.yaml is unreadable but a backup is present',
+      fix: `Restore from backup: cp ${join(config.apedDir, 'state.yaml.backup')} ${join(config.outputDir, 'state.yaml')}`,
+    };
+  }
+  return {
+    id: 'state-backup',
+    label: 'state.yaml backup',
+    required: false,
+    status: 'pass',
+    message: `backup present (${backupAge}s old)`,
+    fix: null,
+  };
 }
