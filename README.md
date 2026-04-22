@@ -5,7 +5,7 @@
 [![Node](https://img.shields.io/node/v/aped-method.svg?style=flat-square)](https://nodejs.org)
 [![License](https://img.shields.io/npm/l/aped-method.svg?style=flat-square)](./LICENSE)
 
-CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — 17 slash commands, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, and **parallel sprint** mode via `git worktree` with a Lead Dev coordinator.
+CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — 22 slash commands, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, **parallel sprint** mode via `git worktree` with a Lead Dev coordinator, and **cross-tool skill distribution** via symlinks so OpenCode, Codex CLI, and any `agents.md` reader see the same skills as Claude Code.
 
 ```
 npx aped-method
@@ -45,7 +45,9 @@ npx aped-method --yes \
 Then open Claude Code:
 
 ```
-/aped-analyze    # Start with guided discovery
+/aped-brainstorm   # (Optional) Diverge first — 100+ ideas before converging
+/aped-prfaq        # (Optional) Working Backwards — press-release-first discipline
+/aped-analyze      # Start with guided discovery
 ```
 
 ### Optional: parallel sprints
@@ -65,18 +67,30 @@ For the best experience, install [workmux](https://github.com/raine/workmux) (`b
 | `/aped-analyze` | Analyze | Product brief from 4-round guided discovery + 3 parallel research agents (Mary, Derek, Tom) |
 | `/aped-prd` | PRD | PRD with numbered FRs/NFRs, validated by script, with domain-complexity detection |
 | `/aped-ux` | UX | Live React prototype (Vite), design spec, component catalog — the **ANF framework** |
-| `/aped-arch` | Architecture | Technology decisions, implementation patterns, project structure (collaborative, 5 phases) |
+| `/aped-arch` | Architecture | Technology decisions, implementation patterns, project structure (5 phases). High-stakes choices (DB, auth, API, frontend, infra) dispatch the **Architecture Council** — 3-4 specialist subagents in parallel (Winston, Lena, Raj, Nina, Maya) |
 | `/aped-epics` | Epics | Epic structure + story list with FR coverage map + ticket-system seed (milestones, issues) |
 | `/aped-story` | Story | One detailed story file at a time, fetching the ticket as source of truth |
 | `/aped-dev` | Dev | TDD red-green-refactor with a 5-condition GATE (+ 6th visual GATE for frontend), optional fullstack team mode |
 | `/aped-review` | Review | Adversarial review by a coordinated agent team (Eva, Marcus, Rex + domain specialists), binary outcome: `review → done` |
 
-## Utility commands (9)
+## Ideation, critique & retrospective (4)
+
+Four skills that sit outside the linear pipeline — ideation upstream of `/aped-analyze`, horizontal critique anywhere, retrospective after a sprint.
+
+| Command | Position | What it produces |
+|---------|----------|-----------------|
+| `/aped-brainstorm` | **Upstream** | 50-100 idea session with anti-bias protocol (domain shift every 10 ideas) and 10-technique library (SCAMPER, What If, Pre-mortem, Reverse Engineering, First Principles, Random Input Stimulus, 5 Whys, Genre Mashup, Customer Support Theater, Time Traveler Council). Output at `docs/aped/brainstorm/session-{date}.md`. |
+| `/aped-prfaq` | **Upstream** | Amazon-style Working Backwards challenge in 5 stages — Ignition → Press Release → Customer FAQ → Internal FAQ → Verdict. Parallel research subagents (artifact scanner + web researcher) ground competitive claims. Output includes a PRD Distillate ready to seed `/aped-analyze`. `--headless` flag for autonomous first-draft mode. |
+| `/aped-retro` | **Post-epic** | Systemic post-mortem with 3 parallel specialists: **Mia** (Struggle Analyzer), **Leo** (Velocity & Quality Analyzer), **Ava** (Previous-Retro Auditor). Detects significant discoveries, enforces SMART action items with owners, produces a readiness assessment for the next epic. Persists to `docs/aped/retros/` and appends to `docs/aped/lessons.md`. |
+| `/aped-elicit` | **Horizontal** | 19-method critique toolkit (Socratic, First Principles, 5 Whys, Pre-mortem, Red Team, Failure Mode, Devil's Advocate, Shark Tank, Tree of Thoughts, Self-Consistency, Meta-Prompting, SCAMPER, What If, Reverse Engineering, Comparative Matrix, Hindsight, Occam's Razor, Feynman, Identify Potential Risks). Invokable standalone or from inside any APED skill mid-workflow. Iterative y/n-per-method consent. |
+
+## Utility commands (10)
 
 | Command | What it does |
 |---------|-------------|
 | `/aped-sprint` | **Parallel sprint** — resolves story DAG, creates worktrees, posts `story-ready` check-ins |
 | `/aped-lead` | **Lead Dev hub** — batch-processes check-ins from Story Leaders, auto-approves safe transitions, escalates the rest, pushes the next command into each worktree |
+| `/aped-ship` | **End-of-sprint** — batch-merges all `status: done` stories in conflict-minimizing order, runs a pre-push composite review (secret scan, typecheck, lint, `db:generate`, state.yaml consistency), prints but never executes `git push` |
 | `/aped-status` | Multi-worktree dashboard — capacity, active worktrees, review queue, pending check-ins, ready-to-dispatch |
 | `/aped-course` | Correct course — scope change management with impact analysis (unlocks upstream docs while active) |
 | `/aped-context` | Brownfield analysis — generate project context from existing code |
@@ -114,6 +128,24 @@ Triggered when a story touches ≥ 2 layers. Contract-first coordination via `Se
 - **Kenji** — API Designer. Owns the oRPC/OpenAPI contract.
 - **Amelia** — Senior Backend. Implements against Kenji's contract.
 - **Leo** — Senior Frontend. UI against the contract + visual verification via React Grab.
+
+### Architecture Council — `/aped-arch` (for high-stakes decisions)
+Dispatched in parallel via `Agent` when a Phase-2 decision would cost weeks to reverse (primary database, auth model, API paradigm, frontend framework, infra platform). Each specialist thinks independently — no shared context, no convergence pressure — and returns a structured verdict (preferred option, rationale, top 2 risks, disqualifying conditions).
+
+- **Winston** — Systems Architect (always included). *"Boring tech for MVP. Cleverness costs operationally."*
+- **Lena** — Pragmatic Engineer. *"What ships fastest without regret?"*
+- **Raj** — Security & Compliance Reviewer. *"Assume breach. Assume audit."*
+- **Nina** — Cost & Ops Analyst. *"What does this cost at 10× scale? And when does it page us at 3am?"*
+- **Maya** — Edge Case Hunter. *"Where does this break?"*
+
+User picks the final option; the minority view gets documented as signal for future pivots. Escape hatch for MVP-scale decisions where the Council would be overkill.
+
+### Retrospective specialists — `/aped-retro`
+Three parallel subagents reading post-mortem data after an epic completes.
+
+- **Mia** — Struggle Analyzer. Patterns across dev notes, review feedback, technical debt.
+- **Leo** — Velocity & Quality Analyzer. Review rounds, complexity vs effort, quality signals.
+- **Ava** — Previous-Retro Auditor. Continuity check — did the prior retro's action items actually ship?
 
 ### Tool surface used
 `Agent` (all specialist dispatches), `TaskCreate`/`TaskUpdate`/`TaskList` (sprint task tracking), plus `TeamCreate` / `TeamDelete` / `SendMessage` in `/aped-dev` fullstack mode only — because Kenji, Amelia and Leo genuinely co-edit a shared contract. Review is pure validation, so it skips the team machinery entirely.
@@ -209,13 +241,18 @@ You run `/aped-lead` in the main project whenever you want to process the batch.
 │   └── references/review-criteria.md
 ├── aped-sprint/                    # Parallel dispatch via worktrees
 ├── aped-lead/                      # Lead Dev hub — batch-approves check-ins
+├── aped-ship/                      # End-of-sprint merge + pre-push composite review
 ├── aped-status/                    # Multi-worktree dashboard
 ├── aped-course/                    # Scope change (with worktree notification)
 ├── aped-context/                   # Brownfield analysis
 ├── aped-qa/                        # E2E + integration tests
 ├── aped-quick/                     # Quick fix (spec isolation)
 ├── aped-checkpoint/                # Human-in-the-loop review
-└── aped-claude/                    # CLAUDE.md smart merge
+├── aped-claude/                    # CLAUDE.md smart merge
+├── aped-brainstorm/                # Divergent ideation (upstream of /aped-analyze)
+├── aped-prfaq/                     # Working Backwards challenge (upstream)
+├── aped-retro/                     # Post-epic retrospective (Mia/Leo/Ava specialists)
+└── aped-elicit/                    # Horizontal critique toolkit (19 methods)
 
 docs/aped/                          # Output (evolves during project)
 ├── state.yaml                      # Pipeline state machine
@@ -226,12 +263,25 @@ docs/aped/                          # Output (evolves during project)
 ├── epics.md                        # /aped-epics
 ├── stories/                        # /aped-story (one file per story)
 ├── epic-{N}-context.md             # Compiled epic context (cached)
-└── quick-specs/                    # /aped-quick
+├── quick-specs/                    # /aped-quick
+├── brainstorm/                     # /aped-brainstorm sessions
+├── prfaq.md                        # /aped-prfaq (5-stage artefact)
+├── retros/                         # /aped-retro (one file per epic)
+└── lessons.md                      # /aped-retro distilled lessons (cross-epic continuity)
 
 .claude/
-├── commands/aped-*.md              # 17 slash commands with argument-hints
+├── commands/aped-*.md              # 22 slash commands with argument-hints
+├── skills/aped-*                   # → ../../.aped/aped-*  (symlinks, auto-discovery)
 └── settings.local.json             # UserPromptSubmit + PreToolUse hooks + pre-approved Bash permissions
+
+.opencode/skills/aped-*             # → ../../.aped/aped-*  (symlinks, OpenCode)
+.agents/skills/aped-*               # → ../../.aped/aped-*  (symlinks, Codex CLI / agents.md)
+.codex/skills/aped-*                # → ../../.aped/aped-*  (symlinks, future-proof)
 ```
+
+### Cross-tool skill distribution
+
+On macOS/Linux the scaffolder creates **relative symlinks** in `.claude/skills/`, `.opencode/skills/`, `.agents/skills/`, and `.codex/skills/` that point back to the canonical `.aped/aped-*` directories. One edit in `.aped/` propagates to every tool instantly — no manual sync, no drift. Windows hosts are auto-skipped (symlinks require developer mode + `core.symlinks=true`). Fresh mode wipes stale `aped-*` entries in all four target dirs before rebuilding; update mode fixes wrong-target symlinks and preserves regular files at the target path.
 
 ## Integrations
 
