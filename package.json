@@ -1,6 +1,6 @@
 {
   "name": "aped-method",
-  "version": "3.7.2",
+  "version": "3.7.3",
   "type": "module",
   "description": "Scaffold the APED pipeline (Analyze, PRD, UX, Arch, Epics, Story, Dev, Review) into any Claude Code project",
   "bin": {
@@ -15,6 +15,7 @@
     "bin/aped-method.js",
     "src/index.js",
     "src/scaffold.js",
+    "src/subcommands.js",
     "src/doctor.js",
     "src/symlink-manager.js",
     "src/bash-safety.js",
@@ -51,8 +52,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "smoke": "node bin/aped-method.js --version && node bin/aped-method.js --help > /dev/null",
-    "check": "node --check bin/aped-method.js && node --check src/*.js && node --check src/templates/*.js && node --check src/templates/hooks/*.js && node --check src/templates/scripts/*.js && node --check scripts/generate-command-catalog.js",
+    "smoke": "node bin/aped-method.js --version && node bin/aped-method.js --help > /dev/null && node scripts/smoke-pack.js",
+    "check": "node --check bin/aped-method.js && node --check src/*.js && node --check src/templates/*.js && node --check src/templates/hooks/*.js && node --check src/templates/scripts/*.js && node --check scripts/generate-command-catalog.js && node --check scripts/smoke-pack.js",
     "generate:catalog": "node scripts/generate-command-catalog.js",
     "test": "vitest run",
     "test:watch": "vitest",

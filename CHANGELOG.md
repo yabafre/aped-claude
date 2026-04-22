@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.3] - 2026-04-22
+
+### Fixed
+- **Hotfix for `npx aped-method@3.7.2` ERR_MODULE_NOT_FOUND.** The `files` allowlist in 3.7.2 listed every new module from the subcommand split except `src/subcommands.js`, so the published tarball was missing that file and exploded on first `import` from `src/index.js`. 3.7.3 re-adds `src/subcommands.js` to the allowlist. All 3.7.2 users should upgrade.
+
+### Added
+- **`smoke:pack` safety net.** `npm run smoke` now also builds the tarball via `npm pack`, extracts it, symlinks the current `node_modules`, and runs `--version` / `--help` / `doctor` from the extracted tree — exactly the flow `npx` triggers. This would have caught the 3.7.2 regression before publish. Included in `prepublishOnly`.
+
 ## [3.7.2] - 2026-04-22
 
 ### Added
