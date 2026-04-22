@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.5] - 2026-04-22
+
+### Fixed
+- **Duplicate slash commands in Claude Code** (3×–4× listings of every `/aped-*`). Previous versions unconditionally symlinked every skill into four discovery paths — `.claude/skills/`, `.opencode/skills/`, `.agents/skills/`, and `.codex/skills/` — on the assumption that Claude Code only scans `.claude/skills/`. That assumption was wrong: Claude Code discovers skills from `.claude/skills/` **and** from the cross-tool directories when they exist, and it also auto-registers the skill `name:` frontmatter as a slash on top of the explicit `.claude/commands/aped-*.md` entry. The combination produced 4× the registrations.
+
+### Changed
+- **`.claude/skills/` is no longer a default symlink target.** Claude Code reaches APED slash commands via `.claude/commands/aped-*.md` — symlinking into `.claude/skills/` was redundant and caused duplicates.
+- **Cross-tool symlinks are now auto-detected.** The scaffolder now only creates symlinks under `.opencode/skills/`, `.agents/skills/`, and `.codex/skills/` when the corresponding `.opencode` / `.agents` / `.codex` marker directory exists in the project. A fresh single-tool Claude Code project gets zero skill symlinks, and zero duplication. Users with multi-tool setups get symlinks only where they make sense.
+- **`--fresh` cleanup now uses `TARGET_CATALOG`** — the historical superset of every skill-symlink location APED has ever written to — so legacy `.claude/skills/aped-*` links from pre-3.7.5 installs get removed on a fresh reinstall.
+- **`aped-method doctor`** aligns with the new behavior: symlink health is checked against whatever targets auto-detect resolves to, and reports `no cross-tool symlinks expected (single-tool install)` instead of "0/0/0/0" when nothing is expected.
+
+### Migration notes for existing installs
+If you are upgrading from 3.7.x with visible duplicates in Claude Code's slash menu, clean up the legacy `.claude/skills/aped-*` symlinks once and restart Claude Code:
+
+```bash
+rm -rf .claude/skills/aped-*
+```
+
+Nothing else is needed — the scaffolded `.claude/commands/aped-*.md` files continue to register the slash commands correctly. If you use OpenCode / Codex / agents.md-aware tools, keep the marker directories (`.opencode/` etc.) in your project root; auto-detect will recreate the relevant symlinks the next time you run `aped-method --update` or `aped-method symlink`.
+
 ## [3.7.4] - 2026-04-22
 
 ### Changed
