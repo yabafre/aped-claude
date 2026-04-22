@@ -132,8 +132,11 @@ fi
 echo "::endgroup::"
 
 echo "::group::Phase 10 — symlink repair recreates a broken link"
-# Pick the first aped-* symlink under .claude/skills, delete it, then repair.
-broken_link="$(find .claude/skills -maxdepth 1 -name 'aped-*' -print -quit 2>/dev/null || true)"
+# Simulate a user who also has Codex — create a .codex marker so the
+# auto-detection in symlinks.js picks up .codex/skills as a target.
+mkdir -p .codex
+node "$BIN" --yes --update --project=ci-e2e --author=ci > /dev/null
+broken_link="$(find .codex/skills -maxdepth 1 -name 'aped-*' -print -quit 2>/dev/null || true)"
 if [[ -n "$broken_link" && -L "$broken_link" ]]; then
   rm "$broken_link"
   test ! -e "$broken_link"
@@ -145,7 +148,9 @@ if [[ -n "$broken_link" && -L "$broken_link" ]]; then
   target="$(readlink "$broken_link")"
   echo "  repaired: $broken_link → $target"
 else
-  echo "::warning::no symlink candidate under .claude/skills (skip test)"
+  echo "::error::symlink repair test could not find a .codex/skills candidate after --update" >&2
+  ls -la .codex/skills 2>&1 || true
+  exit 1
 fi
 echo "::endgroup::"
 

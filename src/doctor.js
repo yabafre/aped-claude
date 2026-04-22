@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { DEFAULT_SKILL_SYMLINK_TARGETS, deriveSkillNames } from './templates/symlinks.js';
+import { deriveSkillNames } from './templates/symlinks.js';
 import { inspectSkillSymlinks, summarizeSymlinkInspection } from './symlink-manager.js';
 
 export function inspectInstallation(config, cwd = process.cwd()) {
@@ -61,15 +61,25 @@ export function inspectInstallation(config, cwd = process.cwd()) {
     fix: settingsStatus.fix,
   });
 
-  const symlinkTargets = config.skillSymlinks || DEFAULT_SKILL_SYMLINK_TARGETS;
-  const symlinkResults = inspectSkillSymlinks({ ...config, skillSymlinks: symlinkTargets }, cwd);
+  // Let symlink-manager auto-detect which tools are present rather than
+  // forcing a fixed target list. A single-tool Claude Code install will
+  // see zero expected symlinks and that's fine — skills are reachable via
+  // `.claude/commands/aped-*.md`.
+  const symlinkResults = inspectSkillSymlinks(config, cwd);
   const symlinkSummary = summarizeSymlinkInspection(symlinkResults);
+  const symlinkTotal = symlinkResults.length;
   checks.push({
     id: 'symlinks',
     label: 'Cross-tool skill symlinks',
     required: true,
-    status: symlinkSummary.broken > 0 || symlinkSummary.missing > 0 ? 'fail' : symlinkSummary.blocked > 0 ? 'warn' : 'pass',
-    message: `ok=${symlinkSummary.ok} missing=${symlinkSummary.missing} broken=${symlinkSummary.broken} blocked=${symlinkSummary.blocked}`,
+    status: symlinkSummary.broken > 0 || symlinkSummary.missing > 0
+      ? 'fail'
+      : symlinkSummary.blocked > 0
+        ? 'warn'
+        : 'pass',
+    message: symlinkTotal === 0
+      ? 'no cross-tool symlinks expected (single-tool install)'
+      : `ok=${symlinkSummary.ok} missing=${symlinkSummary.missing} broken=${symlinkSummary.broken} blocked=${symlinkSummary.blocked}`,
     fix: symlinkSummary.missing > 0 || symlinkSummary.broken > 0
       ? 'Run `aped-method symlink` to repair missing or broken APED links.'
       : symlinkSummary.blocked > 0

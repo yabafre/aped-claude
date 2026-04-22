@@ -516,7 +516,11 @@ async function runScaffold(config, mode) {
         title: 'Removing existing installation...',
         async task() {
           const { rmSync, readdirSync } = await import('node:fs');
-          const { DEFAULT_SKILL_SYMLINK_TARGETS } = await import('./templates/symlinks.js');
+          // TARGET_CATALOG is the full historical set of symlink locations
+          // APED has ever written to — broader than the current active
+          // defaults — so --fresh cleans up legacy symlinks (e.g.,
+          // pre-3.7.5 .claude/skills/ links) that no longer belong.
+          const { TARGET_CATALOG } = await import('./templates/symlinks.js');
           const cwd = process.cwd();
           try { rmSync(join(cwd, config.apedDir), { recursive: true, force: true }); } catch { /* ok */ }
           try { rmSync(join(cwd, config.outputDir), { recursive: true, force: true }); } catch { /* ok */ }
@@ -526,7 +530,7 @@ async function runScaffold(config, mode) {
               if (f.startsWith('aped-')) rmSync(join(cmdDir, f), { force: true });
             }
           } catch { /* ok */ }
-          for (const targetBase of DEFAULT_SKILL_SYMLINK_TARGETS) {
+          for (const targetBase of TARGET_CATALOG) {
             try {
               const dir = join(cwd, targetBase);
               for (const f of readdirSync(dir)) {
