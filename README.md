@@ -81,7 +81,7 @@ See [`docs/COMMANDS.md`](./docs/COMMANDS.md) for the full generated catalog, inc
 The CLI also includes a few maintenance subcommands for installed APED projects:
 
 - `aped-method doctor` — verify the scaffold, hooks, state, commands, symlinks, and optional binaries
-- `aped-method statusline` — install an APED-aware Claude Code status line
+- `aped-method statusline` — install an APED-aware Claude Code status line (model · context-window progress bar · project · phase · epic · story · review queue · worktrees · git)
 - `aped-method safe-bash` — install the optional Bash safety hook
 - `aped-method symlink` — repair APED cross-tool skill symlinks
 - `aped-method post-edit-typescript` — install the optional TypeScript post-edit quality hook
@@ -258,17 +258,21 @@ docs/aped/                          # Output (evolves during project)
 
 .claude/
 ├── commands/aped-*.md              # 22 slash commands with argument-hints
-├── skills/aped-*                   # → ../../.aped/aped-*  (symlinks, auto-discovery)
 └── settings.local.json             # UserPromptSubmit + PreToolUse hooks + pre-approved Bash permissions
 
+# Cross-tool symlinks (only created if the parent marker dir already exists):
 .opencode/skills/aped-*             # → ../../.aped/aped-*  (symlinks, OpenCode)
 .agents/skills/aped-*               # → ../../.aped/aped-*  (symlinks, Codex CLI / agents.md)
-.codex/skills/aped-*                # → ../../.aped/aped-*  (symlinks, future-proof)
+.codex/skills/aped-*                # → ../../.aped/aped-*  (symlinks, Codex native)
 ```
 
 ### Cross-tool skill distribution
 
-On macOS/Linux the scaffolder creates **relative symlinks** in `.claude/skills/`, `.opencode/skills/`, `.agents/skills/`, and `.codex/skills/` that point back to the canonical `.aped/aped-*` directories. One edit in `.aped/` propagates to every tool instantly — no manual sync, no drift. Windows hosts are auto-skipped (symlinks require developer mode + `core.symlinks=true`). Fresh mode wipes stale `aped-*` entries in all four target dirs before rebuilding; update mode fixes wrong-target symlinks and preserves regular files at the target path.
+On macOS/Linux the scaffolder creates **relative symlinks** that point back to the canonical `.aped/aped-*` directories, one edit in `.aped/` propagates to every tool instantly — no manual sync, no drift. Since v3.7.5 the three targets are **auto-detected**: a symlink tree is created under `.opencode/skills/`, `.agents/skills/`, and/or `.codex/skills/` **only when the corresponding `.opencode` / `.agents` / `.codex` marker directory already exists** in the project. A single-tool Claude Code project gets zero symlinks and zero slash-command duplication; multi-tool setups get symlinks only where they make sense.
+
+Claude Code itself reaches APED via the real `.claude/commands/aped-*.md` files — `.claude/skills/` is intentionally **not** a default target (it would duplicate every slash command in the picker). Windows hosts are auto-skipped (symlinks require developer mode + `core.symlinks=true`). Fresh mode wipes stale `aped-*` entries in every location APED has ever written to (including legacy `.claude/skills/aped-*` from pre-3.7.5 installs); update mode fixes wrong-target symlinks and preserves regular files at the target path.
+
+Re-run `aped-method symlink` at any time to repair or rebuild the symlink trees after creating a new `.opencode` / `.agents` / `.codex` marker.
 
 ## Integrations
 
@@ -355,7 +359,7 @@ Flags honour `NO_COLOR` / `FORCE_COLOR`. Exit codes are meaningful: `0` success,
 ## Requirements
 
 - [Claude Code](https://claude.ai/download)
-- Node.js ≥ 18
+- Node.js ≥ 20
 
 ### Recommended companion tools
 
