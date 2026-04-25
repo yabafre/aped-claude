@@ -18,6 +18,61 @@ metadata:
 - Quality is more important than speed — validate before writing
 - **Interactive mode is the default.** Generate ONE section, present it, ⏸ HALT with the A/P/C menu, then move on. Pure-autonomous output is opt-in via `--headless` for headless workflows where no user is at the keyboard.
 
+## Input Discovery
+
+Before any work, discover and load all upstream APED artefacts that exist. This skill is consume-everything-found.
+
+### 1. Glob discovery
+
+Search these locations in order:
+- `{{OUTPUT_DIR}}/**`
+- `{{APED_DIR}}/**`
+- `docs/**` (project root)
+
+Look for these artefacts (✱ = required, others = optional):
+- Product Brief — `*brief*.md` or `product-brief.md` ✱
+- Project Context — `*context*.md` or `project-context.md`
+- Research — `*research*.md`
+
+### 2. Required-input validation (hard-stop)
+
+For the ✱ Product Brief:
+- If found: continue
+- If missing: HALT with this message:
+  > "PRD generation requires a Product Brief to work from. Run `/aped-analyze` first, or provide the brief file path."
+
+Do NOT auto-generate a missing brief. Hard-stop is intentional.
+
+### 3. Load + report
+
+- Load every discovered file completely (no offset/limit).
+- Brownfield/greenfield is detected via `project-context.md` presence.
+
+Present a discovery report (adapt to `communication_language`):
+
+> Welcome {user_name}! Setting up `/aped-prd` for {project_name}.
+>
+> **Documents discovered:**
+> - Product Brief: {N} files {✓ loaded | ✱ MISSING — HALT}
+> - Project Context: {N} files {✓ loaded (brownfield mode) | (none)}
+> - Research: {N} files {✓ loaded | (none)}
+>
+> **Files loaded:** {comma-separated filenames}
+>
+> {if brownfield} 📋 Brownfield mode: existing project context loaded. NFRs and architectural constraints from the existing system will bias FR formulation. {/if}
+>
+> [C] Continue with these documents
+> [Other] Add a file path / paste content — I'll load it and redisplay
+
+⏸ **HALT — wait for `[C]` or additional inputs.**
+
+### 4. Bias the rest of the workflow
+
+Loaded artefacts inform every subsequent section:
+- FRs are extracted from the brief's MVP scope and refined against research findings.
+- Domain detection uses the brief plus any research that flagged compliance signals.
+- In brownfield mode, NFRs include constraints inherited from the existing system documented in `project-context.md`.
+
 ## Setup
 
 1. Read `{{APED_DIR}}/config.yaml` — extract `user_name`, `communication_language`, `document_output_language`
@@ -27,11 +82,6 @@ metadata:
 3. **Mode detection** — parse the `--headless` / `-H` flag from the user's invocation:
    - `--headless`: autonomous generation, no menus, no HALT (keep current 3.7 behaviour for CI / scripted runs)
    - Default (no flag): **interactive section-by-section** with A/P/C menu after each section
-
-## Load Product Brief
-
-- Read brief from path in `pipeline.phases.analyze.output`
-- If no analyze phase in state: ask user for product brief path or content
 
 ## Domain & Project Type Detection
 

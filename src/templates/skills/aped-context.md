@@ -1,6 +1,6 @@
 ---
 name: aped-context
-description: 'Analyzes existing codebase to generate project context for brownfield development. Use when user says "document codebase", "project context", "existing project", "aped context", or invokes /aped-context. Not for new project ideation — use aped-analyze for greenfield.'
+description: 'Analyzes an existing codebase and produces project-context.md, which downstream APED skills consume automatically when present. Runs alongside /aped-analyze, not exclusive of it — use both on hybrid projects (new feature in legacy system). Use when user says "document codebase", "project context", "existing project", "aped context", or invokes /aped-context.'
 allowed-tools: "Read Grep Glob Bash"
 license: MIT
 metadata:
@@ -10,12 +10,12 @@ metadata:
 
 # APED Context — Brownfield Project Analysis
 
-Use on existing codebases to generate project context before running the APED pipeline. Essential for brownfield projects where you're adding features to existing code.
+Use on existing codebases to generate `project-context.md`. Other APED skills (`/aped-analyze`, `/aped-prd`, `/aped-ux`, `/aped-arch`, etc.) discover this file automatically at entry and bias their behaviour accordingly. You can run this skill before, after, or instead of `/aped-analyze` — they are no longer mutually exclusive. Hybrid projects (a new feature in a legacy system) benefit from running both.
 
 ## Setup
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config
-2. Verify this is a brownfield project (existing code, not greenfield)
+2. Confirm there is existing code to analyse (if the directory is empty / freshly initialised, tell the user this skill produces no useful output — they should run `/aped-analyze` instead)
 3. Read `{{APED_DIR}}/aped-context/references/analysis-checklist.md` for the full analysis checklist
 
 ## Codebase Analysis
@@ -96,9 +96,10 @@ project_context:
 
 ## Next Steps
 
-Suggest:
-- If no brief exists: run `/aped-analyze` with project context loaded
-- If brief exists: context will inform `/aped-prd` and `/aped-dev` decisions
+The generated `project-context.md` is now discoverable by every downstream APED skill. Suggest based on what the user has already produced:
+- No brief yet → run `/aped-analyze` (it will discover and consume the context automatically — no flag needed)
+- Brief exists, no PRD → run `/aped-prd` (same — auto-consumes the context)
+- PRD exists → context will be picked up by `/aped-arch`, `/aped-ux`, `/aped-dev`, `/aped-review`, `/aped-from-ticket`
 
 ## Example
 

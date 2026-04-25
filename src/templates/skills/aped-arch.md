@@ -21,16 +21,75 @@ Create architecture decisions through step-by-step discovery so that all downstr
 - Decisions made here are LAW for /aped-dev and /aped-review
 - For **major decisions** (Database, Auth, API style, Frontend framework, Infra platform) — dispatch an **Architecture Council** of specialist subagents to surface genuine divergent perspectives. Single-brain reasoning converges to groupthink; real subagents disagree.
 
+## Input Discovery
+
+Before any work, discover and load all upstream APED artefacts. Architecture decisions ground in PRD requirements, UX commitments, and existing-system constraints.
+
+### 1. Glob discovery
+
+Search these locations in order:
+- `{{OUTPUT_DIR}}/**`
+- `{{APED_DIR}}/**`
+- `docs/**` (project root)
+
+Look for these artefacts (✱ = required):
+- PRD — `*prd*.md` or `prd.md` ✱
+- UX Spec — `ux/*.md` or `*ux-design*.md`
+- Product Brief — `*brief*.md` or `product-brief.md`
+- Project Context — `*context*.md` or `project-context.md`
+- Research — `*research*.md`
+
+For sharded folders (UX spec is a folder with multiple files), load `index.md` first if present, then all files referenced.
+
+### 2. Required-input validation (hard-stop)
+
+For the ✱ PRD:
+- If found: continue
+- If missing: HALT with this message:
+  > "Architecture requires a PRD to work from. FRs and NFRs drive every architectural decision. Run `/aped-prd` first, or provide the PRD file path."
+
+Do NOT auto-generate a missing PRD.
+
+### 3. Load + report
+
+- Load every discovered file completely (no offset/limit).
+- For the UX spec folder, load all 4 files (design-spec, screen-inventory, components, flows).
+- Brownfield/greenfield is detected via `project-context.md` presence.
+
+Present a discovery report (adapt to `communication_language`):
+
+> Welcome {user_name}! Setting up `/aped-arch` for {project_name}.
+>
+> **Documents discovered:**
+> - PRD: {N} files {✓ loaded | ✱ MISSING — HALT}
+> - UX Spec: {N} files {✓ loaded — frontend constraints applied | (none)}
+> - Product Brief: {N} files {✓ loaded — vision/scale context | (none)}
+> - Project Context: {N} files {✓ loaded (brownfield) — existing stack constraints applied | (none)}
+> - Research: {N} files {✓ loaded | (none)}
+>
+> **Files loaded:** {comma-separated filenames}
+>
+> {if brownfield} 📋 Brownfield mode: the existing technology stack documented in project-context.md is treated as a hard constraint. New decisions must integrate with it; reversing existing choices requires explicit user opt-in (and likely a separate /aped-course session). {/if}
+>
+> [C] Continue with these documents
+> [Other] Add a file path / paste content — I'll load it and redisplay
+
+⏸ **HALT — wait for `[C]` or additional inputs.**
+
+### 4. Bias the rest of the workflow
+
+Loaded artefacts inform every phase of this skill:
+- **Phase 1 — Context Analysis**: extracted FRs/NFRs, scale, integration points, and compliance signals come from the PRD; UX commitments (UI library, framework, tokens) are reproduced as architectural givens, not re-debated.
+- **Phase 2 — Technology Decisions**: in brownfield mode, the existing stack is the default for each category; the Council is dispatched only when overriding an existing choice or filling a gap, not for every decision.
+- **Phase 2b — Council**: each specialist receives the full PRD/UX/context excerpts so their dissent is grounded, not generic.
+- **Phase 4 — Structure & Mapping**: FR → File mapping uses PRD FR IDs verbatim. UX components from the spec are reflected in the directory tree.
+
 ## Setup
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config
 2. Read `{{OUTPUT_DIR}}/state.yaml` — check pipeline state
    - If `pipeline.phases.architecture.status` is `done`: ask user — redo or skip?
    - If user skips: stop here
-3. Load input documents:
-   - PRD from `{{OUTPUT_DIR}}/prd.md` (required)
-   - UX spec from `{{OUTPUT_DIR}}/ux/` (if exists)
-   - Product brief from `{{OUTPUT_DIR}}/product-brief.md`
 
 ## Phase 1: Context Analysis
 

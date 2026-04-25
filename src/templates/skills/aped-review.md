@@ -21,6 +21,65 @@ You are the **Lead Reviewer**. You dispatch independent specialist subagents, ea
 - Review is binary: `review` → `done` (or stays `review` until findings addressed)
 - Do not rubber-stamp. The team's job is to find problems, not to validate.
 
+## Input Discovery
+
+Before any work, discover and load all upstream APED artefacts. Review needs the full context the team coded against to evaluate pattern compliance, AC coverage, and architectural fit.
+
+### 1. Glob discovery
+
+Search these locations in order (in worktree mode, glob from the worktree's checkout):
+- `{{OUTPUT_DIR}}/**`
+- `{{APED_DIR}}/**`
+- `docs/**` (project root)
+
+Look for these artefacts (✱ = required):
+- Story file — `{{OUTPUT_DIR}}/stories/{story-key}.md` ✱ (resolved after Worktree Mode Detection in Setup)
+- PRD — `*prd*.md` or `prd.md`
+- Architecture — `*architecture*.md` or `architecture.md` (strongly recommended — without it, the Pattern Compliance specialist runs in degraded mode)
+- UX Spec — `ux/*.md` (sharded: design-spec, screen-inventory, components, flows)
+- Epic Context Cache — `{{OUTPUT_DIR}}/epic-{N}-context.md`
+- Project Context — `*context*.md` or `project-context.md`
+- Product Brief — `*brief*.md` or `product-brief.md`
+- Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter entries with `Scope: /aped-review` or `Scope: all` — produced by `/aped-retro` after each epic)
+
+### 2. Required-input validation (hard-stop)
+
+For the ✱ Story file:
+- If found: continue
+- If missing: HALT with this message:
+  > "No story file found at `{{OUTPUT_DIR}}/stories/{story-key}.md`. The story may not have been prepared, or the story key is wrong."
+
+(This validation runs *after* Worktree Mode Detection, since `story_key` is resolved there.)
+
+For Architecture (recommended, not required):
+- If missing: WARN the user — "No `architecture.md` found. Pattern Compliance review will operate in degraded mode (specialist must infer conventions from the codebase). Consider running `/aped-arch` first if patterns matter for this review."
+- Continue without HALT.
+
+### 3. Load + report
+
+- Load every discovered file completely (no offset/limit).
+- Brownfield/greenfield is detected via `project-context.md` presence.
+
+Present a discovery report (full in classic mode; in worktree mode, log a one-liner since `/aped-review` is auto-launched without a human at the keyboard):
+
+> Reviewing story {story-key} in {project_name}.
+> Loaded: Story ✓, PRD {✓|—}, Architecture {✓|⚠ missing — degraded mode}, UX Spec {✓|—}, Epic Context {✓|—}, Project Context {✓ brownfield|—}, Lessons ({K} review-scoped rules to enforce).
+
+In **classic** mode, present the full discovery report and HALT for `[C]` confirmation. In **worktree** mode, skip the confirmation.
+
+### 4. Bias the rest of the workflow
+
+Loaded artefacts inform every specialist's review:
+- Pattern Compliance specialist checks code against architecture.md conventions and (in brownfield mode) project-context.md existing patterns.
+- AC Coverage specialist cross-references the story's ACs back to PRD FRs.
+- Frontend specialist (when applicable) verifies UX spec components are used as specified.
+- Edge Case Hunter pulls scenarios from PRD NFRs and (in brownfield mode) from existing-system constraints.
+- **Lessons become explicit checks, not implicit advisory.** For each loaded lesson with scope `/aped-review` or `all`:
+  - The `Rule:` is added to the relevant specialist's checklist (e.g. if Epic 1's lesson was "always verify error states are reachable in the UI", the Frontend specialist gets that as a mandatory check).
+  - The `Mistake:` from the lesson becomes a specific finding category — the team is explicitly asked "did this story repeat the {Mistake} we identified after Epic {N}?".
+  - A lesson never "passes review by default" — if the relevant specialist can't confirm the rule was applied, that's a finding, not a non-event.
+  - When dispatching specialists (Step 4), include the lesson set scoped to that specialist in their prompt so their criteria are augmented at runtime, not just gathered post-hoc.
+
 ## Step 1: Setup
 
 1. **Worktree Mode Detection** — if `{{APED_DIR}}/WORKTREE` exists, read the marker and:
@@ -49,17 +108,13 @@ If `reviews_running >= review_limit`:
 
 Otherwise, continue to Step 2. (Do NOT change status yet; it stays `review` until either `done` or queued again.)
 
-## Step 2: Load Context
+## Step 2: Load Ticket Context
 
-Load everything the team will need:
+Story file, PRD, architecture, UX spec, epic context cache, and project context were already loaded in Input Discovery. The only remaining live source is the ticket system (which can change between dev and review):
 
-1. **Story file** — `{{OUTPUT_DIR}}/stories/{story-key}.md`
-2. **Ticket** (if `ticket_system` != `none`) — fetch via CLI
+1. **Ticket** (if `ticket_system` != `none`) — fetch via CLI
    - Read title, body, labels, **all comments** (comments may contain clarifications or decisions made during dev)
    - If ticket body diverges from story ACs: flag it to the user before proceeding
-3. **Epic context** — `{{OUTPUT_DIR}}/epic-{N}-context.md` if exists (the cache from `/aped-dev`)
-4. **Architecture** — `{{OUTPUT_DIR}}/architecture.md` if exists (for pattern compliance checks)
-5. **UX spec** — `{{OUTPUT_DIR}}/ux/` if exists (for frontend stories)
 
 ## Step 3: Task Tracking
 

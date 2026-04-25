@@ -1,6 +1,6 @@
 ---
 name: aped-analyze
-description: 'Analyzes a new project idea through parallel market, domain, and technical research. Use when user says "research idea", "aped analyze", or invokes /aped-analyze. Not for existing codebases — use aped-context for brownfield projects.'
+description: 'Analyzes a project idea through parallel market, domain, and technical research. Detects greenfield vs brownfield from discovered artefacts — runs alongside /aped-context, not exclusive of it. Use when user says "research idea", "aped analyze", or invokes /aped-analyze.'
 license: MIT
 metadata:
   author: yabafre
@@ -27,6 +27,62 @@ Many users know what they want but struggle to articulate it clearly. Your job i
 
 ### 3. Research Informs, User Decides
 The 3 research agents bring data. The user brings vision and judgment. Present research findings clearly, highlight conflicts or surprises, and let the user make the final call on scope and direction.
+
+## Input Discovery
+
+Before any work, discover and load upstream APED artefacts that exist. This skill is consume-everything-found: don't ask the user to declare greenfield/brownfield, sniff for it.
+
+### 1. Glob discovery
+
+Search these locations in order:
+- `{{OUTPUT_DIR}}/**`
+- `{{APED_DIR}}/**`
+- `docs/**` (project root)
+
+Look for these artefacts (none required for `/aped-analyze` — it's an entry-point skill):
+- Product Brief — `*brief*.md` or `product-brief.md`
+- Project Context — `*context*.md` or `project-context.md`
+- Research — `*research*.md`
+
+For sharded folders (folder with `index.md` + multiple files), load the index first, then all files referenced.
+
+### 2. Required-input validation
+
+None — `/aped-analyze` is an entry-point. It runs with or without prior artefacts.
+
+### 3. Load + report
+
+- Load every discovered file completely (no offset/limit).
+- Brownfield/greenfield is detected, not declared:
+  - `project-context.md` found → brownfield mode
+  - otherwise → greenfield mode
+
+Present a discovery report to the user (adapt to `communication_language`):
+
+> Welcome {user_name}! Setting up `/aped-analyze` for {project_name}.
+>
+> **Documents discovered:**
+> - Product Brief: {N} files {✓ loaded — will refine | (none — fresh analysis)}
+> - Project Context: {N} files {✓ loaded (brownfield mode) | (none — greenfield)}
+> - Research: {N} files {✓ loaded — will inform agents | (none)}
+>
+> **Files loaded:** {comma-separated filenames or "none"}
+>
+> {if brownfield} 📋 Brownfield mode: existing project context loaded. Discovery questions will assume an existing system to extend, and the 3 research agents will receive the context as input. {/if}
+>
+> Anything else to include before we proceed?
+>
+> [C] Continue with these documents
+> [Other] Add a file path / paste content — I'll load it and redisplay
+
+⏸ **HALT — wait for `[C]` or additional inputs. This is a light confirmation, not a heavy gate.**
+
+### 4. Bias the rest of the workflow
+
+Loaded artefacts inform every subsequent phase of this skill:
+- In Discovery rounds, skip questions already answered by loaded docs (e.g. if a brief states the target user, don't re-ask it — confirm and probe deeper).
+- In brownfield mode, frame Discovery as "what's *new* relative to the existing system" rather than "what are we building from scratch".
+- Pass loaded artefacts to the 3 research agents (Mary / Derek / Tom) as input context so their research builds on existing analysis instead of duplicating it.
 
 ## Setup
 

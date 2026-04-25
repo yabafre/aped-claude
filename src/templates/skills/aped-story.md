@@ -30,11 +30,80 @@ Before anything else, decide whether we are in **solo mode** (main project, no p
 
 In worktree mode, the story-key argument is optional — the marker tells us. If the user passed one and it mismatches, HALT and ask the user which is authoritative. If the current branch is `main` (not the feature branch), HALT: "Run `/aped-story` in the worktree's feature branch, not main. Branch-per-story rule."
 
+## Input Discovery
+
+Before story selection, discover and load upstream APED artefacts. The story file must be self-contained for `/aped-dev`, so it embeds context drawn from these documents.
+
+### 1. Glob discovery
+
+Search these locations in order:
+- `{{OUTPUT_DIR}}/**`
+- `{{APED_DIR}}/**`
+- `docs/**` (project root)
+
+Look for these artefacts (✱ = required):
+- Epics — `epics.md` ✱
+- PRD — `*prd*.md` or `prd.md`
+- UX Spec — `ux/*.md` (sharded: design-spec, screen-inventory, components, flows)
+- Architecture — `*architecture*.md` or `architecture.md`
+- Product Brief — `*brief*.md` or `product-brief.md`
+- Project Context — `*context*.md` or `project-context.md`
+- Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter entries with `Scope: /aped-story` or `Scope: all` — produced by `/aped-retro` after each epic)
+- Previous stories — `{{OUTPUT_DIR}}/stories/*.md` from completed stories of the current epic (continuity, decisions made earlier)
+
+### 2. Required-input validation (hard-stop)
+
+For ✱ Epics:
+- If found: continue
+- If missing: HALT with this message:
+  > "Story preparation requires `epics.md` (the story plan). Run `/aped-epics` first."
+
+### 3. Load + report
+
+- Load every discovered file completely (no offset/limit).
+- Brownfield/greenfield is detected via `project-context.md` presence.
+
+Present a discovery report (adapt to `communication_language`):
+
+> Setting up `/aped-story` for {project_name}.
+>
+> **Documents discovered:**
+> - Epics: {N} files {✓ loaded — {M} stories indexed | ✱ MISSING — HALT}
+> - PRD: {N} files {✓ loaded — FRs cross-referenced for the story | (none)}
+> - UX Spec: {N} files {✓ loaded — story will reference screens/components | (none)}
+> - Architecture: {N} files {✓ loaded — story respects pattern decisions | (none)}
+> - Project Context: {N} files {✓ loaded (brownfield) | (none)}
+> - Lessons: {N} entries scoped to `/aped-story` or `all` {✓ applied to draft | (none — first epic)}
+> - Previous stories: {N} completed stories in epic {epic#} {✓ loaded for continuity | (none — first story of epic)}
+>
+> **Files loaded:** {comma-separated filenames}
+>
+> [C] Continue to story selection
+> [Other] Add a file path / paste content — I'll load it and redisplay
+
+⏸ **HALT — wait for `[C]` or additional inputs.**
+
+### 4. Bias the rest of the workflow
+
+Loaded artefacts inform story-file content:
+- Acceptance criteria reference PRD FRs by ID (e.g. "FR-12, FR-13").
+- Implementation notes reference architecture decisions by section (e.g. "use the auth pattern from architecture.md §2.2").
+- Frontend stories list concrete components/screens from the UX spec.
+- In brownfield mode, story files include "files to modify" pulled from `project-context.md` rather than only "files to create".
+- **Lessons are applied to the draft, not just acknowledged.** For each loaded lesson with scope `/aped-story` or `all`:
+  - Apply its `Rule:` to the story being drafted (e.g. if Epic 1's lesson was "always split auth from authz", check whether the new story conflates them and propose splitting).
+  - Cite the lesson in Discussion Points: "Per Epic {N}'s retro lesson on `{topic}`, I'd suggest {adjustment}. Override?"
+  - This is the feedback loop the retro phase exists for — do not treat lessons as advisory.
+- **Previous stories of the current epic** inform continuity:
+  - Reuse decisions made in earlier stories rather than re-litigating them (e.g. if story 1-1 chose Zod for validation, story 1-2 doesn't re-evaluate validation library).
+  - Surface implicit dependencies ("story 1-3 builds on the schema introduced in 1-1").
+  - Avoid contradictions in technical approach across the same epic.
+
 ## Setup
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config including `ticket_system`
 2. Read `{{OUTPUT_DIR}}/state.yaml` — find sprint stories
-3. Read `{{OUTPUT_DIR}}/epics.md` — load epic structure and story list
+3. Epics already loaded in Input Discovery — confirm story list is available
 
 ## Story Selection
 
@@ -64,13 +133,10 @@ If `ticket_system` is not `none` and the story has a ticket ID in `sprint.storie
 
 ## Context Compilation
 
-Before writing the story, gather context to make it rich and actionable:
+Most context (PRD FRs, UX screens, completed stories of the current epic, lessons, project-context) is already loaded by Input Discovery. The remaining live sources to gather before drafting:
 
-1. **Ticket** — (above) the current state of the issue in the ticket system
-2. **PRD** — read the relevant FRs for this story
-3. **UX spec** — if exists, read relevant screens/components
-4. **Previous stories** — read completed stories from the same epic for continuity
-5. **Codebase** — if code exists, scan for relevant patterns, existing models, APIs
+1. **Ticket** — (above) the current state of the issue in the ticket system, including comments added since the last sprint-planning pass
+2. **Codebase scan** — if code exists, scan for relevant patterns, existing models, APIs that the story will touch (in brownfield mode, ground this in the modules listed in `project-context.md` rather than blanket scanning)
 
 ## Collaborative Story Design
 

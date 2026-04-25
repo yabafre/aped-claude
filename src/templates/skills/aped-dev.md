@@ -46,6 +46,66 @@ Before writing ANY code for a story, verify you can check every box. If you can'
 - [ ] No ambiguity — if anything is unclear, HALT and ask before proceeding
 - [ ] Branch created — feature branch exists, clean working tree confirmed
 
+## Input Discovery
+
+Before any work, discover and load all upstream APED artefacts. Implementation must align with the PRD's FRs, the architecture's patterns, the UX spec's components, and (in brownfield mode) existing-system constraints.
+
+In worktree mode, glob from the worktree's checkout — discovery sees the feature branch's view of the docs, which is what the story implementation should ground in.
+
+### 1. Glob discovery
+
+Search these locations in order:
+- `{{OUTPUT_DIR}}/**`
+- `{{APED_DIR}}/**`
+- `docs/**` (project root)
+
+Look for these artefacts (✱ = required):
+- Story file — `{{OUTPUT_DIR}}/stories/{story-key}.md` ✱ (resolved after Worktree Mode Detection in Setup)
+- PRD — `*prd*.md` or `prd.md`
+- Architecture — `*architecture*.md` or `architecture.md`
+- UX Spec — `ux/*.md` (sharded: design-spec, screen-inventory, components, flows)
+- Epic Context Cache — `{{OUTPUT_DIR}}/epic-{N}-context.md` (where N = epic number from story key)
+- Project Context — `*context*.md` or `project-context.md`
+- Product Brief — `*brief*.md` or `product-brief.md`
+- Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter entries with `Scope: /aped-dev` or `Scope: all` — produced by `/aped-retro` after each epic)
+
+### 2. Required-input validation (hard-stop)
+
+For the ✱ Story file:
+- If found: continue
+- If missing: HALT with this message:
+  > "No story file found at `{{OUTPUT_DIR}}/stories/{story-key}.md`. Run `/aped-story` first to prepare it."
+
+(This validation is performed *after* Worktree Mode Detection in Setup, since `story_key` is resolved there.)
+
+### 3. Load + report
+
+- Load every discovered file completely (no offset/limit).
+- Brownfield/greenfield is detected via `project-context.md` presence.
+
+Present a short discovery report (full report in interactive sessions; in worktree mode where `/aped-dev` was auto-launched, log a one-liner instead — the user is not at the keyboard for a `[C]` confirmation):
+
+> Implementing story {story-key} in {project_name}.
+> Loaded: PRD ({M} FRs), Architecture {✓|—}, UX Spec {✓|—}, Project Context {✓ brownfield|—}, Epic Context Cache {✓ fresh|recompiling|—}, Lessons ({K} dev-scoped rules to enforce).
+
+In **classic (non-worktree)** mode, present the full discovery report and HALT for `[C]` confirmation. In **worktree mode**, skip the confirmation — the worktree was launched by `/aped-sprint` with auto-injected prompt, no human at the keyboard.
+
+### 4. Bias the rest of the workflow
+
+Loaded artefacts inform every TDD cycle:
+- Tests assert behaviour described in the story's ACs, which reference PRD FRs by ID.
+- Implementation respects naming conventions, layering, and patterns from the architecture document.
+- Frontend tasks render the components listed in the UX spec, not invented ones.
+- In brownfield mode, "Existing Patterns Are Law" (Guiding Principle 4) means the patterns documented in `project-context.md` win even over architecture decisions if the architecture decision was made for greenfield work.
+- **Lessons are enforced, not advisory.** For each loaded lesson with scope `/aped-dev` or `all`:
+  - The `Rule:` becomes a check in the Pre-Implementation Checklist (e.g. if Epic 1's lesson was "always include error states in TDD", the checklist gains a "Error states test exists?" line).
+  - When the lesson's `Mistake:` matches a pattern detectable in the current task, surface it before writing code: "Per Epic {N}'s lesson, this kind of task historically forgot {X}. Including {X} now."
+  - Lessons that contradict the story's ACs win — flag the conflict to the user rather than silently overriding.
+
+### 4b. Update the epic-context cache to reflect lessons
+
+The epic-context cache compiled below now has lessons as a 4th input source (see Epic Context Compilation). When recompiling, lessons scoped `/aped-dev` or `all` are interpolated into the "Key code patterns" section so they're surfaced inline during implementation, not just at skill entry.
+
 ## Setup
 
 1. **Worktree Mode Detection** — three-step lookup, in order:
@@ -127,8 +187,10 @@ The agent reads and compiles into a single `epic-{N}-context.md`:
 1. **PRD excerpts** — FRs mapped to this epic (from `{{OUTPUT_DIR}}/prd.md`)
 2. **Architecture decisions** — relevant patterns and conventions (from `{{OUTPUT_DIR}}/architecture.md` if exists)
 3. **UX references** — screens and components for this epic (from `{{OUTPUT_DIR}}/ux/` if exists)
-4. **Completed stories** — implementation details and decisions from already-done stories in this epic (from `{{OUTPUT_DIR}}/stories/`)
-5. **Key code patterns** — scan the codebase for established patterns relevant to this epic
+4. **Project context** — existing-system constraints and conventions (from `{{OUTPUT_DIR}}/project-context.md` if exists — brownfield only)
+5. **Lessons** — entries from `{{OUTPUT_DIR}}/lessons.md` with `Scope: /aped-dev` or `Scope: all` (rules to enforce during implementation; missing on the first epic of a project)
+6. **Completed stories** — implementation details and decisions from already-done stories in this epic (from `{{OUTPUT_DIR}}/stories/`)
+7. **Key code patterns** — scan the codebase for established patterns relevant to this epic
 
 Write the compiled context to `{{OUTPUT_DIR}}/epic-{N}-context.md`.
 

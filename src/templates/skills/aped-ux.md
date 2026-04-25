@@ -32,6 +32,63 @@ Inspirations         Vite + React app        All screens built
                                              = UX spec for /aped-epics
 ```
 
+## Input Discovery
+
+Before any work, discover and load all upstream APED artefacts. This skill grounds every screen, FR reference, and "real content" claim in actual documents — never lorem ipsum, never hallucinated.
+
+### 1. Glob discovery
+
+Search these locations in order:
+- `{{OUTPUT_DIR}}/**`
+- `{{APED_DIR}}/**`
+- `docs/**` (project root)
+
+Look for these artefacts (✱ = required):
+- PRD — `*prd*.md` or `prd.md` ✱
+- Product Brief — `*brief*.md` or `product-brief.md`
+- Project Context — `*context*.md` or `project-context.md`
+- Research — `*research*.md`
+
+### 2. Required-input validation (hard-stop)
+
+For the ✱ PRD:
+- If found: continue
+- If missing: HALT with this message:
+  > "UX design requires a PRD — every screen, journey, and FR reference is grounded in it. Run `/aped-prd` first, or provide the PRD file path."
+
+Do NOT proceed without the PRD. The previous behaviour (referencing the PRD in prose without loading it) caused hallucinated content and is the bug this discovery step fixes.
+
+### 3. Load + report
+
+- Load every discovered file completely (no offset/limit).
+- Brownfield/greenfield is detected via `project-context.md` presence.
+
+Present a discovery report (adapt to `communication_language`):
+
+> Welcome {user_name}! Setting up `/aped-ux` for {project_name}.
+>
+> **Documents discovered:**
+> - PRD: {N} files {✓ loaded | ✱ MISSING — HALT}
+> - Product Brief: {N} files {✓ loaded — informs tone | (none)}
+> - Project Context: {N} files {✓ loaded (brownfield) — existing design system constraints applied | (none)}
+> - Research: {N} files {✓ loaded | (none)}
+>
+> **Files loaded:** {comma-separated filenames}
+>
+> {if brownfield} 📋 Brownfield mode: existing UI conventions from project-context.md will constrain Assemble (design tokens, component library, framework choices). {/if}
+>
+> [C] Continue with these documents
+> [Other] Add a file path / paste content — I'll load it and redisplay
+
+⏸ **HALT — wait for `[C]` or additional inputs.**
+
+### 4. Bias the rest of the workflow
+
+Loaded artefacts inform every phase of this skill:
+- **A — Assemble**: in brownfield mode, the design tokens and UI library are inherited from `project-context.md` rather than freshly chosen — confirm with the user before overriding.
+- **N — Normalize**: screens are mapped from PRD user journeys; mock data in `src/data/mock.ts` uses real product names and FR-derived values from the PRD, never lorem ipsum.
+- **F — Fill**: every screen's content is grounded in the PRD's FRs for that journey. When a screen needs content not in the PRD, surface it to the user as a gap rather than inventing.
+
 ## Setup
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config

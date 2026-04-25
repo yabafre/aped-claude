@@ -16,32 +16,72 @@ metadata:
 - This skill creates the PLAN, not the story files — `/aped-story` creates one story file at a time
 - Quality is more important than speed — do not skip coverage validation
 
+## Input Discovery
+
+Before any work, discover and load all upstream APED artefacts. Epics are derived from PRD requirements; UX and architecture, when present, refine story splitting.
+
+### 1. Glob discovery
+
+Search these locations in order:
+- `{{OUTPUT_DIR}}/**`
+- `{{APED_DIR}}/**`
+- `docs/**` (project root)
+
+Look for these artefacts (✱ = required):
+- PRD — `*prd*.md` or `prd.md` ✱
+- UX Spec — `ux/*.md` or `*ux-design*.md` (sharded folder with design-spec, screen-inventory, components, flows)
+- Architecture — `*architecture*.md` or `architecture.md`
+- Product Brief — `*brief*.md` or `product-brief.md`
+- Project Context — `*context*.md` or `project-context.md`
+
+For the UX spec folder, load all 4 files (`design-spec.md`, `screen-inventory.md`, `components.md`, `flows.md`).
+
+### 2. Required-input validation (hard-stop)
+
+For the ✱ PRD:
+- If found: extract ALL FRs and NFRs by number
+- If missing: HALT with this message:
+  > "Epic decomposition requires a PRD. Every epic and story maps back to FRs/NFRs. Run `/aped-prd` first, or provide the PRD file path."
+
+### 3. Load + report
+
+- Load every discovered file completely (no offset/limit).
+- Brownfield/greenfield is detected via `project-context.md` presence.
+
+Present a discovery report (adapt to `communication_language`):
+
+> Welcome {user_name}! Setting up `/aped-epics` for {project_name}.
+>
+> **Documents discovered:**
+> - PRD: {N} files {✓ loaded — {M} FRs / {K} NFRs extracted | ✱ MISSING — HALT}
+> - UX Spec: {N} files {✓ loaded — stories enriched with screens/components | (none)}
+> - Architecture: {N} files {✓ loaded — tech decisions inform story splitting | (none)}
+> - Product Brief: {N} files {✓ loaded | (none)}
+> - Project Context: {N} files {✓ loaded (brownfield) | (none)}
+>
+> **Files loaded:** {comma-separated filenames}
+>
+> {if brownfield} 📋 Brownfield mode: existing system context loaded. Story splitting will favour additive work over rewriting existing code unless the PRD explicitly calls for replacement. {/if}
+>
+> [C] Continue with these documents
+> [Other] Add a file path / paste content — I'll load it and redisplay
+
+⏸ **HALT — wait for `[C]` or additional inputs.**
+
+### 4. Bias the rest of the workflow
+
+Loaded artefacts inform every phase of this skill:
+- Epic grouping respects user-value domains from the PRD's user journeys.
+- When UX is loaded, stories reference concrete screens (from `screen-inventory.md`), components (from `components.md`), and flows (from `flows.md`).
+- When architecture is loaded, story 1 of an epic may be technical foundation (e.g., monorepo workspace, schema setup) when the architecture decisions imply it.
+- In brownfield mode, the first epic typically integrates with existing modules listed in `project-context.md` rather than greenfield boilerplate.
+
 ## Setup
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config including `ticket_system`
 2. Read `{{OUTPUT_DIR}}/state.yaml` — check pipeline state
    - If `pipeline.phases.epics.status` is `done`: ask user — redo or skip?
    - If user skips: stop here (user will invoke next phase manually)
-
-## Load Inputs
-
-### PRD (required)
-- Read PRD from path in `pipeline.phases.prd.output`
-- If no prd phase in state: ask user for PRD path
-- Extract ALL FRs and NFRs by number
-
-### UX spec (if exists)
-- Check if `{{OUTPUT_DIR}}/ux/` exists
-- If yes: read `design-spec.md`, `screen-inventory.md`, `components.md`, `flows.md`
-- Use this to enrich story definitions with:
-  - Concrete screens per story (from screen-inventory.md)
-  - Components referenced per story (from components.md)
-  - Navigation flow context (from flows.md)
-  - Design tokens and responsive requirements (from design-spec.md)
-
-### Architecture (if exists)
-- Check if `{{OUTPUT_DIR}}/architecture.md` exists
-- If yes: extract tech decisions that impact story splitting (e.g., if monorepo → story 1 might be workspace setup)
 
 ## Task Tracking
 

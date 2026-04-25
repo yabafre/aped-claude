@@ -7,7 +7,7 @@ export const COMMAND_DEFS = [
     skill: 'aped-analyze',
     category: 'pipeline',
     phase: 'Analyze',
-    description: 'Analyzes a new project idea through parallel market, domain, and technical research. Use when user says "research idea", "aped analyze", or invokes /aped-analyze. Not for existing codebases — use aped-context for brownfield projects.',
+    description: 'Analyzes a project idea through parallel market, domain, and technical research. Detects greenfield vs brownfield from discovered artefacts — runs alongside /aped-context, not exclusive of it. Use when user says "research idea", "aped analyze", or invokes /aped-analyze.',
     outputs: 'Product brief and seeded discovery context.',
   },
   {
@@ -117,7 +117,7 @@ export const COMMAND_DEFS = [
     skill: 'aped-context',
     category: 'utility',
     phase: 'Brownfield',
-    description: 'Analyzes existing codebase to generate project context for brownfield development. Use when user says "document codebase", "project context", "existing project", "aped context", or invokes /aped-context. Not for new project ideation — use aped-analyze for greenfield.',
+    description: 'Analyzes an existing codebase and produces project-context.md, which downstream APED skills consume automatically when present. Runs alongside /aped-analyze, not exclusive of it — use both on hybrid projects (new feature in legacy system). Use when user says "document codebase", "project context", "existing project", "aped context", or invokes /aped-context.',
     outputs: 'Project context for existing codebases.',
   },
   {
