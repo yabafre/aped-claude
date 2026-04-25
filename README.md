@@ -160,14 +160,20 @@ Frontend tasks get a visual check at **every GREEN pass**, not just at review ti
 ### Ticket system as source of truth
 The Linear / Jira / GitHub / GitLab ticket is the shared artifact between the AI and the human team. `/aped-story`, `/aped-dev`, and `/aped-review` fetch the ticket at the start of each phase; any divergence with the local story halts the flow until the user resolves it.
 
+### Input discovery — consume-everything-found
+Every pipeline-phase skill starts with a glob-based discovery step that loads every upstream APED artefact present (`product-brief.md`, `prd.md`, `architecture.md`, `ux/`, `project-context.md`, `lessons.md`, completed `stories/`, etc.) before any work. Greenfield versus brownfield is **detected** from `project-context.md` presence, not declared via a separate command — `/aped-context` and `/aped-analyze` are not mutually exclusive entry points. Required prereqs hard-stop with a clear remediation message (e.g. architecture without a PRD), optional artefacts bias the workflow when present. The pattern is documented in `docs/dev/discovery-pattern.md`.
+
+### Lessons feedback loop
+`/aped-retro` writes scoped rules to `docs/aped/lessons.md` after each epic (`Scope: /aped-story | /aped-dev | /aped-review | all`). Those scopes are now the routing system the field always promised: `/aped-story`, `/aped-dev`, and `/aped-review` discover and apply lessons matching their scope at entry. A lesson scoped `/aped-review` becomes an explicit specialist check, not advisory text — if the relevant specialist can't confirm the rule was applied, that's a finding. The loop closes: each new epic carries the lessons of every prior epic, automatically.
+
 ### Guided discovery over questionnaires
-`/aped-analyze` uses 4 rounds of conversational discovery — Claude probes deeper on vague answers and helps the user think through their project, instead of a flat list of questions.
+`/aped-analyze` uses 4 rounds of conversational discovery — Claude probes deeper on vague answers and helps the user think through their project, instead of a flat list of questions. In brownfield mode (when `project-context.md` exists), the rounds reframe as "what's *new* relative to the existing system" rather than from-scratch ideation.
 
 ### Stories created one at a time
-`/aped-epics` writes the plan (titles / ACs / scope) without creating per-story files. `/aped-story` produces one detailed story file right before implementation, with full context compilation.
+`/aped-epics` writes the plan (titles / ACs / scope) without creating per-story files. `/aped-story` produces one detailed story file right before implementation, grounded in upstream artefacts loaded by Input Discovery (PRD FRs, UX components, architecture patterns, project context, lessons, prior stories of the same epic).
 
 ### Epic context cache
-Before implementing each story, `/aped-dev` checks `docs/aped/epic-{N}-context.md`. If missing or stale, a sub-agent compiles it once from the PRD / architecture / UX / completed stories. Reused across every story in the epic — one compile, many reads.
+Before implementing each story, `/aped-dev` checks `docs/aped/epic-{N}-context.md`. If missing or stale, a sub-agent compiles it once from PRD / architecture / UX / `project-context.md` (brownfield only) / `lessons.md` (scoped to `/aped-dev`) / completed stories / codebase patterns. Reused across every story in the epic — one compile, many reads.
 
 ### Spec isolation — `/aped-quick`
 Quick specs are independent files with a status field (`draft → in-progress → done`). Multiple can run in parallel. Resuming an in-progress spec is automatic.
