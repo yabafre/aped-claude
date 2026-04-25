@@ -106,7 +106,11 @@ sprint:
       { CLAUDE_PROJECT_DIR: sandbox });
     expect(r.code, r.stderr).toBe(0);
     const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
-    expect(after).toContain('status: "pending"');  // wrapping is yq's, not destructive
+    // Quoting may or may not be added depending on which path ran (yq adds
+    // quotes around strings, the awk fallback preserves the input form).
+    // Both are valid YAML; assert the field landed correctly and the rest
+    // of the file is intact.
+    expect(after).toMatch(/status:\s*"?pending"?/);
     expect(after).toContain('schema_version: 1');
   });
 
