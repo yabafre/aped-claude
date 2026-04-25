@@ -184,8 +184,10 @@ If user requests changes: apply them, re-validate, re-present.
 
 Only after user approval:
 
-Update `{{OUTPUT_DIR}}/state.yaml`:
+Update `{{OUTPUT_DIR}}/state.yaml` (create the file if it doesn't exist; this is the first phase that writes it):
+
 ```yaml
+schema_version: 1
 pipeline:
   current_phase: "analyze"
   phases:
@@ -193,6 +195,8 @@ pipeline:
       status: "done"
       output: "{{OUTPUT_DIR}}/product-brief.md"
 ```
+
+**`schema_version`** is mandatory at the top level. Subsequent skills (sync-state.sh, validate-state.sh, sprint-dispatch.sh marker writer) read it and refuse to run on unknown versions — bumps require an explicit migration. Current version: 1.
 
 ## Next Step
 

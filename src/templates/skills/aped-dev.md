@@ -57,12 +57,26 @@ Before writing ANY code for a story, verify you can check every box. If you can'
       - Write the marker now to cache the inference for future invocations.
    3. Else, classic single-session mode (main project, no worktree). Proceed normally.
 
-   In worktree mode (1 or 2), this session is **pinned** to the inferred story. Read the **canonical** state.yaml from `project_root/{{OUTPUT_DIR}}/state.yaml` (not any local copy in the worktree). Verify the story exists there; if not, HALT with a clear error — the worktree doesn't map to a known story.
+   In worktree mode (1 or 2), this session is **pinned** to the inferred story. Read state.yaml from the **worktree's own checkout** (`./{{OUTPUT_DIR}}/state.yaml`, i.e. the file on the feature branch) — NOT main's copy. See "State.yaml authority" below for why.
+
+   Verify the story exists in the worktree's state.yaml; if not, HALT with a clear error — the worktree doesn't map to a known story (likely a branch checked out without /aped-sprint, or a state.yaml that was never propagated by /aped-story).
 
    In worktree mode, skip "Story Selection" and skip any git branch creation — the worktree already has the right branch.
 
-2. Read `{{APED_DIR}}/config.yaml` — extract config including `ticket_system`, `git_provider`.
-3. Read state.yaml (canonical one in worktree mode, local one otherwise) — find the target story.
+2. Read `{{APED_DIR}}/config.yaml` — extract config (worktree-local copy is fine; config rarely changes mid-sprint).
+3. Read state.yaml from the current checkout (worktree's local copy in worktree mode, main's in classic mode) — find the target story.
+
+### State.yaml authority
+
+**Each worktree owns its own copy of state.yaml on its feature branch.** /aped-story writes it, /aped-dev reads + writes it, /aped-review reads + writes it — all locally. Worktrees never reach across to main's state.yaml at runtime.
+
+Main's state.yaml is the **authoritative** copy. /aped-lead writes there when it approves check-ins (status flips to `done`, etc.). At merge time, /aped-ship resolves state.yaml conflicts with `--ours` — main wins, the feature branch's state.yaml is intentionally discarded. This is by design, not a workaround:
+
+- It keeps each worktree autonomous (no cross-process state lookup, no cache invalidation, no race on a shared file).
+- It makes /aped-lead the single source of truth for sprint lifecycle transitions.
+- It's safe because worktree-local state.yaml writes are scoped to the story being worked on; nothing else cares.
+
+**Do not "fix" perceived inconsistencies between worktree state.yaml and main's** — they are expected and resolved at ship.
 
 ## Story Selection
 
@@ -237,6 +251,18 @@ Mark `[x]` ONLY when: tests exist, pass 100%, implementation matches, ACs satisf
 ## HALT Conditions
 
 **STOP and ask user if:** new dependency, 3 consecutive failures, missing config, ambiguity.
+
+### Parallel-sprint mode — post a `dev-blocked` check-in
+
+In a worktree session (parallel sprint), the user is in `/aped-lead` in main, not watching this terminal. A silent HALT is invisible to them. Before stopping, post a check-in so /aped-status surfaces it and /aped-lead can escalate:
+
+```bash
+bash ${project_root}/{{APED_DIR}}/scripts/checkin.sh post {story-key} dev-blocked "<one-line reason — e.g. 'new dep needed: foo@^2.0'>"
+```
+
+Then HALT and tell the user in this worktree: "Posted dev-blocked check-in — Lead will see it on next /aped-lead or /aped-status. Waiting for instruction."
+
+In classic (non-parallel) mode, just HALT inline — the user is here.
 
 ## Git & Ticket Workflow
 

@@ -197,53 +197,70 @@ exit 0
       path: `${a}/aped-dev/scripts/run-tests.sh`,
       executable: true,
       content: `#!/usr/bin/env bash
-# Auto-detect test framework and run tests
+# Auto-detect test framework and run tests, caching the exit code.
+#
 # Usage: run-tests.sh [test-path]
-# Exit code matches the test runner's exit code
+# Exit code matches the test runner's exit code.
+#
+# Side effect: writes the exit code to ${a}/.last-test-exit (relative to
+# cwd) so /aped-lead's check-auto-approve.sh dev-done can verify the most
+# recent run passed without re-executing the suite. Skipped silently if
+# ${a}/ doesn't exist (running outside an APED project).
 
-set -euo pipefail
+# Note: -e intentionally OMITTED so a failing test runner doesn't bypass
+# the cache write below. -u and pipefail still apply.
+set -uo pipefail
 
 TEST_PATH="\${1:-}"
 
-# Auto-detect test framework
+CMD=()
 if [[ -f "package.json" ]]; then
   echo "Detected: Node.js project"
   if grep -q '"vitest"' package.json 2>/dev/null; then
     echo "Runner: vitest"
-    npx vitest run \${TEST_PATH:+"$TEST_PATH"}
+    CMD=(npx vitest run)
+    [[ -n "\$TEST_PATH" ]] && CMD+=("\$TEST_PATH")
   elif grep -q '"jest"' package.json 2>/dev/null; then
     echo "Runner: jest"
-    npx jest \${TEST_PATH:+"$TEST_PATH"}
+    CMD=(npx jest)
+    [[ -n "\$TEST_PATH" ]] && CMD+=("\$TEST_PATH")
   else
     echo "Runner: npm test"
-    npm test \${TEST_PATH:+-- "$TEST_PATH"}
+    CMD=(npm test)
+    [[ -n "\$TEST_PATH" ]] && CMD+=(-- "\$TEST_PATH")
   fi
 elif [[ -f "setup.py" ]] || [[ -f "pyproject.toml" ]] || [[ -f "setup.cfg" ]]; then
   echo "Detected: Python project"
-  if [[ -n "$TEST_PATH" ]]; then
-    python -m pytest "$TEST_PATH" -v
-  else
-    python -m pytest -v
-  fi
+  CMD=(python -m pytest -v)
+  [[ -n "\$TEST_PATH" ]] && CMD+=("\$TEST_PATH")
 elif [[ -f "Cargo.toml" ]]; then
   echo "Detected: Rust project"
-  if [[ -n "$TEST_PATH" ]]; then
-    cargo test "$TEST_PATH"
+  if [[ -n "\$TEST_PATH" ]]; then
+    CMD=(cargo test "\$TEST_PATH")
   else
-    cargo test
+    CMD=(cargo test)
   fi
 elif [[ -f "go.mod" ]]; then
   echo "Detected: Go project"
-  if [[ -n "$TEST_PATH" ]]; then
-    go test "$TEST_PATH" -v
+  if [[ -n "\$TEST_PATH" ]]; then
+    CMD=(go test "\$TEST_PATH" -v)
   else
-    go test ./... -v
+    CMD=(go test ./... -v)
   fi
 else
   echo "ERROR: No recognized test framework found"
   echo "Supported: package.json (Node), setup.py/pyproject.toml (Python), Cargo.toml (Rust), go.mod (Go)"
   exit 1
 fi
+
+"\${CMD[@]}"
+EXIT=\$?
+
+if [[ -d "${a}" ]]; then
+  echo "\$EXIT" > "${a}/.last-test-exit" 2>/dev/null || true
+fi
+
+exit \$EXIT
 `,
     },
     {
@@ -448,10 +465,15 @@ exit 0
 # APED sprint-dispatch — create a git worktree for a story so the user can
 # launch a dedicated Claude Code session in it with /aped-dev.
 #
-# Usage: sprint-dispatch.sh <story-key> [<ticket-id>]
+# Usage: sprint-dispatch.sh <story-key> [<ticket-id>] [<base-ref>]
+#
+# <base-ref> is the git ref to cut the feature branch from. In sprint mode,
+# the caller passes the sprint umbrella (e.g. "sprint/epic-1") so stories
+# parent under it. In solo / classic mode, omit it — defaults to HEAD.
 #
 # Output: absolute path of the new worktree (stdout, line 1)
-# Exit: 0 on success; 1 on user error; 2 on git error; 3 on concurrent dispatch.
+# Exit: 0 on success; 1 on user error; 2 on git error; 3 on concurrent dispatch;
+#       4 if <base-ref> is given but does not resolve to a git ref.
 #
 # Concurrency: acquires a per-story mkdir lock at \${APED_DIR}/.sprint-locks/
 # to prevent two /aped-sprint sessions from racing on the same story key
@@ -465,12 +487,13 @@ SPRINT_LOCK_STALE_SECONDS=\${APED_SPRINT_LOCK_STALE_SECONDS:-900}
 SPRINT_LOCK_TIMEOUT_SECONDS=\${APED_SPRINT_LOCK_TIMEOUT_SECONDS:-30}
 
 if [[ \$# -lt 1 ]]; then
-  echo "Usage: \$0 <story-key> [<ticket-id>]" >&2
+  echo "Usage: \$0 <story-key> [<ticket-id>] [<base-ref>]" >&2
   exit 1
 fi
 
 STORY_KEY="\$1"
 TICKET_ID="\${2:-\$STORY_KEY}"
+BASE_REF="\${3:-HEAD}"
 
 PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-\$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 if [[ ! -d "\$PROJECT_ROOT/.git" ]] && ! git -C "\$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
@@ -478,8 +501,17 @@ if [[ ! -d "\$PROJECT_ROOT/.git" ]] && ! git -C "\$PROJECT_ROOT" rev-parse --git
   exit 2
 fi
 
-# ── Fleet-lock (per-story, portable mkdir) ───────────────────────────────
-SPRINT_LOCK_DIR="\$PROJECT_ROOT/${a}/.sprint-locks/\$STORY_KEY"
+# Compute target paths up-front so the lock is keyed on the actual contended
+# resource (the worktree path), not on the story key. Two stories that share
+# a TICKET_ID would resolve to the same WORKTREE_PATH and race in
+# \`git worktree add\`; the old per-story-key lock missed that case.
+PROJECT_NAME=\$(basename "\$PROJECT_ROOT")
+WORKTREE_PATH="\$(dirname "\$PROJECT_ROOT")/\${PROJECT_NAME}-\${TICKET_ID}"
+BRANCH_NAME="feature/\${TICKET_ID}-\${STORY_KEY}"
+
+# ── Fleet-lock keyed on the worktree path (sanitised for filesystem use) ─
+LOCK_KEY=\$(printf '%s' "\$WORKTREE_PATH" | tr '/ ' '__')
+SPRINT_LOCK_DIR="\$PROJECT_ROOT/${a}/.sprint-locks/\$LOCK_KEY"
 mkdir -p "\$(dirname "\$SPRINT_LOCK_DIR")"
 
 mtime_age() {
@@ -492,7 +524,7 @@ mtime_age() {
 if [[ -d "\$SPRINT_LOCK_DIR" ]]; then
   age=\$(mtime_age "\$SPRINT_LOCK_DIR")
   if (( age > SPRINT_LOCK_STALE_SECONDS )); then
-    echo "WARN: stale dispatch lock for \$STORY_KEY (age \${age}s > \${SPRINT_LOCK_STALE_SECONDS}s) — previous dispatch likely crashed. Reclaiming." >&2
+    echo "WARN: stale dispatch lock for \$WORKTREE_PATH (age \${age}s > \${SPRINT_LOCK_STALE_SECONDS}s) — previous dispatch likely crashed. Reclaiming." >&2
     rm -rf "\$SPRINT_LOCK_DIR"
   fi
 fi
@@ -500,21 +532,15 @@ fi
 waited=0
 until mkdir "\$SPRINT_LOCK_DIR" 2>/dev/null; do
   if (( waited >= SPRINT_LOCK_TIMEOUT_SECONDS * 10 )); then
-    echo "ERROR: another /aped-sprint session is dispatching \$STORY_KEY (lock: \$SPRINT_LOCK_DIR). Wait for it to finish and retry, or remove the lock if you're certain it's stale." >&2
+    echo "ERROR: another /aped-sprint session is dispatching to \$WORKTREE_PATH (lock: \$SPRINT_LOCK_DIR). Wait for it to finish and retry, or remove the lock if you're certain it's stale." >&2
     exit 3
   fi
   sleep 0.1
   waited=\$((waited + 1))
 done
-# Clear the lock on any exit (success, error, signal). Keep it if the whole
-# dispatch succeeded so a later replay catches the collision — no, release
-# unconditionally: a successful dispatch means the worktree now exists, and
-# the "path already exists" check below becomes the next safety net.
+# Release on any exit (success, error, signal). The "worktree path already
+# exists" check below is the next safety net for replays.
 trap "rm -rf '\$SPRINT_LOCK_DIR' 2>/dev/null || true" EXIT INT TERM
-
-PROJECT_NAME=\$(basename "\$PROJECT_ROOT")
-WORKTREE_PATH="\$(dirname "\$PROJECT_ROOT")/\${PROJECT_NAME}-\${TICKET_ID}"
-BRANCH_NAME="feature/\${TICKET_ID}-\${STORY_KEY}"
 
 if [[ -d "\$WORKTREE_PATH" ]]; then
   echo "ERROR: worktree path already exists: \$WORKTREE_PATH" >&2
@@ -523,20 +549,34 @@ fi
 
 cd "\$PROJECT_ROOT"
 
+# Resolve base-ref up-front so a typo fails loud instead of silently
+# branching from an unrelated commit.
+if [[ "\$BASE_REF" != "HEAD" ]]; then
+  if ! git rev-parse --verify "\$BASE_REF" >/dev/null 2>&1; then
+    echo "ERROR: base-ref '\$BASE_REF' does not resolve. In sprint mode the umbrella must be created by /aped-sprint before dispatch." >&2
+    exit 4
+  fi
+fi
+
 if git rev-parse --verify "\$BRANCH_NAME" >/dev/null 2>&1; then
   git worktree add "\$WORKTREE_PATH" "\$BRANCH_NAME" >&2
 else
-  git worktree add -b "\$BRANCH_NAME" "\$WORKTREE_PATH" HEAD >&2
+  git worktree add -b "\$BRANCH_NAME" "\$WORKTREE_PATH" "\$BASE_REF" >&2
 fi
 
 mkdir -p "\$WORKTREE_PATH/${a}"
 cat > "\$WORKTREE_PATH/${a}/WORKTREE" <<EOF
+schema_version: 1
 story_key: \$STORY_KEY
 ticket: \$TICKET_ID
 branch: \$BRANCH_NAME
 project_root: \$PROJECT_ROOT
 created_at: \$(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
+
+bash "\$PROJECT_ROOT/${a}/scripts/log.sh" worktree_created \\
+  story="\$STORY_KEY" ticket="\$TICKET_ID" branch="\$BRANCH_NAME" worktree="\$WORKTREE_PATH" \\
+  2>/dev/null || true
 
 printf '%s\\n' "\$WORKTREE_PATH"
 `,
@@ -548,41 +588,152 @@ printf '%s\\n' "\$WORKTREE_PATH"
 # APED worktree-cleanup — remove a worktree (and optionally its branch) once
 # a story has been merged. Run from the main project root.
 #
-# Usage: worktree-cleanup.sh <worktree-path> [--delete-branch]
+# Usage: worktree-cleanup.sh <worktree-path> [--delete-branch] [--yes-destroy]
+#
+# Safe by default: refuses to drop a worktree with uncommitted changes or
+# stashes. The previous version silently re-tried with --force on the first
+# failure, which is exactly how a half-finished branch's local-only files
+# disappear (.env tweaks, debug logs, an unstaged migration). To opt into
+# destructive removal, pass --yes-destroy explicitly.
 
 set -euo pipefail
 
-if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <worktree-path> [--delete-branch]" >&2
-  exit 1
-fi
-
-WORKTREE_PATH="$1"
+WORKTREE_PATH=""
 DELETE_BRANCH=false
-[[ "\${2:-}" == "--delete-branch" ]] && DELETE_BRANCH=true
+YES_DESTROY=false
 
-if [[ ! -d "$WORKTREE_PATH" ]]; then
-  echo "No such worktree: $WORKTREE_PATH" >&2
+while [[ \$# -gt 0 ]]; do
+  case "\$1" in
+    --delete-branch) DELETE_BRANCH=true; shift ;;
+    --yes-destroy)   YES_DESTROY=true;   shift ;;
+    --) shift; WORKTREE_PATH="\${1:-}"; shift; break ;;
+    -*) echo "Unknown flag: \$1" >&2; exit 1 ;;
+    *)
+      if [[ -z "\$WORKTREE_PATH" ]]; then
+        WORKTREE_PATH="\$1"
+      else
+        echo "Unexpected positional argument: \$1" >&2; exit 1
+      fi
+      shift
+      ;;
+  esac
+done
+
+[[ -n "\$WORKTREE_PATH" ]] || {
+  echo "Usage: \$0 <worktree-path> [--delete-branch] [--yes-destroy]" >&2
+  exit 1
+}
+
+if [[ ! -d "\$WORKTREE_PATH" ]]; then
+  echo "No such worktree: \$WORKTREE_PATH" >&2
   exit 0
 fi
 
-# Read branch name from marker or from git
 BRANCH_NAME=""
-if [[ -f "$WORKTREE_PATH/${a}/WORKTREE" ]]; then
-  BRANCH_NAME=$(grep '^branch:' "$WORKTREE_PATH/${a}/WORKTREE" | sed 's/.*:[[:space:]]*//')
+if [[ -f "\$WORKTREE_PATH/${a}/WORKTREE" ]]; then
+  BRANCH_NAME=\$(grep '^branch:' "\$WORKTREE_PATH/${a}/WORKTREE" | sed 's/.*:[[:space:]]*//')
 fi
 
-git worktree remove "$WORKTREE_PATH" 2>&1 || {
-  echo "Remove failed — forcing (uncommitted changes will be lost)" >&2
-  git worktree remove --force "$WORKTREE_PATH"
-}
+# Try a clean remove first.
+if git worktree remove "\$WORKTREE_PATH" 2>/dev/null; then
+  :
+else
+  # Diagnose what's holding the worktree before deciding.
+  echo "Cannot remove cleanly — worktree has local state:" >&2
+  echo "" >&2
+  echo "Uncommitted changes (git status --porcelain):" >&2
+  git -C "\$WORKTREE_PATH" status --porcelain | sed 's/^/  /' >&2 || true
+  echo "" >&2
+  echo "Stashes (git stash list):" >&2
+  git -C "\$WORKTREE_PATH" stash list | sed 's/^/  /' >&2 || true
+  echo "" >&2
 
-if [[ "$DELETE_BRANCH" == "true" && -n "$BRANCH_NAME" ]]; then
-  git branch -D "$BRANCH_NAME" 2>&1 || echo "Branch $BRANCH_NAME already gone or not fully merged"
+  if [[ "\$YES_DESTROY" != "true" ]]; then
+    echo "REFUSING to --force without --yes-destroy. Choose one:" >&2
+    echo "  1. Commit/stash the work in the worktree, then re-run this script." >&2
+    echo "  2. Re-run with --yes-destroy to discard the local state above." >&2
+    exit 2
+  fi
+
+  echo "WARN: --yes-destroy specified — discarding the local state above." >&2
+  git worktree remove --force "\$WORKTREE_PATH"
+fi
+
+if [[ "\$DELETE_BRANCH" == "true" && -n "\$BRANCH_NAME" ]]; then
+  git branch -D "\$BRANCH_NAME" 2>&1 || echo "Branch \$BRANCH_NAME already gone or not fully merged"
 fi
 
 git worktree prune
-echo "Cleaned up $WORKTREE_PATH"
+echo "Cleaned up \$WORKTREE_PATH"
+`,
+    },
+    {
+      path: `${a}/scripts/log.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# APED log — append a structured event to the per-day sprint log.
+#
+# Usage: log.sh <event-type> [key=value ...]
+# Example: log.sh worktree_created story_key=1-2 ticket=KON-83 worktree=/path
+#
+# Events are written as JSONL to {APED_DIR}/logs/sprint-YYYY-MM-DD.jsonl with
+# a fixed envelope (ts, type, …) plus arbitrary key=value pairs. Log writes
+# are line-atomic on POSIX as long as each JSONL line stays under PIPE_BUF
+# (4 KiB on Linux/macOS) — true for all our events.
+#
+# **Best-effort**: if the log dir cannot be created or the write fails, emit
+# a WARN to stderr and exit 0. Observability must never break the caller —
+# /aped-sprint, /aped-ship et al. would silently fail otherwise.
+
+set -uo pipefail
+
+EVENT_TYPE="\${1:-}"
+shift || true
+[[ -n "\$EVENT_TYPE" ]] || { echo "log.sh: missing event type" >&2; exit 0; }
+
+PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-\$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+LOG_DIR="\$PROJECT_ROOT/${a}/logs"
+DAY=\$(date -u +%Y-%m-%d)
+LOG_FILE="\$LOG_DIR/sprint-\${DAY}.jsonl"
+
+mkdir -p "\$LOG_DIR" 2>/dev/null || { echo "WARN: cannot create \$LOG_DIR — skipping log" >&2; exit 0; }
+
+now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+
+build_json() {
+  local ts="\$(now_iso)" type="\$1"; shift
+  if command -v jq >/dev/null 2>&1; then
+    local -a jq_args=(-c -n --arg ts "\$ts" --arg type "\$type")
+    local fields="{ts:\\\$ts, type:\\\$type"
+    local kv k
+    for kv in "\$@"; do
+      k="\${kv%%=*}"
+      jq_args+=(--arg "\$k" "\${kv#*=}")
+      fields+=", \$k:\\\$\$k"
+    done
+    fields+="}"
+    jq "\${jq_args[@]}" "\$fields"
+  else
+    # Fallback: minimal escape (\\ and "). Acceptable for local, trusted
+    # values; logs are not meant to be processed by untrusted parsers.
+    local out="{\\"ts\\":\\"\$ts\\",\\"type\\":\\"\$type\\""
+    local kv k v esc
+    for kv in "\$@"; do
+      k="\${kv%%=*}"
+      v="\${kv#*=}"
+      esc=\$(printf '%s' "\$v" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
+      out+=",\\"\$k\\":\\"\$esc\\""
+    done
+    out+="}"
+    printf '%s' "\$out"
+  fi
+}
+
+JSON=\$(build_json "\$EVENT_TYPE" "\$@")
+printf '%s\\n' "\$JSON" >> "\$LOG_FILE" 2>/dev/null || {
+  echo "WARN: failed to append to \$LOG_FILE" >&2
+  exit 0
+}
 `,
     },
     {
@@ -605,10 +756,13 @@ echo "Cleaned up $WORKTREE_PATH"
 #   clear-story-worktree   <key>
 #
 # Exit codes: 0 ok, 1 generic error, 2 stale lock cleared + state untouched,
-#             3 invalid command, 4 state.yaml missing or unreadable.
+#             3 invalid command, 4 state.yaml missing or unreadable,
+#             5 candidate file failed validation (refused to clobber state).
 
-set -u
-set -o pipefail
+# Strict mode — any unhandled failure aborts the run BEFORE write_atomic
+# touches the live state file. Without -e the previous version could swallow
+# a failed cp/awk/sed and proceed to mv, writing corrupted YAML "atomically".
+set -euo pipefail
 
 STALE_LOCK_SECONDS=\${APED_STALE_LOCK_SECONDS:-300}
 LOCK_TIMEOUT_SECONDS=\${APED_LOCK_TIMEOUT_SECONDS:-5}
@@ -672,17 +826,38 @@ acquire_lock() {
 }
 
 # ── Atomic write + backup ────────────────────────────────────────────────
-# All mutations flow through write_atomic: snapshot the current file to
-# BACKUP_FILE, write the new content to a .tmp sibling, then rename. mv
-# within the same filesystem is atomic on POSIX — a crash mid-write leaves
-# either the old state (if before rename) or the new state (if after), but
-# never a truncated file. BACKUP_FILE is the one-deep safety net: doctor
-# can offer to restore if the current file is unreadable.
+# All mutations flow through write_atomic. Order matters:
+#   1. Validate the candidate file (non-empty, parses as YAML if yq present)
+#      — refuse to clobber the live state with garbage. This is the gate
+#      that turns a buggy awk/sed into "no-op + clear error" instead of
+#      "atomically corrupt the canonical state".
+#   2. Snapshot the current good state to BACKUP_FILE. Failure here aborts
+#      — better to fail the mutation than to overwrite with no rollback.
+#   3. mv the candidate over the live file. mv within the same filesystem
+#      is atomic on POSIX, so a crash mid-mv leaves either the old or the
+#      new state, never a truncated mix.
 write_atomic() {
   local new_content_path="\$1"
-  cp -f "\$STATE_FILE" "\$BACKUP_FILE" 2>/dev/null || true
+
+  if [[ ! -s "\$new_content_path" ]]; then
+    echo "ERROR: candidate state file is empty (\$new_content_path) — refusing write." >&2
+    rm -f "\$new_content_path" 2>/dev/null || true
+    return 5
+  fi
+
+  if command -v yq >/dev/null 2>&1; then
+    if ! yq eval 'true' "\$new_content_path" >/dev/null 2>&1; then
+      echo "ERROR: candidate state file is not valid YAML (\$new_content_path) — refusing write. Inspect the candidate before retrying." >&2
+      return 5
+    fi
+  fi
+
+  if ! cp -f "\$STATE_FILE" "\$BACKUP_FILE"; then
+    echo "ERROR: failed to write backup at \$BACKUP_FILE — aborting before mutating live state." >&2
+    return 1
+  fi
+
   mv -f "\$new_content_path" "\$STATE_FILE"
-  # Best-effort fsync via dd (POSIX tool). Silent if unavailable.
   command -v sync >/dev/null 2>&1 && sync || true
 }
 
@@ -709,20 +884,40 @@ set_story_field() {
   local key="\$1" field="\$2" value="\$3"
   [[ -n "\$key" && -n "\$field" ]] || { echo "ERROR: missing story key or field" >&2; return 3; }
   local tmp="\$STATE_FILE.tmp"
-  # We enter "in_story" when we see "    KEY:" at the story-header depth and
-  # leave when we hit another header at the same depth or a shallower line.
-  # Inside the story, any line matching "<indent>FIELD:" is rewritten,
-  # preserving the exact original indentation of that field (capture via awk
-  # match() and substr on RSTART of the leading spaces).
-  awk -v k="\$key" -v f="\$field" -v v="\$value" '
-    function is_story_header(s,    idx) {
-      # "    KEY:" (4+ leading spaces, the key token, trailing colon)
+
+  # Prefer yq when available — robust against regex metachars in story keys
+  # (e.g. dots, hyphens, the slug suffix), preserves YAML structure exactly,
+  # and survives indentation drift the awk fallback can't see. The path
+  # 'sprint.stories."<key>".<field>' matches the canonical layout written by
+  # /aped-epics. The caller wraps string values with literal quotes (so
+  # awk's print-line preserves them); for yq we strip those and let yq
+  # quote the value itself.
+  if command -v yq >/dev/null 2>&1; then
+    cp -f "\$STATE_FILE" "\$tmp"
+    if [[ "\$value" == "null" ]]; then
+      yq eval -i ".sprint.stories.\\"\$key\\".\$field = null" "\$tmp"
+    else
+      local raw="\${value#\\"}"
+      raw="\${raw%\\"}"
+      yq eval -i ".sprint.stories.\\"\$key\\".\$field = \\"\$raw\\"" "\$tmp"
+    fi
+    write_atomic "\$tmp"
+    return
+  fi
+
+  # awk fallback (yq absent). Escape regex metachars in the story key so a
+  # key like "1-2-foo.bar" or "story[v2]" doesn't blow up the match.
+  local key_re
+  key_re=\$(printf '%s' "\$key" | sed 's/[][\\\\/.^\$*+?(){}|]/\\\\&/g')
+  awk -v k_re="\$key_re" -v f="\$field" -v v="\$value" '
+    function is_story_header(s) {
+      # "<indent>WORD:" with optional trailing whitespace and nothing else
       return match(s, "^[[:space:]]+[A-Za-z0-9_-]+:[[:space:]]*\$")
     }
     BEGIN { in_story = 0 }
     {
       line = \$0
-      if (match(line, "^([[:space:]]+)" k ":[[:space:]]*\$")) {
+      if (match(line, "^([[:space:]]+)" k_re ":[[:space:]]*\$")) {
         in_story = 1
         print line
         next
@@ -731,8 +926,7 @@ set_story_field() {
         in_story = 0
       }
       if (in_story && match(line, "^([[:space:]]+)" f ":[[:space:]]")) {
-        # RSTART=1, RLENGTH covers "<indent>field: "; grab the indent only by
-        # splitting on the field name token.
+        # Preserve the exact indentation of the original field line.
         split(line, arr, f ":")
         indent = arr[1]
         print indent f ": " v
@@ -762,12 +956,63 @@ apply_patch() {
       [[ \$# -eq 1 ]] || { echo "Usage: clear-story-worktree <key>" >&2; return 3; }
       set_story_field "\$1" "worktree" "null"
       ;;
+    set-story-field)
+      # Generic escape hatch — used by /aped-sprint for ticket_sync_status,
+      # by /aped-lead for retry bookkeeping, etc. Keep specific commands
+      # above for the hot-path mutations (better error messages, narrower
+      # surface to misuse).
+      [[ \$# -eq 3 ]] || { echo "Usage: set-story-field <key> <field> <value>" >&2; return 3; }
+      local raw_value="\$3"
+      if [[ "\$raw_value" == "null" || "\$raw_value" == "true" || "\$raw_value" == "false" ]]; then
+        set_story_field "\$1" "\$2" "\$raw_value"
+      else
+        set_story_field "\$1" "\$2" "\\"\$raw_value\\""
+      fi
+      ;;
+    set-sprint-field)
+      # Mutate a top-level field under sprint:. Used for umbrella_branch
+      # bookkeeping by /aped-sprint at sprint start. yq path is preferred;
+      # awk fallback is the same shape as set_story_field.
+      [[ \$# -eq 2 ]] || { echo "Usage: set-sprint-field <field> <value>" >&2; return 3; }
+      local field="\$1" value="\$2" tmp="\$STATE_FILE.tmp"
+      if command -v yq >/dev/null 2>&1; then
+        cp -f "\$STATE_FILE" "\$tmp"
+        if [[ "\$value" == "null" ]]; then
+          yq eval -i ".sprint.\$field = null" "\$tmp"
+        else
+          local raw="\${value#\\"}"; raw="\${raw%\\"}"
+          yq eval -i ".sprint.\$field = \\"\$raw\\"" "\$tmp"
+        fi
+        write_atomic "\$tmp"
+      else
+        # awk fallback: scan for "  \$field:" inside the sprint: block.
+        awk -v f="\$field" -v v="\$value" '
+          BEGIN { in_sprint = 0; emitted = 0 }
+          /^sprint:/ { in_sprint = 1; print; next }
+          in_sprint && /^[a-zA-Z]/ && !/^sprint:/ { in_sprint = 0 }
+          in_sprint && match(\$0, "^([[:space:]]+)" f ":[[:space:]]") {
+            split(\$0, arr, f ":")
+            print arr[1] f ": " v
+            emitted = 1
+            next
+          }
+          { print }
+          END {
+            if (!emitted) {
+              # Append the field at the end if the sprint section never had it
+              print "  " f ": " v
+            }
+          }
+        ' "\$STATE_FILE" > "\$tmp"
+        write_atomic "\$tmp"
+      fi
+      ;;
     "")
       echo "ERROR: no command on stdin" >&2
       return 3
       ;;
     *)
-      echo "ERROR: unknown command '\$cmd' (known: set-scope-change | set-story-status | set-story-worktree | clear-story-worktree)" >&2
+      echo "ERROR: unknown command '\$cmd' (known: set-scope-change | set-story-status | set-story-worktree | clear-story-worktree | set-story-field | set-sprint-field)" >&2
       return 3
       ;;
   esac
@@ -789,16 +1034,22 @@ read_cmd
       path: `${a}/scripts/validate-state.sh`,
       executable: true,
       content: `#!/usr/bin/env bash
-# APED validate-state — check that state.yaml is syntactically valid and
-# every story status is in the allowed whitelist. Skills call this at
-# Setup so a hand-edited or half-corrupted state.yaml produces a clear
-# message instead of silent grep/awk failures downstream.
+# APED validate-state — check that state.yaml is syntactically valid,
+# every story status is in the allowed whitelist, and the schema version
+# is one this build understands. Skills call this at Setup so a hand-
+# edited or half-corrupted state.yaml produces a clear message instead
+# of silent grep/awk failures downstream.
+#
+# Schema versions: this script knows about version(s) listed in
+# KNOWN_SCHEMA_VERSIONS below. Bumping the schema requires an explicit
+# migration before this script will accept the file again.
 #
 # Exit codes:
 #   0 ok
 #   1 state.yaml missing
 #   2 yaml parse error (if yq is available)
 #   3 invalid status value
+#   4 unknown schema_version (refuse to operate)
 
 set -u
 set -o pipefail
@@ -826,6 +1077,22 @@ if command -v yq >/dev/null 2>&1; then
   fi
 fi
 
+# ── Schema version check ─────────────────────────────────────────────────
+# Hand-edited state.yaml may omit schema_version (legacy files); accept
+# missing as version 1 so existing projects keep working until they bump.
+KNOWN_SCHEMA_VERSIONS="1"
+schema_version="1"
+if command -v yq >/dev/null 2>&1; then
+  schema_version=\$(yq eval '.schema_version // 1' "\$STATE_FILE" 2>/dev/null || echo "1")
+else
+  v=\$(grep -E '^schema_version:' "\$STATE_FILE" 2>/dev/null | head -1 | sed 's/.*:[[:space:]]*//;s/["[:space:]]//g')
+  [[ -n "\$v" ]] && schema_version="\$v"
+fi
+if ! grep -qw "\$schema_version" <<< "\$KNOWN_SCHEMA_VERSIONS"; then
+  echo "ERROR: state.yaml schema_version=\$schema_version is not understood by this APED build (known: \$KNOWN_SCHEMA_VERSIONS). A migration is required — do not edit state.yaml manually." >&2
+  exit 4
+fi
+
 # ── Status whitelist check (grep-based, dependency-free) ─────────────────
 # Accepted statuses: pending | ready-for-dev | in-progress | dev-done |
 # review | review-queued | review-done | done
@@ -849,6 +1116,316 @@ if (( invalid_found )); then
   exit 3
 fi
 
+exit 0
+`,
+    },
+    {
+      path: `${a}/scripts/check-active-worktrees.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# APED check-active-worktrees — reconcile state.yaml against disk reality.
+#
+# /aped-sprint computes parallel-capacity from state.yaml only. If the user
+# manually rm-rf'd a worktree, capacity is wrong and dispatch is needlessly
+# blocked. This script is the read-side reconciliation: it lists every
+# story registered as active (in-progress / review-queued / review) and
+# verifies its worktree path still exists on disk.
+#
+# Output (text default, --format json available): one line per story.
+# Exit:
+#   0 → all worktrees present (or none registered)
+#   1 → one or more missing (state out of sync — /aped-lead can fix)
+#   3 → state.yaml unreadable
+
+set -uo pipefail
+
+FORMAT="text"
+if [[ "\${1:-}" == "--format" ]]; then
+  FORMAT="\${2:-text}"
+fi
+
+PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-\$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+STATE_FILE="\$PROJECT_ROOT/${o}/state.yaml"
+[[ -f "\$STATE_FILE" ]] || { echo "ERROR: \$STATE_FILE not found" >&2; exit 3; }
+
+declare -a ENTRIES=()
+
+emit_if_active() {
+  local key="\$1" status="\$2" worktree="\$3"
+  [[ -z "\$key" ]] && return
+  [[ -z "\$worktree" || "\$worktree" == "null" ]] && return
+  case "\$status" in
+    in-progress|review-queued|review) ;;
+    *) return ;;
+  esac
+  if [[ -d "\$worktree" ]]; then
+    ENTRIES+=("\$key|\$status|\$worktree|present")
+  else
+    ENTRIES+=("\$key|\$status|\$worktree|missing")
+  fi
+}
+
+if command -v yq >/dev/null 2>&1; then
+  while IFS='|' read -r key status worktree; do
+    emit_if_active "\$key" "\$status" "\$worktree"
+  done < <(yq eval '.sprint.stories | to_entries | .[] | [.key, (.value.status // ""), (.value.worktree // "null")] | join("|")' "\$STATE_FILE" 2>/dev/null || true)
+else
+  # awk fallback — scoped to sprint.stories so we don't accidentally treat
+  # other top-level maps as story entries. Story headers are 4-space indent
+  # bare keys; status/worktree fields are 6-space indent.
+  while IFS='|' read -r key status worktree; do
+    emit_if_active "\$key" "\$status" "\$worktree"
+  done < <(awk '
+    /^sprint:/ { in_sprint=1; next }
+    in_sprint && /^[a-zA-Z]/ { in_sprint=0 }
+    in_sprint && /^  stories:/ { in_stories=1; next }
+    in_stories && /^  [a-zA-Z]/ { in_stories=0 }
+    in_stories && /^    [a-zA-Z0-9_-]+:[[:space:]]*\$/ {
+      if (key != "") print key "|" status "|" worktree
+      k=\$0; sub(/:[[:space:]]*\$/, "", k); sub(/^[[:space:]]+/, "", k)
+      key=k; status=""; worktree="null"
+      next
+    }
+    in_stories && /^      status:/ {
+      v=\$0; sub(/^[^:]*:[[:space:]]*/, "", v); gsub(/"/, "", v); gsub(/[[:space:]]+\$/, "", v)
+      status=v; next
+    }
+    in_stories && /^      worktree:/ {
+      v=\$0; sub(/^[^:]*:[[:space:]]*/, "", v); gsub(/"/, "", v); gsub(/[[:space:]]+\$/, "", v)
+      worktree=v; next
+    }
+    END { if (key != "") print key "|" status "|" worktree }
+  ' "\$STATE_FILE")
+fi
+
+missing=0
+# bash quirk: \${ENTRIES[@]} on an empty array under \`set -u\` raises
+# "unbound variable" in bash <5.1. \${ENTRIES[@]+"\${ENTRIES[@]}"} expands
+# to nothing safely on empty arrays.
+for e in \${ENTRIES[@]+"\${ENTRIES[@]}"}; do
+  [[ "\${e##*|}" == "missing" ]] && missing=\$((missing + 1))
+done
+
+if [[ "\$FORMAT" == "json" ]]; then
+  printf '['
+  first=1
+  for e in \${ENTRIES[@]+"\${ENTRIES[@]}"}; do
+    [[ \$first -eq 1 ]] && first=0 || printf ','
+    IFS='|' read -r k s w r <<< "\$e"
+    printf '{"story":"%s","status":"%s","worktree":"%s","reality":"%s"}' "\$k" "\$s" "\$w" "\$r"
+  done
+  printf ']\\n'
+else
+  if [[ \${#ENTRIES[@]} -eq 0 ]]; then
+    echo "No active worktrees registered."
+  else
+    printf '%-20s  %-15s  %-50s  %s\\n' "STORY" "STATUS" "WORKTREE" "REALITY"
+    for e in "\${ENTRIES[@]}"; do
+      IFS='|' read -r k s w r <<< "\$e"
+      mark="✓"
+      [[ "\$r" == "missing" ]] && mark="✗"
+      printf '%-20s  %-15s  %-50s  %s %s\\n' "\$k" "\$s" "\$w" "\$mark" "\$r"
+    done
+  fi
+fi
+
+exit \$(( missing > 0 ? 1 : 0 ))
+`,
+    },
+    {
+      path: `${a}/scripts/check-auto-approve.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# APED check-auto-approve — deterministic verdicts for /aped-lead's batch
+# processor. Replaces LLM-based judgement on "is this check-in safe to
+# auto-approve?". Each subcommand runs the checks listed in aped-lead.md
+# and returns a verdict the LLM can trust.
+#
+# Subcommands:
+#   story-ready  <story-key>
+#   dev-done     <story-key>
+#   review-done  <story-key>
+#
+# Exit codes:
+#   0 → AUTO     (all checks passed)
+#   1 → ESCALATE (one or more checks failed; reasons on stderr, "- " prefix)
+#   2 → usage error
+#   3 → preconditions missing (story not in state.yaml, worktree missing)
+#
+# Run from the MAIN project root; paths derive from there.
+
+set -uo pipefail
+
+ACTION="\${1:-}"
+KEY="\${2:-}"
+
+[[ -n "\$ACTION" && -n "\$KEY" ]] || {
+  echo "Usage: check-auto-approve.sh <story-ready|dev-done|review-done> <story-key>" >&2
+  exit 2
+}
+
+PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-\$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+STATE_FILE="\$PROJECT_ROOT/${o}/state.yaml"
+APED_DIR="\$PROJECT_ROOT/${a}"
+CONFIG_FILE="\$APED_DIR/config.yaml"
+
+[[ -f "\$STATE_FILE" ]] || { echo "ERROR: state.yaml missing at \$STATE_FILE" >&2; exit 3; }
+
+REASONS=()
+fail() { REASONS+=("- \$1"); }
+
+field_for_story() {
+  local key="\$1" field="\$2"
+  awk -v k="\$key" -v f="\$field" '
+    \$0 ~ "^    " k ":" { in_story=1; next }
+    in_story && /^    [a-zA-Z0-9_-]+:/ { in_story=0 }
+    in_story && \$1 == f ":" { gsub(/"/, "", \$2); print \$2; exit }
+  ' "\$STATE_FILE"
+}
+
+WORKTREE=\$(field_for_story "\$KEY" "worktree" || true)
+[[ -n "\$WORKTREE" && "\$WORKTREE" != "null" ]] || {
+  echo "ERROR: no worktree registered for \$KEY in state.yaml" >&2
+  exit 3
+}
+[[ -d "\$WORKTREE" ]] || {
+  echo "ERROR: worktree path \$WORKTREE not found on disk" >&2
+  exit 3
+}
+
+STORY_FILE="\$WORKTREE/${o}/stories/\${KEY}.md"
+
+check_story_ready() {
+  [[ -f "\$STORY_FILE" ]] || { fail "story file missing at \$STORY_FILE"; return; }
+
+  # ACs use Given/When/Then, either numbered ("1. Given …") or bulleted ("- Given …").
+  if ! grep -qE '^[[:space:]]*([0-9]+\\.|-)[[:space:]]+(Given|GIVEN)' "\$STORY_FILE"; then
+    fail "no Given/When/Then-formatted Acceptance Criteria in story file"
+  fi
+
+  # Story file must be committed on the worktree's branch.
+  if ! git -C "\$WORKTREE" log --oneline -- "${o}/stories/\${KEY}.md" 2>/dev/null | grep -q .; then
+    fail "story file is not committed on the feature branch"
+  fi
+
+  # depends_on all done.
+  local deps
+  deps=\$(awk -v k="\$KEY" '
+    \$0 ~ "^    " k ":" { in_story=1; next }
+    in_story && /^    [a-zA-Z0-9_-]+:/ && !/depends_on:/ { if (!in_deps) in_story=0 }
+    in_story && /^[[:space:]]+depends_on:/ { in_deps=1; next }
+    in_deps && /^[[:space:]]+-[[:space:]]/ { gsub(/^[[:space:]]+-[[:space:]]+/, ""); gsub(/"/, ""); print }
+    in_deps && /^[[:space:]]+[a-zA-Z]/ { in_deps=0 }
+  ' "\$STATE_FILE")
+
+  local dep dep_status
+  for dep in \$deps; do
+    dep_status=\$(field_for_story "\$dep" "status" || echo "unknown")
+    [[ "\$dep_status" == "done" ]] || fail "dependency \$dep is \$dep_status (need done)"
+  done
+}
+
+check_dev_done() {
+  # Test result freshness — /aped-dev should write .aped/.last-test-exit on
+  # every run. Missing cache is treated as "tests not verified" and escalates.
+  local exit_file="\$WORKTREE/${a}/.last-test-exit"
+  if [[ -f "\$exit_file" ]]; then
+    local last_exit
+    last_exit=\$(cat "\$exit_file" 2>/dev/null || echo "missing")
+    [[ "\$last_exit" == "0" ]] || fail "last test run exited \$last_exit (cached at .last-test-exit)"
+  else
+    fail "no .aped/.last-test-exit cache — run tests in worktree before approving"
+  fi
+
+  if [[ -f "\$STORY_FILE" ]]; then
+    if grep -qE '^[[:space:]]*- \\[ \\]' "\$STORY_FILE"; then
+      local unchecked
+      unchecked=\$(grep -cE '^[[:space:]]*- \\[ \\]' "\$STORY_FILE")
+      fail "\$unchecked tasks still unchecked in story"
+    fi
+    if grep -qi 'HALT' "\$STORY_FILE"; then
+      fail "HALT entries present in Dev Agent Record"
+    fi
+  else
+    fail "story file missing at \$STORY_FILE"
+  fi
+
+  if [[ -n "\$(git -C "\$WORKTREE" status --porcelain 2>/dev/null)" ]]; then
+    fail "worktree has uncommitted changes"
+  fi
+
+  if [[ -x "\$APED_DIR/aped-review/scripts/git-audit.sh" && -f "\$STORY_FILE" ]]; then
+    if ! (cd "\$WORKTREE" && bash "\$APED_DIR/aped-review/scripts/git-audit.sh" "\$STORY_FILE") >/dev/null 2>&1; then
+      fail "git-audit.sh reports file-list/git-changes mismatch"
+    fi
+  fi
+}
+
+check_review_done() {
+  local status
+  status=\$(field_for_story "\$KEY" "status" || echo "unknown")
+  [[ "\$status" == "done" ]] || fail "story status is \$status (need done)"
+
+  local ticket ticket_system
+  ticket=\$(field_for_story "\$KEY" "ticket" || true)
+  ticket_system=\$(grep -E '^ticket_system:' "\$CONFIG_FILE" 2>/dev/null | sed 's/.*:[[:space:]]*//;s/["'"'"']//g' || echo "none")
+
+  if [[ -n "\$ticket" ]]; then
+    case "\$ticket_system" in
+      github-issues)
+        if command -v gh >/dev/null 2>&1; then
+          if gh issue view "\$ticket" --json labels 2>/dev/null | grep -q 'aped-blocked-'; then
+            fail "ticket \$ticket has aped-blocked-* label"
+          fi
+        fi
+        ;;
+      gitlab-issues)
+        if command -v glab >/dev/null 2>&1; then
+          if glab issue view "\$ticket" 2>/dev/null | grep -q 'aped-blocked-'; then
+            fail "ticket \$ticket has aped-blocked-* label"
+          fi
+        fi
+        ;;
+    esac
+  fi
+
+  # PR mergeability + base check — github only for now; other providers skip
+  # silently (no escalation). The PR's base MUST be the sprint umbrella; if
+  # /aped-review opened it against the wrong base (e.g. the actual base
+  # branch), the merge would skip the umbrella convention entirely.
+  local umbrella=""
+  if command -v yq >/dev/null 2>&1; then
+    umbrella=\$(yq -r '.sprint.umbrella_branch // ""' "\$STATE_FILE" 2>/dev/null || echo "")
+  fi
+
+  if [[ -n "\$ticket" ]] && command -v gh >/dev/null 2>&1; then
+    local pr_json mergeable base_ref
+    pr_json=\$(cd "\$WORKTREE" && gh pr view --json mergeable,baseRefName 2>/dev/null || echo "{}")
+    mergeable=\$(printf '%s' "\$pr_json" | grep -oE '"mergeable":[[:space:]]*"[A-Z]+"' | sed 's/.*"\\([A-Z]*\\)"/\\1/' || echo "UNKNOWN")
+    base_ref=\$(printf '%s' "\$pr_json" | grep -oE '"baseRefName":[[:space:]]*"[^"]+"' | sed 's/.*"\\([^"]*\\)"/\\1/' || echo "")
+
+    case "\$mergeable" in
+      MERGEABLE|UNKNOWN) ;;
+      *) fail "PR mergeable status is \$mergeable (need MERGEABLE)" ;;
+    esac
+
+    if [[ -n "\$umbrella" && -n "\$base_ref" && "\$base_ref" != "\$umbrella" ]]; then
+      fail "PR base is '\$base_ref' but expected sprint umbrella '\$umbrella' — re-open the PR with --base \$umbrella"
+    fi
+  fi
+}
+
+case "\$ACTION" in
+  story-ready) check_story_ready ;;
+  dev-done)    check_dev_done ;;
+  review-done) check_review_done ;;
+  *) echo "Unknown action: \$ACTION (expected story-ready|dev-done|review-done)" >&2; exit 2 ;;
+esac
+
+if [[ \${#REASONS[@]} -gt 0 ]]; then
+  printf '%s\\n' "\${REASONS[@]}" >&2
+  exit 1
+fi
 exit 0
 `,
     },
@@ -925,12 +1502,20 @@ TICKET_SYSTEM=\$(read_config ticket_system)
 GIT_PROVIDER=\$(read_config git_provider)
 
 ticket_for_story() {
-  local key="\$1"
+  field_for_story "\$1" "ticket"
+}
+
+worktree_for_story() {
+  field_for_story "\$1" "worktree"
+}
+
+field_for_story() {
+  local key="\$1" field="\$2"
   [[ -f "\$STATE_FILE" ]] || return 1
-  awk -v k="\$key" '
+  awk -v k="\$key" -v f="\$field" '
     \$0 ~ "^    " k ":" { in_story=1; next }
     in_story && /^    [a-zA-Z0-9_-]+:/ { in_story=0 }
-    in_story && \$1 == "ticket:" {
+    in_story && \$1 == f ":" {
       gsub(/"/, "", \$2); print \$2; exit
     }
   ' "\$STATE_FILE"
@@ -939,13 +1524,21 @@ ticket_for_story() {
 # ── Validation ────────────────────────────────────────────────────────────
 validate_kind() {
   case "\$1" in
-    story-ready|dev-done|review-done) ;;
-    *) echo "Invalid kind: \$1 (expected story-ready | dev-done | review-done)" >&2; exit 1 ;;
+    story-ready|dev-done|review-done|dev-blocked) ;;
+    *) echo "Invalid kind: \$1 (expected story-ready | dev-done | review-done | dev-blocked)" >&2; exit 1 ;;
   esac
 }
 
 now_iso() {
   date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
+# ── Audit log (best-effort) ──────────────────────────────────────────────
+# Mirrors every mutation through scripts/log.sh so /aped-status, postmortems,
+# and replays have a single timeline to read. log.sh is fail-soft (always
+# exits 0); we still guard with || true to be paranoid.
+log_event() {
+  bash "\$MAIN_ROOT/${a}/scripts/log.sh" "\$@" 2>/dev/null || true
 }
 
 # ── File backend ──────────────────────────────────────────────────────────
@@ -1032,6 +1625,7 @@ cmd_post() {
     fi
   fi
 
+  log_event checkin_posted story="\$key" kind="\$kind" reason="\$reason"
   printf 'posted %s/%s (pending)\\n' "\$key" "\$kind"
 }
 
@@ -1050,6 +1644,7 @@ cmd_approve() {
       post_ticket_comment "\$ticket" "[APED:APPROVE:\$kind] \$key — lead approved. Proceed."
     fi
   fi
+  log_event checkin_approved story="\$key" kind="\$kind"
   printf 'approved %s/%s\\n' "\$key" "\$kind"
 }
 
@@ -1068,6 +1663,7 @@ cmd_block() {
       post_ticket_comment "\$ticket" "[APED:BLOCK:\$kind] \$key — lead needs changes. Reason: \$reason"
     fi
   fi
+  log_event checkin_blocked story="\$key" kind="\$kind" reason="\$reason"
   printf 'blocked %s/%s\\n' "\$key" "\$kind"
 }
 
@@ -1088,7 +1684,7 @@ cmd_poll() {
   for f in "\$INBOX_DIR"/*.jsonl; do
     local key
     key=\$(basename "\$f" .jsonl)
-    for kind in story-ready dev-done review-done; do
+    for kind in story-ready dev-done review-done dev-blocked; do
       local st
       st=\$(latest_status "\$key" "\$kind")
       if [[ "\$st" == "pending" ]]; then
@@ -1101,7 +1697,9 @@ cmd_poll() {
   if [[ "\$format" == "json" ]]; then
     printf '['
     local first=1
-    for entry in "\${pending[@]}"; do
+    # Guard against bash 4 \`set -u\` + empty array: \${a[@]+"\${a[@]}"} expands
+    # to nothing safely when the array is empty.
+    for entry in \${pending[@]+"\${pending[@]}"}; do
       local k="\${entry%|*}"
       local nd="\${entry#*|}"
       [[ \$first -eq 1 ]] && first=0 || printf ','
@@ -1122,33 +1720,145 @@ cmd_poll() {
   fi
 }
 
+cmd_archive() {
+  # Move all .jsonl checkin inboxes to a dated archive directory and start
+  # fresh. Called by /aped-ship after a successful umbrella PR open so the
+  # next sprint starts with empty inboxes (poll latency stays O(active)).
+  local archive_dir="\$INBOX_DIR/archive/\$(date -u +%Y-%m-%d)"
+  mkdir -p "\$archive_dir" 2>/dev/null || { echo "ERROR: cannot create \$archive_dir" >&2; exit 1; }
+
+  local moved=0
+  shopt -s nullglob
+  for f in "\$INBOX_DIR"/*.jsonl; do
+    mv -f "\$f" "\$archive_dir/" && moved=\$((moved + 1))
+  done
+  shopt -u nullglob
+
+  log_event checkin_archived to="\$archive_dir" files="\$moved"
+  printf 'archived %d inbox file(s) to %s\\n' "\$moved" "\$archive_dir"
+}
+
 cmd_push() {
-  local key="\${1:-}"; shift || true
-  [[ -n "\$key" && \$# -gt 0 ]] || { echo "Usage: checkin.sh push <key> <command...>" >&2; exit 1; }
-  local prompt="\$*"
+  # Args: [--target <name>] <story-key> <prompt-words...>
+  # Resolution order, in this priority:
+  #   1. If --target is given, use only that name (no auto-discovery).
+  #   2. Else build a candidate list from state.yaml: workmux handle (basename
+  #      of worktree path), ticket id, story key — in that order.
+  #   3. Try workmux first if installed: send to the candidate that workmux
+  #      knows. If multiple match, REFUSE and ask for --target.
+  #   4. Fall back to tmux: match against window names. Same multi-match rule.
+  # Exit codes:
+  #   0 pushed; 1 usage; 2 no target found anywhere; 3 ambiguous (>1 match).
+  # Never prints "pushed" unless the underlying send command actually ran
+  # against a single, unambiguous target.
+  local key="" target=""
+  local -a prompt_args=()
+  while [[ \$# -gt 0 ]]; do
+    case "\$1" in
+      --target)
+        target="\${2:-}"; shift 2 || { echo "Usage: --target requires a value" >&2; exit 1; }
+        ;;
+      --)
+        shift
+        while [[ \$# -gt 0 ]]; do prompt_args+=("\$1"); shift; done
+        break
+        ;;
+      *)
+        if [[ -z "\$key" ]]; then key="\$1"; else prompt_args+=("\$1"); fi
+        shift
+        ;;
+    esac
+  done
 
-  # Derive the tmux target window from the story's ticket (workmux naming default).
-  local ticket
-  ticket=\$(ticket_for_story "\$key" || true)
-  [[ -n "\$ticket" ]] || { echo "No ticket found for \$key — cannot push." >&2; exit 1; }
+  [[ -n "\$key" && \${#prompt_args[@]} -gt 0 ]] || {
+    echo "Usage: checkin.sh push [--target <name>] <key> <command...>" >&2
+    exit 1
+  }
+  local prompt="\${prompt_args[*]}"
 
+  local -a candidates=()
+  if [[ -n "\$target" ]]; then
+    candidates=("\$target")
+  else
+    local worktree ticket handle
+    worktree=\$(worktree_for_story "\$key" || true)
+    ticket=\$(ticket_for_story "\$key" || true)
+    if [[ -n "\$worktree" ]]; then
+      handle=\$(basename "\$worktree")
+      candidates+=("\$handle")
+    fi
+    [[ -n "\$ticket" ]] && candidates+=("\$ticket")
+    candidates+=("\$key")
+  fi
+
+  # ── Path A: workmux (preferred when installed) ─────────────────────────
+  if command -v workmux >/dev/null 2>&1; then
+    local list_out
+    list_out=\$(workmux list --format name 2>/dev/null || true)
+    local -a known=()
+    local c
+    for c in "\${candidates[@]}"; do
+      if printf '%s\\n' "\$list_out" | grep -Fxq "\$c"; then
+        known+=("\$c")
+      fi
+    done
+    if [[ \${#known[@]} -eq 1 ]]; then
+      workmux send "\${known[0]}" "\$prompt"
+      log_event push story="\$key" target="\${known[0]}" via=workmux prompt="\$prompt"
+      printf 'pushed via workmux to %s\\n' "\${known[0]}"
+      return 0
+    elif [[ \${#known[@]} -gt 1 ]]; then
+      echo "ERROR: multiple workmux handles match candidates [\${candidates[*]}]: \${known[*]}" >&2
+      echo "Pass --target <handle> to disambiguate." >&2
+      exit 3
+    fi
+    # zero workmux matches → fall through to tmux
+  fi
+
+  # ── Path B: tmux fallback ──────────────────────────────────────────────
   if ! command -v tmux >/dev/null 2>&1; then
-    echo "tmux not available — Story Leader must invoke next command manually (\$prompt)." >&2
+    echo "ERROR: no workmux match and tmux not installed — Story Leader for \$key must run '\$prompt' manually." >&2
     exit 2
   fi
 
-  # Try to send to any tmux window matching the ticket name (across sessions).
-  local targets
-  targets=\$(tmux list-windows -a -F '#{session_name}:#{window_index} #{window_name}' 2>/dev/null | awk -v n="\$ticket" '\$NF == n {print \$1}' || true)
-  if [[ -z "\$targets" ]]; then
-    echo "No tmux window named '\$ticket' found — Story Leader must invoke next command manually." >&2
+  local windows
+  windows=\$(tmux list-windows -a -F '#{session_name}:#{window_index} #{window_name}' 2>/dev/null || true)
+  local -a matched=()
+  local line name addr c
+  for c in "\${candidates[@]}"; do
+    while IFS= read -r line; do
+      [[ -z "\$line" ]] && continue
+      name="\${line##* }"
+      addr="\${line%% *}"
+      [[ "\$name" == "\$c" ]] && matched+=("\$addr")
+    done <<< "\$windows"
+  done
+
+  # Dedupe while preserving order. Guard the iterations: matched and unique
+  # may be empty (no candidate matched any window), and bash 4 \`set -u\`
+  # would explode on \${matched[@]} / \${unique[@]} with no elements.
+  local -a unique=()
+  local m
+  for m in \${matched[@]+"\${matched[@]}"}; do
+    local seen=0 u
+    for u in \${unique[@]+"\${unique[@]}"}; do [[ "\$u" == "\$m" ]] && { seen=1; break; }; done
+    (( seen == 0 )) && unique+=("\$m")
+  done
+
+  if [[ \${#unique[@]} -eq 0 ]]; then
+    echo "ERROR: no tmux window matches any candidate [\${candidates[*]}]. Story Leader for \$key must run '\$prompt' manually, or pass --target <session:window-or-name>." >&2
     exit 2
   fi
+  if [[ \${#unique[@]} -gt 1 ]]; then
+    echo "ERROR: multiple tmux windows match candidates [\${candidates[*]}]:" >&2
+    printf '  %s\\n' "\${unique[@]}" >&2
+    echo "Pass --target <session:window-or-name> to disambiguate." >&2
+    exit 3
+  fi
 
-  local first_target
-  first_target=\$(echo "\$targets" | head -1)
-  tmux send-keys -t "\$first_target" "\$prompt" Enter
-  printf 'pushed to %s\\n' "\$first_target"
+  tmux send-keys -t "\${unique[0]}" "\$prompt" Enter
+  log_event push story="\$key" target="\${unique[0]}" via=tmux prompt="\$prompt"
+  printf 'pushed via tmux to %s\\n' "\${unique[0]}"
 }
 
 case "\$ACTION" in
@@ -1158,6 +1868,7 @@ case "\$ACTION" in
   block)   cmd_block   "\$@" ;;
   status)  cmd_status  "\$@" ;;
   push)    cmd_push    "\$@" ;;
+  archive) cmd_archive "\$@" ;;
   ""|help|-h|--help)
     sed -n '2,/^$/p' "\$0" | sed 's/^# \\{0,1\\}//'
     ;;

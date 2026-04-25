@@ -149,7 +149,7 @@ Each specialist has a **persona** (name + defining trait). Include the persona i
 - **Ownership**: dev already ran React Grab at each GREEN (see `aped-dev` § Frontend Detection). Aria's job is to **validate** that work, not redo it from scratch.
 - **Validate**: design-spec compliance (tokens, spacing, typography), cross-screen consistency, edge cases dev may have skipped (loading / empty / error / disabled states), responsive behaviour
 - **Re-inspect with React Grab only when**: dev flagged an unresolved visual issue, a design-spec violation is suspected, or a cross-component consistency check is needed
-- **If React Grab MCP is unavailable**: fall back to static screenshots + code review; explicitly note in the report that a deep visual audit wasn't possible (do not silently pass)
+- **If React Grab MCP is unavailable**: fall back to static screenshots + code review; explicitly note in the report that a deep visual audit wasn't possible (do not silently pass), AND append a `Visual Review: deferred — React Grab MCP unavailable at <ISO timestamp>` line to the story file's Review Record so /aped-status and /aped-ship surface that the visual gate is incomplete. In prod, treat persistent MCP unavailability as a BLOCKER for that story until the user explicitly waives.
 
 **devops** — **Kai**, Platform Engineer, on-call veteran — "If it's not automated, it's not done." (if infra files)
 - `subagent_type: "feature-dev:code-reviewer"`
@@ -255,22 +255,30 @@ Do this BEFORE local state — remote failures are recoverable, but state.yaml g
 If `ticket_system` != `none`: post the review report as a comment on the ticket.
 
 If story → `done`:
-1. Approve/merge the PR (adapt to `git_provider`)
-2. Move ticket to **Done**
-3. Delete the feature branch (see "Worktree cleanup" below — different commands in parallel-sprint mode vs classic)
+1. **Open (or update) the story PR — target = sprint umbrella, NOT base.** Read `sprint.umbrella_branch` from state.yaml; that's the PR base. The PR's job is to be the unit of review against the umbrella; the umbrella aggregates the sprint and PRs once into base via `/aped-ship`.
+
+   ```bash
+   UMBRELLA=$(yq '.sprint.umbrella_branch' ${project_root}/{{OUTPUT_DIR}}/state.yaml)
+   # github
+   gh pr create --base "$UMBRELLA" --head "$(git symbolic-ref --short HEAD)" \\
+     --title "feat({ticket}): {story-key} — {short-title}" \\
+     --body "Closes {ticket}. Review report attached as comment."
+   # gitlab
+   glab mr create --target-branch "$UMBRELLA" --source-branch "$(git symbolic-ref --short HEAD)" \\
+     --title "feat({ticket}): {story-key} — {short-title}"
+   ```
+
+   If the PR already exists (re-review of a story), update its body/comments instead.
+
+2. **Do NOT merge here.** The merge into umbrella is owned by `/aped-lead` after it approves the `review-done` check-in (au-fil-de-l'eau policy: each story PR is merged into umbrella the moment lead approves, not batched at /aped-ship).
+
+3. Move ticket to **In Review** (if `ticket_system` != none).
+
+4. Worktree cleanup is **deferred to /aped-lead's approval handler**, which knows the merge succeeded. Don't remove the worktree from /aped-review — if the merge ends up failing, the worktree is the only way to recover the local state.
 
 If story stays `review`:
 1. Post each finding as a PR comment with line anchor
 2. Ticket stays **In Review**
-
-### Worktree cleanup (`done` only, parallel sprint)
-
-If this review ran inside a worktree (marker `{{APED_DIR}}/WORKTREE` exists), bundle the cleanup:
-
-- **workmux detected** (`command -v workmux`) → one-shot: `workmux merge` merges the branch, removes the worktree, closes its tmux window, and deletes the local branch in a single command. Recommend it to the user rather than running the three steps yourself.
-- **workmux absent** → call the fallback: `bash ${project_root}/{{APED_DIR}}/scripts/worktree-cleanup.sh ${worktree_path} --delete-branch` (run from the main project, not the worktree).
-
-In classic (non-parallel) mode, just delete the feature branch as usual.
 
 ## Step 12: Update Local State
 

@@ -19,6 +19,7 @@ Create a single, implementation-ready story file with all the context needed for
 - Discuss the story with the user before finalizing — this is a collaborative process
 - Quality of story definition determines quality of implementation
 - **Branch-per-story is inviolable.** In parallel-sprint mode (worktree present), /aped-story runs **inside the worktree on the feature branch** and commits the story file there — never in main. The `story-ready` check-in is posted by this skill, not by /aped-sprint.
+- **State.yaml authority lives in main.** In worktree mode, /aped-story writes the worktree's local state.yaml (status flip to `ready-for-dev`) and commits it on the feature branch. This local copy is intentionally divergent from main: /aped-lead is the only writer of main's state.yaml, and /aped-ship resolves merge conflicts on state.yaml with `--ours`. Don't treat the divergence as a bug — it's the design (see aped-dev.md § State.yaml authority).
 
 ## Mode Detection
 

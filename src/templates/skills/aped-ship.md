@@ -1,6 +1,6 @@
 ---
 name: aped-ship
-description: 'End-of-sprint orchestrator. Batch-merges all `status: done` feature branches in conflict-minimizing order, then runs a composite pre-push review on main (secret scan, typecheck, lint, db:generate, state.yaml consistency, leftover worktrees). HALTs before push — user decides. Use when user says "ship", "merge sprint", "pre-push", "aped ship", or invokes /aped-ship. Only runs from the main project on the main branch.'
+description: 'Sprint umbrella → base PR opener. Verifies all done stories of the active epic are merged into the sprint umbrella branch (au-fil-de-l''eau merges done by /aped-lead), runs a composite review on umbrella vs origin/<base>, pushes the umbrella, and prints the gh pr create command for the final PR. HALTs before push — user runs the gh command. Use when user says "ship", "sprint pr", "pre-push", "aped ship", or invokes /aped-ship. Only runs from the main project on the base branch.'
 disable-model-invocation: true
 license: MIT
 metadata:
@@ -8,147 +8,84 @@ metadata:
   version: {{CLI_VERSION}}
 ---
 
-# APED Ship — Sprint Merge + Pre-push Review
+# APED Ship — Sprint Umbrella → Base PR
 
-The end-of-sprint counterpart to `/aped-sprint`. Where `/aped-sprint` fans out into parallel worktrees, `/aped-ship` folds them back into main and verifies the composite is push-ready.
+The end-of-sprint counterpart to `/aped-sprint`. The umbrella branch (`sprint/epic-{N}`, created by /aped-sprint at sprint start) has been accumulating story merges from /aped-lead's au-fil-de-l'eau approvals. `/aped-ship`'s job is the **final PR**: verify the umbrella is integration-complete, run the composite pre-push review on it, push, and print the `gh pr create --base <base> --head sprint/epic-N` command for the user.
+
+`/aped-ship` does NOT merge stories. Per-story merges into the umbrella are owned by `/aped-lead` (au-fil-de-l'eau, see aped-lead.md). If a story isn't merged into the umbrella by ship time, that's a workflow gap the user fixes (re-run /aped-lead, or merge manually) — not something /aped-ship works around.
 
 ## Critical Rules
 
-- Only run from the **main project root** on the **main branch**. Refuse if `{{APED_DIR}}/WORKTREE` exists in CWD, or if current branch != main.
+- Only run from the **main project root** on the **base branch** (default `main`; configurable via `base_branch` in `{{APED_DIR}}/config.yaml`). Refuse if `{{APED_DIR}}/WORKTREE` exists in CWD, or if current branch != base.
 - Working tree must be clean before starting. Stash or commit first.
-- NEVER push to origin automatically. Always HALT. `git push origin main` is printed, not executed.
-- NEVER merge a story whose `sprint.stories.{key}.status` != `done`. If the Lead hasn't approved, it's not shippable.
-- NEVER auto-resolve conflicts on non-state.yaml files. state.yaml conflicts use `--ours` (main is authoritative because `/aped-lead` already flipped the statuses there); everything else pauses for user resolution.
-- NEVER silently skip the composite review, even if the user says "just merge and push". The review IS the ship gate.
+- NEVER push the umbrella to origin automatically. Print the push + `gh pr create` commands; the user runs them.
+- NEVER push directly to base from this skill. Base only ever sees commits via the umbrella PR — that's the umbrella convention.
+- NEVER skip the composite review, even if the user says "just open the PR". The review IS the ship gate; its summary becomes the PR body.
+- NEVER mutate the umbrella content here (no extra commits, no auto-fixes). The umbrella reflects /aped-lead's merges; /aped-ship is read-only on it apart from the push.
+- Support `--plan-only`: if the user passes the flag, run Setup → Integration Check → Composite Review → Findings Report, then **STOP before the GATE**. Do not push, do not print `gh pr create` as a recommendation, do not archive inboxes. Show what *would* be done. Useful for pre-flight inspection on a sensitive sprint.
 
 ## Setup
 
 1. Verify you are in the main project root: `ls {{APED_DIR}}/WORKTREE` must fail.
-2. Verify branch: `git symbolic-ref --short HEAD` must return `main` (or the configured base branch if the project uses a different name — read `{{APED_DIR}}/config.yaml` for `base_branch` if present).
+2. Verify branch: `git symbolic-ref --short HEAD` must return the base branch (read `base_branch` from `{{APED_DIR}}/config.yaml`; default `main`).
 3. Verify clean tree: `git status --porcelain` must be empty. If not, HALT and tell the user to commit/stash first.
-4. **Validate state integrity:** run `bash {{APED_DIR}}/scripts/validate-state.sh`. Non-zero → HALT with the reported error. `/aped-ship` must never merge from a state file of unknown structure — it's the last checkpoint before pushing to main.
+4. **Validate state integrity:** run `bash {{APED_DIR}}/scripts/validate-state.sh`. Non-zero → HALT with the reported error. The umbrella PR is the single thing that lands in prod for this sprint — it must not be opened from a state file of unknown structure.
 5. Read `{{OUTPUT_DIR}}/state.yaml`, `{{APED_DIR}}/config.yaml`.
-6. Detect workmux + WezTerm PATH like `/aped-sprint` Setup step 7 (reuse the same rules; export PATH if needed).
-7. Fetch remote to compute accurate "ahead" count: `git fetch origin --quiet`.
+6. **Load the umbrella branch:**
+   ```bash
+   UMBRELLA=$(yq '.sprint.umbrella_branch' {{OUTPUT_DIR}}/state.yaml)
+   ```
+   If empty/null → HALT: "No sprint umbrella recorded. /aped-sprint creates it at the start of the sprint — did you skip /aped-sprint?"
+   If the local branch doesn't exist → HALT: "Umbrella `$UMBRELLA` recorded in state.yaml but not in local git. Fetch and re-create with `git branch $UMBRELLA origin/$UMBRELLA` (if remote exists) before re-running."
+7. Fetch remote to compute accurate "ahead" counts: `git fetch origin --quiet`.
 
-## Discovery
+## Integration Check
 
-Find merge candidates. A candidate is a story where:
-- `status` == `done` in state.yaml
-- Its feature branch exists locally AND is not already merged into main
-
-For each candidate, compute metadata:
-
-```bash
-BRANCH="feature/{ticket}-{story-key}"
-if git branch --merged main | grep -q "^[[:space:]]*$BRANCH$"; then
-  # already merged — skip
-  continue
-fi
-SIZE_LINES=$(git diff --shortstat "main...$BRANCH" | awk '{print $4 + $6}')
-FILE_COUNT=$(git diff --name-only "main...$BRANCH" | wc -l)
-```
-
-Present the dashboard:
-
-```
-Merge candidates (3):
-  1-3-orpc-nest-adapter     [L]  feature/KON-84-1-3-orpc-nest-adapter     52 files, +3200/-180   fanout: 4 stories
-  1-4-prisma-schema         [S]  feature/KON-85-1-4-prisma-schema          8 files,  +320/-90    fanout: 0
-  1-5-logging               [S]  feature/KON-86-1-5-logging               12 files,  +680/-40    fanout: 0
-
-Already merged (git says so): none
-Excluded (status != done): 1-6 (pending), 1-7 (pending), …
-```
-
-If no candidates: "Nothing to ship. Run `/aped-sprint` to start a new batch, or `/aped-status` to see what's in flight." STOP.
-
-## Merge Order Heuristic
-
-Default: **smaller diff first** (ascending by SIZE_LINES). Rationale: merging the smallest change first reduces the chance of carrying conflicts into the next merge. If two branches touch disjoint files, order doesn't matter; if they both touch state.yaml (they will — /aped-story edits it on each branch), smaller-first keeps each conflict resolution small.
-
-Tiebreak: fewer files first.
-
-User can override the proposed order (e.g., "merge 1-3 last because I want to verify 1-4 and 1-5 on main first").
-
-## GATE — Merge Batch
-
-Present the plan:
-
-```
-Merge order:
-  1. 1-4-prisma-schema        (smallest, deps ✓)
-  2. 1-5-logging               (small, no deps)
-  3. 1-3-orpc-nest-adapter    (largest, downstream fanout — last)
-
-Conflict strategy:
-  - state.yaml       → resolve with --ours (main is authoritative; Lead flipped statuses)
-  - anything else    → HALT and ask the user to resolve
-
-Worktree teardown:
-  - workmux rm -f --keep-branch <handle>   (removes worktree + window, keeps branch for merge)
-  - After merge: the branch is deleted by workmux merge, OR keep it and delete post-push
-```
-
-⏸ **GATE: User confirms order and strategy.**
-
-## Merge Phase
-
-For each branch in the confirmed order:
+Verify every `done` story of the active epic is actually merged into the umbrella. Both signals must agree:
 
 ```bash
-HANDLE="{slugified-branch-name}"
-BRANCH="feature/{ticket}-{story-key}"
+EPIC_N=$(yq '.sprint.active_epic' {{OUTPUT_DIR}}/state.yaml)
+DONE_KEYS=$(yq ".sprint.stories | to_entries | map(select(.value.status == \"done\" and (.key | startswith(\"${EPIC_N}-\")))) | .[].key" {{OUTPUT_DIR}}/state.yaml)
 
-# 1. Remove the worktree (keep the branch — we still need to merge it)
-if command -v workmux >/dev/null && workmux list | grep -q "$HANDLE"; then
-  workmux rm -f --keep-branch "$HANDLE"
-else
-  # fallback: git worktree remove
-  WORKTREE_PATH=$(git worktree list --porcelain | awk -v b="$BRANCH" '$1=="worktree"{p=$2} $1=="branch" && $2 ~ b{print p}')
-  [ -n "$WORKTREE_PATH" ] && git worktree remove --force "$WORKTREE_PATH"
-fi
-
-# 2. Merge with explicit merge commit (no fast-forward — we want the history node)
-git merge --no-ff "$BRANCH" -m "Merge story {story-key} ({ticket})"
-
-# 3. If merge stopped on conflicts, handle them
-if git status --porcelain | grep -q '^UU'; then
-  # Inspect conflicts
-  CONFLICTED=$(git diff --name-only --diff-filter=U)
-
-  # Auto-resolve state.yaml with --ours (main wins)
-  if echo "$CONFLICTED" | grep -qx "{{OUTPUT_DIR}}/state.yaml"; then
-    git checkout --ours "{{OUTPUT_DIR}}/state.yaml"
-    git add "{{OUTPUT_DIR}}/state.yaml"
-    CONFLICTED=$(echo "$CONFLICTED" | grep -vx "{{OUTPUT_DIR}}/state.yaml")
+unmerged=()
+for key in $DONE_KEYS; do
+  ticket=$(yq ".sprint.stories.\"$key\".ticket" {{OUTPUT_DIR}}/state.yaml)
+  branch="feature/${ticket}-${key}"
+  merged_flag=$(yq ".sprint.stories.\"$key\".merged_into_umbrella // false" {{OUTPUT_DIR}}/state.yaml)
+  if ! git branch --merged "$UMBRELLA" | grep -q "^[[:space:]]*$branch$"; then
+    unmerged+=("$key|state=$merged_flag|git=NO")
+  elif [[ "$merged_flag" != "true" ]]; then
+    # Git says merged but state.yaml says no — usually a manual merge by the
+    # user that bypassed /aped-lead. Surface as a soft inconsistency.
+    unmerged+=("$key|state=$merged_flag|git=YES")
   fi
-
-  # Anything else → HALT
-  if [ -n "$CONFLICTED" ]; then
-    echo "HALT: conflicts on non-state files. Resolve manually then re-run /aped-ship."
-    echo "$CONFLICTED"
-    exit 1
-  fi
-
-  git commit --no-edit
-fi
+done
 ```
 
-After ALL branches are merged, do one cleanup pass:
-- Set `worktree: null` in state.yaml for every story we just merged (their worktrees no longer exist).
-- Single commit: `chore(ship): clear worktree paths for merged stories {keys}`.
+Surface the result:
 
-Report intermediate progress so the user can follow: after each merge, print `✓ merged {story-key} ({ticket})`.
+- **All done stories merged into umbrella, both signals agree** → proceed to Composite Review.
+- **Stories `done` in state.yaml but NOT in umbrella git history** → HALT with the list. Tell the user: "These stories are marked done but their feature branches haven't been merged into `$UMBRELLA`. Either re-run `/aped-lead` (it will retry the merge during the review-done approval handler) or merge them manually before re-running `/aped-ship`."
+- **Stories merged in git but `merged_into_umbrella: false` in state.yaml** → WARN, offer to reconcile by setting the flag. Do not auto-reconcile silently — surface the inconsistency.
+- **Stories with status != done but branch exists and is unmerged** → INFO ("In flight: 1-6 review, 1-7 in-progress — not part of this ship.")
+- **No done stories at all** → HALT: "No done stories to ship. Nothing to do."
 
-## Review Phase — Composite Checks on main vs origin/main
+## Composite Review (umbrella vs origin/<base>)
+
+Run on the **umbrella branch** without checking it out (avoid mutating cwd). Use `git diff` with the explicit refs.
+
+```bash
+git fetch origin --quiet
+RANGE="origin/${BASE_BRANCH}..${UMBRELLA}"
+AHEAD=$(git rev-list --count "$RANGE")
+```
 
 Run each check, collect findings, keep going even if some fail (want the full picture before the user decides).
 
 ### 1. Secret / credential scan
 
 ```bash
-git diff origin/main..main -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.py' '*.go' '*.rs' '*.java' '*.rb' '*.php' '*.json' '*.yaml' '*.yml' '*.toml' '*.env*' \\
+git diff "$RANGE" -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.py' '*.go' '*.rs' '*.java' '*.rb' '*.php' '*.json' '*.yaml' '*.yml' '*.toml' '*.env*' \\
   | grep -E '^\\+' \\
   | grep -iE 'password|secret|api[_-]?key|token|bearer|access[_-]?key|private[_-]?key|credentials'
 ```
@@ -158,13 +95,21 @@ Filter noise: TypeScript/Go/Rust type declarations, interface fields, schema nam
 ### 2. Debug / TODO scan
 
 ```bash
-git diff origin/main..main -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.py' '*.go' '*.rs' \\
+git diff "$RANGE" -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.py' '*.go' '*.rs' \\
   | grep -E '^\\+' | grep -E 'console\\.(log|warn|error|debug)|debugger;|print\\(|println!?|fmt\\.Println|TODO|FIXME|XXX|HACK'
 ```
 
 Filter: test files often have `console.log` for intentional diagnostics; tag those as INFO not WARNING.
 
 ### 3. Typecheck
+
+The umbrella has been collecting story merges; run typecheck against its tip. Either:
+
+```bash
+git checkout "$UMBRELLA"        # safe: working tree was verified clean at Setup
+pnpm typecheck                  # or the project-detected equivalent
+git checkout "$BASE_BRANCH"     # always return to base
+```
 
 Detect project type from root `package.json` and workspaces:
 - If root `package.json` has `scripts.typecheck` → `pnpm typecheck` (or npm/yarn equivalent).
@@ -176,47 +121,51 @@ Capture errors. Group by file.
 
 ### 4. Lint
 
-If root `package.json` has `scripts.lint` → run it. Capture errors vs warnings.
+If root `package.json` has `scripts.lint` → run it on the umbrella tip (same checkout pattern as typecheck). Capture errors vs warnings.
 
 ### 5. Database regen
 
 Detect Prisma:
 - `apps/*/prisma/` or `prisma/` dir at root → Prisma project.
-- Root `scripts.db:generate` exists → run `pnpm db:generate`.
+- Root `scripts.db:generate` exists → run `pnpm db:generate` on the umbrella tip.
 - Else `pnpm exec prisma generate` in the relevant workspace.
 
 If regen fails on a missing env var (common: `DIRECT_URL` coalesce bugs), report the exact error as a BLOCKER. Do NOT silently fix `.env` — the user needs to know.
 
 Other ORMs (Drizzle, TypeORM with sync, etc.): surface the relevant regen/migration command as a WARNING for the user to run.
 
-### 6. state.yaml consistency
+### 6. state.yaml consistency on umbrella
 
-Verify:
-- Every story whose branch was just merged has `status: done` AND `worktree: null`.
-- No story with `status: in-progress` or `review-queued` remains (those should block the ship — they're active work).
-- `sprint.stories` exists and parses.
+Read `${{OUTPUT_DIR}}/state.yaml` from the umbrella tip and verify:
+- Every `done` story has `merged_into_umbrella: true`.
+- No story with `status: in-progress` or `review-queued` remains in the active epic (those should block the ship — they're active work).
+- `sprint.umbrella_branch` matches the umbrella we're shipping.
+
+```bash
+git show "${UMBRELLA}:${{OUTPUT_DIR}}/state.yaml" | yq '...'
+```
 
 ### 7. Leftover worktrees / branches
 
 ```bash
-git worktree list --porcelain    # main should be the only worktree
-git branch --no-merged main       # any non-merged feature/* left behind?
+git worktree list --porcelain                  # only the main worktree should remain
+git branch --no-merged "$UMBRELLA"             # any feature/* not yet merged into the umbrella?
 ```
 
-Surface anything unexpected.
+Surface anything unexpected. Note: stories in flight (status != done) will appear as `--no-merged` against the umbrella — INFO not WARNING. The umbrella itself appears as `--no-merged` against the base — that's expected, it's about to become the PR.
 
 ## Findings Report
 
 Triage into three severities:
 
-- 🔴 **BLOCKER** — push MUST NOT happen. Examples: typecheck errors, real secret leak, `db:generate` fails, unresolved merge conflict, in-progress story still live.
-- ⚠️ **WARNING** — push CAN happen but user should acknowledge. Examples: lint warnings, TODO/FIXME added, unusual file count, new dependencies without lockfile bump mentioned.
-- ℹ️ **INFO** — metadata. Examples: file count, line count, list of merged tickets, regen succeeded.
+- 🔴 **BLOCKER** — PR MUST NOT be opened. Examples: typecheck errors, real secret leak, `db:generate` fails, done story not in umbrella git history, in-progress story still live.
+- ⚠️ **WARNING** — PR CAN be opened but user should acknowledge in the PR body. Examples: lint warnings, TODO/FIXME added, `merged_into_umbrella` flag inconsistency, unusual file count.
+- ℹ️ **INFO** — metadata. Examples: file count, line count, list of merged stories, regen succeeded.
 
 Present:
 
 ```
-Pre-push review — main is {N} commits ahead of origin/main.
+Sprint umbrella ship — `sprint/epic-1` is {AHEAD} commits ahead of origin/main.
 
 🔴 BLOCKERS (2)
   apps/api/src/prisma/prisma.service.ts:8
@@ -231,44 +180,68 @@ Pre-push review — main is {N} commits ahead of origin/main.
     Relative import missing .js extension under NodeNext.
 
 ℹ️ INFO
-  Merged: 1-3-orpc-nest-adapter (KON-84), 1-4-prisma-schema (KON-85), 1-5-logging (KON-86)
+  Merged stories: 1-3-orpc-nest-adapter (KON-84), 1-4-prisma-schema (KON-85), 1-5-logging (KON-86)
   Diff: 85 files changed, +4479/-493
   Prisma client regenerated: ✓
   Leftover worktrees: none
-  state.yaml: consistent
+  Umbrella state.yaml: consistent
 ```
 
-## GATE — Push Decision
+## GATE — PR Decision
 
 Present three options:
 
-1. **Fix blockers first** (recommended when BLOCKERS > 0) — user applies fixes, re-runs `/aped-ship`. The skill will detect already-merged branches and skip straight to the review phase.
-2. **Push anyway** — only sensible when the findings are all WARNINGS or INFO. Print the exact command:
+1. **Fix blockers first** (recommended when BLOCKERS > 0) — the user applies fixes on the umbrella branch directly (or on a story branch + rerun `/aped-lead` to merge), then re-runs `/aped-ship`. The composite review re-runs on the new tip.
+2. **Open the PR anyway** — only sensible when findings are all WARNINGS or INFO. Print the exact commands:
+
    ```
-   git push origin main
+   git push -u origin "$UMBRELLA"
+   gh pr create --base "$BASE_BRANCH" --head "$UMBRELLA" \\
+     --title "Sprint epic-${EPIC_N} — <epic slug>" \\
+     --body "$(composite review summary; list of merged stories with tickets)"
    ```
-   Tell the user to run it themselves. Never execute it from the skill.
-3. **Abandon** — exit without pushing. The merged state stays local, user can re-run or reset.
+
+   Tell the user to run the commands themselves. Never execute them from the skill. Before printing, emit:
+
+   ```bash
+   bash {{APED_DIR}}/scripts/log.sh pr_recommended \\
+     umbrella="$UMBRELLA" base="$BASE_BRANCH" commits_ahead="$AHEAD" \\
+     warnings="$WARN_COUNT" blockers="$BLOCKER_COUNT" stories="$DONE_KEYS_COMMA_LIST"
+   ```
+
+   For GitLab: substitute `glab mr create --target-branch "$BASE_BRANCH" --source-branch "$UMBRELLA" ...`.
+
+3. **Abandon** — exit without pushing. The umbrella stays local with the merged stories; user can re-run later or reset.
 
 ⏸ **GATE: User picks.**
 
 ## Edge Cases
 
-- **Conflicts on non-state files**: merge stops, skill reports the files, HALTs. User resolves, runs `git add` + `git commit`, then re-runs `/aped-ship` — skill resumes from where it stopped (already-merged branches are detected and skipped).
-- **Branch already merged**: skip silently, mention in INFO section ("1-X already merged — not re-merging").
-- **Story status != done but branch exists**: exclude from candidates. Warn the user once: "feature/KON-X exists but 1-X isn't marked done — /aped-lead didn't approve review-done, did you skip a step?"
-- **No state.yaml entry for an existing feature branch**: orphan branch, warn the user.
-- **Base branch is not `main`**: read `base_branch` from `.workmux.yaml` or `{{APED_DIR}}/config.yaml` if present; default to `main`. Everywhere above, "main" = that configured branch.
-- **User has unpushed non-sprint commits on main**: the review still runs on the whole `origin/main..main` range. Surface them as INFO ("N non-sprint commits also in this push").
+- **Umbrella missing from local git but recorded in state.yaml**: HALT (see Setup step 6). The user fetches and re-creates it from origin or restarts the sprint.
+- **Stories `done` in state.yaml but unmerged in umbrella**: HALT with the list (see Integration Check). Re-run `/aped-lead` or merge manually.
+- **`merged_into_umbrella: true` but git disagrees**: WARN, surface the inconsistency. Likely the user manually unmerged or rebased the umbrella.
+- **Base branch name differs from `main`**: read `base_branch` from `{{APED_DIR}}/config.yaml` (or `.workmux.yaml`) if present; default to `main`. Used everywhere as `$BASE_BRANCH`.
+- **Multiple `done` epics**: `/aped-ship` only ships the active epic (`sprint.active_epic`). Stories from other epics are excluded with an INFO line.
+- **User has unpushed non-sprint commits on the umbrella**: surface as INFO (`N non-sprint commits also on the umbrella`) — they'll go to base via the same PR.
+
+## Inbox archive (post-PR)
+
+After the user confirms the PR is opened (option 2 was chosen and they ran the printed commands), archive the checkin inboxes so the next sprint starts clean:
+
+```bash
+bash {{APED_DIR}}/scripts/checkin.sh archive
+```
+
+This moves `{{APED_DIR}}/checkins/*.jsonl` to `{{APED_DIR}}/checkins/archive/{date}/`. Do NOT run if the user picked "Fix blockers" or "Abandon" — they may re-run /aped-lead and need the live inboxes.
 
 ## Next Step
 
-After a successful push:
+After the user opens the PR:
 
-> "Pushed {N} merged stories — {ticket list}. main is now in sync with origin/main. Capacity freed: {M} stories ready for the next sprint. Run `/aped-sprint` to dispatch, or `/aped-status` to see the full dashboard."
+> "Umbrella PR opened: <PR URL>. The composite review summary is in the body. The PR is the prod gate now — base will not move until it's merged. Once merged, run `/aped-sprint` (or `/aped-epics` if you need a new epic) to start the next sprint; the umbrella branch can be deleted then."
 
 If the user chose "Fix blockers first" or "Abandon":
 
-> "Nothing pushed. {N} merges are already in main locally — they persist. Re-run `/aped-ship` to retry the review once blockers are resolved."
+> "Nothing pushed. The umbrella still has all the merged stories locally — re-run `/aped-ship` after fixing the blockers."
 
-**Do NOT auto-chain to `/aped-sprint`.** The user decides when to start the next batch.
+**Do NOT auto-chain to `/aped-sprint`.** The user decides when to start the next sprint.

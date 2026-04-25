@@ -360,11 +360,13 @@ Flags honour `NO_COLOR` / `FORCE_COLOR`. Exit codes are meaningful: `0` success,
 
 - [Claude Code](https://claude.ai/download)
 - Node.js ≥ 20
+- **Unix-like shell** — APED's hooks and scripts target macOS and Linux (incl. WSL). Native Windows (cmd / PowerShell without WSL) is not supported: the bash scripts use POSIX tools (`stat -c`/`stat -f`, `mkdir`-based locking, `tmux`/`workmux`) that don't have native equivalents.
 
 ### Recommended companion tools
 
 - **[workmux](https://github.com/raine/workmux)** — enables the parallel-sprint sweet spot: `/aped-sprint` auto-creates tmux windows with Claude Code pre-launched in each worktree. Install with `brew install raine/workmux/workmux` (macOS/Linux). Fully optional: APED falls back to manual worktree + terminal instructions if absent.
-- **[jq](https://jqlang.github.io/jq/)** — speeds up the guardrail hooks' JSON encoding. Also optional; APED falls back to `node -e` when `jq` is not installed.
+- **[yq](https://mikefarah.gitbook.io/yq)** (v4) — strongly recommended for `/aped-sprint`/`/aped-lead`/`/aped-ship`: state.yaml mutations and reads use yq when present, with a more fragile awk fallback otherwise. Install with `brew install yq` (macOS) or `snap install yq` (Linux).
+- **[jq](https://jqlang.github.io/jq/)** — speeds up the guardrail hooks' JSON encoding and the audit log writer (`scripts/log.sh`). Optional; APED falls back to defensive shell quoting otherwise.
 
 ## Changelog
 

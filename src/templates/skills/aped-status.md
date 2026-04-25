@@ -40,6 +40,14 @@ Live agents:  workmux dashboard    (only shown if workmux is installed)
 
 ## 3. Active Worktrees
 
+Before listing, run `bash {{APED_DIR}}/scripts/check-active-worktrees.sh --format json` to surface state-vs-disk drift. Any row with `"reality":"missing"` should appear in the dashboard with a `✗ MISSING` marker and a hint:
+
+```
+✗ 1-2-bar  in-progress  /path/to/gone   MISSING — run /aped-lead to reset
+```
+
+Then proceed with the normal listing below.
+
 For each story with `status in {in-progress, review-queued, review}` AND a non-null `worktree`:
 
 ```
@@ -63,6 +71,12 @@ For stories in `review`, also show:
 ```
 
 Read these from the story file's Review Record (no live specialist spawning here).
+
+For any story with `ticket_sync_status: failed` set on it (deferred ticket mutation from `/aped-sprint`), append a warning line under that worktree row:
+
+```
+  ⚠ Ticket sync deferred — reason: "<ticket_sync_error>". Retry via /aped-lead.
+```
 
 ## 4. Review Queue
 
@@ -107,7 +121,31 @@ Done (epic 1):
 
 ## 7. Ticket Sync Check (if ticket_system != none)
 
-For each story with a ticket, compare local status to remote:
+For each story with a ticket, compare local status to remote. **Cache remote fetches** in `{{APED_DIR}}/.cache/tickets.json` for 60 seconds — Linear/Jira/GitHub all rate-limit, and a 20-story sprint runs 20 API calls per /aped-status invocation otherwise.
+
+```bash
+CACHE_FILE="{{APED_DIR}}/.cache/tickets.json"
+CACHE_TTL=60   # seconds
+
+cache_age() {
+  [[ -f "$CACHE_FILE" ]] || { echo 999999; return; }
+  local now mtime
+  now=$(date +%s)
+  mtime=$(stat -c %Y "$CACHE_FILE" 2>/dev/null || stat -f %m "$CACHE_FILE" 2>/dev/null || echo "$now")
+  echo $((now - mtime))
+}
+
+if (( $(cache_age) < CACHE_TTL )); then
+  # Reuse — read all ticket statuses from the cache JSON.
+  jq -r '.[] | "\(.ticket) \(.status)"' "$CACHE_FILE"
+else
+  # Refresh — fetch each ticket and rewrite the cache atomically.
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  fresh="$CACHE_FILE.tmp"
+  # ... loop over tickets, fetch via gh/glab/linear/jira CLI, build JSON ...
+  mv -f "$fresh" "$CACHE_FILE"
+fi
+```
 
 | Local | Remote expected |
 |-------|-----------------|

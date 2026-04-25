@@ -13,6 +13,7 @@ metadata:
 ## Critical Rules
 
 - Only run from the **main project root**. If `{{APED_DIR}}/WORKTREE` exists in the current dir, HALT (you're inside a worktree, not the Lead).
+- Support `--plan-only`: if the user passes the flag, run Setup → DAG → Capacity Check → Story Proposal → present, then **STOP before any mutation** (no umbrella creation, no ticket sync, no dispatch, no state.yaml writes). Print every command that would have run, with its exact arguments. Use this when reviewing a sprint plan before committing to it, or for audit/replay purposes.
 - Exactly **one active epic** at a time. Refuse if `sprint.active_epic` is set to a different epic and that epic still has stories not `done`.
 - Respect `sprint.parallel_limit` and `sprint.review_limit` in state.yaml.
 - NEVER dispatch a story whose `depends_on` list contains a story not yet `done`.
@@ -37,6 +38,33 @@ metadata:
    - If workmux + a multiplexer present → use Path A. Else fall back to Path B.
    - Do NOT reject Path A for cosmetic reasons (flag renames, missing `.workmux.yaml`). If syntax differs from what you expect, run `workmux add --help` to adapt. The current 0.1.x signature is `workmux add [OPTIONS] [BRANCH_NAME]` (positional, no `--branch`).
 
+## Sprint Umbrella Branch
+
+Every parallel sprint runs under a **sprint umbrella branch** that is the parent of every story feature branch and the only thing that ever PRs into the base branch. The umbrella is the unit of review for prod: stories PR into it (reviewed individually), and `/aped-ship` opens one final PR from umbrella to the base branch.
+
+After `sprint.active_epic` is set:
+
+```bash
+EPIC_N=$(yq '.sprint.active_epic' {{OUTPUT_DIR}}/state.yaml)
+UMBRELLA="sprint/epic-${EPIC_N}"
+BASE_BRANCH=$(yq '.base_branch // "main"' {{APED_DIR}}/config.yaml)
+
+# Create the umbrella from the latest base if it doesn't exist locally
+if ! git rev-parse --verify "$UMBRELLA" >/dev/null 2>&1; then
+  git fetch origin --quiet
+  git branch "$UMBRELLA" "origin/${BASE_BRANCH}"
+  git push -u origin "$UMBRELLA"
+fi
+
+# Record it in state.yaml so every other skill (review, lead, ship) reads
+# the same value — never re-derive from the epic number elsewhere.
+bash {{APED_DIR}}/scripts/sync-state.sh <<< "set-sprint-field umbrella_branch \"$UMBRELLA\""
+```
+
+If the umbrella already exists in `state.yaml` and matches `sprint/epic-${EPIC_N}`, skip creation — we're resuming a sprint already in flight. If `sprint.umbrella_branch` is set but to a different name, HALT and ask the user (a previous /aped-sprint run named it differently, or someone changed the active epic mid-sprint).
+
+**Naming**: `sprint/epic-{N}` is fixed. The epic slug (e.g. "Foundation & Validators") goes in PR titles and commit prefixes, not in the branch name — so renaming an epic mid-sprint doesn't require renaming the branch.
+
 ## DAG Resolution
 
 For the active epic, compute the three buckets:
@@ -50,8 +78,20 @@ Sanity check the graph: no cycles, no references to unknown story keys. If broke
 
 ## Capacity Check
 
+Before computing capacity, reconcile state.yaml against the disk:
+
+```bash
+bash {{APED_DIR}}/scripts/check-active-worktrees.sh
 ```
-slots_available = parallel_limit - len(running)
+
+Exit 0 → state matches reality, proceed. Exit 1 → one or more registered worktrees are gone (user did `rm -rf`, or a previous /aped-ship cleanup didn't fully clear state). Surface the missing entries to the user with two choices:
+- **Reset the orphan rows** (recommended if the work was abandoned): for each missing story, run `bash {{APED_DIR}}/scripts/sync-state.sh <<< "set-story-status {key} ready-for-dev"` and `bash {{APED_DIR}}/scripts/sync-state.sh <<< "clear-story-worktree {key}"`. This frees the slot.
+- **Skip and respect the registered count** (if the user expects to recreate the worktree): proceed without resetting; capacity stays tight.
+
+Then compute:
+
+```
+slots_available = parallel_limit - len(running)   # uses the post-reset count
 reviews_running = count(status == "review")
 reviews_available = review_limit - reviews_running
 ```
@@ -82,15 +122,25 @@ Blocked (waiting):
 
 ⏸ **GATE: User validates the proposal.** If the user wants to swap, reduce, or reorder, adjust and re-present.
 
-## Ticket System Sync (if ticket_system != none)
+After the user confirms, emit one audit event before mutating anything:
+
+```bash
+bash {{APED_DIR}}/scripts/log.sh dispatch_started \\
+  epic="$(yq '.sprint.active_epic' {{OUTPUT_DIR}}/state.yaml)" \\
+  stories="$(echo $approved_keys | tr ' ' ',')"
+```
+
+`worktree_created` and ticket-side events are emitted automatically by `sprint-dispatch.sh` and `checkin.sh`; you don't need to mirror them.
+
+## Pre-dispatch ticket validation (read-only, if ticket_system != none)
 
 Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md` for provider syntax.
 
-For each story to dispatch:
-1. Fetch the ticket — verify it exists and no one else is assigned
-2. Assign it to the current user
-3. Move status to `In Progress` (adapt label/status to provider)
-4. Post a comment: "APED parallel sprint started — worktree: `../{project}-{ticket}`."
+**Read-only check** for each story to dispatch — no mutations yet:
+1. Fetch the ticket — verify it exists and is in a state that allows being picked up (no one else actively assigned, status is in the "ready" lane).
+2. If a ticket fails this check, drop the story from the dispatch list and surface why to the user. Do not silently proceed.
+
+**Why read-only at this stage:** the previous flow assigned and transitioned tickets *before* creating worktrees. If `git worktree add` then failed, the ticket was left assigned-and-in-progress with no corresponding work — manual cleanup territory. Mutations now happen in "Post-dispatch ticket sync" below, after the worktree exists and is recoverable.
 
 ## Dispatch
 
@@ -106,6 +156,15 @@ For each approved story (fresh worktree):
 
 ```bash
 BRANCH="feature/{ticket-id}-{story-key}"
+UMBRELLA=$(yq '.sprint.umbrella_branch' {{OUTPUT_DIR}}/state.yaml)
+
+# Cut the branch from the umbrella FIRST so it has the right parent. workmux
+# then attaches its worktree to the existing branch (no base-ref logic in
+# workmux itself). Without this pre-cut, workmux would default to HEAD —
+# which in the main checkout is the base branch, breaking the convention.
+if ! git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
+  git branch "$BRANCH" "$UMBRELLA"
+fi
 workmux add "$BRANCH" -p "/aped-story {story-key}"
 ```
 
@@ -154,13 +213,16 @@ Capture the worktree path for the state.yaml write (below): `workmux path "$HAND
 
 ### Path B — fallback without workmux
 
-For each approved story, call the built-in helper and capture the worktree path:
+For each approved story, call the built-in helper, **passing the sprint umbrella as the base ref** so the new feature branch is parented under it:
 
 ```bash
-WORKTREE=$(bash {{APED_DIR}}/scripts/sprint-dispatch.sh <story-key> <ticket-id>)
+UMBRELLA=$(yq '.sprint.umbrella_branch' {{OUTPUT_DIR}}/state.yaml)
+WORKTREE=$(bash {{APED_DIR}}/scripts/sprint-dispatch.sh <story-key> <ticket-id> "$UMBRELLA")
 ```
 
-The helper creates the worktree, the branch, and the `{{APED_DIR}}/WORKTREE` marker. The user will open a terminal per worktree manually.
+The helper creates the worktree, the branch (cut from `$UMBRELLA`), and the `{{APED_DIR}}/WORKTREE` marker. The user will open a terminal per worktree manually.
+
+If you omit the umbrella arg, sprint-dispatch.sh falls back to HEAD — only acceptable in solo/non-sprint mode where there is no umbrella.
 
 ### Shared post-dispatch
 
@@ -170,6 +232,21 @@ After success, update state.yaml **atomically** (one write at the end, not per s
 - story `worktree` → the captured path
 
 Do NOT set `status: in-progress` and do NOT set `started_at` here. `/aped-story` will flip the story to `ready-for-dev` when the story file is committed on the feature branch; `/aped-dev` will flip it to `in-progress` when it starts the TDD loop.
+
+## Post-dispatch ticket sync (if ticket_system != none)
+
+Now that the worktrees exist on disk and `state.yaml` records them, mutate the tickets. The order matters: worktree first (reversible — `git worktree remove`), ticket mutation last.
+
+For each successfully dispatched story:
+1. Assign the ticket to the current user.
+2. Move status to "In Progress" (adapt label/status to provider).
+3. Post a comment: `APED parallel sprint started — worktree: <captured path>.`
+
+**On ticket-sync failure** (network blip, provider 5xx, permission denied), do NOT roll back the worktree. Instead:
+- Mark the story in state.yaml: set `ticket_sync_status: failed` and `ticket_sync_error: "<short reason>"` (use `sync-state.sh set-story-field` if available, or write directly).
+- Tell the user once: "Ticket sync failed for {N} stories: {keys}. Worktrees are healthy — re-run `/aped-lead` to retry the ticket-side mutation, or fix manually in {provider}."
+
+`/aped-lead` watches for `ticket_sync_status: failed` and offers a retry on its dashboard. `/aped-status` surfaces the same as a ⚠ on the worktree row. The worktree itself stays usable — Story Leader can keep working; only ticket-system reflection is deferred.
 
 ## User Instructions
 

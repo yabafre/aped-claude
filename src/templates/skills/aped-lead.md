@@ -18,6 +18,7 @@ You are the **Lead Dev**. Story Leaders running in worktrees post check-ins at e
 - NEVER approve a check-in whose auto-approve criteria (below) aren't all satisfied. Escalate instead.
 - NEVER silently change state.yaml or ticket status — every mutation is mirrored by a `{{APED_DIR}}/scripts/checkin.sh` call so the audit trail stays in one place.
 - Auto-approve is **programmatic**, not vibes. Run the checks, compute the verdict, don't hallucinate.
+- **You are the only writer of main's state.yaml.** Worktrees write their own local state.yaml on their feature branches — that copy is intentionally divergent (see aped-dev.md § State.yaml authority). When you mutate, mutate `{{OUTPUT_DIR}}/state.yaml` here in main; never reach into a worktree to edit its copy. /aped-ship discards worktree state.yaml at merge with `--ours`.
 - When in doubt: escalate.
 
 ## Setup
@@ -29,39 +30,48 @@ You are the **Lead Dev**. Story Leaders running in worktrees post check-ins at e
 5. Run `bash {{APED_DIR}}/scripts/checkin.sh poll --format json` — this is the list of pending check-ins.
 6. If empty: report "No pending check-ins." and STOP.
 
-## Auto-Approve Criteria (hard, programmatic)
+## `dev-blocked` (special — never auto-approve)
 
-For each pending check-in, classify as **AUTO** or **ESCALATE** using these rules only.
+If the poll surfaces a `dev-blocked` check-in, treat it as **always ESCALATE**. There's no auto-approve path: a Story Leader posted it because it can't proceed without user input (new dep, ambiguity, repeated failures). Surface the reason from the check-in JSONL to the user verbatim, ask them how to unblock, then either:
 
-### story-ready  (posted by /aped-story)
-Resolve the story's worktree first: `WT = sprint.stories.{key}.worktree` in state.yaml. The story file lives on the feature branch inside `$WT`, not in main.
+- **Resolve and resume**: user gives the answer, you push it back via `bash {{APED_DIR}}/scripts/checkin.sh push {key} "<answer>"` (the Story Leader is HALTed waiting). After the worktree gets it, `bash {{APED_DIR}}/scripts/checkin.sh approve {key} dev-blocked` clears the check-in.
+- **Block and reroute**: user wants the story dropped or rescoped → `bash {{APED_DIR}}/scripts/checkin.sh block {key} dev-blocked "<reason>"` and surface to /aped-status.
 
-AUTO iff all of:
-- `$WT/{{OUTPUT_DIR}}/stories/{story-key}.md` exists (read via `git -C $WT show HEAD:{{OUTPUT_DIR}}/stories/{story-key}.md` or directly from the worktree path).
-- Story file has a numbered Acceptance Criteria section with ≥ 1 GIVEN/WHEN/THEN.
-- The feature branch has the story file committed: `git -C $WT log --oneline -- {{OUTPUT_DIR}}/stories/{story-key}.md` returns at least one commit.
-- Every key in `depends_on` has `status: done` in state.yaml.
-- If `ticket_system != none`: fetch the ticket; title + body are present; no comment posted after the checkin mentions an unresolved question (regex: ```?```, `TBD`, `need clarification`).
+Do NOT pass `dev-blocked` to `check-auto-approve.sh` — the script doesn't model it (it's a request for human attention, not a verdict question).
 
-ESCALATE otherwise. Typical reasons: worktree missing from state.yaml (sprint bypassed), story file absent (user skipped /aped-story or is still drafting), file exists but uncommitted, deps not done, ACs malformed, ticket/story divergence.
+## Auto-Approve Verdicts (programmatic, scripted)
 
-### dev-done  (posted by /aped-dev)
-AUTO iff all of:
-- Latest commit on the story's branch has a successful `run-tests.sh` exit (check `.aped/.last-test-exit` in the worktree, or run tests if stale: `bash ${worktree}/{{APED_DIR}}/aped-dev/scripts/run-tests.sh --silent`).
-- Every task in `{{OUTPUT_DIR}}/stories/{story-key}.md` under "Tasks" is checked (`[x]`).
-- No HALT logs in the Dev Agent Record (`grep -i 'HALT' ${worktree}/{{OUTPUT_DIR}}/stories/{story-key}.md` returns nothing).
-- `git -C {worktree} status --porcelain` is empty (clean working tree).
-- File list in the story matches the changes: `bash {{APED_DIR}}/aped-review/scripts/git-audit.sh ${worktree}/{{OUTPUT_DIR}}/stories/{story-key}.md --silent` exits 0.
+For each pending check-in, call:
 
-ESCALATE otherwise. Typical reasons: test failures, HALT logs, unchecked tasks, file-list mismatch.
+```bash
+bash {{APED_DIR}}/scripts/check-auto-approve.sh <kind> <story-key>
+```
 
-### review-done  (posted by /aped-review when story → done)
-AUTO iff all of:
-- Story status in state.yaml is `done` (the review skill only posts this check-in after converging).
-- No `aped-blocked-*` label on the ticket (if applicable).
-- PR is mergeable (`gh pr view --json mergeable | jq -r .mergeable` == "MERGEABLE", or equivalent).
+The script implements all checks deterministically (it is the source of truth — do not re-judge from memory). Interpret the result by exit code:
 
-ESCALATE otherwise.
+- **0** → `AUTO` — every check passed; safe to approve in batch.
+- **1** → `ESCALATE` — at least one check failed. The script prints the failing reasons on stderr, one per line, prefixed with `- `. Capture them and surface in the dashboard.
+- **3** → preconditions missing (story not in state.yaml, worktree absent on disk). Treat as ESCALATE with reason "preconditions missing"; do not auto-approve.
+- **2** → usage error in the call itself (your bug). Halt and fix.
+
+Capture pattern:
+
+```bash
+if reasons=$(bash {{APED_DIR}}/scripts/check-auto-approve.sh "$kind" "$key" 2>&1 1>/dev/null); then
+  verdict=AUTO
+else
+  verdict=ESCALATE
+  # $reasons holds the "- ..." lines; show them in the drill-down.
+fi
+```
+
+### What the script checks (for reference, not for you to re-execute)
+
+- **story-ready**: story file exists in worktree, has Given/When/Then ACs, is committed on the feature branch, all `depends_on` are `done`.
+- **dev-done**: last test run exited 0 (cached at `.aped/.last-test-exit`), all tasks `[x]`, no HALT logs, clean working tree, file list matches git changes (via `git-audit.sh`).
+- **review-done**: story status is `done`, no `aped-blocked-*` label on the ticket, PR is `MERGEABLE` (github-only check; other providers skip silently).
+
+If you want to extend the checks (e.g. require an extra label), edit `check-auto-approve.sh` — never bypass it from the skill.
 
 ## Batch Processing
 
@@ -94,11 +104,35 @@ For each approved check-in:
 2. Determine the follow-up action per kind:
    - `story-ready` → push `/aped-dev {story-key}` to the Story Leader's worktree.
    - `dev-done`    → push `/aped-review {story-key}` to the Story Leader's worktree.
-   - `review-done` → **no push to the worktree.** Instead:
-     - Flip `sprint.stories.{story-key}.status` to `done` in `{{OUTPUT_DIR}}/state.yaml` (the Lead's authority — main is the source of truth for sprint status).
-     - Keep `worktree` field populated for now; `/aped-ship` will clear it during teardown.
-     - The feature branch stays live, ready for batch merge.
-     - Batch merging is deferred to `/aped-ship`, which orchestrates multiple done stories in conflict-minimizing order and runs the composite pre-push review. Do NOT push `/merge` to the worktree from here — parallel worktrees are blind to each other's state.yaml mutations, so per-story merges racing on main cause avoidable conflicts.
+   - `review-done` → **merge the story PR into the sprint umbrella (au-fil-de-l'eau)**, then teardown the worktree. Sequence:
+
+     a. Flip `sprint.stories.{story-key}.status` to `done` in `{{OUTPUT_DIR}}/state.yaml`.
+
+     b. Merge the story PR into the umbrella branch. `/aped-review` already opened the PR with `--base $UMBRELLA`; here you trigger the merge.
+
+        ```bash
+        UMBRELLA=$(yq '.sprint.umbrella_branch' {{OUTPUT_DIR}}/state.yaml)
+        WORKTREE=$(yq ".sprint.stories.\\"{key}\\".worktree" {{OUTPUT_DIR}}/state.yaml)
+        # github — merge with squash or merge commit per project convention
+        gh pr merge --auto --squash $(cd "$WORKTREE" && gh pr view --json number -q .number)
+        # gitlab equivalent
+        # glab mr merge ...
+        ```
+
+        On merge failure (conflicts, branch protection, missing approval): do NOT proceed to teardown. Surface to the user with the exact PR URL. Treat as ESCALATE: the user resolves on the PR side, then re-runs `/aped-lead`.
+
+     c. Teardown the worktree (the merge succeeded → local copy is no longer needed). Prefer `workmux merge` if available (it cleans up worktree + window + branch in one); else `bash {{APED_DIR}}/scripts/worktree-cleanup.sh "$WORKTREE" --delete-branch`. Both are safe-by-default since /aped-review left a clean tree.
+
+     d. Clear `worktree` and set `merged_into_umbrella: true` on the story in state.yaml:
+
+        ```bash
+        bash {{APED_DIR}}/scripts/sync-state.sh <<< "clear-story-worktree {key}"
+        bash {{APED_DIR}}/scripts/sync-state.sh <<< "set-story-field {key} merged_into_umbrella true"
+        ```
+
+     e. **Do NOT push `/aped-ship` automatically** — even when the last story merges. The user runs `/aped-ship` to open the umbrella → base PR with the composite review.
+
+     **Why au-fil-de-l'eau and not batch:** the umbrella is the single integration point. Merging stories into it as they're approved keeps the umbrella always-deployable to a preview environment, gives the team continuous review feedback at the umbrella level, and means `/aped-ship` has nothing to do beyond the final composite + PR. Batching merges defers conflict pain to ship time.
 3. **Clear context before pushing** (story-ready and dev-done only — review-done has no push). Each APED phase should start with a fresh conversation to avoid cross-phase hallucinations (e.g., /aped-dev relitigating scope decisions from /aped-story, or /aped-review being anchored by /aped-dev's rationale). Send `/clear` first, then the follow-up command as a separate message — workmux's send API sends sequentially, and `/clear` is a Claude Code built-in that resets the session context while keeping it alive. Preferring workmux when available:
    ```bash
    HANDLE="{basename-or-workmux-list-lookup}"
@@ -124,12 +158,11 @@ This labels the ticket `aped-blocked-{kind}` and posts a comment. The Story Lead
 
 ## Teardown — Done Stories
 
-For every `review-done` check-in approved, the Lead flips `status` to `done` in main's state.yaml (step 2 above) and STOPS. The feature branch stays live; the worktree stays on disk.
+Teardown of a story is part of the `review-done` approval handler above (steps b–d): the PR is merged into the umbrella, the worktree is removed, the local branch is deleted (or kept if the user chose --keep-branch), and state.yaml records `merged_into_umbrella: true`. Once all stories of the active epic are merged, tell the user:
 
-Merging is **not** the Lead's job. Once one or more stories are marked `done`, tell the user:
-> "{N} stories approved and flipped to done: {list}. Run `/aped-ship` when you're ready to batch-merge them into main and run the pre-push composite review."
+> "{N} stories merged into `$UMBRELLA`. Sprint is integration-complete. Run `/aped-ship` to open the umbrella → {base} PR with the composite review."
 
-Rationale: per-story merges from parallel worktrees race on main's state.yaml and produce avoidable conflicts. `/aped-ship` sequences them smallest-first with `--ours` on state.yaml and runs secret/typecheck/lint/db:generate checks in one pass — the right place for teardown.
+Rationale: the umbrella is the unit of release. Stories merge into it as they are approved (au-fil-de-l'eau); `/aped-ship` only handles the umbrella → base PR.
 
 ## Dispatch Follow-up
 
@@ -138,6 +171,43 @@ After approvals, compute new capacity:
 - Stories flipped to `done` (unmerged) → `/aped-ship` candidates.
 
 Surface both to the user: "{N} slots free for new dispatch, {M} stories ready to ship."
+
+## Worktree Reconciliation (state-vs-disk drift)
+
+Before processing check-ins, run:
+
+```bash
+bash {{APED_DIR}}/scripts/check-active-worktrees.sh --format json
+```
+
+Exit 0 → no drift, continue. Exit 1 → one or more registered worktrees are missing. Show the user the list and offer:
+- **Reset to ready-for-dev** for each missing story (frees the parallel slot, the work can be re-dispatched). Per story:
+  ```bash
+  bash {{APED_DIR}}/scripts/sync-state.sh <<< "set-story-status {key} ready-for-dev"
+  bash {{APED_DIR}}/scripts/sync-state.sh <<< "clear-story-worktree {key}"
+  ```
+- **Leave as-is** (the user will recreate the worktree manually).
+
+Do not auto-reset — orphan rows can mean the user is mid-recovery and you'd erase context.
+
+## Ticket-Sync Retry (if any story has `ticket_sync_status: failed`)
+
+Before processing check-ins, scan `sprint.stories` for any story with `ticket_sync_status: failed` (set by `/aped-sprint` when the post-dispatch ticket mutation didn't go through). For each, surface in the dashboard:
+
+```
+⚠ Ticket sync deferred (2):
+  1-2-contract  KON-83  reason: "401 from Linear API"
+  1-3-rpc       KON-84  reason: "network timeout"
+```
+
+Offer the user: **Retry now** / **Skip** / **Drill down on {key}**.
+
+On retry, replay the same 3 mutations the sprint skill would have done (assign + status transition + comment). On success, clear the two fields by setting them to `null`:
+```bash
+bash {{APED_DIR}}/scripts/sync-state.sh <<< "set-story-field {key} ticket_sync_status null"
+bash {{APED_DIR}}/scripts/sync-state.sh <<< "set-story-field {key} ticket_sync_error null"
+```
+On second failure, leave the fields intact and report to the user — they may need to fix credentials or the ticket itself.
 
 ## Edge Cases
 
