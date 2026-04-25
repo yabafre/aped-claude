@@ -139,6 +139,15 @@ export const COMMAND_DEFS = [
     outputs: 'Quick-spec execution and focused code changes.',
   },
   {
+    name: 'aped-from-ticket',
+    skill: 'aped-from-ticket',
+    category: 'utility',
+    phase: 'Intake',
+    description: 'Pulls a ticket from the configured ticket system, drafts a story conformant to the project, integrates it into the sprint state, and (optionally) comments back on the ticket. Use when user says "from ticket", "pickup ticket", "ingest ticket", "aped from-ticket", or invokes /aped-from-ticket.',
+    argumentHint: '<ticket-id-or-url>',
+    outputs: 'Story file, sprint registration, and optional ticket comment.',
+  },
+  {
     name: 'aped-check',
     skill: 'aped-checkpoint',
     category: 'utility',

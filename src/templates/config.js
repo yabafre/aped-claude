@@ -21,6 +21,34 @@ aped_version: ${ver}
 # Integrations
 ticket_system: ${ts}
 git_provider: ${gp}
+
+# /aped-from-ticket — external ticket intake
+# All keys are optional; defaults shown below kick in when absent.
+from_ticket:
+  story_placement:
+    # mode: bucket | auto_match | ask
+    #   bucket     — always place under bucket_epic
+    #   auto_match — score against existing epics, fallback to bucket
+    #   ask        — present candidates + bucket, let user pick
+    mode: ask
+    # Epic key used when placement falls back to (or chooses) the bucket.
+    bucket_epic: external-tickets
+  ticket_comment:
+    # When true, post a comment on the source ticket after the story is drafted.
+    # Off by default to avoid noisy notifications during initial use.
+    enabled: false
+    # Template for the comment body. {story_path} is substituted at runtime.
+    template: "Picked up — story drafted at {story_path}"
+  sprint_integration:
+    # When true, the new story is appended to the active sprint's ordering.
+    # Off by default — the user explicitly promotes the story when ready.
+    auto_add: false
+  handoff:
+    # after_story: ask | stop | continue_to_dev
+    #   ask              — present [D]ev / [P]romote / [S]top options
+    #   stop             — report path and exit
+    #   continue_to_dev  — invoke /aped-dev directly (no confirmation)
+    after_story: ask
 `,
     },
     {
