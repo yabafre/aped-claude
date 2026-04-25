@@ -1,13 +1,14 @@
 ---
 name: aped-prd
-description: 'Generates PRD autonomously from product brief. Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-prd.'
+description: 'Generates PRD section-by-section with user review at each step (interactive by default; --headless for autonomous). Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-prd.'
+argument-hint: "[--headless]"
 license: MIT
 metadata:
   author: yabafre
   version: {{CLI_VERSION}}
 ---
 
-# APED PRD — Autonomous PRD Generation
+# APED PRD — Section-by-Section PRD Authoring
 
 ## Critical Rules
 
@@ -15,6 +16,7 @@ metadata:
 - Take your time to generate quality FRs — 10-80 range, each independently testable
 - Do not skip domain detection — it determines mandatory sections
 - Quality is more important than speed — validate before writing
+- **Interactive mode is the default.** Generate ONE section, present it, ⏸ HALT with the A/P/C menu, then move on. Pure-autonomous output is opt-in via `--headless` for headless workflows where no user is at the keyboard.
 
 ## Setup
 
@@ -22,6 +24,9 @@ metadata:
 2. Read `{{OUTPUT_DIR}}/state.yaml` — check pipeline state
    - If `pipeline.phases.prd.status` is `done`: ask user — redo PRD or skip?
    - If user skips: stop here (user will invoke next phase manually)
+3. **Mode detection** — parse the `--headless` / `-H` flag from the user's invocation:
+   - `--headless`: autonomous generation, no menus, no HALT (keep current 3.7 behaviour for CI / scripted runs)
+   - Default (no flag): **interactive section-by-section** with A/P/C menu after each section
 
 ## Load Product Brief
 
@@ -40,36 +45,70 @@ metadata:
 
 ## Task Tracking
 
-Create tasks for each generation phase:
+Create tasks for each section so progress is visible across the menu loops:
 ```
-TaskCreate: "P1: Foundation — Executive Summary & Vision"
-TaskCreate: "P2: Scope & Journeys"
-TaskCreate: "P3: Domain Requirements (conditional)"
-TaskCreate: "P4: Functional & Non-Functional Requirements"
+TaskCreate: "Section 1: Foundation — Executive Summary & Vision"
+TaskCreate: "Section 2: Scope & Journeys"
+TaskCreate: "Section 3: Domain Requirements (conditional)"
+TaskCreate: "Section 4: Functional & Non-Functional Requirements"
 TaskCreate: "Validate PRD"
 ```
 
-Update each task to `completed` as you finish each phase.
+Update each task to `completed` as the user picks `[C]` Continue on its menu.
 
-## PRD Generation (4 compressed phases)
+## A/P/C Menu Pattern (interactive mode)
 
-Generate the PRD autonomously using `{{APED_DIR}}/templates/prd.md` as structure.
+After **each** section is drafted, present the section content to the user, then display:
 
-### P1: Foundation
+```
+Section {N} of 4 — {section name} draft complete.
+
+Choose your next move:
+[A] Advanced elicitation — invoke /aped-elicit on this section to stress-test
+    (socratic / pre-mortem / red team / first principles / shark tank, etc.)
+[P] Party / Council — invoke a focused sub-team to challenge this section:
+      • Section 1 (Foundation): Mary (Market) + Derek (Domain) cross-check vision
+      • Section 2 (Scope): a Product Manager persona pushes back on MVP boundary
+      • Section 3 (Domain): Raj (Compliance) audits regulatory coverage
+      • Section 4 (Requirements): Eva (QA) + Marcus (Staff Eng) pressure-test FRs
+[C] Continue — accept this section, move to the next
+[Other] Direct feedback — type your changes; I'll apply them and redisplay this menu
+```
+
+⏸ **HALT — wait for user choice. Never auto-pick `[C]`.** In `--headless` mode, skip the menu and treat every section as `[C]` Continue automatically.
+
+### Behaviour by choice
+
+- `[A]` → invoke `/aped-elicit` with the current section as target. When elicit returns enhanced content, ask: "Apply these changes? (y/n/other)". On `y`: replace the section. Then redisplay the same A/P/C menu.
+- `[P]` → dispatch the section-specific sub-team via the `Agent` tool, in parallel. Each subagent reviews the section through its persona's lens and returns 2-4 findings. Merge findings, present to user as "Council says: …", then ask: "Apply any of these? (numbers / all / none)". On selection: integrate into the section. Then redisplay the menu.
+- `[C]` → mark the task `completed` and move to the next section.
+- Direct feedback (anything else) → apply the user's edits to the section, redisplay the menu.
+
+## PRD Generation (4 sections, each gated in interactive mode)
+
+Generate the PRD using `{{APED_DIR}}/templates/prd.md` as structure. **One section at a time** in interactive mode; sequential straight-through in `--headless`.
+
+### Section 1: Foundation
 - Executive Summary from brief's Core Vision
 - Product vision and purpose statement
 
-### P2: Scope & Journeys
-- Success Criteria: User/Business/Technical/Measurable Outcomes
+⏸ Interactive: present + A/P/C menu. Headless: continue.
+
+### Section 2: Scope & Journeys
+- Success Criteria: User / Business / Technical / Measurable Outcomes
 - Product Scope: MVP — Growth — Vision phases
 - User Journeys: key end-to-end workflows
 
-### P3: Domain Requirements (conditional)
+⏸ Interactive: present + A/P/C menu. Headless: continue.
+
+### Section 3: Domain Requirements (conditional)
 - Only if domain-complexity detection flagged medium/high
 - Include mandatory compliance, regulations, certifications from `key_concerns`
 - Skip this section entirely for low-complexity/general domains
 
-### P4: Requirements
+⏸ Interactive (when section is included): present + A/P/C menu. Headless: continue.
+
+### Section 4: Requirements
 - Functional Requirements (target 10-80 FRs)
   - Format: `FR#: [Actor] can [capability] [context/constraint]`
   - Group by capability area
@@ -77,11 +116,15 @@ Generate the PRD autonomously using `{{APED_DIR}}/templates/prd.md` as structure
 - Non-Functional Requirements (relevant categories only)
   - Format: `The system shall [metric] [condition] [measurement method]`
 
+⏸ Interactive: present + A/P/C menu. Headless: continue.
+
 ## Validation
 
 ```bash
 bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md
 ```
+
+In interactive mode, run this AFTER all sections accepted. If it fails, surface the errors and offer one final A/P/C round on the failing area.
 
 ## Output & State
 
@@ -115,6 +158,8 @@ From a restaurant inventory brief → PRD generates:
 
 ## Common Issues
 
-- **FR count too low (<10)**: Brief may lack detail — re-read brief, extract implicit capabilities
-- **Anti-pattern words detected**: Replace "easy" with step count, "fast" with time threshold
-- **Validation script fails**: Run `bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md` — fix reported issues one by one
+- **FR count too low (<10)**: Brief may lack detail — re-read brief, extract implicit capabilities. The Section 4 menu's `[A]` Advanced elicit (Socratic / What If) is good for surfacing missing capabilities.
+- **Anti-pattern words detected**: Replace "easy" with step count, "fast" with time threshold. Use `[A]` Advanced elicit with the Feynman method to find vague language.
+- **Validation script fails**: Run `bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md` — fix reported issues one by one. In interactive mode, this happens automatically after Section 4 with one final remediation round.
+- **User wants the old autonomous behaviour (no menus)**: Tell them to invoke `/aped-prd --headless`. This skips every A/P/C menu and produces the PRD straight-through, equivalent to the 3.7 behaviour.
+- **Model auto-picks `[C]` without showing the menu**: This is a bug. The skill MUST present the menu and HALT after every section in interactive mode. If you catch it auto-continuing, stop, redisplay the menu, wait.

@@ -11,7 +11,7 @@ Core phase commands in the APED delivery flow.
 | Command | Phase | Arguments | Purpose | Outputs |
 |---------|-------|-----------|---------|---------|
 | `/aped-analyze` | Analyze | - | Analyzes a new project idea through parallel market, domain, and technical research. Use when user says "research idea", "aped analyze", or invokes /aped-analyze. Not for existing codebases — use aped-context for brownfield projects. | Product brief and seeded discovery context. |
-| `/aped-prd` | PRD | - | Generates PRD autonomously from product brief. Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-prd. | PRD with FRs, NFRs, and validation-ready structure. |
+| `/aped-prd` | PRD | [--headless] | Generates PRD section-by-section with user review at each step (interactive by default; --headless for autonomous). Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-prd. | PRD with FRs, NFRs, and validation-ready structure. |
 | `/aped-arch` | Architecture | - | Collaborative architecture decisions for consistent implementation. Use when user says "create architecture", "technical architecture", "solution design", or invokes /aped-arch. | Architecture decisions, implementation patterns, and structure. |
 | `/aped-epics` | Epics | - | Creates epic structure and story list from PRD. Does NOT create story files — use /aped-story for that. Use when user says "create epics", "aped epics", or invokes /aped-epics. | Epic map, story list, and FR coverage. |
 | `/aped-story` | Story | [story-key] | Creates a detailed story file for the next story to implement. Use when user says "create story", "prepare next story", "aped story", or invokes /aped-story. | One implementation-ready story file. |

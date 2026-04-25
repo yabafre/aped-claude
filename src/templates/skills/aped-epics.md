@@ -78,17 +78,41 @@ Pick dependencies conservatively: if story B *needs* an artefact produced by sto
 
 Do NOT create the detailed story files here. The user will run `/aped-story` to create each one individually before implementing it.
 
-## Discussion with User
+## Discussion with User — A/P/C menu
 
 After designing the epics and story list, present them to the user:
 - Show the epic structure with story titles
 - Show the FR coverage map
-- Discuss the ordering — does the user agree with the implementation sequence?
-- Are any stories too large? Too granular?
+- Highlight the implementation sequence (DAG → ordered list)
+- Flag stories that look too large (likely needs splitting) or too granular (likely merge candidates)
 
-⏸ **GATE: User must validate the epic structure and story list before proceeding.**
+Then display the A/P/C menu:
 
-If user requests changes: adjust, re-validate, re-present.
+```
+Epic structure draft ready ({E} epics, {S} stories, {N} dependencies tracked).
+
+Choose your next move:
+[A] Advanced elicitation — invoke /aped-elicit on the decomposition
+    (Tree of Thoughts to compare alternative groupings; Pre-mortem to find
+    sequencing risks; Occam's Razor to spot over-engineering)
+[P] Party / Council — convene a 3-specialist sub-team to challenge the structure:
+      • Sam (Fullstack Tech Lead) — story sizing, hidden coupling, cross-layer touches
+      • Eva (QA Lead) — testability per story, AC coverage, integration test seams
+      • A Product Manager persona — user-value coherence per epic, MVP boundary
+    Each returns 2-4 findings; merge and present to the user.
+[C] Continue — accept the structure, write epics.md + run coverage validation
+[Other] Direct feedback — split a story, merge two, reorder, rename; type the change,
+        I apply it and redisplay this menu
+```
+
+⏸ **HALT — wait for the user's choice. Do NOT write epics.md or seed the ticket system before `[C]` is selected.**
+
+### Behaviour by choice
+
+- `[A]` → invoke `/aped-elicit` with the epic structure as target. When elicit returns enhanced content (e.g. "Story 3 should be split — too many ACs touching different layers"), apply the change and redisplay the menu.
+- `[P]` → dispatch Sam + Eva + the PM persona in parallel via the `Agent` tool, each with the epic structure + PRD excerpt + their persona's brief. Merge findings, present as "Council says: …", ask "Apply any of these? (numbers / all / none)". On selection, integrate; redisplay the menu.
+- `[C]` → mark the discussion task `completed`, proceed to FR Coverage Map + Validation + Output.
+- Direct feedback → apply the user's edit, redisplay.
 
 ## FR Coverage Map
 

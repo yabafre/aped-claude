@@ -39,6 +39,8 @@ The 3 research agents bring data. The user brings vision and judgment. Present r
 
 This is a **conversation**, not a questionnaire. Adapt to `communication_language`. Ask one category at a time, wait for the answer, then ask follow-ups based on what the user said. Do NOT dump all questions at once.
 
+Each round below ends with a **catch-all** prompt — *"Anything else about {topic} you want to mention before we move on?"* — and a ⏸ HALT. Don't auto-progress; wait for the user to either add detail or say they're done. This catches the side observations (an unstated must-have, a stakeholder constraint, a personal anecdote) that BMAD's "capture-don't-interrupt" pattern is built around.
+
 ### Round 1 — The Vision
 Start with the big picture. Ask:
 - **What are we building?** — The product/service in the user's own words
@@ -48,6 +50,8 @@ Start with the big picture. Ask:
 Listen to the answers. If they're vague ("a platform for X"), probe:
 - "Can you walk me through a specific scenario where a user would use this?"
 - "What's the most frustrating thing about the current alternatives?"
+
+⏸ **Catch-all:** "Anything else about the vision or the problem space you want to mention before we move to users?" Wait for response. Capture; don't redirect.
 
 ### Round 2 — The Users
 Once the vision is clear, dig into the audience:
@@ -59,11 +63,15 @@ Probe deeper if needed:
 - "Is this for individuals or teams? Small businesses or enterprise?"
 - "What's their budget sensitivity? Is this a must-have or a nice-to-have?"
 
+⏸ **Catch-all:** "Any other detail about the users — secondary personas, anti-patterns, a specific person you're building this for — before we move to constraints?"
+
 ### Round 3 — The Constraints
 Now understand the boundaries:
 - **Why now?** — Market timing, technology enabler, competitive gap
 - **What's the MVP scope?** — If you had to launch in 2 weeks, what's the one thing it MUST do?
 - **Any technical constraints?** — Platform preferences, existing systems to integrate with, compliance needs
+
+⏸ **Catch-all:** "Any other constraint — budget, deadline, team capacity, an existing tool you must integrate with — before we summarise?"
 
 ### Round 4 — Validation
 Summarize what you understood back to the user in a structured format:
@@ -73,9 +81,17 @@ Summarize what you understood back to the user in a structured format:
 - **MVP core:** the one essential feature
 - **Constraints:** platform, integrations, compliance
 
-**Ask the user to confirm or correct this summary before proceeding.**
+Then present the A/C menu:
 
-⏸ **GATE: Do NOT proceed to research until the user explicitly validates the discovery summary.**
+```
+Discovery summary ready. Choose:
+[A] Advanced elicitation — invoke /aped-elicit on the summary
+    (Socratic / Pre-mortem / Devil's Advocate to surface blind spots before research)
+[C] Continue — accept the summary, dispatch parallel research (Mary / Derek / Tom)
+[Other] Direct correction — type changes; I'll apply and redisplay
+```
+
+⏸ **HALT — wait for the user's choice. Do NOT dispatch research before `[C]` is selected.**
 
 ## Phase 2: Parallel Research
 

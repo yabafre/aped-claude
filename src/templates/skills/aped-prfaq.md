@@ -146,7 +146,18 @@ If `--headless` is active: draft the full press release, apply quality bars inte
 
 Append the refined press release to `{{OUTPUT_DIR}}/prfaq.md`. Update frontmatter: `stage: 2`, `updated: {date}`. Append `<!-- coaching-notes-stage-2 --> {rejected framings, competitive positioning, differentiators explored, out-of-scope details} <!-- / -->`.
 
-⏸ **GATE: Press release passes all 5 quality bars per user AND drafting agent.**
+Then present the A/C menu:
+
+```
+Press release draft passes all 5 quality bars internally. Choose:
+[A] Advanced elicitation — invoke /aped-elicit on the press release
+    (Devil's Advocate on the leader quote; Feynman test for "would my non-tech parent
+    understand why this matters?"; Mom-test on the customer quote)
+[C] Continue — press release accepted, move to Stage 3 (Customer FAQ)
+[Other] Direct edit — type changes; I apply, re-run quality bars, redisplay
+```
+
+⏸ **HALT — wait for user choice. Don't auto-progress to FAQ before `[C]`.**
 
 ## Phase 3: Customer FAQ
 
@@ -181,7 +192,19 @@ Answer each with the same honesty as Stage 3.
 
 Update `{{OUTPUT_DIR}}/prfaq.md`: `stage: 4`. Append coaching notes.
 
-⏸ **GATE: User confirms the answers would survive a real stakeholder grilling.**
+Then present the A/C menu — this is the last gate before the Verdict synthesis:
+
+```
+Internal FAQ drafted with brutally honest answers. Choose:
+[A] Advanced elicitation — invoke /aped-elicit on the FAQ
+    (Pre-mortem: "this concept ships and dies in 6 months — why?";
+    Shark Tank Pitch: 3 hostile investor questions you didn't anticipate;
+    Red Team on the moat answer)
+[C] Continue — FAQ accepted, synthesise the Verdict
+[Other] Direct edit — type changes; I apply, redisplay
+```
+
+⏸ **HALT — wait for user choice. The Verdict synthesis treats every answer as committed signal; weak FAQ answers will cascade into a misleading verdict.**
 
 ## Phase 5: The Verdict
 

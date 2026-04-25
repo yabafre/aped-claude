@@ -237,10 +237,24 @@ If any check fails: fix before showing to user.
    - **Components** — wrong component type, missing states, wrong behavior
    - **Dark mode** — contrast issues, token problems, scrim opacity
 
-6. **Iterate** until user says "approved" or "good enough"
-7. Each iteration: apply feedback → use React Grab to inspect the changed elements → run checklist again → present → ask again
+6. **Iterate** until user picks `[C]` Continue on the menu below
+7. Each iteration: apply feedback → use React Grab to inspect the changed elements → run checklist again → present → redisplay menu
 
-`TaskUpdate: "F — Fill: user review" → completed`
+After running the checklist + initial walkthrough, present the A/C menu:
+
+```
+UX prototype ready for sign-off. Choose your next move:
+[A] Advanced elicitation — invoke /aped-elicit on the prototype
+    (Feynman test for clarity; Devil's Advocate on flows; Hindsight: "if a real
+    user breaks this in 30 days, what did we miss?")
+[C] Continue — accept the prototype, write the UX spec, update state.yaml
+[Other] Direct feedback — describe layout / content / style / flow / component /
+        dark-mode change; I apply it, re-run the checklist, redisplay
+```
+
+⏸ **HALT — wait for the user's choice. Do NOT write the UX spec or update state before `[C]`.**
+
+`TaskUpdate: "F — Fill: user review" → completed` once `[C]` is selected.
 
 ---
 

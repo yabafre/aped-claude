@@ -182,7 +182,7 @@ Present to user for review.
 
 ⏸ **GATE: User validates structure.**
 
-## Phase 5: Validation
+## Phase 5: Validation + final A/C gate
 
 Check coherence:
 - [ ] All technology decisions work together (no conflicts)
@@ -193,7 +193,21 @@ Check coherence:
 
 Present validation results. Flag any gaps.
 
-⏸ **GATE: User approves the architecture document.**
+Then present the final A/C menu — this is the last chance to stress-test the architecture before downstream skills (`/aped-epics`, `/aped-dev`, `/aped-review`) treat it as LAW:
+
+```
+Architecture document ready ({K} decisions, {N} council dispatches, {V} validation gaps).
+
+Choose your next move:
+[A] Advanced elicitation — invoke /aped-elicit on the full architecture doc
+    (Pre-mortem: "1 year from now this architecture is regretted, why?";
+    Red Team vs Blue Team on security; Tree of Thoughts on the riskiest decision)
+[C] Continue — accept the architecture, write architecture.md, update state.yaml
+[Other] Direct correction — point at a specific decision; I revisit it (and re-dispatch
+        the Council if it's a major one), then redisplay this menu
+```
+
+⏸ **HALT — wait for the user's choice. Council was for divergent specialist input on major decisions; this final `[A]` is for adversarial pressure on the doc as a whole. Both serve different purposes.**
 
 ## Output
 

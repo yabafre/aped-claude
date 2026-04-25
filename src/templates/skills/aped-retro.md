@@ -134,9 +134,20 @@ Categorize:
 
 Minimum 3 action items across categories. If fewer: the specialists missed something — re-dispatch.
 
-Present to user, refine with their input.
+Present to user, refine with their input. Then present the A/C menu — action items are the load-bearing output of the retro; the next epic's success depends on them being real, owned, and time-bound:
 
-⏸ **GATE: User validates the action item list + owners + deadlines.**
+```
+{N} action items drafted across {categories}. Choose:
+[A] Advanced elicitation — invoke /aped-elicit on the action item list
+    (Pre-mortem: "we hit the next retro and these actions weren't done — why?";
+    SMART audit: are they all Specific, Measurable, Achievable, Relevant, Time-bound?;
+    Devil's Advocate: "this list is theatre — which 2 actions actually move the needle?")
+[C] Continue — action items accepted, proceed to Significant Discovery Detection
+[Other] Direct edit — split / merge / reassign owner / change deadline; type the change,
+        I apply it, redisplay
+```
+
+⏸ **HALT — wait for user choice. Action items without strong gating tend to repeat across retros (Ava the Previous-Retro Auditor will flag exactly this in the next epic).**
 
 ## Phase 5: Significant Discovery Detection
 

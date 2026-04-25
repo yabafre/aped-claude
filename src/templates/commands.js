@@ -15,7 +15,8 @@ export const COMMAND_DEFS = [
     skill: 'aped-prd',
     category: 'pipeline',
     phase: 'PRD',
-    description: 'Generates PRD autonomously from product brief. Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-prd.',
+    description: 'Generates PRD section-by-section with user review at each step (interactive by default; --headless for autonomous). Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-prd.',
+    argumentHint: '[--headless]',
     outputs: 'PRD with FRs, NFRs, and validation-ready structure.',
   },
   {

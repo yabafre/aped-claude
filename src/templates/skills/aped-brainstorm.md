@@ -16,6 +16,7 @@ metadata:
 
 - NEVER organize or converge before the divergence quota is met — stay in generative mode
 - NEVER accept "I think that's enough" before 50 ideas — the magic is in ideas 50-100
+- **NEVER generate ideas in silent batches.** Present **one** technique element at a time, HALT, react to the user, then move on. Brainstorming is a **dialogue**, not a generation script.
 - Shift creative domain every 10 ideas to fight LLM semantic clustering bias
 - Capture every idea verbatim, even the bad ones — they feed better ones
 - No time estimates, no effort sizing during brainstorm — that's for later phases
@@ -87,28 +88,94 @@ Pick a technique based on the frame. Suggest 3 options, let the user pick one. I
 
 Log the chosen technique in the session file.
 
-## Phase 3: Divergence
+## Phase 3: Interactive Facilitation (one element at a time)
+
+This phase is **a coaching dialogue, not a generation script.** You are a creative facilitator: present **one** technique element, **HALT**, react to the user's response, build on it, then move to the next element. Batches of generated ideas without user reaction defeat the purpose — the magic of brainstorming lives in the back-and-forth.
 
 ### Quota
 
-- **Minimum:** 50 ideas
+- **Minimum:** 50 ideas captured during interactive facilitation
 - **Target:** 100 ideas
-- **Hard stop:** user explicitly says "stop" AND quota ≥ 50
+- **Hard stop:** user picks `[D]` (Done) on the technique menu OR `[C]` (Converge) on the energy checkpoint AND quota ≥ 50
 
-### Cadence
+### Idea capture format
 
-Generate ideas in batches of 10 with the chosen technique. After each batch:
-1. Append to the session file under `## Batch {n} — {technique}`
-2. **Anti-bias check:** What domain did this batch cluster in? Pivot to an orthogonal domain for batch {n+1}.
-3. Re-engage the user: "{summary of batch}. Any of these spark something? Want to push in a direction?"
+Every idea you capture (from your prompt or from the user's reaction) goes into the session file under the active technique heading using:
 
-### When the User Freezes
+```markdown
+**[Category #N]** {Mnemonic Title}
+- Concept: {2-3 sentence description}
+- Novelty: {what makes this different from the obvious answer}
+```
 
-- Don't repeat "what else?" — draft 3 concrete alternatives they can react to
-- Suggest a technique switch (e.g., "We've been in SCAMPER — want to try a pre-mortem?")
-- Inject a random stimulus — pick a word from a different field and force a connection
+### Per-technique facilitation loop
 
-### When You Freeze
+For the technique the user picked in Phase 2:
+
+#### Step 3.1 — Present ONE element
+
+Open the technique with **one** prompt at a time. Do NOT enumerate all 7 SCAMPER lenses upfront, do NOT generate 10 What-If scenarios in one shot. Pick the first element, frame it in one sentence, ask one open question.
+
+> Example (SCAMPER → Substitute): "What's one thing in the current overlay role that, if you swapped it for something completely different, would change the product's identity? No filter — first thing that comes to mind?"
+
+⏸ **HALT — wait for the user's response. Do not generate ideas before they speak.**
+
+#### Step 3.2 — Coach based on their response
+
+Switch on the depth of what the user said:
+
+- **Basic answer** ("I dunno, maybe X") → dig: "Tell me more about {aspect}. What would that look like in practice? When would a user notice the difference?"
+- **Detailed answer** (a real concept, even rough) → build: "I love that {specific insight}. What if we pushed it further — what's the {extension / inversion / extreme version} of that?" Then add **one** AI-generated extension idea on top of theirs (your contribution to the dialogue, not a flood of 10 alternatives).
+- **Stuck** ("I don't know") → seed: "No worries. Let me suggest an angle: {one concrete starting point tied to their frame}. Reaction — yes / no / shift?"
+
+Capture each idea (theirs or yours) in the IDEA TEMPLATE format.
+
+#### Step 3.3 — Energy checkpoint (every 4-5 exchanges)
+
+After roughly every 4-5 user/AI exchanges, briefly check engagement before plowing on:
+
+> "We've captured {N} ideas so far across {short list of themes}. Quick check:
+> [K] Keep pushing this angle (one more element of the same technique)
+> [S] Switch to the next technique element
+> [P] Pivot — anti-bias forces an orthogonal domain (technical → UX → business → edge case)
+> [D] Done with this technique → end-of-technique menu"
+
+⏸ **HALT — do not pick for the user.** Default if user is silent or says "continue" → `[K]`.
+
+#### Step 3.4 — Anti-bias domain pivot (auto every 10 ideas)
+
+Independent of the user-driven energy checkpoint: every 10 ideas captured, **internally** check what domain the recent ideas cluster in and force the next prompt into an orthogonal domain. Announce the pivot to the user:
+
+> "We've stacked up on the {detected} angle. I'm going to pivot us to {orthogonal angle: user / business / infra / legal / brand} for the next element — fresh lens helps avoid semantic clustering."
+
+This is automatic, not a HALT — it shapes your next Step 3.1 prompt.
+
+### End-of-technique menu
+
+When the technique has covered all its core elements (or the user picks `[D]` Done in Step 3.3), present:
+
+```
+Technique {name} complete — {N} ideas captured.
+
+Choose next move:
+[K] Keep exploring this technique (you have ideas left)
+[T] Try a different technique (suggest 2-3 from the library that pair well with what we found)
+[A] Advanced elicitation — call /aped-elicit on the strongest 1-2 ideas (deep critique, sharpening)
+[B] Take a break (save and pause; resume by re-running /aped-brainstorm)
+[C] Converge — quota met or close enough → Phase 4
+```
+
+⏸ **HALT — wait for user choice.** Default suggestion: if quota < 50, prefer `[K]` or `[T]`; if ≥ 50, all options are reasonable, let user decide.
+
+### When the user freezes mid-loop
+
+If the user gives 2 consecutive empty / "I don't know" responses on the same element:
+
+- Drop the element and offer 3 concrete alternatives they can react to
+- OR suggest a technique switch via `[T]`
+- OR inject a random stimulus from a different field ("pick a random word: 'lighthouse'. Force a connection to {topic}")
+
+### When YOU freeze (no decent prompt comes out)
 
 - Shift the lens (user → business → engineer → skeptic)
 - Shift the time horizon (now → 1 year → 10 years → 100 years)
@@ -161,23 +228,30 @@ If the brainstorm was a precursor to `/aped-analyze`, tell the user:
 
 **Do NOT auto-chain.** The user decides what to do with the survivors — maybe keep brainstorming, maybe go analyze, maybe park for later.
 
-## Example
+## Example (interactive flow)
 
 User: "aide-moi à brainstormer des idées de features pour bonjour-overlay"
 
-1. Framing: Target = "features pour overlay", Lens = "utilisateurs finaux d'un mail server", Constraints = "doit rester lean, Bun/Elysia"
-2. Technique: propose SCAMPER + What If + Customer Support Theater — user picks SCAMPER
-3. Batch 1 (SCAMPER — Substitute): 10 ideas on what could be swapped in the overlay's role
-4. Anti-bias: batch was about auth layers. Batch 2 pivots to operational/observability lens.
-5. ... continue until 50+ ideas ...
-6. Convergence: cluster into auth, observability, dev-experience, integrations
-7. Top 5 survivors presented with 1-liner rationale
-8. Session saved to `{{OUTPUT_DIR}}/brainstorm/session-2026-04-21.md`
+1. **Framing**: Target = "features pour overlay", Lens = "utilisateurs finaux d'un mail server", Constraints = "lean, Bun/Elysia". ⏸ GATE.
+2. **Technique selection**: Propose SCAMPER + What If + Customer Support Theater — user picks SCAMPER.
+3. **Element 1 (SCAMPER → Substitute)**:
+   - You: "What's one thing in the overlay role that, if you swapped it for something completely different, would shift the product's identity?"
+   - ⏸ HALT.
+   - User: "Maybe replace the auth layer with something passwordless?"
+   - You (build): "Love it. What if passwordless went all the way — passkeys + magic links + nothing else? What would users gain?" + AI captures **[Auth #1] Passkey-only auth** + **[Auth #2] Drop password forever**.
+4. **Element 2 (SCAMPER → Combine)**: "Combine overlay's two strongest existing features in a way they're not currently combined. Which two come to mind?" ⏸ HALT, coach, capture.
+5. After 4-5 exchanges: ⏸ **Energy checkpoint** → user picks `[K]` Keep going.
+6. After 10 ideas: **Anti-bias pivot** → "We've stacked on auth. Pivoting to operational angle for the next element."
+7. ... continue element by element until ~50+ ideas ...
+8. End-of-technique menu → user picks `[T]` Try a different technique → loop into "What If" with the same coaching pattern.
+9. **Convergence (Phase 4)**: cluster into auth / observability / dev-experience / integrations. Top 5 survivors with 1-line rationale each.
+10. Session saved at `{{OUTPUT_DIR}}/brainstorm/session-2026-04-25.md`.
 
 ## Common Issues
 
-- **User wants to stop at 20 ideas**: Remind them the quota is 50 minimum. If they insist, document it and move on — but note in the session file that divergence was cut short.
-- **Ideas all feel similar**: Semantic clustering. Force a domain pivot (user → infra → legal → marketing).
-- **User rejects every idea**: They may be in evaluation mode. Remind them: during divergence, even bad ideas feed better ones. Write it down, move on.
-- **Technique feels wrong for the topic**: Switch mid-session. Log the switch in the session file.
-- **Resume a paused session**: Read the previous `session-{date}.md`, pick up at the next batch number.
+- **Model wants to generate 10 ideas at once**: STOP. Critical Rules forbid silent batches. Pose ONE element, HALT, wait for user.
+- **User wants to stop at 20 ideas**: Remind them the quota is 50 minimum and pose the energy-checkpoint menu. If they insist, document it and converge — but note in the session file that divergence was cut short.
+- **Ideas all feel similar**: Semantic clustering. The auto anti-bias pivot every 10 ideas should catch this; if it didn't fire yet, force it manually next prompt.
+- **User rejects every idea**: They may be in evaluation mode. Remind them: during divergence, even bad ideas feed better ones. Capture, move to the next element.
+- **Technique feels wrong for the topic**: Use the end-of-technique menu `[T]` to switch. Log the switch in the session file.
+- **Resume a paused session**: Read the previous `session-{date}.md`, identify the last technique + element, pick up from the next element. No need to re-run framing.
