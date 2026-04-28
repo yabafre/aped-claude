@@ -57,6 +57,21 @@ from_ticket:
 # legitimately use TODO/TBD as in-document trackers).
 placeholder_lint:
   enabled: true
+
+# Skill-invocation discipline (Tier 4). Governs whether the
+# "## Skill Invocation Discipline" block is rendered into CLAUDE.md by the
+# scaffold/update flow. Defaults on — it carries the 1%-rule and the
+# rationalization table that keep \`/aped-*\` skill triggers honest.
+skill_invocation_discipline:
+  enabled: true   # If false, the CLAUDE.md "Skill Invocation Discipline" block is omitted.
+
+# Visual companion server for /aped-brainstorm (opt-in, Tier 4).
+# Installation is gated on \`aped-method visual-companion\` so the default
+# scaffold ships nothing on disk; this block only configures the server
+# once the user opts in.
+visual_companion:
+  enabled: false  # Opt-in. Install via 'aped-method visual-companion'.
+  port: 3737      # HTTP port for the brainstorm visual companion server.
 `,
     },
     {

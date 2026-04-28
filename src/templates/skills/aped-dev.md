@@ -43,6 +43,24 @@ Phrases that mean you are about to ship code without TDD discipline. If you catc
 | "The dev agent reported tests passing" | If you didn't capture the output in this message, it's not evidence. Re-run and paste. |
 | "Just this once, I'll skip the RED step" | "Just this once" is the rationalization Superpowers explicitly fights — it appears every time and erodes the discipline. |
 
+## Blocker-halt gate
+
+Some failures are not "try harder" failures — they are "stop and surface" failures. Continuing past them produces broken plans, silent dependency drift, or work on the wrong branch. Apply this gate before every RED→GREEN→REFACTOR cycle and at every step boundary.
+
+**STOP executing immediately when:**
+- Hit a blocker (missing dependency, test fails, instruction unclear)
+- Plan has critical gaps preventing starting
+- You don't understand an instruction
+- Verification fails repeatedly
+
+**Ask for clarification rather than guessing.**
+
+In addition: **never start implementation on `main` / `master` branch without explicit user consent.** APED's branch-per-story rule (one feature branch per story) is non-negotiable; if the current branch is `main` (classic mode without a worktree), HALT and ask the user to create a feature branch first or to confirm a one-off exception in writing.
+
+When this gate fires inside a worktree session, post a `dev-blocked` check-in (see `## HALT Conditions` § parallel-sprint mode) before halting — the user is in `/aped-lead` in the main project, not watching this terminal. A silent HALT is invisible to them.
+
+**Don't force through blockers** — stop and ask.
+
 ## Guiding Principles
 
 ### 1. Understand Before You Code
@@ -178,6 +196,8 @@ Main's state.yaml is the **authoritative** copy. /aped-lead writes there when it
 ## Review Continuation Check
 
 If story has `[AI-Review]` items: address them BEFORE regular tasks.
+
+When `/aped-review` has reported findings and handed control back to `/aped-dev`, invoke `/aped-receive-review` to process the feedback before touching code. The receive-review skill enforces the "no performative agreement, technical verification first" discipline (verify each item against the codebase, ask for clarification on any unclear item, push back on technically wrong feedback with evidence, run a YAGNI grep before "implementing properly" on possibly-unused features). Skipping this step typically produces partial fixes plus rework.
 
 ## State Update (start)
 

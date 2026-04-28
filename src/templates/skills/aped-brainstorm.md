@@ -217,6 +217,65 @@ Total ideas: {N}
 
 Present the file path to the user.
 
+### Spec self-review
+
+After writing the spec/session-output document, look at it with fresh eyes — this is an inline checklist you run yourself, not a subagent dispatch. Fix any issues inline; no need to re-review.
+
+1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
+2. **Internal consistency:** Do any sections contradict each other? Does the architecture sketch match the feature descriptions in the survivors?
+3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition? If multiple independent subsystems, flag for split before handing off to `/aped-prd`.
+4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
+5. **YAGNI sweep:** Any unrequested features or over-engineering survived convergence? Remove them now — every line in the spec becomes implementation cost downstream.
+
+If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a missing requirement, add it.
+
+### Spec-reviewer dispatch
+
+After the inline self-review passes, dispatch a fresh subagent to review the spec document **before** the user gate. The reviewer's job is to verify the spec is complete, consistent, and ready for `/aped-prd` / `/aped-epics` planning.
+
+Use the `Agent` tool (`subagent_type: "general-purpose"`) with this verbatim prompt (substitute `[SPEC_FILE_PATH]` with the actual path of the brainstorm spec just written):
+
+```
+You are a spec document reviewer. Verify this spec is complete and ready for planning.
+
+**Spec to review:** [SPEC_FILE_PATH]
+
+## What to Check
+
+| Category | What to Look For |
+|----------|------------------|
+| Completeness | TODOs, placeholders, "TBD", incomplete sections |
+| Consistency | Internal contradictions, conflicting requirements |
+| Clarity | Requirements ambiguous enough to cause someone to build the wrong thing |
+| Scope | Focused enough for a single plan — not covering multiple independent subsystems |
+| YAGNI | Unrequested features, over-engineering |
+
+## Calibration
+
+**Only flag issues that would cause real problems during implementation planning.**
+A missing section, a contradiction, or a requirement so ambiguous it could be
+interpreted two different ways — those are issues. Minor wording improvements,
+stylistic preferences, and "sections less detailed than others" are not.
+
+Approve unless there are serious gaps that would lead to a flawed plan.
+
+## Output Format
+
+## Spec Review
+
+**Status:** Approved | Issues Found
+
+**Issues (if any):**
+- [Section X]: [specific issue] - [why it matters for planning]
+
+**Recommendations (advisory, do not block approval):**
+- [suggestions for improvement]
+```
+
+When the reviewer returns:
+- **Status: Approved** — proceed to the user gate. Surface the recommendations (advisory) but do not block on them.
+- **Status: Issues Found** — fix the flagged issues inline (or `[O]verride` with a recorded reason if a flag is wrong), then re-dispatch the same reviewer once. If the second pass also returns issues, HALT and present the issues to the user for adjudication before handing off.
+
 ## Self-review (run before user gate)
 
 Before handing off the brainstorm output, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
