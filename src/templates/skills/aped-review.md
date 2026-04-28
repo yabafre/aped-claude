@@ -274,6 +274,7 @@ As the Lead, collect all specialist reports and merge:
 3. **Prioritize** — CRITICAL > HIGH > MEDIUM > LOW
 4. **Verify minimum 3** — if total findings across team < 3, **re-dispatch** the most relevant specialist with stricter instructions ("look harder at edge cases, error handling, security surface")
 5. **Check ticket comments** — if a team member commented on the ticket about a known limitation, don't re-flag it as a finding; note it as "acknowledged"
+6. **Route root-cause findings to `/aped-debug`** — for any finding whose mechanism is unclear (Eva flags a bug whose cause she can't articulate, Marcus surfaces a regression with no obvious origin, Rex spots a behavioural delta in the git audit that nobody can explain), dispatch `/aped-debug` rather than letting the specialist guess. Phase 1 inherits the finding's repro; the verdict is appended to this review's evidence trail. See `aped-debug.md` § Invocation contexts.
 
 ## Self-review (run before final report)
 
@@ -284,6 +285,22 @@ Before presenting the merged report to the user, walk this checklist. Each `[ ]`
 - [ ] **Every finding has evidence** — file:line, command output, or stack trace. No bare "looks suspicious".
 - [ ] **Git audit captured** — Rex's audit ran and its output is reflected in the report.
 - [ ] **Verification re-run** — the test command(s) for this story were re-run by the lead in this session, output captured. Reports from the dev session do not count.
+
+## Verification gate (run before Step 7)
+
+The Iron Law for `/aped-review` is *NO PASS WITHOUT FRESH EVIDENCE IN THIS MESSAGE*. This gate operationalises that.
+
+**Forbidden phrases** — these alone are not evidence. If the report draft contains any of them and the message has no captured tool output, the gate fails.
+
+`should work` · `looks good` · `probably fine` · `tests should pass` · `should be ok` · `Done!` · `Great!` · `Perfect!` · `All set`
+
+**Accepted evidence forms** — at least one must appear in this message before presenting the report:
+
+1. **Captured command output** — re-run of the story's test command(s), pass line included.
+2. **Diff with test output** — short diff of the story's changes paired with the test output that exercises them.
+3. **Screenshot reference** — for frontend stories, an explicit React Grab visual check or screenshot path captured this session.
+
+If none of the three is present, **HALT** and re-run the verification, capturing the output here. Do not present a verdict on confidence. Same gate as `/aped-dev` § Verification gate — same standards either side of the dev/review handoff.
 
 ## Step 7: Present Report to User
 

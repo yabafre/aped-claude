@@ -139,6 +139,14 @@ export const COMMAND_DEFS = [
     outputs: 'Quick-spec execution and focused code changes.',
   },
   {
+    name: 'aped-debug',
+    skill: 'aped-debug',
+    category: 'utility',
+    phase: 'Debug',
+    description: 'Use when user says "debug", "troubleshoot", "why is X failing", "find the root cause", "aped debug", or invokes /aped-debug. Also invoked from /aped-dev on persistent test red (≥3 failed attempts) and from /aped-review on findings that need root-cause investigation.',
+    outputs: 'Reproducible failure, confirmed root cause, regression test, and verified fix.',
+  },
+  {
     name: 'aped-from-ticket',
     skill: 'aped-from-ticket',
     category: 'utility',

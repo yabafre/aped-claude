@@ -44,6 +44,7 @@ const SUBCOMMANDS = new Set([
   'safe-bash',
   'symlink',
   'post-edit-typescript',
+  'verify-claims',
 ]);
 
 // Keys we accept from a user-edited config.yaml. Anything else is ignored silently
@@ -87,6 +88,7 @@ SUBCOMMANDS
   safe-bash               Install the optional APED Bash safety hook
   symlink                 Repair APED cross-tool skill symlinks
   post-edit-typescript    Install the optional TypeScript post-edit quality hook
+  verify-claims           Install the optional verification-claims advisory hook
 
 OPTIONS
   --yes, -y                Non-interactive mode (use defaults or existing config)

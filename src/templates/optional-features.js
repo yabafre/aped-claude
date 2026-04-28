@@ -76,6 +76,40 @@ export function safeBashTemplates(c) {
   ];
 }
 
+export function verifyClaimsTemplates(c) {
+  const a = c.apedDir;
+  return [
+    {
+      path: `${a}/hooks/verify-claims.js`,
+      executable: true,
+      content: substitute(loadTemplate('hooks/verify-claims.js'), c),
+    },
+    {
+      path: '.claude/settings.local.json',
+      content: stringifySettings({
+        hooks: {
+          PostToolUse: [
+            {
+              matcher: 'Bash',
+              hooks: [
+                {
+                  type: 'command',
+                  command: `\${CLAUDE_PROJECT_DIR}/${a}/hooks/verify-claims.js`,
+                  // 8 s — Node cold-start + reading config + scanning multi-MB
+                  // test logs can exceed 3 s on shared CI runners. Hook stays
+                  // advisory either way: timeout means "no advisory this turn",
+                  // never blocks tool use.
+                  timeout: 8,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    },
+  ];
+}
+
 export function typeScriptQualityTemplates(c) {
   const a = c.apedDir;
   return [

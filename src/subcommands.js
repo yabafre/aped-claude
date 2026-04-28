@@ -27,6 +27,7 @@ import {
   statuslineTemplates,
   safeBashTemplates,
   typeScriptQualityTemplates,
+  verifyClaimsTemplates,
 } from './templates/optional-features.js';
 import {
   DEFAULTS,
@@ -75,6 +76,11 @@ export async function runSubcommand(command, args) {
 
   if (command === 'post-edit-typescript') {
     await installFeature('post-edit-typescript', typeScriptQualityTemplates(config));
+    return;
+  }
+
+  if (command === 'verify-claims') {
+    await installFeature('verify-claims', verifyClaimsTemplates(config));
     return;
   }
 

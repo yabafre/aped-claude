@@ -339,6 +339,8 @@ Mark `[x]` ONLY when: tests exist, pass 100%, implementation matches, ACs satisf
 
 **STOP and ask user if:** new dependency, 3 consecutive failures, missing config, ambiguity.
 
+**3-failed-fixes rule:** if a task's test has gone red 3 times in a row — **three attempts that did not turn the original failing repro green** — **do not try fix #4**. Invoke `/aped-debug`. A "different test broke" counts as not turning the original repro green. The fourth attempt to patch a misunderstood cause costs more than the fifteen minutes of stepping back. `/aped-debug` Phase 1 inherits the failing test as the repro and immediately HALTs to question the architecture/spec/test rather than the fix. See `aped-debug.md` § 3-failed-fixes rule.
+
 ### Parallel-sprint mode — post a `dev-blocked` check-in
 
 In a worktree session (parallel sprint), the user is in `/aped-lead` in main, not watching this terminal. A silent HALT is invisible to them. Before stopping, post a check-in so /aped-status surfaces it and /aped-lead can escalate:
@@ -389,6 +391,22 @@ If `ticket_system` is `none`:
    - PR/MR link
    - Any deviations from original plan (and why)
 4. Link the PR to the ticket (auto via magic words in commits, or explicit PR body reference)
+
+## Verification gate (run before Completion)
+
+The Iron Law for `/aped-dev` is *NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST*; the Iron Law for marking the story `review` is *no completion claim without fresh evidence in this message*. This gate operationalises that. Walk it before the steps under `## Completion`.
+
+**Forbidden phrases** — these words alone are not evidence. If you wrote them in this message and the message contains no captured tool output below, you have NOT verified anything.
+
+`should work` · `looks good` · `probably fine` · `tests should pass` · `should be ok` · `Done!` · `Great!` · `Perfect!` · `All set`
+
+**Accepted evidence forms** — at least one must appear in this message before you mark the story `review`:
+
+1. **Captured command output** — copy of the test runner's output ending with the pass line (`PASS`, `OK`, `✓`, `N tests passed`, exit code `0`).
+2. **Diff with test output** — short diff of the change paired with the test output that exercises the change.
+3. **Screenshot reference** — for frontend visual changes, an explicit reference to a React Grab visual check or screenshot path captured this session.
+
+If none of the three is present, **HALT** and re-run the verification, capturing the output here. Do not mark the story `review` on confidence.
 
 ## Completion
 
