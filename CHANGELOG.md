@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.12.0] - 2026-04-29
+
 Tier 5 — Spec-reviewer dispatch on the four artefact-producing skills that lacked it (PRD, UX, Epics, Analyze) plus deprecation of all 25 slash commands ahead of 4.0.0 removal. Skills become the primary invocation surface; slash commands keep working on 3.x but are marked legacy.
 
 Tier 6 — Native sync-logs + state.yaml schema normalization. Two coupled gaps surfaced post-Tier 5 by inspection of BonjourStalwart's organic state.yaml + sync-log JSON: ticket-system operations had no structured audit trail, and APED's `state.yaml` template was missing 8 patterns real projects re-invented incompatibly (top-level `schema_version`, provider-agnostic `ticket_sync`, `backlog_future_scope`, append-only `corrections`, and richer per-phase fields). Both ship together in the same 3.12.0 cycle; neither is breaking — existing scaffolds without the new blocks keep working.

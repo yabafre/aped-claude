@@ -8,8 +8,8 @@ Security patches are issued for the latest `3.x` minor release only.
 
 | Version  | Supported          |
 | -------- | ------------------ |
-| 3.11.x   | :white_check_mark: |
-| < 3.11   | :x:                |
+| 3.12.x   | :white_check_mark: |
+| < 3.12   | :x:                |
 
 Users on older minors should upgrade to the latest 3.x before reporting an issue.
 
