@@ -39,9 +39,43 @@ If the poll surfaces a `dev-blocked` check-in, treat it as **always ESCALATE**. 
 
 Do NOT pass `dev-blocked` to `check-auto-approve.sh` — the script doesn't model it (it's a request for human attention, not a verdict question).
 
-## Auto-Approve Verdicts (programmatic, scripted)
+## Status routing — `agent_status` is checked FIRST
 
-For each pending check-in, call:
+Each check-in carries an `agent_status` field (added in the Tier 3 absorption) that reports the Story Leader's confidence in the work it just shipped, independent of the workflow `kind`. Read it from the JSONL inbox and route **before** running `check-auto-approve.sh`. Auto-approve is gated on `agent_status == DONE` only.
+
+| `agent_status` | Routing | What you do |
+|-----------|---------|-------------|
+| `DONE` | run `check-auto-approve.sh` | Existing path — script verdict is AUTO or ESCALATE. |
+| `DONE_WITH_CONCERNS` | **never auto-approve** | Surface the JSONL `reason` field verbatim. Ask the user `[A]pprove despite concern (record reason)` / `[R]eturn to dev with the concern as a directive in the next iteration`. |
+| `NEEDS_CONTEXT` | **never auto-approve, escalate priority HIGH** | Place at the top of the queue. Surface the question (JSONL `reason`) verbatim. Wait for the user's answer; push the answer back via `bash {{APED_DIR}}/scripts/checkin.sh push {key} "<answer>"` so the Story Leader can resume. |
+| `BLOCKED` | **never auto-approve** | Same as the existing `dev-blocked` kind path — `BLOCKED` should always come paired with `kind=dev-blocked` (the script enforces this). Treat as the canonical blocked escalation. |
+
+Read it like (substitute `$key` for the story key you are processing):
+
+```bash
+agent_status=$(jq -r --arg k "$kind" '
+    select(.kind == $k and .status == "pending")
+    | (.agent_status // "DONE")        # legacy entries lack the field; default to DONE
+  ' "{{APED_DIR}}/checkins/$key.jsonl" 2>/dev/null | tail -1)
+[[ -z "$agent_status" || "$agent_status" == "null" ]] && agent_status=DONE
+```
+
+The `// "DONE"` jq fallback covers entries posted before the Tier 3 upgrade (no `agent_status` key). The post-jq guard covers the case where the file has no matching pending entry yet (jq prints empty) AND the rare case where jq emits the literal string `"null"` from a record where the field is present but JSON-null.
+
+**No-jq fallback** — if the host lacks `jq` (rare but possible on locked-down CI), `checkin.sh` already implements a node-based reader for its own flow, but this skill's read snippet does not. On a no-jq host, replace the snippet above with:
+
+```bash
+agent_status=$(grep "\"kind\":\"$kind\"" "{{APED_DIR}}/checkins/$key.jsonl" \
+  | grep '"status":"pending"' | tail -1 \
+  | sed -E 's/.*"agent_status":"([^"]*)".*/\1/')
+[[ -z "$agent_status" || "$agent_status" == *agent_status* ]] && agent_status=DONE
+```
+
+The second guard catches the case where the regex didn't match (sed echoes the unchanged line, which contains `"agent_status"` literally).
+
+## Auto-Approve Verdicts (status: DONE only, programmatic, scripted)
+
+For check-ins with `agent_status == DONE`, call:
 
 ```bash
 bash {{APED_DIR}}/scripts/check-auto-approve.sh <kind> <story-key>
