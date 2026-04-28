@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.11.0] - 2026-04-28
+
 Tier 1 + Tier 2 + Tier 3 + Tier 4 of the Superpowers absorption (rhetorical + execution + process discipline + debug sub-disciplines + meta-skills) plus two lived-defect fixes.
 
-### Tier 4 — Superpowers second-pass absorption (debug sub-disciplines + meta-skills + dev-side discipline + brainstorm hardening + session-start)
+### Added — Tier 4 — Superpowers second-pass absorption (debug sub-disciplines + meta-skills + dev-side discipline + brainstorm hardening + session-start)
 
 A second cross-analysis of `obra/superpowers` against the Tier 1-3 absorption (four parallel research agents) found 11 disciplines the previous cycle missed. Biggest gaps: `/aped-debug` lifted only the 4-phase shell of `systematic-debugging` and ignored its three sibling sub-disciplines that carry the real diagnostic muscle; the entire `writing-skills` cluster (CSO description principle, persuasion principles, RED-GREEN-REFACTOR for skills) was absent; APED reviewed code but didn't teach receiving review; no agent-facing rule forced skill-invocation discipline at the CLAUDE.md level; `aped-brainstorm` had no spec-self-review gate before handoff to `/aped-prd`.
 
