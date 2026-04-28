@@ -1,6 +1,6 @@
 ---
 name: aped-claude
-description: 'Updates CLAUDE.md with APED working rules, project config, and session patterns. Merges with existing content — never overwrites user customizations. Use when user says "update CLAUDE.md", "sync claude rules", "aped claude", or invokes /aped-claude.'
+description: 'Use when user says "update CLAUDE.md", "sync claude rules", "aped claude", or invokes /aped-claude. Merges — never overwrites user customizations.'
 license: MIT
 metadata:
   author: yabafre

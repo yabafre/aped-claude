@@ -1,6 +1,6 @@
 ---
 name: aped-ship
-description: 'Sprint umbrella → base PR opener. Verifies all done stories of the active epic are merged into the sprint umbrella branch (au-fil-de-l''eau merges done by /aped-lead), runs a composite review on umbrella vs origin/<base>, pushes the umbrella, and prints the gh pr create command for the final PR. HALTs before push — user runs the gh command. Use when user says "ship", "sprint pr", "pre-push", "aped ship", or invokes /aped-ship. Only runs from the main project on the base branch.'
+description: 'Use when user says "ship", "sprint pr", "pre-push", "aped ship", or invokes /aped-ship. Only runs from the main project on the base branch — never from inside a worktree. HALTs before push.'
 disable-model-invocation: true
 license: MIT
 metadata:

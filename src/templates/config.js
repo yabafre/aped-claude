@@ -49,6 +49,14 @@ from_ticket:
     #   stop             — report path and exit
     #   continue_to_dev  — invoke /aped-dev directly (no confirmation)
     after_story: ask
+
+# Artefact placeholder lint — runs from the Self-review block of every
+# artefact-producing skill (PRD, architecture, story, epics, UX, retro,
+# brainstorm, prfaq, project-context, from-ticket).
+# Set enabled: false to opt out across all skills (e.g. for projects that
+# legitimately use TODO/TBD as in-document trackers).
+placeholder_lint:
+  enabled: true
 `,
     },
     {

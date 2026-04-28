@@ -1,6 +1,6 @@
 ---
 name: aped-epics
-description: 'Creates epic structure and story list from PRD. Does NOT create story files — use /aped-story for that. Use when user says "create epics", "break into stories", "aped epics", or invokes /aped-epics.'
+description: 'Use when user says "create epics", "break into stories", "aped epics", or invokes /aped-epics. Does NOT create story files — that''s /aped-story.'
 license: MIT
 metadata:
   author: yabafre
@@ -163,6 +163,17 @@ Every FR from PRD mapped to exactly one epic. No orphans, no phantoms.
 ```bash
 bash {{APED_DIR}}/aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md
 ```
+
+## Self-review (run before user gate)
+
+Before presenting the epics breakdown to the user, walk this checklist. Each `[ ]` must flip to `[x]` or HALT. If the lint exits 1, present its output verbatim and ask `[F]ix` / `[O]verride (record reason)`.
+
+- [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/epics.md`.
+- [ ] **FR coverage** — every PRD FR appears in at least one story's `Covered FRs:` list. No orphan FRs.
+- [ ] **Given/When/Then ACs** — every story's ACs follow Given/When/Then.
+- [ ] **Acyclic dependency graph** — `depends_on:` chains contain no cycles.
+- [ ] **Unique story keys** — no two stories share a key.
+- [ ] **Non-empty scope** — every story has a concrete user-facing description (not just a title).
 
 ## Output
 

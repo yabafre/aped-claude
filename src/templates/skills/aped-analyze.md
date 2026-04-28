@@ -1,6 +1,6 @@
 ---
 name: aped-analyze
-description: 'Analyzes a project idea through parallel market, domain, and technical research. Detects greenfield vs brownfield from discovered artefacts — runs alongside /aped-context, not exclusive of it. Use when user says "research idea", "aped analyze", or invokes /aped-analyze.'
+description: 'Use when user says "research idea", "aped analyze", or invokes /aped-analyze. Runs alongside /aped-context — both can apply on hybrid projects (new feature in existing system).'
 license: MIT
 metadata:
   author: yabafre

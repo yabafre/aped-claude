@@ -1,6 +1,6 @@
 ---
 name: aped-status
-description: 'Shows sprint status dashboard with progress, blockers, and next actions. Use when user says "sprint status", "show progress", "aped status", or invokes /aped-status.'
+description: 'Use when user says "sprint status", "show progress", "aped status", or invokes /aped-status.'
 allowed-tools: "Read Grep Glob Bash"
 license: MIT
 metadata:

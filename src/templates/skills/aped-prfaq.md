@@ -1,6 +1,6 @@
 ---
 name: aped-prfaq
-description: 'Working Backwards challenge: press release, customer FAQ, internal FAQ, verdict. Stress-tests product concepts before commit.'
+description: 'Use when user says "prfaq", "working backwards", "press release first", "stress-test the concept", or invokes /aped-prfaq. Optional upstream tooling — can run before /aped-analyze.'
 when_to_use: 'Use when user says "PRFAQ", "work backwards", "press release first". Optional upstream of /aped-analyze.'
 argument-hint: "[--headless]"
 allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate WebSearch WebFetch
@@ -242,6 +242,15 @@ Produce a concise verdict section at the end of `{{OUTPUT_DIR}}/prfaq.md`:
 ```
 
 Update frontmatter: `stage: 5`, `strength: {STRONG|PROMISING|WEAK}`, `updated: {date}`.
+
+## Self-review (run before user gate)
+
+Before presenting the PRFAQ verdict to the user, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
+
+- [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/prfaq.md`.
+- [ ] **Real headline** — the press release leads with a concrete claim, not a templated "X solves Y" form.
+- [ ] **Concrete FAQs** — every FAQ has a real question and a real answer; no "Q: …? A: …" placeholders.
+- [ ] **Verdict declared** — `strength` frontmatter is one of `STRONG`, `PROMISING`, `WEAK` (not absent or unset).
 
 ## State Update
 

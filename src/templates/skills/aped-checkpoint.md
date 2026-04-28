@@ -1,6 +1,6 @@
 ---
 name: aped-checkpoint
-description: 'Human-in-the-loop review of recent changes. Summarizes what changed, highlights concerns, and halts for user approval. Use when user says "checkpoint", "review changes", "walk me through this", or invokes /aped-check.'
+description: 'Use when user says "checkpoint", "review changes", "walk me through this", or invokes /aped-check.'
 allowed-tools: "Read Grep Glob Bash"
 license: MIT
 metadata:

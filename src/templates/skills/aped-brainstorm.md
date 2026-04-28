@@ -1,6 +1,6 @@
 ---
 name: aped-brainstorm
-description: 'Structured brainstorming with diverse creative techniques to generate 100+ ideas before convergence.'
+description: 'Use when user says "brainstorm", "ideate", "generate ideas", "divergent thinking", or invokes /aped-brainstorm. Horizontal — invokable at any phase.'
 when_to_use: 'Use when user says "brainstorm", "help me ideate", "explore ideas". Runs before /aped-analyze when the idea is still fuzzy.'
 argument-hint: "[topic]"
 allowed-tools: Read Write Edit Glob Grep Bash TaskCreate TaskUpdate
@@ -216,6 +216,15 @@ Total ideas: {N}
 ```
 
 Present the file path to the user.
+
+## Self-review (run before user gate)
+
+Before handing off the brainstorm output, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
+
+- [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/brainstorm.md`.
+- [ ] **Top survivors non-empty** — at least one converged idea is listed (otherwise the convergence step didn't happen).
+- [ ] **Raw ideas preserved** — the archive section lists the raw ideas, not just summaries.
+- [ ] **Techniques named** — every technique used in Phase 3 is labelled in the file.
 
 ## State Update
 

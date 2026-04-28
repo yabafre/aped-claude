@@ -1,6 +1,6 @@
 ---
 name: aped-elicit
-description: 'Advanced critique toolkit: socratic, first principles, pre-mortem, red team, tree of thoughts, etc. Horizontally invokable in any phase.'
+description: 'Use when user says "elicit", "critique this", "stress-test", "deeper review", "pre-mortem", "red team", "socratic", "tree of thoughts", "first principles", or invokes /aped-elicit. Horizontal — invokable at any phase.'
 when_to_use: 'Use when user says "critique this", "stress-test", "deeper review", "socratic", "pre-mortem", "red team".'
 argument-hint: "[method-name | target-file]"
 allowed-tools: Read Write Edit Glob Grep Bash TaskCreate TaskUpdate

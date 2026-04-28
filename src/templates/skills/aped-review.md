@@ -1,6 +1,6 @@
 ---
 name: aped-review
-description: 'Reviews completed stories adversarially with minimum 3 findings. Use when user says "review code", "run review", "aped review", or invokes /aped-review.'
+description: 'Use when user says "review code", "run review", "aped review", or invokes /aped-review.'
 argument-hint: "[story-key]"
 disable-model-invocation: true
 license: MIT
@@ -20,6 +20,31 @@ You are the **Lead Reviewer**. You dispatch independent specialist subagents, ea
 - NEVER change story status without user approval
 - Review is binary: `review` → `done` (or stays `review` until findings addressed)
 - Do not rubber-stamp. The team's job is to find problems, not to validate.
+
+### Iron Law
+
+**NO PASS WITHOUT FRESH EVIDENCE IN THIS MESSAGE.** "Should work", "looks good", "probably fine", "tests should pass" are not evidence — they are the words of a reviewer who didn't run the verification. Re-run the test command, capture the output, paste it. Confidence is not a substitute for evidence.
+
+### Red Flags
+
+Phrases that mean you are about to rubber-stamp. If you catch yourself thinking any of these, stop.
+
+| Phrase | Why it's wrong |
+|--------|----------------|
+| "I checked the diff carefully" | Reading is not running. Run the tests. |
+| "The implementation looks reasonable" | "Reasonable" has approved every shipped bug ever. |
+| "There's no obvious bug" | "Obvious" bugs were caught by static analysis already. The non-obvious ones are your job. |
+| "This is similar to other reviewed stories" | Then look harder — the differences are where bugs live. |
+| "The dev agent reported tests passing" | Re-run them yourself. Reports are not evidence. |
+
+### Rationalizations
+
+| Excuse | Reality |
+|--------|---------|
+| "The diff is small enough to verify by reading" | You said this 3 times before and missed something each time. |
+| "Re-running the tests is wasteful — they ran during dev" | The cost of one re-run is bounded; the cost of one false-pass is not. |
+| "The user is waiting" | The user is waiting *because* they want a real review. A fast pass is worth nothing. |
+| "Pattern compliance specialist already covered this" | Specialists check overlapping concerns precisely because each one misses different things. |
 
 ## Input Discovery
 
@@ -249,6 +274,16 @@ As the Lead, collect all specialist reports and merge:
 3. **Prioritize** — CRITICAL > HIGH > MEDIUM > LOW
 4. **Verify minimum 3** — if total findings across team < 3, **re-dispatch** the most relevant specialist with stricter instructions ("look harder at edge cases, error handling, security surface")
 5. **Check ticket comments** — if a team member commented on the ticket about a known limitation, don't re-flag it as a finding; note it as "acknowledged"
+
+## Self-review (run before final report)
+
+Before presenting the merged report to the user, walk this checklist. Each `[ ]` must flip to `[x]` or HALT. The Iron Law applies — fresh evidence in this message is mandatory.
+
+- [ ] **Placeholder lint (if persisted)** — if the merged review report is being persisted to disk (e.g. `{{OUTPUT_DIR}}/reviews/{story-key}-review.md`), run `bash {{APED_DIR}}/scripts/lint-placeholders.sh <report-path>` against it. Skip this item if the report stays in-flight (presented only as inline markdown to the user).
+- [ ] **Minimum 3 findings** — the team produced ≥ 3 findings across all specialists; if not, re-dispatch.
+- [ ] **Every finding has evidence** — file:line, command output, or stack trace. No bare "looks suspicious".
+- [ ] **Git audit captured** — Rex's audit ran and its output is reflected in the report.
+- [ ] **Verification re-run** — the test command(s) for this story were re-run by the lead in this session, output captured. Reports from the dev session do not count.
 
 ## Step 7: Present Report to User
 

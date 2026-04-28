@@ -1,6 +1,6 @@
 ---
 name: aped-retro
-description: 'Post-epic retrospective: extracts systemic lessons, assesses readiness, detects significant discoveries.'
+description: 'Use when user says "retro", "retrospective", "epic done — what did we learn", "aped retro", or invokes /aped-retro. Runs after the last story of an epic ships.'
 when_to_use: 'Use when user says "retro", "retrospective", "review the epic".'
 argument-hint: "[epic-number]"
 allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate
@@ -179,6 +179,15 @@ Before closing, check epic {N} is truly production-ready:
 For each, ask the user directly. Any concern → add to critical path before epic {N+1} kickoff.
 
 ⏸ **GATE: User confirms the readiness assessment.**
+
+## Self-review (run before user gate)
+
+Before persisting the retro outputs, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
+
+- [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/retros/epic-{N}-retro-{date}.md`.
+- [ ] **Action items scoped** — every action item has a `Scope:` directive (`/aped-dev | /aped-story | /aped-review | all`); items that downstream skills can't consume are useless.
+- [ ] **Required sections non-empty** — `What Went Well`, `What Didn't`, and (if present) `What Surprised Us` each have at least one entry.
+- [ ] **Lessons updated** — `lessons.md` has been touched with this epic's new entries (otherwise the feedback loop is broken).
 
 ## Phase 7: Persist Outputs
 

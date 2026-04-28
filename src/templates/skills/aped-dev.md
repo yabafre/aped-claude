@@ -1,6 +1,6 @@
 ---
 name: aped-dev
-description: 'Implements next story with TDD red-green-refactor cycle. Use when user says "start dev", "implement story", "aped dev", or invokes /aped-dev.'
+description: 'Use when user says "start dev", "implement story", "aped dev", or invokes /aped-dev.'
 argument-hint: "[story-key]"
 disable-model-invocation: true
 license: MIT
@@ -17,6 +17,31 @@ metadata:
 - ALWAYS write the failing test FIRST — no implementation without a RED test
 - Take your time — quality is more important than speed
 - Do not skip validation steps or test runs
+
+### Iron Law
+
+**NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST.** Code written before its test must be deleted, not adapted — sunk cost is the strongest force pulling toward "tests after". Watching the test fail is irreplaceable: if you didn't see RED, you don't know the test exercises the right path.
+
+### Red Flags
+
+Phrases that mean you are about to ship code without TDD discipline. If you catch yourself thinking any of these, stop.
+
+| Phrase | Why it's wrong |
+|--------|----------------|
+| "Test framework unavailable, I'll add tests after" | Tests-after is a different skill from TDD. The 5-gate is non-negotiable. |
+| "This change is too small to need a test" | Small changes are where untested regressions hide. |
+| "The existing code has no tests so it's fine" | The deficit is the bug. Add tests for what you touch. |
+| "I'll just add a `// TODO: test this`" | TODO is a banned placeholder, not a plan. |
+| "I already manually tested it" | Manual testing is not regression coverage. |
+
+### Rationalizations
+
+| Excuse | Reality |
+|--------|---------|
+| "Tests after achieve the same goal" | Tests-after rarely fail on the right path the first time — you can't trust they exercise the bug they were meant to catch. |
+| "I'll fix the test in the next task" | You won't. Next-task you is busy with next-task work. |
+| "The dev agent reported tests passing" | If you didn't capture the output in this message, it's not evidence. Re-run and paste. |
+| "Just this once, I'll skip the RED step" | "Just this once" is the rationalization Superpowers explicitly fights — it appears every time and erodes the discipline. |
 
 ## Guiding Principles
 

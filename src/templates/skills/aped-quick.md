@@ -1,6 +1,6 @@
 ---
 name: aped-quick
-description: 'Implements quick fixes and small features bypassing the full pipeline. Use when user says "quick fix", "quick feature", "hotfix", "aped quick", or invokes /aped-quick.'
+description: 'Use when user says "quick fix", "quick feature", "hotfix", "aped quick", or invokes /aped-quick. Bypasses the full A→P→E→D→R pipeline — use only for isolated fixes.'
 argument-hint: "<title> [fix|feature|refactor]"
 license: MIT
 metadata:

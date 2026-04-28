@@ -1,6 +1,6 @@
 ---
 name: aped-prd
-description: 'Generates PRD section-by-section with user review at each step (interactive by default; --headless for autonomous). Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-prd.'
+description: 'Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-prd. Headless mode available via --headless.'
 argument-hint: "[--headless]"
 license: MIT
 metadata:
@@ -17,6 +17,30 @@ metadata:
 - Do not skip domain detection — it determines mandatory sections
 - Quality is more important than speed — validate before writing
 - **Interactive mode is the default.** Generate ONE section, present it, ⏸ HALT with the A/P/C menu, then move on. Pure-autonomous output is opt-in via `--headless` for headless workflows where no user is at the keyboard.
+
+### Iron Law
+
+**NO PRD SHIPPED WITH PLACEHOLDERS.** FR sections must contain real `FR#: [Actor] can [capability]` lines (no FR-less FR section); Goals / Non-goals / NFRs / Success Metrics must contain real prose, not `TBD`, `TODO`, `<placeholder>`, lone ellipses, or `to be defined`. Placeholders fail the Self-review lint and block the user gate. If a section can't be filled in, that's data — surface the gap to the user and ask, do not paper over it.
+
+### Red Flags
+
+Phrases that mean you are about to ship a placeholder. If you catch yourself thinking any of these, stop.
+
+| Phrase | Why it's wrong |
+|--------|----------------|
+| "We'll fill this in later" | Later is a downstream skill misreading the gap. Fill it now or HALT. |
+| "Section TBD — see the brief" | Downstream skills don't load the brief. The PRD is their source. |
+| "This is mostly self-explanatory" | If it were, the PRD wouldn't need this section. Write it. |
+| "The user will refine this" | The user invoked this skill to *avoid* writing it themselves. |
+| "I'll mark it `...` for now" | Lone ellipses fail the lint. Same outcome, lost time. |
+
+### Rationalizations
+
+| Excuse | Reality |
+|--------|---------|
+| "I can put TBD now and refine in the next iteration" | There is no next iteration — the next skill (epics, arch) treats this PRD as LAW. |
+| "This section is obvious from context" | Downstream skills don't have your context. They have only this file. |
+| "Filling it in would slow the PRD down" | Shipping ambiguity slows the *project* down by an order of magnitude more. |
 
 ## Input Discovery
 
@@ -105,6 +129,17 @@ TaskCreate: "Validate PRD"
 ```
 
 Update each task to `completed` as the user picks `[C]` Continue on its menu.
+
+## Self-review (run before user gate)
+
+Before presenting any PRD section to the user, walk this checklist. Each `[ ]` must flip to `[x]` or HALT. If the lint step exits 1, present its output verbatim and ask the user `[F]ix the listed entries` / `[O]verride and accept (record reason in PRD frontmatter)`.
+
+- [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/prd.md`. Exit 0 = pass. Disabled silently when `placeholder_lint.enabled: false` in `config.yaml`.
+- [ ] **FR format** — every FR matches `FR#: [Actor] can [capability]`. No FR-less section.
+- [ ] **FR IDs** — sequential (no accidental gaps), unique, none reused.
+- [ ] **NFRs measurable** — every NFR has a threshold (`< 200ms p95`, `99.9% uptime`); no bare "fast", "scalable", "secure".
+- [ ] **Required sections present** — Goals, Non-goals, FRs, NFRs, Success Metrics.
+- [ ] **Ambiguity scan** — `should`, `might`, `could` only appear with explicit justification. Otherwise rephrase as a concrete claim or remove.
 
 ## A/P/C Menu Pattern (interactive mode)
 

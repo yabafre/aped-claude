@@ -1,6 +1,6 @@
 ---
 name: aped-context
-description: 'Analyzes an existing codebase and produces project-context.md, which downstream APED skills consume automatically when present. Runs alongside /aped-analyze, not exclusive of it — use both on hybrid projects (new feature in legacy system). Use when user says "document codebase", "project context", "existing project", "aped context", or invokes /aped-context.'
+description: 'Use when user says "document codebase", "project context", "existing project", "aped context", or invokes /aped-context. Runs alongside /aped-analyze — both can apply on hybrid projects (new feature in legacy system).'
 allowed-tools: "Read Grep Glob Bash"
 license: MIT
 metadata:
@@ -49,6 +49,16 @@ Scan the project root:
 - Flag outdated or deprecated packages
 - Identify security advisories (if available)
 - Note lock file type (package-lock, yarn.lock, pnpm-lock, etc.)
+
+## Self-review (run before user gate)
+
+Before presenting the project context to the user, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
+
+- [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/project-context.md`.
+- [ ] **Tech stack complete** — every primary language, framework, and major dependency is listed (downstream skills treat this as the definitive list).
+- [ ] **Conventions concrete** — named patterns and concrete examples, not "follow standard practices".
+- [ ] **Integration points enumerated** — every external system the project talks to (APIs, databases, queues) appears with its role.
+- [ ] **No bare "see the codebase"** — if a convention exists, name it; if it doesn't, say so explicitly.
 
 ## Output
 
