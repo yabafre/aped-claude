@@ -88,8 +88,83 @@ if [[ -f "\$CONFIG_FILE" ]]; then
   esac
 fi
 
-# ── Detect intent ──────────────────────────────────────────────────────────
+# ── Detect intent (semantic, not bare-keyword) ─────────────────────────────
+#
+# A prompt expresses *command intent* for phase X only when one of these
+# holds:
+#   1. the literal slash command "/aped-X" appears in the prompt
+#   2. the prompt is a single-word match (e.g. just "review" alone)
+#   3. the prompt is short (< 80 chars) AND starts with an imperative verb
+#      tied to that phase (in the first 40 chars)
+#
+# Conversational connectors anywhere in the prompt suppress all bare-keyword
+# matches — they signal the user is talking *about* a phase, not invoking it.
+# Concrete user-reported false positive that motivated this refactor:
+#   "bon petite review par rapport à ta proposition pour le prd"
+# Bare keyword match would fire WANTS_REVIEW + WANTS_PRD; intent detection
+# correctly classifies it as conversational and emits no warning.
+#
+# /aped-X slash form is always honoured — that is the unambiguous command.
+
 PROMPT_LOWER=\$(printf '%s' "\$PROMPT" | tr '[:upper:]' '[:lower:]')
+PROMPT_LEN=\${#PROMPT}
+PROMPT_HEAD=\$(printf '%s' "\$PROMPT_LOWER" | cut -c1-40)
+# Whitespace-only trim. Internal punctuation is preserved so that
+# "prd?" (a question about the PRD) does NOT collapse to "prd" and trip
+# trimmed_equals_any — that was a real false-positive class flagged by
+# the edge-case review.
+PROMPT_TRIMMED=\$(printf '%s' "\$PROMPT_LOWER" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//')
+
+# Short prompts are eligible for imperative-at-start detection. Anything
+# longer is treated as prose and only the slash form fires.
+PROMPT_SHORT=false
+(( PROMPT_LEN < 80 )) && PROMPT_SHORT=true
+
+# Conversational connectors — FR + EN. If any appears, bare keywords are
+# treated as nominal mentions, not commands. /aped-X slashes still fire.
+CONVERSATIONAL=false
+case "\$PROMPT_LOWER" in
+  *'par rapport'*|*'à propos'*|*'a propos'*|*'concernant'*\
+  |*'ta proposition'*|*'votre proposition'*|*'ton avis'*|*'votre avis'*\
+  |*'petite '*|*'petit '*|*'la review'*|*'la story'*|*'le prd'*|*'le dev'*\
+  |*'about your'*|*'regarding your'*|*'about the '*|*'regarding the '*\
+  |*'your proposal'*|*'your suggestion'*|*'speaking of'*|*'with respect to'*)
+    CONVERSATIONAL=true ;;
+esac
+
+# Helper: does the head start with one of the given space-separated words?
+# Args: \$1..N = candidate first-word imperatives.
+head_starts_with_any() {
+  local head="\$PROMPT_HEAD" word
+  for word in "\$@"; do
+    case "\$head" in
+      "\$word"|"\$word "*|"\$word,"*|"\$word."*|"\$word:"*|"\$word!"*|"\$word?"*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+# Helper: is the (whitespace-trimmed) prompt one of these single tokens,
+# optionally with a trailing terminator? A trailing "?" disqualifies — a
+# question is never a command intent ("prd?" is "where's the prd?", not
+# "run /aped-prd").
+trimmed_equals_any() {
+  local word
+  case "\$PROMPT_TRIMMED" in *'?') return 1 ;; esac
+  for word in "\$@"; do
+    [[ "\$PROMPT_TRIMMED" == "\$word" ]] && return 0
+    [[ "\$PROMPT_TRIMMED" == "\$word"[.,!:] ]] && return 0
+  done
+  return 1
+}
+
+# Helper: does the prompt contain the literal slash command?
+has_slash() {
+  case "\$PROMPT_LOWER" in
+    *"/aped-\$1"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 WANTS_ANALYZE=false
 WANTS_PRD=false
@@ -99,13 +174,44 @@ WANTS_REVIEW=false
 WANTS_QUICK=false
 WANTS_CODE=false
 
-printf '%s' "\$PROMPT_LOWER" | grep -qE '(aped-analyze|/aped-analyze|analyze|analyse|research)'                                 && WANTS_ANALYZE=true
-printf '%s' "\$PROMPT_LOWER" | grep -qE '(aped-prd|/aped-prd|prd|product.req)'                                                  && WANTS_PRD=true
-printf '%s' "\$PROMPT_LOWER" | grep -qE '(aped-epics|/aped-epics|epic|stories|story)'                                           && WANTS_EPICS=true
-printf '%s' "\$PROMPT_LOWER" | grep -qE '(aped-dev|/aped-dev|dev|implement|build|create.*component|create.*service)'            && WANTS_DEV=true
-printf '%s' "\$PROMPT_LOWER" | grep -qE '(aped-review|/aped-review|review|audit)'                                               && WANTS_REVIEW=true
-printf '%s' "\$PROMPT_LOWER" | grep -qE '(aped-quick|/aped-quick|quick.fix|quick.feature|hotfix)'                               && WANTS_QUICK=true
-printf '%s' "\$PROMPT_LOWER" | grep -qE '(code|implement|write.*function|create.*file|add.*feature|fix.*bug|refactor)'          && WANTS_CODE=true
+# /aped-X slash always wins — explicit command, no ambiguity.
+has_slash analyze && WANTS_ANALYZE=true
+has_slash prd     && WANTS_PRD=true
+has_slash epics   && WANTS_EPICS=true
+has_slash dev     && WANTS_DEV=true
+has_slash review  && WANTS_REVIEW=true
+has_slash quick   && WANTS_QUICK=true
+
+# Single-word prompts (e.g. "review", "prd") count as command intent.
+trimmed_equals_any analyze analyse research              && WANTS_ANALYZE=true
+trimmed_equals_any prd                                    && WANTS_PRD=true
+trimmed_equals_any epics epic stories                     && WANTS_EPICS=true
+trimmed_equals_any dev develop implement                  && WANTS_DEV=true
+trimmed_equals_any review audit                           && WANTS_REVIEW=true
+trimmed_equals_any quick hotfix                           && WANTS_QUICK=true
+trimmed_equals_any code refactor                          && WANTS_CODE=true
+
+# Imperative-at-start, short prompt, no conversational connectors.
+if [[ "\$CONVERSATIONAL" == "false" && "\$PROMPT_SHORT" == "true" ]]; then
+  head_starts_with_any analyze analyse research                  && WANTS_ANALYZE=true
+  head_starts_with_any 'write' 'draft' 'create'                  && {
+    case "\$PROMPT_LOWER" in *prd*) WANTS_PRD=true ;; esac
+    case "\$PROMPT_LOWER" in *epic*|*stor*) WANTS_EPICS=true ;; esac
+  }
+  head_starts_with_any review audit                              && WANTS_REVIEW=true
+  head_starts_with_any implement build develop refactor          && WANTS_DEV=true
+  head_starts_with_any code                                      && WANTS_CODE=true
+  head_starts_with_any hotfix                                    && WANTS_QUICK=true
+fi
+
+# WANTS_CODE catches generic code-writing requests (paired with Rule 1).
+# Only fires on imperative form, never on prose mentions of "code".
+if [[ "\$CONVERSATIONAL" == "false" && "\$PROMPT_SHORT" == "true" ]]; then
+  case "\$PROMPT_HEAD" in
+    'fix the bug'*|'fix bug'*|'add feature'*|'write a function'*|'create a file'*)
+      WANTS_CODE=true ;;
+  esac
+fi
 
 # ── Check artifact existence (nullglob-safe) ──────────────────────────────
 HAS_BRIEF=false

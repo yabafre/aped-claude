@@ -90,6 +90,126 @@ Loaded artefacts inform every phase of this skill:
 2. Read `{{OUTPUT_DIR}}/state.yaml` — check pipeline state
    - If `pipeline.phases.architecture.status` is `done`: ask user — redo or skip?
    - If user skips: stop here
+   - If `pipeline.phases.architecture.status` is `in-progress` and `current_subphase` is set: announce resume point ("Resuming Arch at `{current_subphase}` — `{N}` subphase(s) already completed.") and skip ahead to that subphase's gate.
+
+## Incremental Tracking Contract
+
+Architecture is built **incrementally**, not regenerated at the end. The artefact and state are updated after every validated subphase so an interrupted session always leaves a usable, resumable trail.
+
+### Subphase enum
+
+In order: `context-analysis` → `technology-decisions` → `council-dispatches` → `implementation-patterns` → `structure-mapping` → `validation` → `done`.
+
+(`council-dispatches` is optional and only listed once per major decision; if no major decisions trigger Council, it is appended to `completed_subphases` without writing a section.)
+
+### After every `⏸ GATE` in this skill
+
+Do these three writes **atomically**, in this order, before presenting the next phase:
+
+1. **Append to `{{OUTPUT_DIR}}/architecture.md`** — write the validated content under the matching section header. Use Edit to append; never regenerate the whole file. Section headers come from the Phase 0 skeleton — fill them in place.
+2. **Update the architecture frontmatter** — set `current_subphase` to the *next* subphase, push the just-finished subphase onto `completed_subphases` (if not already present), bump `last_updated` to current ISO 8601 timestamp.
+3. **Update `{{OUTPUT_DIR}}/state.yaml`** — mirror `pipeline.phases.architecture.current_subphase` and `pipeline.phases.architecture.completed_subphases` and bump `last_updated`. Keep `status: "in-progress"` until Phase 5 finalisation.
+
+If any of the three writes fails, HALT and surface the error. Do not advance frontmatter or state if the architecture write itself failed — partial progress is better than divergent state.
+
+## Phase 0: Initialise tracked artefact
+
+Run this **once**, immediately after the Input Discovery `[C] Continue` confirmation and before Phase 1 work begins.
+
+### Resume guard — skip Phase 0 entirely
+
+Before doing any of the steps below, check resume conditions in this order:
+
+- If `state.yaml` shows `pipeline.phases.architecture.status == "in-progress"` AND `current_subphase` is set AND `architecture.md` exists with a parseable frontmatter: **skip Phase 0 entirely**. Announce the resume point (handled by the Setup section above) and jump to the gate matching `current_subphase`.
+- If state shows `in-progress` but `architecture.md` is missing OR its frontmatter is unreadable: **HALT** and ask the user — the artefact and state diverged (likely manual deletion or a crashed write). Do not silently re-initialise; offer "[R]estart Phase 0 (loses recorded subphases)" or "[A]bort and let the user restore architecture.md from VCS". Wait for explicit choice.
+- If state has no `architecture` entry yet: proceed with steps 1–3 below.
+
+### Steps (only when no `in-progress` state exists)
+
+1. If `{{OUTPUT_DIR}}/architecture.md` does **not** already exist, write the skeleton below to it (Write tool).
+2. Initialise `pipeline.phases.architecture` in `{{OUTPUT_DIR}}/state.yaml`:
+   ```yaml
+   pipeline:
+     current_phase: "architecture"
+     phases:
+       architecture:
+         status: "in-progress"
+         current_subphase: "context-analysis"
+         completed_subphases: []
+         output: "{{OUTPUT_DIR}}/architecture.md"
+         started_at: "<ISO 8601 now>"
+   ```
+3. Confirm to the user: "Architecture tracking initialised — `architecture.md` skeleton written, state advanced to `current_subphase: context-analysis`."
+
+### `architecture.md` skeleton
+
+```markdown
+---
+artefact: architecture
+project: {{project_name}}
+created: <ISO 8601 now>
+last_updated: <ISO 8601 now>
+current_subphase: context-analysis
+completed_subphases: []
+phases_planned:
+  - context-analysis
+  - technology-decisions
+  - council-dispatches
+  - implementation-patterns
+  - structure-mapping
+  - validation
+---
+
+# Architecture — {{project_name}}
+
+> Built incrementally by `/aped-arch`. Sections fill as each subphase is validated.
+
+## Phase 1 — Context Analysis
+
+<!-- Populated after Phase 1 gate: extracted FRs/NFRs, scale, integration points, compliance signals, requirement tensions. -->
+
+## Phase 2 — Technology Decisions
+
+<!-- One subsection per category; each filled after its own user validation. -->
+
+### Data Layer
+
+### Authentication & Security
+
+### API Design
+
+### Frontend
+
+### Infrastructure
+
+## Phase 2b — Council Dispatches
+
+<!-- Optional. One subsection per major decision dispatched: framing, specialist verdicts table, areas of consensus / disagreement, final pick + rationale, minority view (kept as future-pivot signal). -->
+
+## Phase 3 — Implementation Patterns
+
+### Naming Conventions
+
+### Code Structure
+
+### Communication Patterns
+
+### Process Rules
+
+## Phase 4 — Structure & Mapping
+
+### Directory Tree
+
+### FR → File Mapping
+
+### Integration Boundaries
+
+### Shared Code Inventory
+
+## Phase 5 — Validation
+
+<!-- Coherence checklist results + flagged gaps. -->
+```
 
 ## Phase 1: Context Analysis
 
@@ -104,6 +224,8 @@ Present findings to user:
 - Highlight any tensions between requirements
 
 ⏸ **GATE: User validates the context analysis.**
+
+After validation, run the **Incremental Tracking Contract** writes: append the validated context analysis under `## Phase 1 — Context Analysis` in `architecture.md`, advance frontmatter `current_subphase` → `technology-decisions`, push `context-analysis` to `completed_subphases`, mirror in `state.yaml`.
 
 ## Phase 2: Technology Decisions
 
@@ -143,9 +265,12 @@ For each category:
 1. Present 2-3 options with pros/cons
 2. Make a recommendation with rationale
 3. User decides
-4. Record the decision
+4. **Record the decision in place** — append it to its `### {Category}` subsection inside `## Phase 2 — Technology Decisions` of `architecture.md` immediately, before moving on. Do not buffer.
+5. Bump `last_updated` in the frontmatter (no subphase advance until the full Phase 2 gate clears).
 
 ⏸ **GATE: User validates all technology decisions.**
+
+After validation, run the **Incremental Tracking Contract** writes: confirm all five `### {Category}` subsections are populated, advance frontmatter `current_subphase` → `council-dispatches` (or directly → `implementation-patterns` if no Council needed), push `technology-decisions` to `completed_subphases`, mirror in `state.yaml`.
 
 ## Phase 2b: Architecture Council (for major decisions)
 
@@ -185,7 +310,9 @@ The Council is a parallel subagent dispatch via the `Agent` tool. Each specialis
    - Areas of genuine disagreement (these are the important ones)
    - Your own synthesized recommendation with rationale
 
-⏸ **GATE: User reviews the Council verdicts and picks the final option. Document the decision AND the minority view in `{{OUTPUT_DIR}}/architecture.md` — the dissent is signal for future pivots.**
+⏸ **GATE: User reviews the Council verdicts and picks the final option.**
+
+After validation, run the **Incremental Tracking Contract** writes: append the council framing, the specialist verdicts table, consensus/disagreement areas, the final pick + rationale, and the minority view (signal for future pivots) under a new `### {Decision name}` subsection of `## Phase 2b — Council Dispatches`. Bump `last_updated`. Do **not** advance `current_subphase` until *all* major decisions have been dispatched; only then push `council-dispatches` to `completed_subphases` and advance to `implementation-patterns`. Mirror in `state.yaml`.
 
 ### When to Re-Dispatch
 
@@ -224,9 +351,11 @@ Define conventions that ensure consistency across agents and stories:
 - PR/MR requirements
 - Required test coverage level
 
-Present each category. Discuss with user. Record decisions.
+Present each category. Discuss with user. **Record each decision in its `### {Pattern}` subsection of `## Phase 3 — Implementation Patterns` immediately**, not at the end.
 
 ⏸ **GATE: User validates patterns.**
+
+After validation, run the **Incremental Tracking Contract** writes: confirm all four pattern subsections are populated, advance `current_subphase` → `structure-mapping`, push `implementation-patterns` to `completed_subphases`, mirror in `state.yaml`.
 
 ## Phase 4: Structure & Mapping
 
@@ -237,9 +366,11 @@ Create the concrete project structure:
 3. **Integration boundaries** — where external systems connect
 4. **Shared code inventory** — utilities, types, constants that multiple features share
 
-Present to user for review.
+Present to user for review. Populate the four `## Phase 4 — Structure & Mapping` subsections of `architecture.md` as each is validated.
 
 ⏸ **GATE: User validates structure.**
+
+After validation, run the **Incremental Tracking Contract** writes: advance `current_subphase` → `validation`, push `structure-mapping` to `completed_subphases`, mirror in `state.yaml`.
 
 ## Phase 5: Validation + final A/C gate
 
@@ -268,24 +399,33 @@ Choose your next move:
 
 ⏸ **HALT — wait for the user's choice. Council was for divergent specialist input on major decisions; this final `[A]` is for adversarial pressure on the doc as a whole. Both serve different purposes.**
 
-## Output
+## Output (finalisation only)
 
-Write architecture document to `{{OUTPUT_DIR}}/architecture.md`:
-- Project Context Analysis
-- Technology Decisions (with rationale for each)
-- Implementation Patterns & Conventions
-- Project Structure & FR Mapping
-- Validation Results
+By the time you reach this step, `architecture.md` is **already** fully populated by the per-gate appends. This step is a **finalisation**, not a regeneration.
 
-Update `{{OUTPUT_DIR}}/state.yaml`:
-```yaml
-pipeline:
-  current_phase: "architecture"
-  phases:
-    architecture:
-      status: "done"
-      output: "{{OUTPUT_DIR}}/architecture.md"
-```
+1. Populate `## Phase 5 — Validation` with the coherence checklist results from Phase 5.
+2. Bump the architecture frontmatter:
+   - `current_subphase: done`
+   - push `validation` onto `completed_subphases`
+   - `last_updated: <ISO 8601 now>`
+3. Update `{{OUTPUT_DIR}}/state.yaml`:
+   ```yaml
+   pipeline:
+     current_phase: "architecture"
+     phases:
+       architecture:
+         status: "done"
+         current_subphase: "done"
+         # completed_subphases reflects what actually ran. Include
+         # `council-dispatches` only if at least one major decision was
+         # routed through the Council. If Phase 2b was skipped wholesale,
+         # this entry is omitted.
+         completed_subphases: [context-analysis, technology-decisions, implementation-patterns, structure-mapping, validation]
+         output: "{{OUTPUT_DIR}}/architecture.md"
+         last_updated: "<ISO 8601 now>"
+   ```
+
+**Do not regenerate the architecture body**: if a section reads as incomplete at this stage, that means a subphase was skipped — go back and fill it in place rather than rewriting the whole document. A "regenerate from scratch at the end" approach is what this skill explicitly avoids: it loses the incremental write trail and is fragile under interruption.
 
 ## Example
 
