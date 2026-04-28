@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, mkdirSync, existsSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { scripts } from '../src/templates/scripts.js';
 import { sessionStartTemplates } from '../src/templates/optional-features.js';
 import { COMMAND_DEFS, commands as commandsFactory } from '../src/templates/commands.js';
@@ -40,20 +40,19 @@ function installScript(root, suffix) {
 }
 
 function run(cmd, env = {}) {
-  try {
-    const out = execSync(cmd, {
-      env: { ...process.env, ...env },
-      stdio: ['pipe', 'pipe', 'pipe'],
-      encoding: 'utf8',
-    });
-    return { code: 0, stdout: out, stderr: '' };
-  } catch (e) {
-    return {
-      code: e.status ?? -1,
-      stdout: e.stdout?.toString() ?? '',
-      stderr: e.stderr?.toString() ?? '',
-    };
-  }
+  // Use spawnSync so we capture stderr regardless of exit code. The earlier
+  // execSync-based version only populated stderr in the catch branch, which
+  // silently dropped stderr from scripts that warn-and-exit-0 (e.g.
+  // validate-state.sh on an unknown top-level block).
+  const r = spawnSync('bash', ['-c', cmd], {
+    env: { ...process.env, ...env },
+    encoding: 'utf8',
+  });
+  return {
+    code: r.status ?? -1,
+    stdout: r.stdout ?? '',
+    stderr: r.stderr ?? '',
+  };
 }
 
 let sandbox;
@@ -172,6 +171,70 @@ sprint:
       { CLAUDE_PROJECT_DIR: sandbox });
     expect(r.code).toBe(3);
     expect(r.stderr).toMatch(/wrong-value/);
+  });
+
+  // ── Tier 6 — schema_version + unknown-block forward-compat ─────────────
+  it('treats missing schema_version as implicit 1 (legacy backwards compat)', () => {
+    // Already covered in part by the legacy test above; this case asserts
+    // the explicit Tier 6 contract: a state.yaml with no schema_version
+    // line at all must validate successfully.
+    installScript(sandbox, 'validate-state.sh');
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `pipeline:
+  current_phase: "none"
+sprint:
+  stories: {}
+`);
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/validate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+  });
+
+  it('accepts schema_version 1 explicitly', () => {
+    installScript(sandbox, 'validate-state.sh');
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 1
+pipeline:
+  current_phase: "none"
+sprint:
+  stories: {}
+`);
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/validate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+  });
+
+  it('errors on schema_version 2 with a clear "upgrade aped-method" message', () => {
+    // Tier 6 reserves schema_version: 2 for 4.0.0; on a 3.x install this
+    // must be rejected with a hint pointing at the upgrade path.
+    installScript(sandbox, 'validate-state.sh');
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 2
+sprint:
+  stories: {}
+`);
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/validate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toMatch(/upgrade.*aped-method/);
+  });
+
+  it('warns on unknown top-level block but exits 0 (forward-compat)', () => {
+    // A future template might grow new top-level blocks (e.g. metrics:,
+    // releases:). An older CLI must not refuse those — emit a warn-only
+    // stderr message and proceed.
+    installScript(sandbox, 'validate-state.sh');
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 1
+custom_metrics:
+  velocity: 12
+sprint:
+  stories: {}
+`);
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/validate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.stderr).toMatch(/unknown top-level block.*custom_metrics/);
   });
 });
 

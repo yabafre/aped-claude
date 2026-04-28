@@ -96,13 +96,29 @@ Write project context to `{{OUTPUT_DIR}}/project-context.md`:
 
 ## State Update
 
-Update `{{OUTPUT_DIR}}/state.yaml`:
+Update `{{OUTPUT_DIR}}/state.yaml` under `pipeline.phases.context` with the structured fields below. The block is the canonical record of *which* kind of project this is — downstream skills read `type` to decide whether to apply brownfield bias.
+
 ```yaml
-project_context:
-  generated: true
-  path: "{{OUTPUT_DIR}}/project-context.md"
-  type: "brownfield"
+pipeline:
+  phases:
+    context:
+      generated: true
+      path: "docs/project-context.md"
+      type: "brownfield"        # brownfield | greenfield | hybrid
+      generated_at: "<YYYY-MM-DD>"   # set on FIRST run; preserved across re-runs
+      refreshed_at: "<YYYY-MM-DD>"   # set on every run (including the first)
 ```
+
+### `type` derivation rules
+
+- `type: "brownfield"` — existing repository with code already present (Phase 1 found a non-trivial source tree, package files like `package.json` / `Cargo.toml` / `pyproject.toml`, multiple modules, prior commits beyond scaffolding).
+- `type: "greenfield"` — empty repository or scaffold-only (no source code beyond what `create-aped` / template generators produced; commit history is just the initial scaffolding).
+- `type: "hybrid"` — mixed: a new module/feature is being grafted onto an existing system (e.g. greenfield `apps/new-feature/` inside a brownfield monorepo). Use `hybrid` when the user has explicitly framed the work as "new feature in legacy system" OR when Phase 1 finds both legacy modules with mature conventions AND fresh scaffold areas with none.
+
+### `generated_at` vs `refreshed_at`
+
+- On the **first** run, set both `generated_at` and `refreshed_at` to today (YYYY-MM-DD).
+- On a **re-run** (the existing `phases.context.generated_at` is already set), preserve `generated_at` verbatim and only update `refreshed_at` to today. Do not overwrite `generated_at` — it's the original-context anchor.
 
 ## Next Steps
 

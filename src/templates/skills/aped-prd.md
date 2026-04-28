@@ -272,7 +272,8 @@ In interactive mode, run this AFTER all sections accepted. If it fails, surface 
 ## Output & State
 
 1. Write PRD to `{{OUTPUT_DIR}}/prd.md`
-2. Update `{{OUTPUT_DIR}}/state.yaml`:
+2. Update `{{OUTPUT_DIR}}/state.yaml` under `pipeline.phases.prd` with the structured fields below:
+
 ```yaml
 pipeline:
   current_phase: "prd"
@@ -280,7 +281,21 @@ pipeline:
     prd:
       status: "done"
       output: "{{OUTPUT_DIR}}/prd.md"
+      completed_at: "<ISO 8601 now>"
+      fr_count: <int>            # count of FRs in the PRD's Functional Requirements section
+      mode: "interactive"        # interactive | headless — based on whether --headless was passed
 ```
+
+### `fr_count` derivation
+
+Parse from the FR section of `prd.md`. Count `FR<N>:` headings or list items (one per FR — the canonical `FR#: [Actor] can [capability]` format guarantees one match per FR). For PRDs that group FRs by capability area, sum across groups.
+
+### `mode` derivation
+
+- `mode: "interactive"` — user invoked the skill without `--headless` (the default A/P/C menu loop ran).
+- `mode: "headless"` — user passed `--headless` / `-H` (autonomous straight-through generation, no menus).
+
+Downstream tooling reads `mode` to know whether human gating actually happened.
 
 ## Next Step
 

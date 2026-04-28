@@ -46,6 +46,16 @@ If `ticket_system == none`:
 
 HALT.
 
+## Open the sync log
+
+Before any provider call, capture an audit-log path. The provider name is the value of `ticket_system` from config; pass it verbatim:
+
+```bash
+LOG=$(bash {{APED_DIR}}/scripts/sync-log.sh start <provider>)
+```
+
+Capture `$LOG` once and reuse it for every subsequent `phase` / `record` / `end` call. If `sync_logs.enabled: false`, the helper exits silently and `$LOG` is empty — downstream calls become no-ops; that's expected.
+
 ## Provider Readiness Check
 
 Before fetching, verify the toolchain for the configured `ticket_system`:
@@ -56,6 +66,13 @@ Before fetching, verify the toolchain for the configured `ticket_system`:
 - `jira`: the Atlassian/Jira MCP must be available → otherwise HALT with `"Jira/Atlassian MCP is not configured in Claude Code. Configure it before using /aped-from-ticket."`
 
 Never silently downgrade to a different provider. The user chose `ticket_system` at install — respect it.
+
+After the auth check completes:
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG auth_check complete
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total 1
+```
 
 ## Argument Parsing
 
@@ -79,6 +96,13 @@ Fetch the ticket using the configured provider's tool. Capture: title, body/desc
 - `jira`: use the Jira/Atlassian MCP tool to fetch the issue by key
 
 If the fetch fails (404, permission denied, etc.): HALT and report the underlying error verbatim. Do not invent ticket content.
+
+After the fetch:
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG ticket_fetch complete '{"calls":1,"ticket":"<id>"}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total 1
+```
 
 ## Codebase & Project Context Compilation
 
@@ -142,6 +166,12 @@ Use template `{{APED_DIR}}/templates/story.md`. In addition to the standard sect
 
 Write the file to `{{OUTPUT_DIR}}/stories/{story-key}.md`. Status: `ready-for-dev`.
 
+After the story file is written:
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG story_drafted complete '{"path":"{{OUTPUT_DIR}}/stories/<story-key>.md"}'
+```
+
 ## State.yaml Integration
 
 Update `{{OUTPUT_DIR}}/state.yaml`:
@@ -164,6 +194,12 @@ Update `{{OUTPUT_DIR}}/state.yaml`:
 
 State.yaml authority — same rule as the rest of APED: in worktree mode, write the worktree's local state.yaml; resolution to main happens at `/aped-ship` time. In solo mode, write directly.
 
+After state registration:
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG state_registered complete '{"story_key":"<key>"}'
+```
+
 ## Comment Back to Ticket
 
 If `from_ticket.ticket_comment.enabled: true`:
@@ -178,6 +214,16 @@ If `from_ticket.ticket_comment.enabled: true`:
 If the post fails, report the error but do NOT roll back the story file — the local artefact stands on its own.
 
 If `enabled: false` (default): skip silently.
+
+After the ticket-comment attempt (whether posted or skipped):
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG ticket_commented complete '{"calls":N,"posted":<true|false>}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total N   # N=0 if skipped, 1 if posted
+bash {{APED_DIR}}/scripts/sync-log.sh end $LOG
+```
+
+Surface the log path to the user.
 
 ## Handoff
 
@@ -203,6 +249,7 @@ Before presenting the drafted story to the user, walk this checklist. Each `[ ]`
 - [ ] **Same checks as `/aped-story`** — exact file paths, full code blocks, exact test commands, Given/When/Then ACs, reader-persona check.
 - [ ] **Ticket reference preserved** — the source ticket ID and link appear verbatim in the story frontmatter.
 - [ ] **Dependencies resolved** — every `depends_on:` story is `done` (or the story is correctly placed in the bucket epic).
+- [ ] **Sync log emitted** at `docs/sync-logs/<provider>-sync-<ISO>.json` (or skipped silently if `sync_logs.enabled: false` in `config.yaml`).
 
 ## Output
 
