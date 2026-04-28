@@ -8,10 +8,10 @@ Security patches are issued for the latest `3.x` minor release only.
 
 | Version  | Supported          |
 | -------- | ------------------ |
-| 3.7.x    | :white_check_mark: |
-| < 3.7    | :x:                |
+| 3.11.x   | :white_check_mark: |
+| < 3.11   | :x:                |
 
-Users on older majors should upgrade before reporting an issue.
+Users on older minors should upgrade to the latest 3.x before reporting an issue.
 
 ## Reporting a Vulnerability
 
