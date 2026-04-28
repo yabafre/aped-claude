@@ -56,6 +56,19 @@ from_ticket:
       content: `# APED Pipeline State
 # Phases: none → analyze → prd → ux → architecture → sprint
 # "sprint" is the final phase — covers story/dev/review cycle
+#
+# Per-phase tracking (populated by each /aped-* skill, additive — none required):
+#   pipeline.phases.<phase>.status:               "in-progress" | "done"
+#   pipeline.phases.<phase>.output:               path to the produced artefact
+#   pipeline.phases.<phase>.started_at:           ISO 8601 when phase began
+#   pipeline.phases.<phase>.last_updated:         ISO 8601 of last write
+#   pipeline.phases.<phase>.current_subphase:     name of the active sub-step
+#   pipeline.phases.<phase>.completed_subphases:  list of finished sub-steps
+#
+# /aped-arch uses the subphase fields to track incremental progress through
+# context-analysis → technology-decisions → council-dispatches →
+# implementation-patterns → structure-mapping → validation → done.
+# Other phases may adopt the same pattern as they grow.
 pipeline:
   current_phase: "none"
   phases: {}
