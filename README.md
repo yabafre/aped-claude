@@ -68,11 +68,16 @@ aped-method statusline            # install the APED status line
 aped-method safe-bash             # install the optional Bash safety hook
 aped-method symlink               # repair APED skill symlinks
 aped-method post-edit-typescript  # install the optional TS quality hook
+aped-method verify-claims         # install the verification-gate advisory hook
+aped-method session-start         # install the SessionStart skill-index hook
+aped-method visual-companion      # install the brainstorm browser companion
 ```
+
+Each opt-in subcommand also accepts `--uninstall` to remove its installed bits.
 
 ## Command catalog
 
-APED ships 23 slash commands across the core pipeline, upstream ideation, critique, sprint operations, external-ticket intake, and maintenance flows. The detailed catalog is generated from the same `COMMAND_DEFS` source that produces the scaffolded slash commands, so it stays in sync as the product evolves.
+APED ships 25 slash commands across the core pipeline, upstream ideation, critique, sprint operations, external-ticket intake, debugging, code-review reception, and maintenance flows. The detailed catalog is generated from the same `COMMAND_DEFS` source that produces the scaffolded slash commands, so it stays in sync as the product evolves.
 
 See [`docs/COMMANDS.md`](./docs/COMMANDS.md) for the full generated catalog, including phase, arguments, purpose, and likely outputs.
 
@@ -85,6 +90,9 @@ The CLI also includes a few maintenance subcommands for installed APED projects:
 - `aped-method safe-bash` — install the optional Bash safety hook
 - `aped-method symlink` — repair APED cross-tool skill symlinks
 - `aped-method post-edit-typescript` — install the optional TypeScript post-edit quality hook
+- `aped-method verify-claims` — install the verification-gate PostToolUse advisory hook (scans Bash output for forbidden completion phrases without evidence)
+- `aped-method session-start` — install the SessionStart hook that injects `aped/skills/SKILL-INDEX.md` as `additionalContext` at session boot
+- `aped-method visual-companion` — install the bash + python3 HTTP server (default port 3737) that powers `/aped-brainstorm`'s browser-based mockup/diagram rendering
 
 ## Personas & teams
 
@@ -365,6 +373,9 @@ These are installed explicitly when you want them:
 - `aped-method safe-bash` adds a focused `PreToolUse` Bash validator for obviously dangerous shell commands (`rm -rf /`, `rm -rf $HOME`, `curl | bash`, disk utilities, broad `chmod -R 777`, and `sudo` confirmation). **Best-effort UX safety net, not a security boundary** — crafted commands bypass it trivially. See [SECURITY.md](./SECURITY.md) for scope and limits.
 - `aped-method post-edit-typescript` adds a `PostToolUse` hook for `Write|Edit|MultiEdit` that detects TypeScript files and runs local `prettier --write` / `eslint --fix` only when those binaries are already available in the project. Silent no-op when they are not installed.
 - `aped-method statusline` installs a Claude Code status line that renders the current APED phase, active epic / story, review queue, worktree count, and git branch from `docs/aped/state.yaml`. If a `statusLine` is already configured, the install prompts before overwriting.
+- `aped-method verify-claims` adds a `PostToolUse` Bash advisory hook that scans tool output for the 9 forbidden completion phrases (`should work`, `looks good`, `Done!`, `Perfect!`, etc.) when no evidence pattern (test output, exit 0, `✓`, `PASS`) is found within `verify_claims.evidence_window` lines. Never blocks; advisory only. Configurable via `verify_claims.enabled` in `config.yaml`.
+- `aped-method session-start` adds a `SessionStart` hook (matchers `startup|clear|compact`) that reads `aped/skills/SKILL-INDEX.md` and emits its content as `additionalContext`. The skill index is generated deterministically at scaffold time. Disable via `skill_invocation_discipline.enabled: false` in `config.yaml`.
+- `aped-method visual-companion` ships a bash + python3 HTTP server (`aped/visual-companion/start-server.sh`) that serves `frame-template.html` with the CSS classes (`.options`, `.cards`, `.mockup`, `.mock-*`) used by `/aped-brainstorm` for browser-based mockup/diagram rendering. Port from `config.yaml visual_companion.port` (default 3737). Localhost-only. No auto-launch in default scaffold.
 
 ## Install / Update / Fresh
 
