@@ -140,6 +140,7 @@ Before presenting any PRD section to the user, walk this checklist. Each `[ ]` m
 - [ ] **NFRs measurable** — every NFR has a threshold (`< 200ms p95`, `99.9% uptime`); no bare "fast", "scalable", "secure".
 - [ ] **Required sections present** — Goals, Non-goals, FRs, NFRs, Success Metrics.
 - [ ] **Ambiguity scan** — `should`, `might`, `could` only appear with explicit justification. Otherwise rephrase as a concrete claim or remove.
+- [ ] **Spec-reviewer dispatched** — reviewer returned Approved (or [O]verride recorded).
 
 ## A/P/C Menu Pattern (interactive mode)
 
@@ -202,6 +203,63 @@ Generate the PRD using `{{APED_DIR}}/templates/prd.md` as structure. **One secti
   - Format: `The system shall [metric] [condition] [measurement method]`
 
 ⏸ Interactive: present + A/P/C menu. Headless: continue.
+
+### Spec self-review
+
+After all four sections are drafted, look at the full PRD with fresh eyes — this is an inline checklist you run yourself, not a subagent dispatch. Fix any issues inline; no need to re-review.
+
+1. **Placeholder lint:** run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/prd.md`. Exit 0 = pass. Fix any flagged TBD / TODO / lone ellipses inline.
+2. **FR/NFR coherence:** no contradictions between sections — an NFR that requires offline-first must not collide with an FR that demands a live websocket.
+3. **AC presence:** every FR has at least one acceptance criterion (explicit or implicit via the FR's `[capability]` clause being independently testable).
+4. **Metrics measurability:** Success Metrics and NFRs have units and thresholds — no vague "improve X", "make it faster". Replace with `< 200ms p95`, `99.9% uptime`, `30% reduction in bounce rate`.
+5. **No scope creep:** the PRD does not introduce features absent from the product brief. If the brief says MVP = inventory tracking and the PRD adds a chat feature, surface it to the user as a gap, do not silently widen scope.
+
+If you find issues, fix them inline. No need to re-review — just fix and move on.
+
+### Spec-reviewer dispatch
+
+After the inline self-review passes, dispatch a fresh subagent to review the PRD **before** the user gate. The reviewer's job is to verify the PRD is complete, consistent, and ready for `/aped-arch` / `/aped-epics` planning.
+
+Use the `Agent` tool (`subagent_type: "general-purpose"`) with this verbatim prompt (substitute `[ARTEFACT_FILE_PATH]` with the actual path of the PRD just written):
+
+```
+You are a spec document reviewer. Verify this PRD is complete and ready for planning.
+
+**Spec to review:** [ARTEFACT_FILE_PATH]
+
+## What to Check
+
+| Category | What to Look For |
+|----------|------------------|
+| Completeness | TODOs, placeholders, "TBD", incomplete sections, missing required sections |
+| Consistency | FR/NFR contradictions, conflicting requirements between sections |
+| Clarity | Requirements ambiguous enough to cause someone to build the wrong thing |
+| Scope | Features in the PRD that are not anchored in the product brief |
+| YAGNI | Unrequested features, over-engineering, gold-plated NFRs |
+
+## Calibration
+
+**Only flag issues that would cause real problems during architecture or epic planning.**
+FR/NFR contradictions, missing acceptance criteria, or ambiguous metrics that could
+be interpreted two ways — those are issues. Approve unless there are serious gaps
+that would lead to a flawed `/aped-arch` or `/aped-epics` cycle.
+
+## Output Format
+
+## Spec Review
+
+**Status:** Approved | Issues Found
+
+**Issues (if any):**
+- [Section X]: [specific issue] - [why it matters for planning]
+
+**Recommendations (advisory, do not block approval):**
+- [suggestions for improvement]
+```
+
+When the reviewer returns:
+- **Status: Approved** — proceed to the user gate. Surface the recommendations (advisory) but do not block on them.
+- **Status: Issues Found** — fix the flagged issues inline (or `[O]verride` with a recorded reason if a flag is wrong), then re-dispatch the same reviewer once. If the second pass also returns issues, HALT and present the issues to the user for adjudication before handing off.
 
 ## Validation
 

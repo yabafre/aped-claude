@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { scripts } from '../src/templates/scripts.js';
 import { sessionStartTemplates } from '../src/templates/optional-features.js';
+import { COMMAND_DEFS, commands as commandsFactory } from '../src/templates/commands.js';
 
 // Materialize the templates once; the per-test setup just copies them into a
 // fresh tmpdir. Templated paths (.aped, aped-output) are kept in sync with
@@ -500,5 +501,38 @@ describe('skill-index generator (Tier 4)', () => {
     for (const required of ['aped-prd', 'aped-dev', 'aped-review', 'aped-debug']) {
       expect(names, `skill index must include ${required}`).toContain(required);
     }
+  });
+});
+
+// ── Tier 5 — slash-command deprecation contract ────────────────────────────
+describe('slash-command deprecation (Tier 5)', () => {
+  it('every COMMAND_DEFS entry is deprecated', () => {
+    expect(COMMAND_DEFS.length).toBeGreaterThan(0);
+    for (const def of COMMAND_DEFS) {
+      expect(def.deprecated, `${def.name} must be marked deprecated`).toBe(true);
+      expect(def.deprecatedSince, `${def.name} deprecatedSince`).toBe('3.12.0');
+      expect(def.removalTarget, `${def.name} removalTarget`).toBe('4.0.0');
+    }
+  });
+
+  it('scaffolded commands shell contains deprecation banner with default config', () => {
+    const out = commandsFactory({
+      apedDir: '.aped',
+      commandsDir: '.claude/commands',
+    });
+    const prdShell = out.find((f) => f.path.endsWith('aped-prd.md'));
+    expect(prdShell, 'aped-prd shell exists').toBeTruthy();
+    expect(prdShell.content).toContain('Deprecated since 3.12.0');
+  });
+
+  it('deprecation banner suppressed when config flag is true', () => {
+    const out = commandsFactory({
+      apedDir: '.aped',
+      commandsDir: '.claude/commands',
+      config: { commands: { suppress_deprecation_banner: true } },
+    });
+    const prdShell = out.find((f) => f.path.endsWith('aped-prd.md'));
+    expect(prdShell, 'aped-prd shell exists').toBeTruthy();
+    expect(prdShell.content).not.toContain('Deprecated since 3.12.0');
   });
 });

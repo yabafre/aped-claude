@@ -313,6 +313,71 @@ UX prototype ready for sign-off. Choose your next move:
 
 `TaskUpdate: "F — Fill: user review" → completed` once `[C]` is selected.
 
+### Spec self-review
+
+After the prototype is approved by the user but before writing the UX spec, look at the spec drafts with fresh eyes — this is an inline checklist you run yourself, not a subagent dispatch. Fix any issues inline; no need to re-review.
+
+1. **Placeholder lint:** UX produces multiple files, so loop over `{{OUTPUT_DIR}}/ux/`:
+   ```bash
+   for f in {{OUTPUT_DIR}}/ux/*.md; do
+     bash {{APED_DIR}}/scripts/lint-placeholders.sh "$f" || exit 1
+   done
+   ```
+   Every file must exit 0; abort on the first failure and present the lint output to the user.
+2. **Screen/flow consistency:** every screen in the inventory has at least one flow that references it; every flow only references screens that actually exist in the inventory.
+3. **Component inventory complete:** every component used in a screen mock appears in the components inventory with props and states documented.
+4. **Accessibility check:** focus order matches visual order on every screen; icon buttons have `aria-label`; contrast tokens (semantic, not hardcoded) used throughout; touch targets ≥44×44pt.
+5. **Viewport assumptions stated explicitly:** the spec names the breakpoints supported (e.g. 375 / 768 / 1440) and states what changes per breakpoint, not just "responsive".
+
+If you find issues, fix them inline. No need to re-review — just fix and move on.
+
+### Spec-reviewer dispatch
+
+After the inline self-review passes, dispatch a fresh subagent to review the UX spec **before** the user gate. The reviewer's job is to verify the spec is complete, consistent, and ready for `/aped-epics` and `/aped-dev` consumption.
+
+Use the `Agent` tool (`subagent_type: "general-purpose"`) with this verbatim prompt (substitute `[ARTEFACT_FILE_PATH]` with the actual path of the UX spec folder just written):
+
+```
+You are a spec document reviewer. Verify this UX spec is complete and ready for planning.
+
+**Spec to review:** [ARTEFACT_FILE_PATH]
+
+## What to Check
+
+| Category | What to Look For |
+|----------|------------------|
+| Completeness | TODOs, placeholders, "TBD", missing screens referenced by flows, missing component entries |
+| Consistency | Screen/flow mismatches, components used in mocks but absent from the inventory |
+| Clarity | Screens whose purpose can't be inferred from the spec alone |
+| Accessibility | Focus order gaps, missing aria-labels, hardcoded colors instead of semantic tokens |
+| YAGNI | Screens or components that no flow or FR actually requires |
+
+## Calibration
+
+**Only flag issues that would cause real problems during implementation.**
+Screen/flow inconsistencies, missing component inventory entries, or accessibility
+gaps that violate the design system tokens — those are issues. Stylistic
+preferences and "could be more polished" are not.
+
+Approve unless there are serious gaps that would lead to a flawed implementation.
+
+## Output Format
+
+## Spec Review
+
+**Status:** Approved | Issues Found
+
+**Issues (if any):**
+- [Section X]: [specific issue] - [why it matters for implementation]
+
+**Recommendations (advisory, do not block approval):**
+- [suggestions for improvement]
+```
+
+When the reviewer returns:
+- **Status: Approved** — proceed to the user gate. Surface the recommendations (advisory) but do not block on them.
+- **Status: Issues Found** — fix the flagged issues inline (or `[O]verride` with a recorded reason if a flag is wrong), then re-dispatch the same reviewer once. If the second pass also returns issues, HALT and present the issues to the user for adjudication before handing off.
+
 ---
 
 ## Self-review (run before user gate)
@@ -325,6 +390,7 @@ Before presenting the UX spec to the user, walk this checklist. Each `[ ]` must 
 - [ ] **Component inventory complete** — every component used in a screen mock appears in the components inventory.
 - [ ] **PRD FR coverage** — every PRD FR with a UI surface has at least one mocked screen.
 - [ ] **No lorem ipsum** — every mock uses real or realistic content drawn from the PRD; placeholders fail this gate.
+- [ ] **Spec-reviewer dispatched** — reviewer returned Approved (or [O]verride recorded).
 
 ## Output
 

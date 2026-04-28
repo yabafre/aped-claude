@@ -220,6 +220,66 @@ mkdir -p {{OUTPUT_DIR}}
 3. Fill all 5 sections: Executive Summary, Core Vision, Target Users, Success Metrics, MVP Scope
 4. Write output to `{{OUTPUT_DIR}}/product-brief.md`
 
+### Spec self-review
+
+After writing the brief, look at it with fresh eyes — this is an inline checklist you run yourself, not a subagent dispatch. Fix any issues inline; no need to re-review.
+
+1. **Placeholder lint:** run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/product-brief.md`. Exit 0 = pass.
+2. **Market/domain/tech findings consistent:** the three subagent outputs do not contradict each other. "Low competition" from Mary alongside "saturated tooling" from Tom is a contradiction — surface it explicitly or reconcile.
+3. **Evidence quality:** every claim is backed by at least one cited source from the research outputs, or is explicitly labelled "no evidence found — assumption to validate".
+4. **Scope of product unambiguous:** one sentence in the Executive Summary answers "what is it?" without hedging. If the answer is two products, split or pick one.
+5. **Non-falsifiable claims removed:** statements like "users will love it" or "scales effortlessly" are deleted or reframed as falsifiable hypotheses tied to a Success Metric.
+
+If you find issues, fix them inline. No need to re-review — just fix and move on.
+
+### Spec-reviewer dispatch
+
+After the inline self-review passes, dispatch a fresh subagent to review the brief **before** the user gate. The reviewer's job is to verify the brief is complete, consistent, and ready for `/aped-prd` planning.
+
+Use the `Agent` tool (`subagent_type: "general-purpose"`) with this verbatim prompt (substitute `[ARTEFACT_FILE_PATH]` with the actual path of `product-brief.md` just written):
+
+```
+You are a spec document reviewer. Verify this product brief is complete and ready for planning.
+
+**Spec to review:** [ARTEFACT_FILE_PATH]
+
+## What to Check
+
+| Category | What to Look For |
+|----------|------------------|
+| Completeness | TODOs, placeholders, "TBD", missing required sections, uncited key claims |
+| Consistency | Contradictions between market, domain, and tech research findings |
+| Clarity | Scope statements that could describe two different products |
+| Evidence | Claims without cited sources or "no evidence found" disclaimers |
+| YAGNI | Non-falsifiable assertions, marketing language, unbounded ambition |
+
+## Calibration
+
+**Only flag issues that would cause real problems for `/aped-prd` planning.**
+Inconsistencies between market and tech findings (e.g. "low competition" +
+"saturated tooling"), weak evidence backing key claims, or non-falsifiable
+assertions — those are issues. Subjective interpretations of market opportunity
+are not.
+
+Approve unless there are serious gaps that would lead to a flawed PRD.
+
+## Output Format
+
+## Spec Review
+
+**Status:** Approved | Issues Found
+
+**Issues (if any):**
+- [Section X]: [specific issue] - [why it matters for planning]
+
+**Recommendations (advisory, do not block approval):**
+- [suggestions for improvement]
+```
+
+When the reviewer returns:
+- **Status: Approved** — proceed to the user gate. Surface the recommendations (advisory) but do not block on them.
+- **Status: Issues Found** — fix the flagged issues inline (or `[O]verride` with a recorded reason if a flag is wrong), then re-dispatch the same reviewer once. If the second pass also returns issues, HALT and present the issues to the user for adjudication before handing off.
+
 ## Phase 5: Validation
 
 ```bash
@@ -235,6 +295,16 @@ If validation fails: fix missing sections and re-validate.
 ⏸ **GATE: Do NOT update state until the user explicitly approves the brief.**
 
 If user requests changes: apply them, re-validate, re-present.
+
+## Self-review (run before user gate)
+
+Before presenting the brief to the user for approval, walk this checklist. Each `[ ]` must flip to `[x]` or HALT. If the lint exits 1, present its output verbatim and ask `[F]ix` / `[O]verride (record reason)`.
+
+- [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/product-brief.md`. Exit 0 = pass.
+- [ ] **All 3 research outputs cited** — Mary (market), Derek (domain), and Tom (technical) findings each appear in the brief with attribution.
+- [ ] **Required sections present** — Executive Summary, Core Vision (Goals), Target Users, Success Metrics, MVP Scope (Constraints) are all populated with real prose.
+- [ ] **User-facing summary written** — the Executive Summary answers "what is it" in one sentence and "why now" in one sentence.
+- [ ] **Spec-reviewer dispatched** — reviewer returned Approved (or [O]verride recorded).
 
 ## State Update
 

@@ -172,19 +172,23 @@ When multiple skills could apply, use this order:
 
 **Flexible** (`/aped-brainstorm`, `/aped-arch`): adapt principles to context. The skill itself tells you which.
 
-### Section 8: Slash Commands Cheat Sheet
+#### Slash command deprecation (3.12.0)
+
+Slash commands `/aped-X` are **deprecated since 3.12.0** with removal target **4.0.0**. Invoke skills directly via the Skill tool, or use natural-language phrases that match the skill `description:` triggers (e.g. "create the prd" instead of `/aped-prd`). Slash commands continue to work in all 3.x versions but should be considered legacy.
+
+### Section 8: Skill cheat sheet
 
 | Pipeline | Utility |
 |----------|---------|
-| /aped-analyze | /aped-status |
-| /aped-prd | /aped-course |
-| /aped-ux | /aped-context |
-| /aped-arch | /aped-qa |
-| /aped-epics | /aped-quick |
-| /aped-story | /aped-check |
-| /aped-dev | /aped-claude |
-| /aped-review | /aped-debug |
-| /aped-receive-review | |
+| aped-analyze | aped-status |
+| aped-prd | aped-course |
+| aped-ux | aped-context |
+| aped-arch | aped-qa |
+| aped-epics | aped-quick |
+| aped-story | aped-check |
+| aped-dev | aped-claude |
+| aped-review | aped-debug |
+| aped-receive-review | |
 
 ## Lessons File
 

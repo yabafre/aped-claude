@@ -72,6 +72,14 @@ skill_invocation_discipline:
 visual_companion:
   enabled: false  # Opt-in. Install via 'aped-method visual-companion'.
   port: 3737      # HTTP port for the brainstorm visual companion server.
+
+# Slash commands deprecation (Tier 5, 3.12.0). Slash commands
+# (commands/aped-*.md shells) carry a deprecation banner since 3.12.0.
+# Set to true to suppress the banner — useful if your CI parses these
+# shells and the banner interferes. Banner returns in 4.0.0 only as a
+# removal notice (the shells go away).
+commands:
+  suppress_deprecation_banner: false
 `,
     },
     {
