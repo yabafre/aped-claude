@@ -60,6 +60,57 @@ This persona is the canonical reader of every story you produce. It is the testa
 
 Every Red Flag in the previous section maps back to "the junior would misread this." When in doubt about whether a detail is necessary, ask: **would the junior produce the right code from this without it?** If no, write it.
 
+## Task granularity contract (Reader persona consumer)
+
+This contract makes the granularity of a story task **testable** rather than judged by feel. Every task in the Execution list of a generated story MUST satisfy all five conditions below. The Self-review checklist verifies them before the user gate.
+
+### Five must-haves per task
+
+1. **Exact file path** — repository-relative or absolute. Not "the auth module", not "wherever the validation lives". The junior must not have to grep.
+2. **Full code block** — the complete code to add or replace, not a snippet. If the surrounding context matters, include it; if a function changes, include the whole function. Snippets force the junior to fill gaps from training-data templates instead of project conventions.
+3. **Exact test command** — the literal command to run (e.g. `pnpm vitest run tests/auth.test.ts`). Not "run the tests".
+4. **Expected output** — at minimum, the pass line the test produces (`✓ should reject expired tokens`, `Tests: 4 passed`, exit 0). The junior compares this against the actual output instead of guessing whether it worked.
+5. **Commit step** — the literal `git add <files> && git commit -m "<message>"` to run after the GREEN gate. Not "commit when done", not implicit.
+
+### Estimated runtime: 2–5 minutes
+
+Each task should take a focused junior between two and five minutes to execute. A task that takes longer is too coarse — split it. Ten tasks of three minutes are uniformly easier to verify than one task of thirty minutes.
+
+### Forbidden patterns (audit during Self-review)
+
+| Pattern | Why it fails | What to write instead |
+|---------|--------------|----------------------|
+| "see line X of file Y" | Line numbers drift; the junior won't open the file at the right time. | Inline the relevant code in the task. |
+| "snippet only" / "..." inside code | Forces the junior to invent the missing parts. | Full code block, even if 30 lines. |
+| "commit when done" | "Done" is the junior's judgment call — they always say yes. | Literal `git add ... && git commit -m "..."`. |
+| "fill in error handling" | "Appropriate" is the agent's escape hatch. | Specify the error cases, the response codes, the retry policy. |
+| "similar to task N" | Loses the differences that matter. | Write what *this* task needs in full. |
+
+### Good task example
+
+```markdown
+- [ ] **Add `validateToken` to `src/auth/jwt.ts`**
+  Add the function below to `src/auth/jwt.ts` (alongside `signToken`):
+  ```ts
+  export function validateToken(token: string): { sub: string; exp: number } {
+    const { sub, exp } = jwt.verify(token, JWT_SECRET) as { sub: string; exp: number };
+    if (Date.now() / 1000 > exp) throw new TokenExpiredError();
+    return { sub, exp };
+  }
+  ```
+  Run: `pnpm vitest run tests/auth/jwt.test.ts`
+  Expected: `Tests: 4 passed`, exit 0.
+  Commit: `git add src/auth/jwt.ts tests/auth/jwt.test.ts && git commit -m "feat(auth): add validateToken (FR-12)"`
+```
+
+### Bad task counter-example (what fails the contract)
+
+```markdown
+- [ ] Add token validation similar to story 2-1 with appropriate error handling. See the auth module. Test it and commit when done.
+```
+
+Five failures: no path (`auth module`), snippet-or-less ("similar to story 2-1"), no test command, no expected output, vague commit step. The junior would invent five different implementations on five different runs — and ship one of them.
+
 ## Mode Detection
 
 Before anything else, decide whether we are in **solo mode** (main project, no parallel sprint) or **worktree mode** (dispatched by /aped-sprint):
@@ -223,6 +274,7 @@ Before presenting the story file to the user, walk this checklist. Each `[ ]` mu
 - [ ] **Given/When/Then ACs** — every Acceptance Criterion follows the Given/When/Then form. No bare "make it work" lines.
 - [ ] **Dependencies done** — every entry in `depends_on:` is a story whose status is `done` in `state.yaml`.
 - [ ] **Reader persona check** — re-read the story top-to-bottom asking "would the junior produce the right code from this?" If any answer is "probably not", fix.
+- [ ] **Task granularity contract** — every Execution task has all five must-haves (exact path, full code, exact test command, expected output, literal commit step) and is estimated 2–5 min for the junior persona. Split anything bigger; rewrite anything that matches a Forbidden pattern from the contract.
 
 ## Output
 
