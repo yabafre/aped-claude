@@ -55,6 +55,16 @@ Then analyze impact:
 | Priority reorder | Epics, Sprint | Reorder stories → update sprint |
 | Complete pivot | Everything | Reset to /aped-analyze |
 
+## Open the sync log (when scope change touches tickets)
+
+If the impact assessment shows the scope change will modify, move, or descope tickets in the configured ticket system (read `ticket_system` from `{{APED_DIR}}/config.yaml`), open a sync log before any provider call. Skip this step entirely when `ticket_system: none` or the change is purely doc-side (e.g. a typo fix in the PRD that doesn't touch tickets).
+
+```bash
+LOG=$(bash {{APED_DIR}}/scripts/sync-log.sh start <provider>)
+```
+
+Reuse `$LOG` across all subsequent ticket operations. If `sync_logs.enabled: false`, calls are silent no-ops; that's expected.
+
 ## Change Execution
 
 ### Minor change (new/removed feature)
@@ -63,6 +73,33 @@ Then analyze impact:
 3. Update epics: add/archive affected stories
 4. Re-run coverage: `bash {{APED_DIR}}/aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md`
 5. Update `{{OUTPUT_DIR}}/state.yaml`: mark affected stories as `backlog`
+
+After modifying ticket fields (titles, descriptions, labels, ACs):
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG tickets_modified complete '{"calls":M,"modifications":[...]}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total M
+```
+
+After moving tickets between projects / milestones (e.g. mid-sprint reassignment):
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG tickets_moved complete '{"calls":V,"moves":[...]}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total V
+```
+
+If any tickets are descoped to future-scope (M2):
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG descope_recorded complete '{"calls":D,"tickets":[...]}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total D
+```
+
+Close the log when ticket operations are complete:
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh end $LOG
+```
 
 ### Major change (architecture/pivot)
 1. Confirm with user: "This invalidates in-progress work. Proceed?"
@@ -82,14 +119,36 @@ For each in-progress or completed story:
 Update `{{OUTPUT_DIR}}/state.yaml`:
 - Reset affected stories to `backlog` or `ready-for-dev`
 - If major change: reset `current_phase` to appropriate earlier phase
-- Log the correction in pipeline phases:
+
+### Append a `corrections` entry (always)
+
+`corrections` is a top-level append-only log on `state.yaml`, distinct from `lessons.md` (post-epic retrospectives) and CHANGELOG (product-level). Every `/aped-course` run that materially changes scope MUST append one entry.
+
+Use the Edit tool to append directly to `{{OUTPUT_DIR}}/state.yaml` — `corrections` is append-only and doesn't need transactional semantics across multiple stories. If the `corrections:` key doesn't exist yet, add it at the top level (alongside `pipeline`, `sprint`, `ticket_sync`, etc.).
+
 ```yaml
 corrections:
-  - date: "{date}"
-    type: "{minor|major}"
-    reason: "{user's reason}"
-    affected_stories: [...]
+  - date: "<YYYY-MM-DD>"
+    type: "<major | minor | bug>"
+    reason: "<one-liner of what changed and why>"
+    artifacts_updated: ["docs/prd.md", "docs/epics.md", ...]
+    affected_stories: ["<story-key>", ...]
 ```
+
+Never rewrite an existing `corrections` entry — append-only semantics.
+
+### Append to `backlog_future_scope` (when descoping)
+
+If any tickets were descoped to future-scope as part of this change, also append to the top-level `backlog_future_scope.tickets` list. Create the block if missing:
+
+```yaml
+backlog_future_scope:
+  project_id: "<provider future-scope project id, or null>"
+  tickets:
+    - { id: "<ticket-id>", category: "<bucket-name>" }
+```
+
+Append to existing entries — never replace the whole list.
 
 ## Release the Upstream Lock (parallel sprint only)
 
@@ -119,6 +178,15 @@ User says "We need to add OAuth — the client changed requirements":
 4. Add stories to Epic 1 for OAuth support
 5. Re-validate coverage
 6. Reset new stories to `ready-for-dev`
+
+## Self-review (run before exit)
+
+Before clearing the upstream lock and handing control back, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
+
+- [ ] **Corrections logged** — a new `corrections` entry was appended to `state.yaml` describing this scope change (date, type, reason, artifacts_updated, affected_stories).
+- [ ] **Sync log emitted** — if ticket-system operations ran, `docs/sync-logs/<provider>-sync-<ISO>.json` exists (or skipped silently if no ticket changes / `sync_logs.enabled: false`).
+- [ ] **Backlog future-scope updated** — if any tickets were descoped, `backlog_future_scope.tickets` was appended (not replaced).
+- [ ] **Upstream lock cleared** — `sprint.scope_change_active: false` set, follow-up notification posted on each previously-notified ticket.
 
 ## Common Issues
 

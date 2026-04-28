@@ -234,6 +234,49 @@ bash {{APED_DIR}}/scripts/checkin.sh archive
 
 This moves `{{APED_DIR}}/checkins/*.jsonl` to `{{APED_DIR}}/checkins/archive/{date}/`. Do NOT run if the user picked "Fix blockers" or "Abandon" — they may re-run /aped-lead and need the live inboxes.
 
+## Ticket close on merge (audit trail)
+
+Once the umbrella PR is merged, every ticket associated with a `done` story of the active epic should be closed in the configured ticket system (read `ticket_system` from `{{APED_DIR}}/config.yaml`). Wrap the close operations with a sync log so the audit trail records every provider call.
+
+Before any provider call:
+
+```bash
+LOG=$(bash {{APED_DIR}}/scripts/sync-log.sh start <provider>)
+```
+
+Then, for each story branch closed at merge time (one provider call per branch — typical merge cleanup):
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG branch_close complete '{"calls":B,"branches":[...]}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total B
+```
+
+Then, for the ticket-close batch (one provider call per ticket — e.g. `gh issue close`, `glab issue close`, Linear MCP state transition, Jira MCP transition):
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG tickets_closed complete '{"calls":T,"tickets":[...]}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total T
+```
+
+If you also post a "shipped in PR #N" comment on each ticket:
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG comments_posted complete '{"calls":C,"tickets":[...]}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total C
+```
+
+Close the log:
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh end $LOG
+```
+
+Surface the log path to the user. If `ticket_system: none` or `sync_logs.enabled: false`, the helper exits silently and these calls are no-ops.
+
+## Self-review (run before push gate)
+
+- [ ] **Sync log emitted** at `docs/sync-logs/<provider>-sync-<ISO>.json` covering every ticket-close call (or skipped silently if no ticket system / `sync_logs.enabled: false`).
+
 ## Next Step
 
 After the user opens the PR:

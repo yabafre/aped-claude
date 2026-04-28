@@ -418,7 +418,7 @@ By the time you reach this step, `architecture.md` is **already** fully populate
    - `current_subphase: done`
    - push `validation` onto `completed_subphases`
    - `last_updated: <ISO 8601 now>`
-3. Update `{{OUTPUT_DIR}}/state.yaml`:
+3. Update `{{OUTPUT_DIR}}/state.yaml` under `pipeline.phases.architecture` with the structured fields below. The Council/ADR lists are populated **incrementally** across the phases (each new dispatch appends; each ADR write appends) — at finalisation, you only need to confirm they're present and accurate.
    ```yaml
    pipeline:
      current_phase: "architecture"
@@ -433,7 +433,35 @@ By the time you reach this step, `architecture.md` is **already** fully populate
          completed_subphases: [context-analysis, technology-decisions, implementation-patterns, structure-mapping, validation]
          output: "{{OUTPUT_DIR}}/architecture.md"
          last_updated: "<ISO 8601 now>"
+         mode: "interactive"            # interactive | headless
+         councils_dispatched:
+           # One entry per Phase 2b dispatch. Append as each Council runs.
+           - id: "D1"                   # sequential per arch run
+             subject: "<one-line decision name>"
+             specialists: ["winston", "lena", "raj", ...]
+             verdict: "<final pick + 1-line rationale>"
+         adrs:
+           # One entry per ADR written under docs/adr/ (or wherever the
+           # arch decision-record convention puts them).
+           - id: "ADR-001"
+             subject: "<one-line subject>"
+             path: "docs/adr/001-<slug>.md"
+             author: "<persona/specialist or human>"
+         watch_items: <int>             # count from architecture.md §6 (W1..Wn)
+         residual_gaps: <int>           # count from architecture.md §7 (G1..Gn)
+         epic_zero_stories: <int>       # count from architecture.md §8 (E0.1..E0.n)
    ```
+
+### Field derivation
+
+- **`mode`** — `interactive` if the user ran with the default A/P/C-style gating; `headless` if a `--headless` / `-H` flag was passed (autonomous straight-through). Downstream tooling reads this to know whether human gating actually happened.
+- **`councils_dispatched`** — populated incrementally as each Phase 2b Council runs. Each entry: `id` (sequential, `D1`, `D2`, …), `subject` (the decision being arbitrated), `specialists` (lowercase persona names from the roster), `verdict` (final pick + 1-line rationale). Append on each Council; never rewrite past entries.
+- **`adrs`** — populated as ADRs are written. Each entry: `id` (`ADR-001`, …), `subject`, `path` (relative to project root), `author` (specialist persona name or human). Append on each ADR.
+- **`watch_items`** — count of W-items in `architecture.md` §6 (Watch Items / risks tracked across the lifecycle). Compute at finalisation.
+- **`residual_gaps`** — count of G-items in `architecture.md` §7 (Residual Gaps the architecture knowingly leaves open). Compute at finalisation.
+- **`epic_zero_stories`** — count of E0.x stories in `architecture.md` §8 (Epic Zero / foundation stories the architecture surfaces for the first epic). Compute at finalisation.
+
+If `architecture.md` has no §6 / §7 / §8, set the corresponding field to `0` — the field is mandatory but the value can be zero.
 
 **Do not regenerate the architecture body**: if a section reads as incomplete at this stage, that means a subphase was skipped — go back and fill it in place rather than rewriting the whole document. A "regenerate from scratch at the end" approach is what this skill explicitly avoids: it loses the incremental write trail and is fragile under interruption.
 

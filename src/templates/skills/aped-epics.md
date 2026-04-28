@@ -249,6 +249,7 @@ Before presenting the epics breakdown to the user, walk this checklist. Each `[ 
 - [ ] **Unique story keys** — no two stories share a key.
 - [ ] **Non-empty scope** — every story has a concrete user-facing description (not just a title).
 - [ ] **Spec-reviewer dispatched** — reviewer returned Approved (or [O]verride recorded).
+- [ ] **Sync log emitted** — `docs/sync-logs/<provider>-sync-<ISO>.json` exists AND `state.yaml` `ticket_sync` block populated (or `ticket_sync: skipped` recorded under `phases.epics` if config has no ticket system / auth check failed).
 
 ## Output
 
@@ -263,9 +264,19 @@ Before presenting the epics breakdown to the user, walk this checklist. Each `[ 
 
 ## Ticket System Setup
 
-Read `ticket_system` from config. If `none`: skip this phase entirely.
+Read `ticket_system` from config. If `none`: skip this phase entirely and write `ticket_sync: skipped` under `phases.epics` in state.yaml.
 
 Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md` for provider-specific syntax.
+
+### Step 0: Open the sync log
+
+Before any provider call, capture an audit-log path. The provider name is the value of `ticket_system` from config (`linear` | `github-issues` | `gitlab-issues` | `jira`); pass it verbatim:
+
+```bash
+LOG=$(bash {{APED_DIR}}/scripts/sync-log.sh start <provider>)
+```
+
+Capture `$LOG` once and reuse it for every subsequent `phase` / `record` / `end` call. Surface the path to the user at the end. If `sync_logs.enabled: false` in `config.yaml`, the helper exits 0 silently with empty stdout — `$LOG` will be empty and downstream calls will be silent no-ops; that's expected.
 
 ### Step 1: Check Credentials
 
@@ -277,6 +288,13 @@ Verify the CLI/auth is configured:
 
 If not configured: warn the user with setup instructions and continue **without** ticket sync. Mark `ticket_sync: skipped` in state.yaml.
 
+After the auth check completes, append the phase to the sync log:
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG auth_check complete
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total 1
+```
+
 ### Step 2: Check Project
 
 Verify the target project exists:
@@ -284,6 +302,13 @@ Verify the target project exists:
 - `gitlab-issues`: `glab repo view`
 - `linear`: ask the user for the team key (e.g., `TEAM`) — store in config
 - `jira`: ask the user for the project key — store in config
+
+After the project resolution completes, append a phase entry capturing the project list (provider-specific shape — Linear: `{name, id, lead, target_date}`; GitHub: project URL; etc.):
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG projects complete '{"calls":N,"created":[...]}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total N
+```
 
 ### Step 3: Preview to User
 
@@ -317,6 +342,13 @@ glab api projects/{id}/milestones -f title="Epic 1: ..." -f description="..."
 
 **linear:** Use project/cycle API via curl or linear CLI
 **jira:** Use epic issue type (JIRA has native epics)
+
+After the milestone batch completes:
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG milestones complete '{"calls":M,"created":{...}}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total M
+```
 
 ### Step 5: Create Issues
 
@@ -369,6 +401,29 @@ gh issue create --title "..." --body "..." --label "🆕 feature,size/M,epic/1" 
 glab issue create --title "..." --description "..." --label "🆕 feature,size/M,epic/1" --milestone "Epic 1: ..."
 ```
 
+After the issue creation batch completes (one `record` per provider call to keep `api_calls_total` accurate):
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG labels complete '{"calls":L,"created":{...}}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total L
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG issues_created complete '{"calls":I,"issues":[...]}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total I
+```
+
+If any tickets were modified mid-sync (re-titled, re-described, project moved), record them under a `modified_tickets` phase:
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG modified_tickets complete '{"calls":K,"modifications":[...]}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total K
+```
+
+If any tickets were moved to the future-scope bucket (M2):
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG out_of_scope_moves complete '{"calls":F,"tickets":[...]}'
+bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total F
+```
+
 ### Step 6: Store Ticket IDs
 
 Update `{{OUTPUT_DIR}}/epics.md` — add a `**Ticket:** {ticket-id}` line under each story.
@@ -384,6 +439,79 @@ sprint:
       status: pending
       ticket: "#43"
 ```
+
+### Step 7: Close the sync log + write structured state
+
+Close the log and capture the final path:
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh end $LOG
+```
+
+Surface the log path to the user (e.g. "Sync complete — audit trail at `docs/sync-logs/<provider>-sync-<ISO>.json`").
+
+Now write the **top-level `ticket_sync` block** to `{{OUTPUT_DIR}}/state.yaml`. The shape is provider-agnostic — fields below are mandatory; provider-specific detail goes inside `projects` and `milestones`:
+
+```yaml
+ticket_sync:
+  provider: "<linear | github | gitlab | jira>"   # same as ticket_system in config
+  sync_id: "<basename of $LOG with .json stripped>"
+  synced_at: "<ISO 8601 now>"
+  sync_log: "docs/sync-logs/<provider>-sync-<ISO>.json"  # relative to project root
+  directive_version: "<from sync-log if available, else null>"
+  projects:
+    # Provider-specific shape. Linear example:
+    foundation:
+      id: "<linear-project-id>"
+      name: "[M1] Foundation"
+      lead: "<email>"
+      target_date: "<ISO date | null>"
+    # GitHub: project URL string. GitLab: project id. Jira: project key.
+  milestones:
+    # epic-key → provider milestone id
+    "foundation/epic-0": "<milestone-id>"
+  modified_tickets:
+    # Append-only across re-syncs. Each entry:
+    - id: "<ticket-id>"
+      fields: ["title", "description", "project"]
+      reason: "<one-liner>"
+      original_description_sha256: "<sha256 of pre-sync body>"
+      labels_added: ["<label1>", "<label2>"]
+      project_moved: "<from> → <to>"
+  totals:
+    api_calls_total: <int>          # from sync-log totals
+    # Optional, provider-specific: projects_created, milestones_created,
+    # labels_created, issues_created, tickets_modified, tickets_moved_to_future_scope
+```
+
+If M2 / future-scope buckets exist, ALSO write a top-level `backlog_future_scope` block:
+
+```yaml
+backlog_future_scope:
+  project_id: "<provider future-scope project id, or null>"
+  tickets:
+    - { id: "<ticket-id>", category: "<free-form bucket name>" }
+```
+
+Update `phases.epics` in state.yaml with the structured fields:
+
+```yaml
+pipeline:
+  phases:
+    epics:
+      status: "done"
+      output: "{{OUTPUT_DIR}}/epics.md"
+      completed_at: "<ISO 8601 now>"
+      epic_count: <int>
+      story_count: <int>
+      fr_coverage: "<M>/<N> [optional descope note]"   # e.g. "76/77 (FR63 descoped M2)"
+      ticket_sync: "synced"   # synced | skipped | failed
+      synced_at: "<ISO 8601 now>"
+```
+
+If `ticket_system: none` (or auth check failed and we skipped sync), set `ticket_sync: skipped` and omit the top-level `ticket_sync` block entirely.
+
+Re-syncs append to `modified_tickets` (never overwrite); other fields are replaced with the new run's values.
 
 ## Example
 

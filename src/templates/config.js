@@ -80,11 +80,29 @@ visual_companion:
 # removal notice (the shells go away).
 commands:
   suppress_deprecation_banner: false
+
+# Sync-log audit trail (Tier 6, 3.12.0). Ticket-system operations in
+# /aped-epics, /aped-from-ticket, /aped-ship and /aped-course emit a
+# structured JSON log per sync via aped/scripts/sync-log.sh. Set
+# enabled: false to make the helper a silent no-op (every subcommand
+# exits 0 with empty stdout — useful when you don't want forensic logs
+# committed alongside the project, e.g. on personal scratch repos).
+# \`dir\` is project-relative and auto-created on first \`start\`.
+sync_logs:
+  enabled: true
+  dir: "docs/sync-logs/"
 `,
     },
     {
       path: `${o}/state.yaml`,
-      content: `# APED Pipeline State
+      content: `# APED state.yaml schema version. Stays at 1 across all 3.x releases —
+# any breaking layout change (rename, removal, restructure) is reserved
+# for 4.0.0 and will bump to 2. validate-state.sh refuses unknown
+# versions with an "upgrade aped-method" message. Missing schema_version
+# is treated as implicit 1 (backwards compat with pre-3.12 scaffolds).
+schema_version: 1
+
+# APED Pipeline State
 # Phases: none → analyze → prd → ux → architecture → sprint
 # "sprint" is the final phase — covers story/dev/review cycle
 #
@@ -95,6 +113,29 @@ commands:
 #   pipeline.phases.<phase>.last_updated:         ISO 8601 of last write
 #   pipeline.phases.<phase>.current_subphase:     name of the active sub-step
 #   pipeline.phases.<phase>.completed_subphases:  list of finished sub-steps
+#
+# Per-phase structured fields (Tier 6 — written by the corresponding skill
+# at completion; absent fields just mean "skill hasn't recorded that yet"):
+#
+#   phases.context.{generated, path, type, generated_at, refreshed_at}
+#     type ∈ {brownfield, greenfield, hybrid} — derived by /aped-context.
+#     refreshed_at is set on every re-run; generated_at is set once.
+#
+#   phases.prd.{status, output, completed_at, fr_count, mode}
+#     fr_count is parsed from the FR section of prd.md.
+#     mode ∈ {interactive, headless} based on /aped-prd invocation.
+#
+#   phases.architecture.{status, output, completed_at, mode,
+#                        councils_dispatched, adrs, watch_items,
+#                        residual_gaps, epic_zero_stories}
+#     councils_dispatched: list of {id, subject, specialists, verdict}.
+#     adrs: list of {id, subject, path, author}.
+#     Counts come from architecture.md sections at Phase 5 validation.
+#
+#   phases.epics.{status, output, completed_at, epic_count, story_count,
+#                 fr_coverage, ticket_sync, synced_at}
+#     ticket_sync ∈ {synced, skipped, failed}.
+#     synced_at is the ISO timestamp of the most recent successful sync.
 #
 # /aped-arch uses the subphase fields to track incremental progress through
 # context-analysis → technology-decisions → council-dispatches →
@@ -115,13 +156,49 @@ pipeline:
 #   ticket:       external ticket ID (Linear/Jira/GitHub/GitLab), optional
 #   worktree:     path to the git worktree hosting this story, set by /aped-sprint
 #   depends_on:   list of story keys that must be "done" before this one can dispatch
-#   started_at:   ISO8601 timestamp set when status flips to in-progress
+#   started_at:   ISO 8601 timestamp set when status flips to in-progress (null until then)
 sprint:
   project: ""
   active_epic: null
   parallel_limit: 3
   review_limit: 2
   stories: {}
+
+# Optional top-level blocks (Tier 6, 3.12.0). Skills populate these as
+# needed — they are NOT scaffolded with an empty value to keep greenfield
+# state.yaml minimal. validate-state.sh recognises them; unknown blocks
+# emit a warn-only stderr message (forward-compat). Re-syncs APPEND;
+# never rewrite existing entries.
+#
+# # Provider-agnostic ticket sync metadata, written by /aped-epics
+# # Ticket System Setup. Re-syncs append to modified_tickets.
+# ticket_sync:
+#   provider: "linear"        # linear | github | gitlab | jira
+#   sync_id: "<from sync-log>"
+#   synced_at: "<ISO>"
+#   sync_log: "docs/sync-logs/<file>.json"
+#   directive_version: "<optional>"
+#   projects: {}              # provider-shape (e.g. Linear: {name, id, lead, target_date})
+#   milestones: {}            # epic key → provider milestone id
+#   modified_tickets: []      # {id, fields, reason, original_description_sha256, labels_added, project_moved}
+#   totals: {}                # api_calls_total, issues_created, etc.
+#
+# # Tickets explicitly punted to a future scope, written by /aped-epics
+# # (initial sync) and /aped-course (mid-sprint descopes).
+# backlog_future_scope:
+#   project_id: "<provider project id, optional>"
+#   tickets:
+#     - { id: "<ticket-id>", category: "<bucket>" }
+#
+# # Append-only log of artefact corrections (PRD edit, FR descope, etc.)
+# # Written primarily by /aped-course. Distinct from lessons.md (post-epic
+# # retros) and CHANGELOG (product-level).
+# corrections:
+#   - date: "YYYY-MM-DD"
+#     type: "minor"           # major | minor | bug
+#     reason: "<one-liner>"
+#     artifacts_updated: []   # paths
+#     affected_stories: []    # story keys
 `,
     },
     {
