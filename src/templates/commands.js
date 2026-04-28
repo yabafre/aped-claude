@@ -147,6 +147,14 @@ export const COMMAND_DEFS = [
     outputs: 'Reproducible failure, confirmed root cause, regression test, and verified fix.',
   },
   {
+    name: 'aped-receive-review',
+    skill: 'aped-receive-review',
+    category: 'utility',
+    phase: 'Review',
+    description: 'Use when receiving code review feedback or when /aped-dev hands back review comments to address. Invoked from /aped-dev after /aped-review reports issues, or standalone when user pastes external review feedback (PR comments, GitHub thread, senior engineer Slack message). Triggers on phrases like "address review", "fix the review feedback", "the reviewer said", "received PR comments".',
+    outputs: 'Verified pushback or technical acknowledgment with implemented fixes; performative-agreement suppressed.',
+  },
+  {
     name: 'aped-from-ticket',
     skill: 'aped-from-ticket',
     category: 'utility',
