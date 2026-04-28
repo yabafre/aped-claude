@@ -1,6 +1,6 @@
 ---
 name: aped-course
-description: 'Manages scope changes and pivots during development with impact analysis. Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes /aped-course.'
+description: 'Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes /aped-course.'
 argument-hint: "[description of the change]"
 disable-model-invocation: true
 license: MIT

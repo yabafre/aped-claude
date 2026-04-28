@@ -1,6 +1,6 @@
 ---
 name: aped-ux
-description: 'Designs UX via the ANF framework (Assemble design system, Normalize with React preview, Fill all screens). Use when user says "design UX", "UX spec", "aped ux", or invokes /aped-ux. Runs between PRD and Epics phases.'
+description: 'Use when user says "design UX", "UX spec", "aped ux", or invokes /aped-ux. Runs between PRD and Epics.'
 license: MIT
 compatibility: 'Requires Node.js 18+ and npm for Vite+React preview scaffold'
 metadata:
@@ -314,6 +314,17 @@ UX prototype ready for sign-off. Choose your next move:
 `TaskUpdate: "F — Fill: user review" → completed` once `[C]` is selected.
 
 ---
+
+## Self-review (run before user gate)
+
+Before presenting the UX spec to the user, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
+
+- [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh` against every file in `{{OUTPUT_DIR}}/ux/`.
+- [ ] **Design tokens declared** — colour, typography, spacing scales explicitly listed (not "use whatever the library defaults to").
+- [ ] **Screen → flow** — every screen in the inventory has at least one flow that references it.
+- [ ] **Component inventory complete** — every component used in a screen mock appears in the components inventory.
+- [ ] **PRD FR coverage** — every PRD FR with a UI surface has at least one mocked screen.
+- [ ] **No lorem ipsum** — every mock uses real or realistic content drawn from the PRD; placeholders fail this gate.
 
 ## Output
 

@@ -1,6 +1,6 @@
 ---
 name: aped-arch
-description: 'Collaborative architecture decisions with specialist council for high-stakes choices (DB, auth, API, frontend, infra). Use when user says "create architecture", "technical architecture", "solution design", or invokes /aped-arch. Runs between PRD and Epics.'
+description: 'Use when user says "create architecture", "technical architecture", "solution design", or invokes /aped-arch. Runs between PRD and Epics.'
 allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate
 disable-model-invocation: true
 license: MIT
@@ -398,6 +398,16 @@ Choose your next move:
 ```
 
 ⏸ **HALT — wait for the user's choice. Council was for divergent specialist input on major decisions; this final `[A]` is for adversarial pressure on the doc as a whole. Both serve different purposes.**
+
+## Self-review (run before finalisation)
+
+Before flipping `architecture.md` to `done`, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
+
+- [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/architecture.md`.
+- [ ] **FR implementation paths** — every PRD FR is mentioned somewhere in `architecture.md` with a clear implementation surface (file/module/component).
+- [ ] **No conflicting decisions** — Phase 2 categories (data, auth, API, frontend, infra) work together; no contradictions (e.g. `tRPC` + `gRPC` simultaneously without justification).
+- [ ] **Council minority views recorded** — every Council dispatch in Phase 2b includes the minority view in `architecture.md` (it's signal for future pivots).
+- [ ] **Frontmatter coherent** — `current_subphase` is `validation` (about to flip to `done`); `completed_subphases` lists all five phases that actually ran.
 
 ## Output (finalisation only)
 

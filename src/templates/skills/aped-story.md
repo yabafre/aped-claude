@@ -1,6 +1,6 @@
 ---
 name: aped-story
-description: 'Creates a detailed story file for the next story to implement, commits it on the feature branch, and posts the story-ready check-in. Use when user says "create story", "prepare next story", "aped story", or invokes /aped-story.'
+description: 'Use when user says "create story", "prepare next story", "aped story", or invokes /aped-story.'
 argument-hint: "[story-key]"
 license: MIT
 metadata:
@@ -20,6 +20,45 @@ Create a single, implementation-ready story file with all the context needed for
 - Quality of story definition determines quality of implementation
 - **Branch-per-story is inviolable.** In parallel-sprint mode (worktree present), /aped-story runs **inside the worktree on the feature branch** and commits the story file there — never in main. The `story-ready` check-in is posted by this skill, not by /aped-sprint.
 - **State.yaml authority lives in main.** In worktree mode, /aped-story writes the worktree's local state.yaml (status flip to `ready-for-dev`) and commits it on the feature branch. This local copy is intentionally divergent from main: /aped-lead is the only writer of main's state.yaml, and /aped-ship resolves merge conflicts on state.yaml with `--ours`. Don't treat the divergence as a bug — it's the design (see aped-dev.md § State.yaml authority).
+
+### Iron Law
+
+**NO STORY WITHOUT EXACT FILE PATHS, FULL CODE BLOCKS, EXACT TEST COMMANDS.** The persona reading this story is the enthusiastic junior with poor taste (see `## Reader persona`). If the story leaves room for interpretation, that junior will pick the wrong path. Verbosity in the story is cheaper by an order of magnitude than ambiguity in the implementation.
+
+### Red Flags
+
+Phrases that mean you are writing a story the junior will misread. If you catch yourself thinking any of these, stop.
+
+| Phrase | Why it's wrong |
+|--------|----------------|
+| "Implement the validation logic similar to story X" | "Similar to" loses the differences that matter. Write what *this* story needs. |
+| "Add appropriate error handling" | "Appropriate" is the agent's escape hatch. Specify the error cases. |
+| "Follow the existing pattern" | If the pattern is load-bearing, name it and link to one example. |
+| "The dev will figure it out from the architecture doc" | The dev has fresh context per task — assume zero memory. |
+| "I'll list the files affected, the dev will know which functions" | List the functions. List the line numbers if they exist. |
+
+### Rationalizations
+
+| Excuse | Reality |
+|--------|---------|
+| "This would be too verbose if I wrote it all out" | The cost of verbosity is bytes. The cost of ambiguity is rework. |
+| "The dev agent has the project context" | Fresh subagents per task. No inherited context. None. |
+| "Tests are obvious from the AC" | If they are, write them. If they aren't, write them anyway. |
+| "I'll add the missing details when the dev asks" | The dev won't ask — it'll guess and ship. |
+
+## Reader persona
+
+> Stories must be readable by an **enthusiastic junior engineer with poor taste, no judgement, no project context, and an aversion to testing**. If the story leaves room for interpretation, that junior will pick the wrong path. Granularity, exactness of file paths, and explicit test commands are non-negotiable.
+
+This persona is the canonical reader of every story you produce. It is the testable target of granularity:
+
+- **No file path?** The junior will create a new file in the wrong directory.
+- **Snippet instead of full code?** The junior will fill in the gap from training-data templates and miss the project's conventions.
+- **No test command?** The junior will skip testing.
+- **"Similar to story X"?** The junior will copy the wrong differences.
+- **"Add appropriate error handling"?** The junior will catch every exception and `console.log` it.
+
+Every Red Flag in the previous section maps back to "the junior would misread this." When in doubt about whether a detail is necessary, ask: **would the junior produce the right code from this without it?** If no, write it.
 
 ## Mode Detection
 
@@ -173,6 +212,17 @@ If `ticket_system` is not `none`:
 - Add `**Ticket:** {{ticket_id}}`
 - Add `**Branch:** feature/{{ticket_id}}-{{story-slug}}`
 - Add commit prefix in Dev Notes
+
+## Self-review (run before user gate)
+
+Before presenting the story file to the user, walk this checklist. Each `[ ]` must flip to `[x]` or HALT. If the lint step exits 1, present its output verbatim and ask `[F]ix` / `[O]verride (record reason)`.
+
+- [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh <story-file>`.
+- [ ] **Exact file paths** — every Execution task references a real file path (not "the auth module"). Persona check: the junior should not have to guess.
+- [ ] **Test commands** — every task with verifiable behaviour has an exact test command and expected output (not "run the tests").
+- [ ] **Given/When/Then ACs** — every Acceptance Criterion follows the Given/When/Then form. No bare "make it work" lines.
+- [ ] **Dependencies done** — every entry in `depends_on:` is a story whose status is `done` in `state.yaml`.
+- [ ] **Reader persona check** — re-read the story top-to-bottom asking "would the junior produce the right code from this?" If any answer is "probably not", fix.
 
 ## Output
 

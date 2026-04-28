@@ -1,6 +1,6 @@
 ---
 name: aped-lead
-description: 'Lead Dev hub for parallel sprints. Batch-processes Story Leader check-ins (story-ready, dev-done, review-done), auto-approves what is safe, escalates what needs user attention, and pushes the next command into each worktree. Use when user says "lead", "check approvals", "aped lead", or invokes /aped-lead. Runs from the MAIN project, not a worktree.'
+description: 'Use when user says "lead", "check approvals", "check sprint check-ins", "aped lead", or invokes /aped-lead. Runs from the main project, not a worktree.'
 disable-model-invocation: true
 license: MIT
 metadata:

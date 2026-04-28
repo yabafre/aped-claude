@@ -1,6 +1,6 @@
 ---
 name: aped-from-ticket
-description: 'Pulls a ticket from the configured ticket system, drafts a story conformant to the project, integrates it into the sprint state, and (optionally) comments back on the ticket. Use when user says "from ticket", "pickup ticket", "ingest ticket", "aped from-ticket", or invokes /aped-from-ticket.'
+description: 'Use when user says "from ticket", "pickup ticket", "ingest ticket", references an external ticket ID, "aped from-ticket", or invokes /aped-from-ticket.'
 argument-hint: "<ticket-id-or-url>"
 license: MIT
 metadata:
@@ -194,6 +194,15 @@ Per `from_ticket.handoff.after_story`:
 - **`continue_to_dev`**: invoke `/aped-dev {story-key}` directly.
 
 **Do NOT auto-chain unless `continue_to_dev` is explicitly configured.**
+
+## Self-review (run before user gate)
+
+Before presenting the drafted story to the user, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
+
+- [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/stories/<story-key>.md`.
+- [ ] **Same checks as `/aped-story`** — exact file paths, full code blocks, exact test commands, Given/When/Then ACs, reader-persona check.
+- [ ] **Ticket reference preserved** — the source ticket ID and link appear verbatim in the story frontmatter.
+- [ ] **Dependencies resolved** — every `depends_on:` story is `done` (or the story is correctly placed in the bucket epic).
 
 ## Output
 

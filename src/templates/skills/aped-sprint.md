@@ -1,6 +1,6 @@
 ---
 name: aped-sprint
-description: 'Dispatches multiple stories in parallel via git worktrees. Creates worktrees only — does NOT post story-ready nor flip state.yaml to in-progress. That is /aped-story owning its feature branch. Use when user says "parallel sprint", "dispatch stories", "aped sprint", or invokes /aped-sprint. Only runs inside the main project (not inside an APED worktree).'
+description: 'Use when user says "parallel sprint", "dispatch stories", "aped sprint", or invokes /aped-sprint. Only runs inside the main project, not inside a worktree. Creates worktrees only — story-ready and state flips are owned by /aped-story.'
 disable-model-invocation: true
 license: MIT
 metadata:
