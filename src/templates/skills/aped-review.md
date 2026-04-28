@@ -173,9 +173,42 @@ A story can trigger multiple specialists. Example:
 
 Review is a set of **independent validations**: each specialist audits its scope, reports to the Lead. There is no real-time cross-specialist negotiation — the Lead merges findings and does the cross-referencing. This keeps the workflow simple and scalable, and avoids Claude Code's experimental agent-teams mode (which puts each teammate in a tmux pane — unreadable beyond ~3 agents).
 
-### Dispatch pattern — parallel subagents
+### Two-stage review ordering
 
-All selected specialists are spawned in a **single message, in parallel**, via the `Agent` tool. **No** `team_name`, **no** `TeamCreate`, **no** `SendMessage`. Their findings return to the Lead as tool results; the Lead handles cross-cutting concerns in Step 6 (Merge Findings).
+Compliance precedes quality. **Eva runs alone, first, as a blocking gate.** Marcus, Rex, and the conditional specialists are dispatched only after Eva's verdict.
+
+**Why two stages?** If Eva NACKs the ACs (the story doesn't deliver what was promised), the story will return to dev regardless of what Marcus/Rex find. Running them in parallel with Eva burns tokens on a doomed review. Spec-compliance first, code-quality second.
+
+#### Stage 1 — Eva alone (synchronous gate)
+
+Dispatch **only** Eva (ac-validator) via the `Agent` tool. Single subagent. Wait for her verdict.
+
+- **Eva PASS (verdict: APPROVED)** → proceed to Stage 2.
+- **Eva NACK (verdict: CHANGES_REQUESTED)** → HALT immediately. Present Eva's findings to the user.
+
+#### NACK handler — `[F]ix` / `[O]verride`
+
+When Eva returns CHANGES_REQUESTED, present this menu (do NOT auto-dispatch the other specialists):
+
+```
+Eva flagged AC gap(s):
+{list Eva's findings here verbatim — file:line + AC ID per finding}
+
+Options:
+[F] Fix — return story to dev (status flips back to in-progress, /aped-review exits without dispatching the other specialists)
+[O] Override — proceed with Marcus, Rex, and conditional specialists despite the AC gap. You will be asked for a reason; that reason is recorded as the first line of the merged report.
+```
+
+⏸ **HALT — wait for `[F]` or `[O]`.**
+
+- On `[F]`: run `bash {{APED_DIR}}/scripts/sync-state.sh set-story-status {key} in-progress`, exit `/aped-review`.
+- On `[O]`: prompt the user for a reason (one line, will appear in the report). **The reason must be non-empty** — the entire purpose of the override gate is the recorded justification. If the user submits an empty reason, re-prompt: "Override requires a reason. Please state why the AC gap is acceptable to proceed." Re-loop until non-empty or the user types `[F]` instead. Set `OVERRIDE_REASON="<text>"` for use in Step 7. Continue to Stage 2.
+
+If Eva's subagent fails to return a structured verdict (transport error, malformed report), re-dispatch her once with sharper instructions. If the second attempt also fails, HALT and escalate to the user — the gate cannot pass on a missing verdict.
+
+#### Stage 2 — Parallel dispatch (only after Eva PASS or `[O]verride`)
+
+Dispatch all remaining selected specialists — Marcus, Rex, and any conditional specialists from the file-surface map — in a **single message, in parallel**, via the `Agent` tool. **No** `team_name`, **no** `TeamCreate`, **no** `SendMessage`. Their findings return to the Lead as tool results; the Lead handles cross-cutting concerns in Step 6 (Merge Findings).
 
 ### Who to dispatch
 
@@ -285,6 +318,7 @@ Before presenting the merged report to the user, walk this checklist. Each `[ ]`
 - [ ] **Every finding has evidence** — file:line, command output, or stack trace. No bare "looks suspicious".
 - [ ] **Git audit captured** — Rex's audit ran and its output is reflected in the report.
 - [ ] **Verification re-run** — the test command(s) for this story were re-run by the lead in this session, output captured. Reports from the dev session do not count.
+- [ ] **Two-stage ordering** — Eva ran first (single subagent, synchronous); Marcus, Rex, and conditional specialists were dispatched only after Eva PASS or after the user chose `[O]verride` with a recorded reason.
 
 ## Verification gate (run before Step 7)
 
@@ -304,7 +338,13 @@ If none of the three is present, **HALT** and re-run the verification, capturing
 
 ## Step 7: Present Report to User
 
-Format the final report:
+Format the final report. **If Eva NACKed and the user chose `[O]verride` in Step 5**, the report opens with an Override callout:
+
+```markdown
+> **Override:** AC gap accepted — reason: "{OVERRIDE_REASON}"
+```
+
+(Omit this line entirely on the normal Eva-PASS path.)
 
 ```markdown
 ## Review Report — {story-key}

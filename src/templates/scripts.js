@@ -1567,14 +1567,31 @@ exit 0
 # \${main_project}/${a}/checkins/ — concurrent-safe via flock.
 #
 # Usage:
-#   checkin.sh post    <story-key> <kind> [<reason>]
+#   checkin.sh post    <story-key> <kind> [--status <AGENT_STATUS>] [<reason>]
 #   checkin.sh poll    [--format json|text]
 #   checkin.sh approve <story-key> <kind>
 #   checkin.sh block   <story-key> <kind> <reason>
 #   checkin.sh push    <story-key> <next-command...>
 #   checkin.sh status  <story-key> <kind>    # → pending|approved|blocked|none
 #
-# \`kind\` ∈ { story-ready, dev-done, review-done }.
+# \`kind\` ∈ { story-ready, dev-done, review-done, dev-blocked }.
+#
+# \`--status\` (optional) reports the **agent-confidence status** independently
+# of the workflow approval status. It is what the Story Leader tells the Lead
+# Dev about its own confidence in the work it just shipped:
+#   DONE                 — task complete, no concerns. Auto-approve eligible.
+#   DONE_WITH_CONCERNS   — done but flagging a non-blocking concern. Never
+#                          auto-approves; Lead must read the reason.
+#   NEEDS_CONTEXT        — agent has hit a question that needs user input.
+#                          Never auto-approves; reason is the question.
+#   BLOCKED              — agent cannot proceed. Use kind=\`dev-blocked\`.
+#
+# Persisted in JSONL as field \`agent_status\` (distinct from the existing
+# \`status\` field, which carries the workflow state pending|approved|blocked).
+# Default-status-for-kind mapping when --status is omitted:
+#   story-ready | dev-done | review-done → DONE
+#   dev-blocked                          → BLOCKED
+# DONE_WITH_CONCERNS and NEEDS_CONTEXT require a non-empty reason argument.
 
 set -u
 set -o pipefail
@@ -1651,6 +1668,20 @@ validate_kind() {
   esac
 }
 
+validate_agent_status() {
+  case "\$1" in
+    DONE|DONE_WITH_CONCERNS|NEEDS_CONTEXT|BLOCKED) ;;
+    *) echo "Invalid status: \$1 (expected DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED)" >&2; exit 1 ;;
+  esac
+}
+
+default_agent_status_for_kind() {
+  case "\$1" in
+    story-ready|dev-done|review-done) echo DONE ;;
+    dev-blocked)                      echo BLOCKED ;;
+  esac
+}
+
 now_iso() {
   date -u +%Y-%m-%dT%H:%M:%SZ
 }
@@ -1669,18 +1700,19 @@ inbox_file() {
 }
 
 append_entry() {
-  local key="\$1" kind="\$2" status="\$3" reason="\${4:-}"
+  local key="\$1" kind="\$2" status="\$3" reason="\${4:-}" agent_status="\${5:-}"
   local file
   file=\$(inbox_file "\$key")
   local entry
   if command -v jq >/dev/null 2>&1; then
-    entry=\$(jq -c -n --arg ts "\$(now_iso)" --arg s "\$key" --arg k "\$kind" --arg st "\$status" --arg r "\$reason" \
-      '{ts:\$ts, story:\$s, kind:\$k, status:\$st, reason:\$r}')
+    entry=\$(jq -c -n --arg ts "\$(now_iso)" --arg s "\$key" --arg k "\$kind" --arg st "\$status" --arg r "\$reason" --arg ast "\$agent_status" \
+      '{ts:\$ts, story:\$s, kind:\$k, status:\$st, agent_status:\$ast, reason:\$r}')
   else
-    entry=\$(APED_TS="\$(now_iso)" APED_S="\$key" APED_K="\$kind" APED_ST="\$status" APED_R="\$reason" node -e '
+    entry=\$(APED_TS="\$(now_iso)" APED_S="\$key" APED_K="\$kind" APED_ST="\$status" APED_R="\$reason" APED_AST="\$agent_status" node -e '
       process.stdout.write(JSON.stringify({
         ts: process.env.APED_TS, story: process.env.APED_S,
-        kind: process.env.APED_K, status: process.env.APED_ST, reason: process.env.APED_R
+        kind: process.env.APED_K, status: process.env.APED_ST,
+        agent_status: process.env.APED_AST, reason: process.env.APED_R
       }))')
   fi
 
@@ -1698,7 +1730,11 @@ latest_status() {
   if command -v jq >/dev/null 2>&1; then
     jq -r --arg k "\$kind" 'select(.kind == \$k) | .status' "\$file" 2>/dev/null | tail -1 || echo "none"
   else
-    grep "\"kind\":\"\$kind\"" "\$file" | tail -1 | sed 's/.*"status":"\\([^"]*\\)".*/\\1/' || echo "none"
+    # Anchor on \`{"\` or \`,"\` to prevent the trailing \`agent_status\` field
+    # from being consumed by the leading \`.*\` (regex would otherwise capture
+    # it on entries where field order differs). This pins to the workflow
+    # status, not the agent-confidence status.
+    grep "\"kind\":\"\$kind\"" "\$file" | tail -1 | sed -E 's/.*[{,]"status":"([^"]*)".*/\\1/' || echo "none"
   fi
 }
 
@@ -1732,23 +1768,82 @@ post_ticket_comment() {
 
 # ── Actions ───────────────────────────────────────────────────────────────
 cmd_post() {
-  local key="\${1:-}" kind="\${2:-}" reason="\${3:-}"
-  [[ -n "\$key" && -n "\$kind" ]] || { echo "Usage: checkin.sh post <key> <kind> [reason]" >&2; exit 1; }
+  # Parse positional args + optional --status flag (placed anywhere).
+  # \`--\` ends flag parsing; subsequent tokens are positional, even if they
+  # start with \`--\` (so a reason starting with two dashes can be passed
+  # safely: \`post key kind -- "--this is a literal reason"\`).
+  local key="" kind="" reason="" agent_status="" no_more_flags=false
+  while [[ \$# -gt 0 ]]; do
+    if [[ "\$no_more_flags" == "true" ]]; then
+      if   [[ -z "\$key" ]];    then key="\$1"
+      elif [[ -z "\$kind" ]];   then kind="\$1"
+      elif [[ -z "\$reason" ]]; then reason="\$1"
+      else echo "Unexpected argument: \$1" >&2; exit 1
+      fi
+      shift; continue
+    fi
+    case "\$1" in
+      --)
+        no_more_flags=true; shift ;;
+      --status)
+        [[ \$# -ge 2 ]] || { echo "checkin.sh post: --status requires an argument" >&2; exit 1; }
+        agent_status="\$2"; shift 2 ;;
+      --status=*)
+        agent_status="\${1#--status=}"; shift ;;
+      *)
+        if   [[ -z "\$key" ]];    then key="\$1"
+        elif [[ -z "\$kind" ]];   then kind="\$1"
+        elif [[ -z "\$reason" ]]; then reason="\$1"
+        else echo "Unexpected argument: \$1" >&2; exit 1
+        fi
+        shift ;;
+    esac
+  done
+
+  [[ -n "\$key" && -n "\$kind" ]] || { echo "Usage: checkin.sh post <key> <kind> [--status <AGENT_STATUS>] [reason]" >&2; exit 1; }
   validate_kind "\$kind"
 
-  append_entry "\$key" "\$kind" "pending" "\$reason"
+  if [[ -z "\$agent_status" ]]; then
+    agent_status=\$(default_agent_status_for_kind "\$kind")
+  else
+    validate_agent_status "\$agent_status"
+  fi
+
+  # BLOCKED is paired with kind=dev-blocked exclusively, and dev-blocked is
+  # paired with status BLOCKED exclusively. The kind is the schedule signal,
+  # the status is the confidence signal — diverging them creates a state the
+  # Lead Dev's routing table doesn't model (e.g. kind=dev-blocked +
+  # status=DONE would auto-approve a blocked check-in via DONE's path).
+  if [[ "\$agent_status" == "BLOCKED" && "\$kind" != "dev-blocked" ]]; then
+    echo "Status BLOCKED requires kind=dev-blocked (got kind=\$kind). Use: checkin.sh post \$key dev-blocked YOUR_REASON" >&2
+    exit 1
+  fi
+  if [[ "\$kind" == "dev-blocked" && "\$agent_status" != "BLOCKED" ]]; then
+    echo "kind=dev-blocked requires status=BLOCKED (got --status \$agent_status). dev-blocked and BLOCKED are paired exclusively." >&2
+    exit 1
+  fi
+
+  # DONE_WITH_CONCERNS, NEEDS_CONTEXT, and BLOCKED carry information beyond
+  # the kind (the concern, the question, the reason). Without a reason the
+  # Lead has nothing to act on — refuse the post.
+  case "\$agent_status" in
+    DONE_WITH_CONCERNS|NEEDS_CONTEXT|BLOCKED)
+      [[ -n "\$reason" ]] || { echo "Status \$agent_status requires a reason argument explaining the concern/question/blocker." >&2; exit 1; } ;;
+  esac
+
+  append_entry "\$key" "\$kind" "pending" "\$reason" "\$agent_status"
 
   if [[ "\$TICKET_SYSTEM" != "none" ]]; then
     local ticket
     ticket=\$(ticket_for_story "\$key" || true)
     if [[ -n "\$ticket" ]]; then
       add_ticket_label "\$ticket" "aped-checkin-\$kind"
-      post_ticket_comment "\$ticket" "[APED:CHECKIN:\$kind] \$key — requesting lead approval.\${reason:+\$'\\n'Reason: \$reason}"
+      post_ticket_comment "\$ticket" "[APED:CHECKIN:\$kind:\$agent_status] \$key — requesting lead approval.\${reason:+\$'\\n'Reason: \$reason}"
     fi
   fi
 
-  log_event checkin_posted story="\$key" kind="\$kind" reason="\$reason"
-  printf 'posted %s/%s (pending)\\n' "\$key" "\$kind"
+  log_event checkin_posted story="\$key" kind="\$kind" agent_status="\$agent_status" reason="\$reason"
+  printf 'posted %s/%s (pending, agent_status=%s)\\n' "\$key" "\$kind" "\$agent_status"
 }
 
 cmd_approve() {

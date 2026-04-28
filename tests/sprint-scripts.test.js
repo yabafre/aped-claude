@@ -280,3 +280,115 @@ describe('worktree-cleanup.sh', () => {
     expect(r.code).not.toBe(0);
   });
 });
+
+describe('checkin.sh — agent_status protocol (Tier 3)', () => {
+  function setupCheckin(root) {
+    installScript(root, 'checkin.sh');
+    installScript(root, 'log.sh');
+    writeFileSync(join(root, APED_DIR, 'config.yaml'), `ticket_system: none\ngit_provider: github\n`);
+    writeFileSync(join(root, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 1\nsprint:\n  active_epic: 1\n  stories:\n    1-1-foo:\n      status: in-progress\n      ticket: ""\n      worktree: ""\n`);
+  }
+
+  it('post defaults agent_status to DONE for kind=dev-done', () => {
+    setupCheckin(sandbox);
+    const r = run(`cd ${sandbox} && bash ${sandbox}/${APED_DIR}/scripts/checkin.sh post 1-1-foo dev-done`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.stdout).toMatch(/agent_status=DONE/);
+    const inbox = readFileSync(join(sandbox, APED_DIR, 'checkins', '1-1-foo.jsonl'), 'utf8');
+    expect(inbox).toMatch(/"agent_status":"DONE"/);
+    expect(inbox).toMatch(/"kind":"dev-done"/);
+  });
+
+  it('post --status DONE_WITH_CONCERNS persists status + reason', () => {
+    setupCheckin(sandbox);
+    const r = run(`cd ${sandbox} && bash ${sandbox}/${APED_DIR}/scripts/checkin.sh post 1-1-foo dev-done --status DONE_WITH_CONCERNS "left a TODO on rate limiting"`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+    const inbox = readFileSync(join(sandbox, APED_DIR, 'checkins', '1-1-foo.jsonl'), 'utf8');
+    expect(inbox).toMatch(/"agent_status":"DONE_WITH_CONCERNS"/);
+    expect(inbox).toMatch(/"reason":"left a TODO on rate limiting"/);
+  });
+
+  it('post --status DONE_WITH_CONCERNS without reason exits 1', () => {
+    setupCheckin(sandbox);
+    const r = run(`cd ${sandbox} && bash ${sandbox}/${APED_DIR}/scripts/checkin.sh post 1-1-foo dev-done --status DONE_WITH_CONCERNS`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code).toBe(1);
+    expect(r.stderr).toMatch(/requires a reason/);
+  });
+
+  it('post --status NEEDS_CONTEXT requires a reason (the question)', () => {
+    setupCheckin(sandbox);
+    const r1 = run(`cd ${sandbox} && bash ${sandbox}/${APED_DIR}/scripts/checkin.sh post 1-1-foo dev-done --status NEEDS_CONTEXT`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r1.code).toBe(1);
+    expect(r1.stderr).toMatch(/requires a reason/);
+    // With reason (the question), it persists.
+    const r2 = run(`cd ${sandbox} && bash ${sandbox}/${APED_DIR}/scripts/checkin.sh post 1-1-foo dev-done --status NEEDS_CONTEXT "client-side or server-side validation"`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r2.code, r2.stderr).toBe(0);
+    const inbox = readFileSync(join(sandbox, APED_DIR, 'checkins', '1-1-foo.jsonl'), 'utf8');
+    expect(inbox).toMatch(/"agent_status":"NEEDS_CONTEXT"/);
+  });
+
+  it('post --status BLOCKED with kind=dev-done is rejected (use kind=dev-blocked)', () => {
+    setupCheckin(sandbox);
+    const r = run(`cd ${sandbox} && bash ${sandbox}/${APED_DIR}/scripts/checkin.sh post 1-1-foo dev-done --status BLOCKED "broken env"`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code).toBe(1);
+    expect(r.stderr).toMatch(/dev-blocked/);
+  });
+
+  it('post unknown --status value exits 1', () => {
+    setupCheckin(sandbox);
+    const r = run(`cd ${sandbox} && bash ${sandbox}/${APED_DIR}/scripts/checkin.sh post 1-1-foo dev-done --status WAT`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code).toBe(1);
+    expect(r.stderr).toMatch(/Invalid status/);
+  });
+
+  it('post dev-blocked defaults agent_status to BLOCKED', () => {
+    setupCheckin(sandbox);
+    const r = run(`cd ${sandbox} && bash ${sandbox}/${APED_DIR}/scripts/checkin.sh post 1-1-foo dev-blocked "missing dep"`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+    const inbox = readFileSync(join(sandbox, APED_DIR, 'checkins', '1-1-foo.jsonl'), 'utf8');
+    expect(inbox).toMatch(/"agent_status":"BLOCKED"/);
+  });
+
+  // ── Tier 3 review-cycle patches ─────────────────────────────────────────
+  it('post dev-blocked --status DONE is rejected (converse pairing)', () => {
+    // Edge case: pre-patch the script enforced BLOCKED→dev-blocked but not
+    // the converse. A check-in with kind=dev-blocked + status=DONE would
+    // route via the DONE path at the Lead, auto-approving a blocked story.
+    setupCheckin(sandbox);
+    const r = run(`cd ${sandbox} && bash ${sandbox}/${APED_DIR}/scripts/checkin.sh post 1-1-foo dev-blocked --status DONE "spurious"`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code).toBe(1);
+    expect(r.stderr).toMatch(/dev-blocked requires status=BLOCKED/);
+  });
+
+  it('post dev-blocked without reason is rejected (BLOCKED needs a reason)', () => {
+    // Edge case: pre-patch only DONE_WITH_CONCERNS / NEEDS_CONTEXT required
+    // a reason. dev-blocked with empty reason left the Lead nothing to act
+    // on. The Tier 3 routing requires the reason for BLOCKED too.
+    setupCheckin(sandbox);
+    const r = run(`cd ${sandbox} && bash ${sandbox}/${APED_DIR}/scripts/checkin.sh post 1-1-foo dev-blocked`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code).toBe(1);
+    expect(r.stderr).toMatch(/requires a reason/);
+  });
+
+  it('post supports -- separator for reason starting with --', () => {
+    // Edge case: a literal reason that begins with "--" was previously
+    // mis-parsed as a flag. The -- separator opts out of flag parsing.
+    setupCheckin(sandbox);
+    const r = run(`cd ${sandbox} && bash ${sandbox}/${APED_DIR}/scripts/checkin.sh post 1-1-foo dev-done --status DONE_WITH_CONCERNS -- "--this reason starts with two dashes"`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+    const inbox = readFileSync(join(sandbox, APED_DIR, 'checkins', '1-1-foo.jsonl'), 'utf8');
+    expect(inbox).toMatch(/--this reason starts with two dashes/);
+  });
+});
