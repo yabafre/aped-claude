@@ -5,7 +5,7 @@
 [![Node](https://img.shields.io/node/v/aped-method.svg?style=flat-square)](https://nodejs.org)
 [![License](https://img.shields.io/npm/l/aped-method.svg?style=flat-square)](./LICENSE)
 
-CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — 23 slash commands, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, **parallel sprint** mode via `git worktree` with a Lead Dev coordinator, sprint **umbrella branch convention** so parallel sprints integrate via one reviewable PR per sprint, an **external ticket intake** (`/aped-from-ticket`) for tickets that bypass the planning flow, and **cross-tool skill distribution** via symlinks so OpenCode, Codex CLI, and any `agents.md` reader see the same skills as Claude Code.
+CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — **25 skills** (with deprecated `/aped-X` slash command aliases), two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, **parallel sprint** mode via `git worktree` with a Lead Dev coordinator, sprint **umbrella branch convention** so parallel sprints integrate via one reviewable PR per sprint, an **external ticket intake** for tickets that bypass the planning flow, and **cross-tool skill distribution** via symlinks so OpenCode, Codex CLI, and any `agents.md` reader see the same skills as Claude Code.
 
 ```
 npx aped-method
@@ -77,9 +77,15 @@ Each opt-in subcommand also accepts `--uninstall` to remove its installed bits.
 
 ## Command catalog
 
-APED ships 25 slash commands across the core pipeline, upstream ideation, critique, sprint operations, external-ticket intake, debugging, code-review reception, and maintenance flows. The detailed catalog is generated from the same `COMMAND_DEFS` source that produces the scaffolded slash commands, so it stays in sync as the product evolves.
+> **Deprecation notice (since 3.12.0):** Slash commands are deprecated in favor of direct skill invocation. Removal target: **4.0.0**. They continue to function on all 3.x versions. The primary invocation path is now the skill `description:` triggering — say "create the prd" or use the Skill tool directly, instead of typing `/aped-prd`.
+
+APED ships 25 skills, each exposed via a now-deprecated slash command alias for backward compatibility. The detailed catalog is generated from the same `COMMAND_DEFS` source that produces the scaffolded slash commands, so it stays in sync as the product evolves.
 
 See [`docs/COMMANDS.md`](./docs/COMMANDS.md) for the full generated catalog, including phase, arguments, purpose, and likely outputs.
+
+### Skill-first invocation (3.12.0+)
+
+APED skills are the primary invocation surface. Trigger them either via the Skill tool (`Skill aped-prd`) or by saying a phrase that matches the skill's `description:` (e.g. "create the prd", "run an architecture review"). The slash commands `/aped-prd`, `/aped-arch`, etc. still work but are deprecated.
 
 ## Operational commands
 
