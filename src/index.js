@@ -45,6 +45,8 @@ const SUBCOMMANDS = new Set([
   'symlink',
   'post-edit-typescript',
   'verify-claims',
+  'session-start',
+  'visual-companion',
 ]);
 
 // Keys we accept from a user-edited config.yaml. Anything else is ignored silently
@@ -65,6 +67,7 @@ const VALID_YAML_KEYS = new Set([
 // Whitelist of CLI flag keys (camelCased). Unknown flags produce a warning but do not abort.
 const VALID_ARG_KEYS = new Set([
   'yes', 'y', 'update', 'u', 'fresh', 'force', 'version', 'v', 'help', 'h', 'debug',
+  'uninstall',
   'project', 'projectName',
   'author', 'authorName',
   'lang', 'communicationLang',
@@ -89,6 +92,10 @@ SUBCOMMANDS
   symlink                 Repair APED cross-tool skill symlinks
   post-edit-typescript    Install the optional TypeScript post-edit quality hook
   verify-claims           Install the optional verification-claims advisory hook
+  session-start           Install the opt-in SessionStart hook (skill-index preload).
+                          Pass --uninstall to remove the hook entry from settings.
+  visual-companion        Install the opt-in /aped-brainstorm visual companion server.
+                          Pass --uninstall to remove the visual-companion directory.
 
 OPTIONS
   --yes, -y                Non-interactive mode (use defaults or existing config)
@@ -218,6 +225,7 @@ function parseArgs(argv) {
     if (arg === '--version' || arg === '-v') { args.version = true; continue; }
     if (arg === '--help' || arg === '-h') { args.help = true; continue; }
     if (arg === '--debug') { args.debug = true; continue; }
+    if (arg === '--uninstall') { args.uninstall = true; continue; }
     const match = arg.match(/^--([a-z][a-z0-9-]*)=(.*)$/i);
     if (match) {
       const key = match[1].replace(/-([a-z])/g, (_, ch) => ch.toUpperCase());

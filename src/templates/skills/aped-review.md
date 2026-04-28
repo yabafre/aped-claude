@@ -240,6 +240,127 @@ Each specialist has a **persona** (name + defining trait). Include the persona i
 - `subagent_type: "feature-dev:code-reviewer"`
 - Focus: security (injection, auth, secrets), performance (N+1, memory), reliability (errors, edge cases), test quality
 
+#### Testing anti-patterns checklist
+
+Marcus must run the artefact through this 5-anti-pattern audit. Each anti-pattern has a gate function — if any check fires, raise as a finding (`HIGH` for layered consequences like incomplete-mocks; `MEDIUM` otherwise unless the affected behaviour is security-critical).
+
+**Iron Laws:**
+1. NEVER test mock behavior
+2. NEVER add test-only methods to production classes
+3. NEVER mock without understanding dependencies
+
+##### 1. Mock-the-behavior (testing mock existence, not real behavior)
+
+Asserting on `*-mock` test IDs or on the literal presence of a mock = testing the mock works, not the component.
+
+**Gate function:**
+```
+BEFORE asserting on any mock element:
+  Ask: "Am I testing real component behavior or just mock existence?"
+
+  IF testing mock existence:
+    STOP - Delete the assertion or unmock the component
+
+  Test real behavior instead
+```
+
+##### 2. Test-only methods in production
+
+A `destroy()` / `reset()` / `_internalReinit()` method only ever called from tests — production class polluted with test-only code, dangerous if called in prod, violates YAGNI.
+
+**Gate function:**
+```
+BEFORE adding any method to production class:
+  Ask: "Is this only used by tests?"
+
+  IF yes:
+    STOP - Don't add it
+    Put it in test utilities instead
+
+  Ask: "Does this class own this resource's lifecycle?"
+
+  IF no:
+    STOP - Wrong class for this method
+```
+
+##### 3. Mock-without-understanding (mocking too much, breaking the test you wrote)
+
+Mocking a high-level method whose real implementation has side effects the test depends on — mock prevents config write, test claims to detect duplicate but never could.
+
+**Gate function:**
+```
+BEFORE mocking any method:
+  STOP - Don't mock yet
+
+  1. Ask: "What side effects does the real method have?"
+  2. Ask: "Does this test depend on any of those side effects?"
+  3. Ask: "Do I fully understand what this test needs?"
+
+  IF depends on side effects:
+    Mock at lower level (the actual slow/external operation)
+    OR use test doubles that preserve necessary behavior
+    NOT the high-level method the test depends on
+
+  IF unsure what test depends on:
+    Run test with real implementation FIRST
+    Observe what actually needs to happen
+    THEN add minimal mocking at the right level
+
+  Red flags:
+    - "I'll mock this to be safe"
+    - "This might be slow, better mock it"
+    - Mocking without understanding the dependency chain
+```
+
+##### 4. Incomplete mocks (mock missing fields the real API has)
+
+Partial mocks hide structural assumptions — downstream code depends on fields you didn't include, mock incomplete + real API complete = silent integration failure.
+
+**The Iron Rule:** Mock the COMPLETE data structure as it exists in reality, not just the fields the immediate test uses.
+
+**Gate function:**
+```
+BEFORE creating mock responses:
+  Check: "What fields does the real API response contain?"
+
+  Actions:
+    1. Examine actual API response from docs/examples
+    2. Include ALL fields system might consume downstream
+    3. Verify mock matches real response schema completely
+
+  Critical:
+    If you're creating a mock, you must understand the ENTIRE structure
+    Partial mocks fail silently when code depends on omitted fields
+
+  If uncertain: Include all documented fields
+```
+
+##### 5. Integration tests as afterthought
+
+"Implementation complete, no tests written, ready for testing" — testing is part of implementation, not optional follow-up. TDD would have caught this.
+
+**Gate function:**
+```
+TDD cycle:
+1. Write failing test
+2. Implement to pass
+3. Refactor
+4. THEN claim complete
+```
+
+##### Quick reference
+
+| Anti-Pattern | Fix |
+|--------------|-----|
+| Assert on mock elements | Test real component or unmock it |
+| Test-only methods in production | Move to test utilities |
+| Mock without understanding | Understand dependencies first, mock minimally |
+| Incomplete mocks | Mirror real API completely |
+| Tests as afterthought | TDD - tests first |
+| Over-complex mocks | Consider integration tests |
+
+If Marcus finds even one of these, he raises it as a finding with the exact gate function he applied. Tests that look passing while violating any of these are the most dangerous regressions APED ships.
+
 **git-auditor** — **Rex**, Code Archaeologist — "Every commit tells a story."
 - `subagent_type: "general-purpose"`
 - Runs `bash {{APED_DIR}}/aped-review/scripts/git-audit.sh`
@@ -319,6 +440,7 @@ Before presenting the merged report to the user, walk this checklist. Each `[ ]`
 - [ ] **Git audit captured** — Rex's audit ran and its output is reflected in the report.
 - [ ] **Verification re-run** — the test command(s) for this story were re-run by the lead in this session, output captured. Reports from the dev session do not count.
 - [ ] **Two-stage ordering** — Eva ran first (single subagent, synchronous); Marcus, Rex, and conditional specialists were dispatched only after Eva PASS or after the user chose `[O]verride` with a recorded reason.
+- [ ] **Testing anti-patterns** — Marcus checked the artefact for the 5 testing anti-patterns (mock-the-behavior, test-only-methods, mock-without-understanding, incomplete-mocks, integration-test-as-afterthought).
 
 ## Verification gate (run before Step 7)
 

@@ -116,7 +116,63 @@ The block to inject (between `<!-- APED:START -->` and `<!-- APED:END -->`) cont
 - Lessons: `{{OUTPUT_DIR}}/lessons.md`
 - Project: {{project_name}} ({{user_name}}, {{communication_language}})
 
-### Section 7: Slash Commands Cheat Sheet
+### Section 7: Skill Invocation Discipline
+
+Render this section only if `aped/config.yaml` has `skill_invocation_discipline.enabled: true` (default `true`). When disabled, omit Section 7 entirely and renumber Section 8 to Section 7.
+
+> *(Lifted verbatim from Superpowers' `using-superpowers` Iron Law — Meincke et al. 2025 research shows imperative authority language drives compliance from 33% to 72%. Do not weaken with qualifiers.)*
+
+#### The 1% rule
+
+**If you think there is even a 1% chance an APED skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.**
+
+**IF AN APED SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.**
+
+This is not negotiable. This is not optional. You cannot rationalize your way out of this.
+
+Invoke relevant or requested skills BEFORE any response or action — including clarifying questions and codebase exploration. Even a 1% chance a skill might apply means you should invoke it to check. If an invoked skill turns out to be wrong for the situation, you don't need to use it.
+
+#### Red Flags — these thoughts mean STOP, you're rationalizing
+
+| Thought | Reality |
+|---------|---------|
+| "This is just a simple question" | Questions are tasks. Check for skills. |
+| "I need more context first" | Skill check comes BEFORE clarifying questions. |
+| "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
+| "I can check git/files quickly" | Files lack conversation context. Check for skills. |
+| "Let me gather information first" | Skills tell you HOW to gather information. |
+| "This doesn't need a formal skill" | If a skill exists, use it. |
+| "I remember this skill" | Skills evolve. Read the current version. |
+| "This doesn't count as a task" | Action = task. Check for skills. |
+| "The skill is overkill" | Simple things become complex. Use it. |
+| "I'll just do this one thing first" | Check BEFORE doing anything. |
+| "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
+| "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
+
+#### Instruction priority
+
+APED skills override default system-prompt behavior, but **user instructions always take precedence**:
+
+1. **User's explicit instructions** (CLAUDE.md, `aped/config.yaml`, direct requests) — highest priority.
+2. **APED skills** (`/aped-*` slash commands and their templates) — override default system behavior where they conflict.
+3. **Default system prompt** — lowest priority.
+
+If CLAUDE.md, `aped/config.yaml`, or a direct user request says "skip the TDD gate for this hotfix" and `/aped-dev` says "always RED first", **follow the user's instructions**. The user is in control. Record the override and the reason; don't bake it into a new skill.
+
+#### Skill priority order
+
+When multiple skills could apply, use this order:
+
+1. **Process skills first** (`/aped-brainstorm`, `/aped-debug`, `/aped-receive-review`, `/aped-review`) — these determine HOW to approach the task.
+2. **Implementation skills second** (`/aped-dev`, `/aped-story`, `/aped-epics`, `/aped-arch`) — these guide execution.
+
+#### Skill types
+
+**Rigid** (`/aped-dev`, `/aped-debug`, `/aped-review`, `/aped-receive-review`): follow exactly. Don't adapt away the discipline. The Iron Laws are not stylistic preferences.
+
+**Flexible** (`/aped-brainstorm`, `/aped-arch`): adapt principles to context. The skill itself tells you which.
+
+### Section 8: Slash Commands Cheat Sheet
 
 | Pipeline | Utility |
 |----------|---------|
@@ -127,7 +183,8 @@ The block to inject (between `<!-- APED:START -->` and `<!-- APED:END -->`) cont
 | /aped-epics | /aped-quick |
 | /aped-story | /aped-check |
 | /aped-dev | /aped-claude |
-| /aped-review | |
+| /aped-review | /aped-debug |
+| /aped-receive-review | |
 
 ## Lessons File
 

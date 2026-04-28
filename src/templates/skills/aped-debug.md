@@ -60,6 +60,65 @@ Goal: a single, deterministic command that produces the failure.
 
 ⏸ **GATE: a deterministic repro is captured.** If you can't reproduce, the bug is not understood. Loop back: ask the user for steps, runtime version, environment.
 
+### Sub-discipline: Root-cause tracing
+
+Bugs often manifest deep in the call stack (git init in wrong directory, file created in wrong location, database opened with wrong path). Your instinct is to fix where the error appears, but that's treating a symptom.
+
+**Core principle:** Trace backward through the call chain until you find the original trigger, then fix at the source.
+
+**NEVER fix just where the error appears.** Trace back to find the original trigger.
+
+**Use when:**
+- Error happens deep in execution (not at entry point)
+- Stack trace shows long call chain
+- Unclear where invalid data originated
+- Need to find which test/code triggers the problem
+
+#### Backward-tracing decision flow
+
+1. **Observe the symptom** — capture the error verbatim (`Error: git init failed in /Users/...`).
+2. **Find immediate cause** — what code directly produces this? (`await execFileAsync('git', ['init'], { cwd: projectDir })`).
+3. **Ask: what called this?** — walk one level up the stack (`WorktreeManager.createSessionWorktree → Session.initializeWorkspace → Session.create → test`).
+4. **Keep tracing up** — what value was passed at each frame? (`projectDir = ''` empty string!). Empty string as `cwd` resolves to `process.cwd()` — that's the source code directory.
+5. **Find original trigger** — where did the empty string come from? (`setupCoreTest()` returns `{ tempDir: '' }` accessed before `beforeEach`).
+6. **Fix at the source** — the getter that throws if accessed too early — not the leaf operation.
+
+#### Adding stack traces when manual trace dead-ends
+
+When you can't trace manually, instrument with `console.error()` at each component boundary:
+
+```typescript
+// Before the problematic operation
+async function gitInit(directory: string) {
+  const stack = new Error().stack;
+  console.error('DEBUG git init:', {
+    directory,
+    cwd: process.cwd(),
+    nodeEnv: process.env.NODE_ENV,
+    stack,
+  });
+
+  await execFileAsync('git', ['init'], { cwd: directory });
+}
+```
+
+**Critical:** Use `console.error()` in tests (not logger — it may not show). Log **before** the dangerous operation, not after it fails. Capture stack with `new Error().stack`.
+
+#### Finding which test causes pollution
+
+If something appears during tests but you don't know which test triggers it, run the bisection script registered under `aped/scripts/find-polluter.sh`. Pass it (1) a path that should NOT exist before any test runs, and (2) a glob of test files to bisect:
+
+```bash
+# Example: a stray sqlite db appearing during the suite.
+bash {{APED_DIR}}/scripts/find-polluter.sh 'tmp/test-state.db' 'tests/**/*.test.ts'
+```
+
+The script runs tests one-by-one, stops at the first one that creates or mutates the state path. Choose a state path that's normally absent at clean start — using `.git` as the example is misleading because `.git` always exists.
+
+#### Pair with Defense-in-depth (Phase 4)
+
+Once root cause is found and fixed, Phase 4's Defense-in-depth sub-discipline locks the fix in at every layer the bad data passes through. Tracing without defense leaves the same bug reachable through a different code path.
+
 ### Phase 2 — Root-cause trace
 
 Goal: a confirmed cause statement of the form "the failure happens because <specific code path> does <specific behaviour> when <specific condition>".
@@ -75,6 +134,90 @@ Suggested order:
 Stop on confirmed cause. Confirmation = predict-and-test: "if my hypothesis is right, then changing X will produce Y". Run it. If Y happens, hypothesis confirmed. If not, hypothesis wrong — back to bisecting.
 
 ⏸ **GATE: cause statement is captured in the form above, with the exact code reference (`file:line`).**
+
+### Sub-discipline: Condition-based waiting
+
+Flaky tests often guess at timing with arbitrary delays. This creates race conditions where tests pass on fast machines but fail under load or in CI.
+
+**Core principle:** Wait for the actual condition you care about, not a guess about how long it takes.
+
+**Use when:**
+- Tests have arbitrary delays (`setTimeout`, `sleep`, `time.sleep()`)
+- Tests are flaky (pass sometimes, fail under load)
+- Tests timeout when run in parallel
+- Waiting for async operations to complete
+
+**Don't use when:** the test is *about* timing behaviour itself (debounce, throttle intervals). Always document WHY if using arbitrary timeout.
+
+#### Forbidden patterns
+
+These three failure modes appear every time. Reject them in this order.
+
+| Pattern | Why it fails | Fix |
+|---------|--------------|-----|
+| **Polling too fast** — `setTimeout(check, 1)` | Wastes CPU; doesn't actually help. | Poll every 10ms. |
+| **No timeout** — `while (!cond) { ... }` | Loops forever if condition never met; CI hangs. | Always include a timeout with a clear error. |
+| **Stale data** — caching a getter result above the loop | Loop checks the cached value forever, never the live one. | Call the getter **inside** the loop for fresh data. |
+
+#### Core pattern (BEFORE / AFTER)
+
+```typescript
+// ❌ BEFORE: Guessing at timing
+await new Promise(r => setTimeout(r, 50));
+const result = getResult();
+expect(result).toBeDefined();
+
+// ✅ AFTER: Waiting for condition
+await waitFor(() => getResult() !== undefined);
+const result = getResult();
+expect(result).toBeDefined();
+```
+
+#### Quick patterns
+
+| Scenario | Pattern |
+|----------|---------|
+| Wait for event | `waitFor(() => events.find(e => e.type === 'DONE'))` |
+| Wait for state | `waitFor(() => machine.state === 'ready')` |
+| Wait for count | `waitFor(() => items.length >= 5)` |
+| Wait for file | `waitFor(() => fs.existsSync(path))` |
+| Complex condition | `waitFor(() => obj.ready && obj.value > 10)` |
+
+#### Reference implementation
+
+Generic polling function — copy this into the project's test utilities:
+
+```typescript
+async function waitFor<T>(
+  condition: () => T | undefined | null | false,
+  description: string,
+  timeoutMs = 5000
+): Promise<T> {
+  const startTime = Date.now();
+
+  while (true) {
+    const result = condition();
+    if (result) return result;
+
+    if (Date.now() - startTime > timeoutMs) {
+      throw new Error(`Timeout waiting for ${description} after ${timeoutMs}ms`);
+    }
+
+    await new Promise(r => setTimeout(r, 10)); // Poll every 10ms
+  }
+}
+```
+
+#### When arbitrary timeout IS correct
+
+```typescript
+// Tool ticks every 100ms - need 2 ticks to verify partial output
+await waitForEvent(manager, 'TOOL_STARTED'); // First: wait for condition
+await new Promise(r => setTimeout(r, 200));   // Then: wait for timed behavior
+// 200ms = 2 ticks at 100ms intervals - documented and justified
+```
+
+**Requirements:** (1) first wait for the triggering condition; (2) use a known timing (not a guess); (3) comment explaining WHY.
 
 ### Phase 3 — Fix-with-test
 
@@ -97,6 +240,72 @@ Goal: confirm the original repro from Phase 1 no longer happens, with evidence i
 4. State the cause + fix + regression test in one short paragraph for the audit trail.
 
 ⏸ **GATE: re-run output matches expected, captured here.**
+
+### Sub-discipline: Defense-in-depth
+
+When you fix a bug caused by invalid data, adding validation at one place feels sufficient. But that single check can be bypassed by different code paths, refactoring, or mocks.
+
+**Core principle:** Validate at EVERY layer data passes through. Make the bug **structurally impossible**, not just "fixed at one site".
+
+Single validation: "We fixed the bug." Multiple layers: "We made the bug impossible." Different layers catch different cases — entry validation catches most bugs, business logic catches edge cases, environment guards prevent context-specific dangers, debug logging helps when other layers fail.
+
+#### The four layers
+
+##### Layer 1: Entry-point validation
+**Purpose:** Reject obviously invalid input at the API boundary.
+
+```typescript
+function createProject(name: string, workingDirectory: string) {
+  if (!workingDirectory || workingDirectory.trim() === '') {
+    throw new Error('workingDirectory cannot be empty');
+  }
+  if (!existsSync(workingDirectory)) {
+    throw new Error(`workingDirectory does not exist: ${workingDirectory}`);
+  }
+  if (!statSync(workingDirectory).isDirectory()) {
+    throw new Error(`workingDirectory is not a directory: ${workingDirectory}`);
+  }
+  // ... proceed
+}
+```
+
+##### Layer 2: Business-logic validation
+**Purpose:** Ensure data makes sense for this operation. Lighter than Layer 1 but still defends against internal callers.
+
+##### Layer 3: Environment guards
+**Purpose:** Prevent dangerous operations in specific contexts.
+
+```typescript
+async function gitInit(directory: string) {
+  // In tests, refuse git init outside temp directories
+  if (process.env.NODE_ENV === 'test') {
+    const normalized = normalize(resolve(directory));
+    const tmpDir = normalize(resolve(tmpdir()));
+
+    if (!normalized.startsWith(tmpDir)) {
+      throw new Error(
+        `Refusing git init outside temp dir during tests: ${directory}`
+      );
+    }
+  }
+  // ... proceed
+}
+```
+
+##### Layer 4: Debug instrumentation
+**Purpose:** Capture context for forensics when the other three layers somehow miss the case. Stack trace + cwd + env + parameters logged before the dangerous operation, not after it fails.
+
+#### Applying the pattern
+
+When you find a bug:
+1. **Trace the data flow** — where does the bad value originate? Where is it used?
+2. **Map all checkpoints** — list every point the data passes through.
+3. **Add validation at each layer** — entry, business, environment, debug.
+4. **Test each layer** — try to bypass Layer 1, verify Layer 2 catches it.
+
+**Don't stop at one validation point.** All four layers were necessary in the original superpowers debugging session: different code paths bypassed entry validation; mocks bypassed business-logic checks; edge cases on different platforms needed environment guards; debug logging identified structural misuse.
+
+⏸ **GATE: each of the four layers is added or explicitly N/A with a one-line justification before declaring resolved.**
 
 ## 3-failed-fixes rule
 

@@ -60,6 +60,22 @@ This persona is the canonical reader of every story you produce. It is the testa
 
 Every Red Flag in the previous section maps back to "the junior would misread this." When in doubt about whether a detail is necessary, ask: **would the junior produce the right code from this without it?** If no, write it.
 
+## File structure design (upfront)
+
+Before defining tasks, map out which files this story will create or modify and what each one is responsible for. **This is where decomposition decisions get locked in** — a story with eight tasks but no file map produces eight tasks that each end up touching three files apiece, and the dev agent loses track of what belongs where.
+
+Design units with clear boundaries and well-defined interfaces. Each file should have **one clear responsibility**. Files that change together should live together — split by responsibility, **not by technical layer**. (A "controller / service / repository" trio that only ever changes together for a single feature is one responsibility split into three files; a single auth file that handles both registration and authorization is two responsibilities crammed into one.) Smaller, focused files are easier for both the dev agent and the future reader to hold in context — and the dev agent's edits are more reliable when each file is narrow.
+
+In existing codebases, follow established patterns. If the codebase uses large files, do not unilaterally restructure as part of a story; but if the file you're touching has grown unwieldy, including a targeted split in this story's File List is reasonable.
+
+For each file the story creates or modifies, write a 3-bullet decision template in the Dev Notes:
+
+- **File name + path** — exact relative path from repo root (e.g. `src/auth/jwt.ts`).
+- **Single responsibility** — one sentence stating what this file is for, in user-value terms (e.g. "Sign and validate JWT tokens for the auth module"). If the sentence needs an "and", split the file.
+- **Inputs + outputs** — what this file imports / depends on, and what it exports / returns. (e.g. "Imports `jsonwebtoken`, env `JWT_SECRET`. Exports `signToken(payload)`, `validateToken(token)`.")
+
+This file map is the input to the Task granularity contract below — every task references one of these files by exact path.
+
 ## Task granularity contract (Reader persona consumer)
 
 This contract makes the granularity of a story task **testable** rather than judged by feel. Every task in the Execution list of a generated story MUST satisfy all five conditions below. The Self-review checklist verifies them before the user gate.

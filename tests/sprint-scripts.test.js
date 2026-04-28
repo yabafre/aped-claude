@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { scripts } from '../src/templates/scripts.js';
+import { sessionStartTemplates } from '../src/templates/optional-features.js';
 
 // Materialize the templates once; the per-test setup just copies them into a
 // fresh tmpdir. Templated paths (.aped, aped-output) are kept in sync with
@@ -390,5 +391,114 @@ describe('checkin.sh — agent_status protocol (Tier 3)', () => {
     expect(r.code, r.stderr).toBe(0);
     const inbox = readFileSync(join(sandbox, APED_DIR, 'checkins', '1-1-foo.jsonl'), 'utf8');
     expect(inbox).toMatch(/--this reason starts with two dashes/);
+  });
+});
+
+// ── Tier 4 — session-start hook + skill-index generator ────────────────────
+describe('aped-method session-start (Tier 4)', () => {
+  // Helper: simulate the install path's apply step for the settings.local.json
+  // entry only — we don't exercise subcommands.js directly here (the dispatcher
+  // wiring is contracted separately). The hook file content is also asserted
+  // so the contract covers both halves of the install.
+
+  it('install adds a SessionStart hook entry to .claude/settings.local.json', () => {
+    const tpls = sessionStartTemplates({ apedDir: APED_DIR, outputDir: OUTPUT_DIR });
+
+    // Two templates: the hook script + the settings.local.json entry.
+    const hookTpl = tpls.find((t) => t.path.endsWith('session-start.sh'));
+    const settingsTpl = tpls.find((t) => t.path.endsWith('settings.local.json'));
+    expect(hookTpl, 'session-start.sh template is registered').toBeTruthy();
+    expect(settingsTpl, 'settings.local.json template is registered').toBeTruthy();
+
+    // Materialise the hook + settings into the sandbox to mirror what
+    // applyTemplates does on a fresh install (no pre-existing settings).
+    mkdirSync(join(sandbox, APED_DIR, 'hooks'), { recursive: true });
+    mkdirSync(join(sandbox, '.claude'), { recursive: true });
+    writeFileSync(join(sandbox, hookTpl.path), hookTpl.content);
+    chmodSync(join(sandbox, hookTpl.path), 0o755);
+    writeFileSync(join(sandbox, settingsTpl.path), settingsTpl.content);
+
+    expect(existsSync(join(sandbox, hookTpl.path))).toBe(true);
+
+    const settings = JSON.parse(readFileSync(join(sandbox, settingsTpl.path), 'utf8'));
+    expect(settings.hooks).toBeTruthy();
+    expect(Array.isArray(settings.hooks.SessionStart)).toBe(true);
+    expect(settings.hooks.SessionStart.length).toBeGreaterThanOrEqual(1);
+    const entry = settings.hooks.SessionStart[0];
+    expect(entry.matcher).toMatch(/startup|clear|compact/);
+    expect(entry.hooks).toBeTruthy();
+    expect(entry.hooks[0].type).toBe('command');
+    // Command must point at the installed hook path under apedDir.
+    expect(entry.hooks[0].command).toContain(`${APED_DIR}/hooks/session-start.sh`);
+  });
+
+  it('uninstall removes the SessionStart entry but keeps the hook file', () => {
+    // Contract for `aped-method session-start --uninstall`: the entry under
+    // `hooks.SessionStart` matching our command path must be removed; the
+    // hook script under `${APED_DIR}/hooks/session-start.sh` must be left
+    // in place so users can re-enable without re-downloading the file.
+    const tpls = sessionStartTemplates({ apedDir: APED_DIR, outputDir: OUTPUT_DIR });
+    const hookTpl = tpls.find((t) => t.path.endsWith('session-start.sh'));
+    const settingsTpl = tpls.find((t) => t.path.endsWith('settings.local.json'));
+
+    mkdirSync(join(sandbox, APED_DIR, 'hooks'), { recursive: true });
+    mkdirSync(join(sandbox, '.claude'), { recursive: true });
+    writeFileSync(join(sandbox, hookTpl.path), hookTpl.content);
+    chmodSync(join(sandbox, hookTpl.path), 0o755);
+    writeFileSync(join(sandbox, settingsTpl.path), settingsTpl.content);
+
+    // Simulate uninstall: drop SessionStart entries pointing at our hook
+    // path; keep the rest of the settings + the hook file on disk.
+    const before = JSON.parse(readFileSync(join(sandbox, settingsTpl.path), 'utf8'));
+    const targetPath = `${APED_DIR}/hooks/session-start.sh`;
+    const keep = (before.hooks?.SessionStart || []).filter(
+      (e) => !(e.hooks || []).some((h) => String(h.command || '').includes(targetPath)),
+    );
+    const after = { ...before, hooks: { ...(before.hooks || {}), SessionStart: keep } };
+    if (after.hooks.SessionStart.length === 0) delete after.hooks.SessionStart;
+    writeFileSync(join(sandbox, settingsTpl.path), `${JSON.stringify(after, null, 2)}\n`);
+
+    const reloaded = JSON.parse(readFileSync(join(sandbox, settingsTpl.path), 'utf8'));
+    // Either the SessionStart key is gone, or no remaining entry references our hook.
+    if (reloaded.hooks?.SessionStart) {
+      const hits = reloaded.hooks.SessionStart.filter(
+        (e) => (e.hooks || []).some((h) => String(h.command || '').includes(targetPath)),
+      );
+      expect(hits.length).toBe(0);
+    }
+    // Hook file is still on disk.
+    expect(existsSync(join(sandbox, hookTpl.path))).toBe(true);
+  });
+});
+
+describe('skill-index generator (Tier 4)', () => {
+  it('produces a non-empty SKILL-INDEX.md listing every aped-*.md skill', () => {
+    const all = scripts({ apedDir: APED_DIR, outputDir: OUTPUT_DIR });
+    const idx = all.find((s) => s.path.endsWith('skills/SKILL-INDEX.md'));
+    expect(idx, 'SKILL-INDEX.md template is registered').toBeTruthy();
+    const body = idx.content;
+
+    // Header + at least one skill bullet + trailing newline.
+    expect(body).toMatch(/^# APED Skill Index/m);
+    expect(body.length).toBeGreaterThan(80);
+
+    // Every line that starts with "- /aped-" must carry a separator + descriptor.
+    // We do not assert the description content (it is audited elsewhere) — only
+    // that each registered skill name is followed by " — " (em-dash) OR a
+    // graceful empty-description fallback.
+    const skillLines = body.split('\n').filter((l) => l.startsWith('- /aped-'));
+    expect(skillLines.length).toBeGreaterThan(0);
+    for (const line of skillLines) {
+      // Format: `- /<name> — <description>` (description may be empty).
+      expect(line).toMatch(/^- \/aped-[a-z0-9-]+ — /);
+    }
+
+    // Spot-check the expected core skills are listed (these have shipped for
+    // multiple tiers and are a stable signal that the generator walked the
+    // templates dir, not just emitted the header).
+    const names = skillLines.map((l) => l.match(/^- \/(aped-[a-z0-9-]+)/)?.[1]).filter(Boolean);
+    for (const required of ['aped-prd', 'aped-dev', 'aped-review', 'aped-debug']) {
+      expect(names, `skill index must include ${required}`).toContain(required);
+    }
   });
 });

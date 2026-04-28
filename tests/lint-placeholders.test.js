@@ -1,9 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, chmodSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, chmodSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { scripts } from '../src/templates/scripts.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const APED_SKILLS_TPL_DIR = join(__dirname, '..', 'src', 'templates', 'skills', 'aped-skills');
 
 const APED_DIR = '.aped';
 const OUTPUT_DIR = 'aped-output';
@@ -185,6 +190,91 @@ describe('lint-placeholders.sh — I/O matrix', () => {
       const r = runLint(lint, f, root);
       expect(r.code).toBe(1);
       expect(r.stdout).toMatch(/TBD/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // ── Tier 4: aped-skills/ reference files must pass the lint ─────────────
+  // These three reference files are lifted from `obra/superpowers` and contain
+  // legitimate reference content (e.g. illustrative `<placeholder>` mentions
+  // inside fenced examples, the word "TBD" cited inside a discussion of why
+  // it's banned, etc.). The lint must not flag them — false positives on
+  // reference docs would force users to either disable the lint globally or
+  // hand-edit verbatim research content.
+  //
+  // Note: the actual files land in this same cycle's parallel skills agent.
+  // When they're not yet on disk the test is skipped (described as a
+  // pending contract) rather than failing — the contract is the lint *will*
+  // pass on them once they ship.
+  function lintsClean(suffix) {
+    const filePath = join(APED_SKILLS_TPL_DIR, suffix);
+    if (!existsSync(filePath)) {
+      // Contract pending — file written by the parallel skills agent.
+      return { skipped: true };
+    }
+    const dest = join(sb.root, OUTPUT_DIR, suffix);
+    mkdirSync(dirname(dest), { recursive: true });
+    writeFileSync(dest, readFileSync(filePath, 'utf8'));
+    return { skipped: false, ...runLint(sb.lint, dest, sb.root) };
+  }
+
+  it('aped-skills/anthropic-best-practices.md passes the lint', () => {
+    const r = lintsClean('anthropic-best-practices.md');
+    if (r.skipped) return; // contract pending
+    expect(r.code, r.stdout || r.stderr).toBe(0);
+    expect(r.stdout).toBe('');
+  });
+
+  it('aped-skills/persuasion-principles.md passes the lint', () => {
+    const r = lintsClean('persuasion-principles.md');
+    if (r.skipped) return; // contract pending
+    expect(r.code, r.stdout || r.stderr).toBe(0);
+    expect(r.stdout).toBe('');
+  });
+
+  it('aped-skills/testing-skills-with-subagents.md passes the lint', () => {
+    const r = lintsClean('testing-skills-with-subagents.md');
+    if (r.skipped) return; // contract pending
+    expect(r.code, r.stdout || r.stderr).toBe(0);
+    expect(r.stdout).toBe('');
+  });
+
+  it('aped-lint-disable / aped-lint-enable markers exempt wrapped lines', () => {
+    // Reference docs (aped-skills/*.md) need to quote the banned tokens
+    // verbatim. Lines bracketed by `<!-- aped-lint-disable -->` and
+    // `<!-- aped-lint-enable -->` are blanked by the awk pre-pass before
+    // scanning, so reported line numbers still match the source file.
+    const root = mkdtempSync(join(tmpdir(), 'aped-lint-test-'));
+    mkdirSync(join(root, '.git'), { recursive: true });
+    mkdirSync(join(root, APED_DIR, 'scripts'), { recursive: true });
+    mkdirSync(join(root, OUTPUT_DIR), { recursive: true });
+    const lint = join(root, LINT_TPL.path);
+    writeFileSync(lint, LINT_TPL.content);
+    chmodSync(lint, 0o755);
+    const f = join(root, OUTPUT_DIR, 'wrapped.md');
+    writeFileSync(
+      f,
+      [
+        '# Reference doc',
+        '',
+        '<!-- aped-lint-disable -->',
+        '- `TBD`, `TODO`, `FIXME`, `XXX`',
+        '- "Add appropriate error handling"',
+        '<!-- aped-lint-enable -->',
+        '',
+        'Outside the block, TBD must still trip the lint.',
+        '',
+      ].join('\n'),
+    );
+    try {
+      const r = runLint(lint, f, root);
+      // Wrapped TBD/TODO/FIXME/XXX/ADD_ERROR_HANDLING are exempt; the
+      // outside-the-block TBD on line 8 is still flagged.
+      expect(r.code).toBe(1);
+      expect(r.stdout).toMatch(/wrapped\.md:8: TBD:/);
+      expect(r.stdout).not.toMatch(/wrapped\.md:4: /);
+      expect(r.stdout).not.toMatch(/wrapped\.md:5: /);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

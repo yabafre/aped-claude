@@ -110,6 +110,63 @@ export function verifyClaimsTemplates(c) {
   ];
 }
 
+// SessionStart hook (opt-in via `aped-method session-start`).
+// Reads aped/skills/SKILL-INDEX.md and emits it as additionalContext at
+// session start / clear / compact. The index file is generated at
+// scaffold time by templates/scripts.js.
+export function sessionStartTemplates(c) {
+  const a = c.apedDir;
+  return [
+    {
+      path: `${a}/hooks/session-start.sh`,
+      executable: true,
+      content: substitute(loadTemplate('hooks/session-start.sh'), c),
+    },
+    {
+      path: '.claude/settings.local.json',
+      content: stringifySettings({
+        hooks: {
+          SessionStart: [
+            {
+              matcher: 'startup|clear|compact',
+              hooks: [
+                {
+                  type: 'command',
+                  // Wrap with bash -c so the hook runs even when CLAUDE_PROJECT_DIR
+                  // is set but the OS doesn't honour the script's executable bit
+                  // (e.g. some Windows / WSL configurations).
+                  command: `bash \${CLAUDE_PROJECT_DIR}/${a}/hooks/session-start.sh`,
+                  // 30s — cold WSL/macOS filesystems and large SKILL-INDEX.md
+                  // files can take longer than the original 5s budget.
+                  timeout: 30,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    },
+  ];
+}
+
+// Visual companion (opt-in via `aped-method visual-companion`). Copies the
+// bash HTTP server + frame template into the project. No settings.json
+// change — the user starts the server manually from /aped-brainstorm.
+export function visualCompanionTemplates(c) {
+  const a = c.apedDir;
+  return [
+    {
+      path: `${a}/visual-companion/start-server.sh`,
+      executable: true,
+      content: substitute(loadTemplate('visual-companion/start-server.sh'), c),
+    },
+    {
+      path: `${a}/visual-companion/frame-template.html`,
+      content: substitute(loadTemplate('visual-companion/frame-template.html'), c),
+    },
+  ];
+}
+
 export function typeScriptQualityTemplates(c) {
   const a = c.apedDir;
   return [

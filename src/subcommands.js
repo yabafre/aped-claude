@@ -18,6 +18,7 @@ import {
   rmSync,
   symlinkSync,
   mkdirSync,
+  statSync,
 } from 'node:fs';
 import { join, dirname } from 'node:path';
 import color from 'picocolors';
@@ -28,6 +29,8 @@ import {
   safeBashTemplates,
   typeScriptQualityTemplates,
   verifyClaimsTemplates,
+  sessionStartTemplates,
+  visualCompanionTemplates,
 } from './templates/optional-features.js';
 import {
   DEFAULTS,
@@ -84,9 +87,107 @@ export async function runSubcommand(command, args) {
     return;
   }
 
+  if (command === 'session-start') {
+    if (args.uninstall) {
+      uninstallSessionStart(config);
+      return;
+    }
+    await installFeature('session-start', sessionStartTemplates(config));
+    return;
+  }
+
+  if (command === 'visual-companion') {
+    if (args.uninstall) {
+      uninstallVisualCompanion(config);
+      return;
+    }
+    await installFeature('visual-companion', visualCompanionTemplates(config));
+    return;
+  }
+
   if (command === 'symlink') {
     runSymlinkRepair(config);
   }
+}
+
+// Remove the SessionStart hook entry that points at this APED install
+// from .claude/settings.local.json. Leaves the hook .sh file in place
+// (cheap to keep, and a future re-install is just a JSON edit away).
+function uninstallSessionStart(config) {
+  p.intro(`${color.green(color.bold('APED Method'))} ${color.dim(`v${CLI_VERSION}`)}`);
+  const settingsPath = join(process.cwd(), '.claude/settings.local.json');
+  if (!existsSync(settingsPath)) {
+    p.log.warn('No .claude/settings.local.json to uninstall from.');
+    p.outro(color.dim('session-start: nothing to do.'));
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+  } catch {
+    p.log.error('settings.local.json is not valid JSON — refusing to edit.');
+    process.exitCode = 1;
+    return;
+  }
+
+  const sessionStart = parsed?.hooks?.SessionStart;
+  if (!Array.isArray(sessionStart) || sessionStart.length === 0) {
+    p.log.warn('No SessionStart hook entries found.');
+    p.outro(color.dim('session-start: nothing to do.'));
+    return;
+  }
+
+  const apedHookFragment = `/${config.apedDir}/hooks/session-start.sh`;
+  let removed = 0;
+  const filteredOuter = [];
+  for (const handler of sessionStart) {
+    const inner = Array.isArray(handler.hooks) ? handler.hooks : [];
+    const keptInner = inner.filter((hk) => {
+      const cmd = String(hk.command || '');
+      const isOurs = cmd.includes(apedHookFragment);
+      if (isOurs) removed++;
+      return !isOurs;
+    });
+    if (keptInner.length > 0) {
+      filteredOuter.push({ ...handler, hooks: keptInner });
+    }
+  }
+
+  if (filteredOuter.length === 0) {
+    delete parsed.hooks.SessionStart;
+    if (parsed.hooks && Object.keys(parsed.hooks).length === 0) {
+      delete parsed.hooks;
+    }
+  } else {
+    parsed.hooks.SessionStart = filteredOuter;
+  }
+
+  writeFS(settingsPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
+  p.log.success(`Removed ${removed} APED SessionStart hook entr${removed === 1 ? 'y' : 'ies'} from settings.local.json.`);
+  p.outro(color.dim('session-start uninstalled. Hook script kept at hooks/session-start.sh — re-run install to re-enable.'));
+}
+
+// Remove the visual-companion directory from the project. No settings.json
+// touch needed — visual-companion never wrote one.
+function uninstallVisualCompanion(config) {
+  p.intro(`${color.green(color.bold('APED Method'))} ${color.dim(`v${CLI_VERSION}`)}`);
+  const dir = join(process.cwd(), config.apedDir, 'visual-companion');
+  if (!existsSync(dir)) {
+    p.log.warn(`No visual-companion directory at ${color.dim(dir)}.`);
+    p.outro(color.dim('visual-companion: nothing to do.'));
+    return;
+  }
+  let isDir = false;
+  try { isDir = statSync(dir).isDirectory(); } catch { /* missing */ }
+  if (!isDir) {
+    p.log.warn(`Skipping non-directory at ${color.dim(dir)}.`);
+    p.outro(color.dim('visual-companion: nothing to do.'));
+    return;
+  }
+  rmSync(dir, { recursive: true, force: true });
+  p.log.success(`Removed ${color.dim(dir)}.`);
+  p.outro(color.dim('visual-companion uninstalled.'));
 }
 
 // Returns:

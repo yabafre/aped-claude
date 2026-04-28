@@ -1,3 +1,57 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const __scriptsDirname = dirname(fileURLToPath(import.meta.url));
+const SKILLS_TEMPLATE_DIR = join(__scriptsDirname, 'skills');
+
+// Build a SKILL-INDEX.md listing every aped-*.md skill in the templates dir
+// with its `description:` frontmatter line. Consumed by the opt-in
+// SessionStart hook (`hooks/session-start.sh`) to preload skill awareness
+// at the start of each Claude Code session.
+function buildSkillIndex() {
+  let entries;
+  try {
+    entries = readdirSync(SKILLS_TEMPLATE_DIR)
+      .filter((f) => f.startsWith('aped-') && f.endsWith('.md'))
+      .sort();
+  } catch {
+    return '# APED Skill Index\n\n_No skills directory found._\n';
+  }
+
+  const lines = [
+    '# APED Skill Index',
+    '',
+    '<!-- AUTO-GENERATED at scaffold time by create-aped. Do not edit by hand. -->',
+    '<!-- One line per skill: /<name> — <description>. -->',
+    '<!-- Consumed by aped/hooks/session-start.sh (opt-in via `aped-method session-start`). -->',
+    '',
+  ];
+
+  for (const file of entries) {
+    const name = file.slice(0, -3); // strip .md
+    let description = '';
+    try {
+      const raw = readFileSync(join(SKILLS_TEMPLATE_DIR, file), 'utf-8');
+      // Match `description:` at top of YAML frontmatter. Value may be
+      // single-quoted, double-quoted, or bare. We only take the first
+      // single-line value — block scalars are not used in APED skill
+      // frontmatter today.
+      const m = raw.match(/^description:\s*(?:'([^']*)'|"([^"]*)"|(.+))$/m);
+      if (m) {
+        description = (m[1] ?? m[2] ?? m[3] ?? '').trim();
+      }
+    } catch {
+      // Unreadable skill file — emit name with empty description so the
+      // index is still complete enough to reason about.
+    }
+    lines.push(`- /${name} — ${description}`);
+  }
+
+  lines.push('');
+  return lines.join('\n');
+}
+
 export function scripts(c) {
   const a = c.apedDir;
   const o = c.outputDir;
@@ -523,9 +577,27 @@ fi
 
 # Scrub mustache tokens: {{var}} and {var} where the inner content is plain
 # alphanumeric+underscore. Math/code expressions like {x|x>0} are left alone.
+# Then blank out lines between \`<!-- aped-lint-disable -->\` and
+# \`<!-- aped-lint-enable -->\` markers (line count preserved so reported
+# line numbers still match the original file). Reference docs that need to
+# quote the banned tokens use these markers; they should never wrap large
+# regions silently — keep the disabled span tight.
 SCRUBBED=\$(mktemp 2>/dev/null || echo "/tmp/aped-lint-\$\$")
 trap 'rm -f "\$SCRUBBED"' EXIT
-sed -E 's/\\{\\{[A-Za-z0-9_]+\\}\\}//g; s/\\{[A-Za-z0-9_]+\\}//g' "\$FILE" > "\$SCRUBBED"
+sed -E 's/\\{\\{[A-Za-z0-9_]+\\}\\}//g; s/\\{[A-Za-z0-9_]+\\}//g' "\$FILE" \\
+  | awk -v FNAME="\$FILE" '
+      /<!--[[:space:]]*aped-lint-disable[[:space:]]*-->/ { skipping=1; print ""; next }
+      /<!--[[:space:]]*aped-lint-enable[[:space:]]*-->/  { skipping=0; print ""; next }
+      skipping { print ""; next }
+      { print }
+      END {
+        if (skipping) {
+          # Unbalanced disable marker — file ended without aped-lint-enable.
+          # Without this warning, the rest of the file is silently exempt.
+          print "lint-placeholders: WARN: " FNAME " has unbalanced aped-lint-disable (no matching aped-lint-enable). Lint may have skipped real placeholders." > "/dev/stderr"
+        }
+      }
+    ' > "\$SCRUBBED"
 
 HITS=""
 
@@ -2096,6 +2168,117 @@ case "\$ACTION" in
     ;;
 esac
 `,
+    },
+    // ── Test pollution bisector (used from /aped-debug Phase 2) ─────────────
+    {
+      path: `${a}/scripts/find-polluter.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# APED test-pollution bisector.
+# Runs each test in a glob isolated, checks whether a given path on the
+# filesystem changed (created / modified / size delta), and reports the
+# first test that introduces the pollution.
+#
+# Usage: find-polluter.sh <state-path> <test-glob>
+# Example: find-polluter.sh '.git' 'src/**/*.test.ts'
+#          find-polluter.sh /tmp/cache 'tests/**/*.spec.js'
+#
+# Exit:
+#   0 — no polluter found (clean)
+#   1 — polluter found (test path printed to stdout)
+#   2 — usage / arg error
+#
+# Test runner: defaults to 'npm test', override with APED_TEST_RUNNER env.
+
+set -u
+set -o pipefail
+
+if [[ \$# -ne 2 ]]; then
+  echo "Usage: \$0 <state-path> <test-glob>" >&2
+  echo "Example: \$0 '.git' 'src/**/*.test.ts'" >&2
+  exit 2
+fi
+
+STATE_PATH="\$1"
+TEST_GLOB="\$2"
+RUNNER="\${APED_TEST_RUNNER:-npm test}"
+
+snapshot_state() {
+  if [[ -e "\$STATE_PATH" ]]; then
+    # Use stat in a portable-ish way: prefer GNU stat, fallback to BSD stat.
+    if stat -c '%Y %s' "\$STATE_PATH" 2>/dev/null; then
+      return 0
+    fi
+    stat -f '%m %z' "\$STATE_PATH" 2>/dev/null || echo "exists"
+  else
+    echo "absent"
+  fi
+}
+
+echo "find-polluter: state='\$STATE_PATH' glob='\$TEST_GLOB' runner='\$RUNNER'"
+
+# Resolve test files via shell glob (bash globstar) — no GNU find required.
+shopt -s globstar nullglob 2>/dev/null || true
+TEST_FILES=( \$TEST_GLOB )
+
+if [[ \${#TEST_FILES[@]} -eq 0 ]]; then
+  echo "find-polluter: no test files matched glob '\$TEST_GLOB'" >&2
+  exit 2
+fi
+
+TOTAL=\${#TEST_FILES[@]}
+echo "find-polluter: \$TOTAL test files to scan"
+echo ""
+
+BEFORE=\$(snapshot_state)
+
+if [[ "\$BEFORE" != "absent" ]]; then
+  echo "find-polluter: WARNING — state '\$STATE_PATH' already exists before any test ran."
+  echo "find-polluter:           script will detect modification (mtime / size change) instead of creation."
+fi
+
+INDEX=0
+for TEST_FILE in "\${TEST_FILES[@]}"; do
+  INDEX=\$((INDEX + 1))
+  echo "[\$INDEX/\$TOTAL] \$TEST_FILE"
+
+  # Run isolated; ignore exit code (failing tests still count as ran).
+  \$RUNNER "\$TEST_FILE" >/dev/null 2>&1 || true
+
+  AFTER=\$(snapshot_state)
+
+  if [[ "\$BEFORE" == "absent" && "\$AFTER" != "absent" ]]; then
+    echo ""
+    echo "find-polluter: POLLUTER FOUND"
+    echo "  test:    \$TEST_FILE"
+    echo "  created: \$STATE_PATH"
+    exit 1
+  fi
+
+  if [[ "\$BEFORE" != "absent" && "\$AFTER" != "\$BEFORE" ]]; then
+    echo ""
+    echo "find-polluter: POLLUTER FOUND"
+    echo "  test:     \$TEST_FILE"
+    echo "  modified: \$STATE_PATH"
+    echo "  before:   \$BEFORE"
+    echo "  after:    \$AFTER"
+    exit 1
+  fi
+done
+
+echo ""
+echo "find-polluter: no polluter detected — all \$TOTAL tests left state unchanged."
+exit 0
+`,
+    },
+    // ── Skill index for opt-in SessionStart hook ────────────────────────────
+    // Generated at scaffold time by walking templates/skills/ for aped-*.md
+    // files. The opt-in session-start hook (installed via
+    // \`aped-method session-start\`) reads this file and emits its content as
+    // SessionStart additionalContext. Keep deterministic — sorted by name.
+    {
+      path: `${a}/skills/SKILL-INDEX.md`,
+      content: buildSkillIndex(),
     },
   ];
 }

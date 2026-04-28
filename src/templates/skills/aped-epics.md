@@ -92,6 +92,20 @@ TaskCreate: "Define story list per epic"
 TaskCreate: "FR coverage validation"
 ```
 
+## File structure design (upfront)
+
+Before breaking epics into stories, sketch the file boundaries the epic will touch **across stories**. Story-level file design (in `/aped-story`) keeps each story's files coherent; epic-level file design ensures stories within the same epic don't fight over the same modules and that files-that-change-together stay in the same story.
+
+Apply the same rule as story-level decomposition: **split by responsibility, not by technical layer.** An epic delivering "user auth" is not "story 1 = backend, story 2 = frontend, story 3 = tests" — that's the layer trap, and it produces three stories that all need each other to ship anything user-visible. The right split is by user-value slice (registration, sessions, password reset), where each slice cuts vertically through layers and ships independently.
+
+For each epic, write a 3-bullet decision per major file area:
+
+- **File area + path prefix** — the directory or module each story owns (e.g. `src/auth/` for the auth epic, `apps/web/src/payments/` for payments).
+- **Single responsibility** — one sentence stating what this area is for, in user-value terms.
+- **Inputs + outputs** — what this area depends on (other modules, contracts) and what it exposes to the rest of the codebase (public APIs, types).
+
+Two stories of the same epic should NOT both create the same file from scratch (race in the parallel sprint). Two stories MAY both modify the same file, provided the second one's `depends_on:` lists the first.
+
 ## Epic Design
 
 Read `{{APED_DIR}}/aped-epics/references/epic-rules.md` for design principles.
