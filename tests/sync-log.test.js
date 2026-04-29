@@ -194,6 +194,92 @@ describe('sync-log.sh', () => {
   });
 });
 
+// ── cmd_meta (4.1.0) ──
+describe('sync-log.sh meta', () => {
+  it('writes a top-level string value (peer to phases/totals)', () => {
+    const start = run(`bash ${scriptPath} start linear`, { CLAUDE_PROJECT_DIR: sandbox });
+    const log = start.stdout.trim();
+
+    const r = run(
+      `bash ${scriptPath} meta ${log} trigger '"User re-evaluation of Epic 0"'`,
+      { CLAUDE_PROJECT_DIR: sandbox },
+    );
+    expect(r.code, r.stderr).toBe(0);
+
+    const doc = JSON.parse(readFileSync(log, 'utf8'));
+    expect(doc.trigger).toBe('User re-evaluation of Epic 0');
+    // phases/totals untouched.
+    expect(doc.phases).toEqual({});
+    expect(doc.totals).toEqual({});
+  });
+
+  it('writes a top-level object value', () => {
+    const start = run(`bash ${scriptPath} start linear`, { CLAUDE_PROJECT_DIR: sandbox });
+    const log = start.stdout.trim();
+
+    const r = run(
+      `bash ${scriptPath} meta ${log} scope '{"stories_descoped":["a","b"],"decisions_amended":["F5"]}'`,
+      { CLAUDE_PROJECT_DIR: sandbox },
+    );
+    expect(r.code, r.stderr).toBe(0);
+
+    const doc = JSON.parse(readFileSync(log, 'utf8'));
+    expect(doc.scope).toEqual({
+      stories_descoped: ['a', 'b'],
+      decisions_amended: ['F5'],
+    });
+  });
+
+  it('rejects each reserved key', () => {
+    const start = run(`bash ${scriptPath} start linear`, { CLAUDE_PROJECT_DIR: sandbox });
+    const log = start.stdout.trim();
+    const reserved = [
+      'sync_id',
+      'provider',
+      'started_at',
+      'ended_at',
+      'operator',
+      'directive_version',
+      'phases',
+      'totals',
+    ];
+    for (const k of reserved) {
+      const r = run(`bash ${scriptPath} meta ${log} ${k} '"x"'`, {
+        CLAUDE_PROJECT_DIR: sandbox,
+      });
+      expect(r.code, `key=${k}`).not.toBe(0);
+      expect(r.stderr).toMatch(/reserved/i);
+    }
+  });
+
+  it('rejects invalid JSON value', () => {
+    const start = run(`bash ${scriptPath} start linear`, { CLAUDE_PROJECT_DIR: sandbox });
+    const log = start.stdout.trim();
+    // Bare unquoted string is not valid JSON.
+    const r = run(`bash ${scriptPath} meta ${log} trigger not-json-here`, {
+      CLAUDE_PROJECT_DIR: sandbox,
+    });
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toMatch(/not valid json/i);
+  });
+
+  it('rejects keys that break jq path syntax (hyphen, leading digit)', () => {
+    const start = run(`bash ${scriptPath} start linear`, { CLAUDE_PROJECT_DIR: sandbox });
+    const log = start.stdout.trim();
+
+    const r1 = run(`bash ${scriptPath} meta ${log} bad-key '"x"'`, {
+      CLAUDE_PROJECT_DIR: sandbox,
+    });
+    expect(r1.code).not.toBe(0);
+    expect(r1.stderr).toMatch(/snake_case/i);
+
+    const r2 = run(`bash ${scriptPath} meta ${log} 1key '"x"'`, {
+      CLAUDE_PROJECT_DIR: sandbox,
+    });
+    expect(r2.code).not.toBe(0);
+  });
+});
+
 // ── Retention pruning (4.1.0) ──
 function writeConfigWithRetention(root, { mode, keepLastN } = {}) {
   const lines = ['sync_logs:', '  enabled: true', '  dir: "docs/sync-logs/"'];
