@@ -1,6 +1,6 @@
 ---
 name: aped-status
-description: 'Use when user says "sprint status", "show progress", "aped status", or invokes /aped-status.'
+description: 'Use when user says "sprint status", "show progress", "aped status", or invokes aped-status.'
 allowed-tools: "Read Grep Glob Bash"
 license: MIT
 metadata:
@@ -16,7 +16,7 @@ Live dashboard for the pipeline and parallel sprint. Read-only — never writes,
 
 1. Read `{{APED_DIR}}/config.yaml` — extract `communication_language`, `ticket_system`, `git_provider`
 2. Read `{{OUTPUT_DIR}}/state.yaml` — pipeline + sprint state (active_epic, parallel_limit, review_limit, stories with their `status`, `worktree`, `depends_on`, `ticket`)
-3. Read `{{APED_DIR}}/aped-status/references/status-format.md` for display conventions
+3. Read `{{APED_DIR}}aped-status/references/status-format.md` for display conventions
 4. Probe optional tooling once: `command -v workmux >/dev/null` — if available, surface a "Live agents: `workmux dashboard`" hint in the header so the user knows where the fuller TUI view is.
 
 ## 1. Pipeline Overview
@@ -43,7 +43,7 @@ Live agents:  workmux dashboard    (only shown if workmux is installed)
 Before listing, run `bash {{APED_DIR}}/scripts/check-active-worktrees.sh --format json` to surface state-vs-disk drift. Any row with `"reality":"missing"` should appear in the dashboard with a `✗ MISSING` marker and a hint:
 
 ```
-✗ 1-2-bar  in-progress  /path/to/gone   MISSING — run /aped-lead to reset
+✗ 1-2-bar  in-progress  /path/to/gone   MISSING — run aped-lead to reset
 ```
 
 Then proceed with the normal listing below.
@@ -62,7 +62,7 @@ For each story with `status in {in-progress, review-queued, review}` AND a non-n
 Gather this by:
 - `git -C {worktree} log -1 --format='%ar — %s'` for last commit
 - `git -C {worktree} status --porcelain | wc -l` for dirty count
-- If a `package.json` with a `test` script is present and the last test log is fresh (< 10 min old), report cached test status; otherwise mark `tests: unknown` (don't re-run tests from /aped-status)
+- If a `package.json` with a `test` script is present and the last test log is fresh (< 10 min old), report cached test status; otherwise mark `tests: unknown` (don't re-run tests from aped-status)
 - Ticket status via `gh`/`glab`/linear as per `ticket_system`
 
 For stories in `review`, also show:
@@ -72,10 +72,10 @@ For stories in `review`, also show:
 
 Read these from the story file's Review Record (no live specialist spawning here).
 
-For any story with `ticket_sync_status: failed` set on it (deferred ticket mutation from `/aped-sprint`), append a warning line under that worktree row:
+For any story with `ticket_sync_status: failed` set on it (deferred ticket mutation from `aped-sprint`), append a warning line under that worktree row:
 
 ```
-  ⚠ Ticket sync deferred — reason: "<ticket_sync_error>". Retry via /aped-lead.
+  ⚠ Ticket sync deferred — reason: "<ticket_sync_error>". Retry via aped-lead.
 ```
 
 ## 4. Review Queue
@@ -97,7 +97,7 @@ Check-ins awaiting Lead Dev approval (2):
   1-4-handlers      story-ready  posted 1m
 ```
 
-If non-empty, add a hint: "Run `/aped-lead` to batch-process these."
+If non-empty, add a hint: "Run `aped-lead` to batch-process these."
 
 ## 5. Ready to Dispatch
 
@@ -121,7 +121,7 @@ Done (epic 1):
 
 ## 7. Ticket Sync Check (if ticket_system != none)
 
-For each story with a ticket, compare local status to remote. **Cache remote fetches** in `{{APED_DIR}}/.cache/tickets.json` for 60 seconds — Linear/Jira/GitHub all rate-limit, and a 20-story sprint runs 20 API calls per /aped-status invocation otherwise.
+For each story with a ticket, compare local status to remote. **Cache remote fetches** in `{{APED_DIR}}/.cache/tickets.json` for 60 seconds — Linear/Jira/GitHub all rate-limit, and a 20-story sprint runs 20 API calls per aped-status invocation otherwise.
 
 ```bash
 CACHE_FILE="{{APED_DIR}}/.cache/tickets.json"
@@ -160,11 +160,11 @@ If divergent, surface: `⚠ 1-2 local=in-progress, ticket=Done — investigate`.
 
 Pick the most useful next step:
 
-- If `parallel < parallel_limit` AND `ready_to_dispatch` non-empty → "Run `/aped-sprint` to dispatch `{N}` more stories."
-- If stories in `review` AND `reviews < review_limit` → "Run `/aped-review {key}` in its worktree."
-- If stories queued AND capacity available → "A slot is free. Re-run `/aped-review` on the queued story."
-- If everything done in active epic → "Epic `{N}` complete. Set `sprint.active_epic` to the next epic and re-run `/aped-sprint`."
-- If pipeline not yet at sprint phase → show the phase-appropriate suggestion (`/aped-analyze`, `/aped-prd`, ...).
+- If `parallel < parallel_limit` AND `ready_to_dispatch` non-empty → "Run `aped-sprint` to dispatch `{N}` more stories."
+- If stories in `review` AND `reviews < review_limit` → "Run `aped-review {key}` in its worktree."
+- If stories queued AND capacity available → "A slot is free. Re-run `aped-review` on the queued story."
+- If everything done in active epic → "Epic `{N}` complete. Set `sprint.active_epic` to the next epic and re-run `aped-sprint`."
+- If pipeline not yet at sprint phase → show the phase-appropriate suggestion (`aped-analyze`, `aped-prd`, ...).
 
 ## Output
 
@@ -176,10 +176,10 @@ If `sprint.active_epic` is `null` or no story has a `worktree` field set, fall b
 
 ```
 Epic 1: User Auth        [████████░░] 80% (4/5)
-Next: /aped-dev (story 1-5-session-mgmt is ready-for-dev)
+Next: aped-dev (story 1-5-session-mgmt is ready-for-dev)
 ```
 
 ## Common Issues
 
-- **State file not found**: Ensure `{{OUTPUT_DIR}}/state.yaml` exists — run /aped-analyze first
+- **State file not found**: Ensure `{{OUTPUT_DIR}}/state.yaml` exists — run aped-analyze first
 - **Stories show wrong status**: State.yaml may be stale — re-run the last phase to update it

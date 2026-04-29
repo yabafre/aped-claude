@@ -1,6 +1,6 @@
 ---
 name: aped-arch
-description: 'Use when user says "create architecture", "technical architecture", "solution design", or invokes /aped-arch. Runs between PRD and Epics.'
+description: 'Use when user says "create architecture", "technical architecture", "solution design", or invokes aped-arch. Runs between PRD and Epics.'
 allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate
 disable-model-invocation: true
 license: MIT
@@ -18,7 +18,7 @@ Create architecture decisions through step-by-step discovery so that all downstr
 - EVERY decision must have a rationale — no "just because" choices
 - Architecture is NOT implementation — define WHAT and WHY, not the code
 - Do NOT proceed to next section without user validation
-- Decisions made here are LAW for /aped-dev and /aped-review
+- Decisions made here are LAW for aped-dev and aped-review
 - For **major decisions** (Database, Auth, API style, Frontend framework, Infra platform) — dispatch an **Architecture Council** of specialist subagents to surface genuine divergent perspectives. Single-brain reasoning converges to groupthink; real subagents disagree.
 
 ## Input Discovery
@@ -46,7 +46,7 @@ For sharded folders (UX spec is a folder with multiple files), load `index.md` f
 For the ✱ PRD:
 - If found: continue
 - If missing: HALT with this message:
-  > "Architecture requires a PRD to work from. FRs and NFRs drive every architectural decision. Run `/aped-prd` first, or provide the PRD file path."
+  > "Architecture requires a PRD to work from. FRs and NFRs drive every architectural decision. Run `aped-prd` first, or provide the PRD file path."
 
 Do NOT auto-generate a missing PRD.
 
@@ -58,7 +58,7 @@ Do NOT auto-generate a missing PRD.
 
 Present a discovery report (adapt to `communication_language`):
 
-> Welcome {user_name}! Setting up `/aped-arch` for {project_name}.
+> Welcome {user_name}! Setting up `aped-arch` for {project_name}.
 >
 > **Documents discovered:**
 > - PRD: {N} files {✓ loaded | ✱ MISSING — HALT}
@@ -69,7 +69,7 @@ Present a discovery report (adapt to `communication_language`):
 >
 > **Files loaded:** {comma-separated filenames}
 >
-> {if brownfield} 📋 Brownfield mode: the existing technology stack documented in project-context.md is treated as a hard constraint. New decisions must integrate with it; reversing existing choices requires explicit user opt-in (and likely a separate /aped-course session). {/if}
+> {if brownfield} 📋 Brownfield mode: the existing technology stack documented in project-context.md is treated as a hard constraint. New decisions must integrate with it; reversing existing choices requires explicit user opt-in (and likely a separate aped-course session). {/if}
 >
 > [C] Continue with these documents
 > [Other] Add a file path / paste content — I'll load it and redisplay
@@ -162,7 +162,7 @@ phases_planned:
 
 # Architecture — {{project_name}}
 
-> Built incrementally by `/aped-arch`. Sections fill as each subphase is validated.
+> Built incrementally by `aped-arch`. Sections fill as each subphase is validated.
 
 ## Phase 1 — Context Analysis
 
@@ -383,13 +383,13 @@ Check coherence:
 
 Present validation results. Flag any gaps.
 
-Then present the final A/C menu — this is the last chance to stress-test the architecture before downstream skills (`/aped-epics`, `/aped-dev`, `/aped-review`) treat it as LAW:
+Then present the final A/C menu — this is the last chance to stress-test the architecture before downstream skills (`aped-epics`, `aped-dev`, `aped-review`) treat it as LAW:
 
 ```
 Architecture document ready ({K} decisions, {N} council dispatches, {V} validation gaps).
 
 Choose your next move:
-[A] Advanced elicitation — invoke /aped-elicit on the full architecture doc
+[A] Advanced elicitation — invoke aped-elicit on the full architecture doc
     (Pre-mortem: "1 year from now this architecture is regretted, why?";
     Red Team vs Blue Team on security; Tree of Thoughts on the riskiest decision)
 [C] Continue — accept the architecture, write architecture.md, update state.yaml
@@ -487,6 +487,6 @@ Phase 2 discussion:
 
 ## Next Step
 
-Tell the user: "Architecture is ready. Run `/aped-epics` to create the epic structure."
+Tell the user: "Architecture is ready. Run `aped-epics` to create the epic structure."
 
 **Do NOT auto-chain.** The user decides when to proceed.

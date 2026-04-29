@@ -1,6 +1,6 @@
 ---
 name: aped-qa
-description: 'Use when user says "generate tests", "E2E tests", "integration tests", "aped qa", or invokes /aped-qa.'
+description: 'Use when user says "generate tests", "E2E tests", "integration tests", "aped qa", or invokes aped-qa.'
 argument-hint: "[story-key]"
 license: MIT
 metadata:
@@ -10,13 +10,13 @@ metadata:
 
 # APED QA — E2E & Integration Test Generation
 
-Generate comprehensive end-to-end and integration tests for completed stories or epics. Complements the unit tests written during /aped-dev TDD.
+Generate comprehensive end-to-end and integration tests for completed stories or epics. Complements the unit tests written during aped-dev TDD.
 
 ## Setup
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config
 2. Read `{{OUTPUT_DIR}}/state.yaml` — find completed stories/epics
-3. Read `{{APED_DIR}}/aped-qa/references/test-patterns.md` for framework selection and test templates
+3. Read `{{APED_DIR}}aped-qa/references/test-patterns.md` for framework selection and test templates
 
 ## Scope Selection
 
@@ -83,7 +83,7 @@ Read project config to auto-detect:
 - **Go**: Go test + httptest for API
 - **Rust**: reqwest for API tests
 
-Use `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh` to verify tests pass.
+Use `bash {{APED_DIR}}aped-dev/scripts/run-tests.sh` to verify tests pass.
 
 ## Test Coverage Report
 
@@ -108,7 +108,7 @@ QA doesn't affect pipeline state — it's an additive quality layer.
 
 ## Next Steps
 
-Suggest running `/aped-status` to view updated sprint status with QA coverage noted.
+Suggest running `aped-status` to view updated sprint status with QA coverage noted.
 
 ## Example
 

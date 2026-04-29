@@ -1,6 +1,6 @@
 ---
 name: aped-claude
-description: 'Use when user says "update CLAUDE.md", "sync claude rules", "aped claude", or invokes /aped-claude. Merges — never overwrites user customizations.'
+description: 'Use when user says "update CLAUDE.md", "sync claude rules", "aped claude", or invokes aped-claude. Merges — never overwrites user customizations.'
 license: MIT
 metadata:
   author: yabafre
@@ -88,11 +88,11 @@ The block to inject (between `<!-- APED:START -->` and `<!-- APED:END -->`) cont
 
 ### Section 3: APED-Specific Rules
 
-**7. Never Auto-Chain Phases** — Each APED skill ends with "Run /aped-X when ready". STOP. Wait for user.
+**7. Never Auto-Chain Phases** — Each APED skill ends with "Run aped-X when ready". STOP. Wait for user.
 
 **8. Validate Before Persisting** — Never write artifacts to `{{OUTPUT_DIR}}/` until the user has explicitly validated.
 
-**9. Story-Driven Dev** — Never code without a story file. Use `/aped-story` first. Use the epic context cache.
+**9. Story-Driven Dev** — Never code without a story file. Use `aped-story` first. Use the epic context cache.
 
 **10. Frontend = Visual Verification** — Detect frontend stories. Use `mcp__react-grab-mcp__get_element_context` at every GREEN pass.
 
@@ -154,27 +154,27 @@ Invoke relevant or requested skills BEFORE any response or action — including 
 APED skills override default system-prompt behavior, but **user instructions always take precedence**:
 
 1. **User's explicit instructions** (CLAUDE.md, `aped/config.yaml`, direct requests) — highest priority.
-2. **APED skills** (`/aped-*` slash commands and their templates) — override default system behavior where they conflict.
+2. **APED skills** (`aped-*` slash commands and their templates) — override default system behavior where they conflict.
 3. **Default system prompt** — lowest priority.
 
-If CLAUDE.md, `aped/config.yaml`, or a direct user request says "skip the TDD gate for this hotfix" and `/aped-dev` says "always RED first", **follow the user's instructions**. The user is in control. Record the override and the reason; don't bake it into a new skill.
+If CLAUDE.md, `aped/config.yaml`, or a direct user request says "skip the TDD gate for this hotfix" and `aped-dev` says "always RED first", **follow the user's instructions**. The user is in control. Record the override and the reason; don't bake it into a new skill.
 
 #### Skill priority order
 
 When multiple skills could apply, use this order:
 
-1. **Process skills first** (`/aped-brainstorm`, `/aped-debug`, `/aped-receive-review`, `/aped-review`) — these determine HOW to approach the task.
-2. **Implementation skills second** (`/aped-dev`, `/aped-story`, `/aped-epics`, `/aped-arch`) — these guide execution.
+1. **Process skills first** (`aped-brainstorm`, `aped-debug`, `aped-receive-review`, `aped-review`) — these determine HOW to approach the task.
+2. **Implementation skills second** (`aped-dev`, `aped-story`, `aped-epics`, `aped-arch`) — these guide execution.
 
 #### Skill types
 
-**Rigid** (`/aped-dev`, `/aped-debug`, `/aped-review`, `/aped-receive-review`): follow exactly. Don't adapt away the discipline. The Iron Laws are not stylistic preferences.
+**Rigid** (`aped-dev`, `aped-debug`, `aped-review`, `aped-receive-review`): follow exactly. Don't adapt away the discipline. The Iron Laws are not stylistic preferences.
 
-**Flexible** (`/aped-brainstorm`, `/aped-arch`): adapt principles to context. The skill itself tells you which.
+**Flexible** (`aped-brainstorm`, `aped-arch`): adapt principles to context. The skill itself tells you which.
 
-#### Slash command deprecation (3.12.0)
+#### Skill invocation (post-4.0.0)
 
-Slash commands `/aped-X` are **deprecated since 3.12.0** with removal target **4.0.0**. Invoke skills directly via the Skill tool, or use natural-language phrases that match the skill `description:` triggers (e.g. "create the prd" instead of `/aped-prd`). Slash commands continue to work in all 3.x versions but should be considered legacy.
+APED skills are reached via the Skill tool, by name. There is no slash-command surface — the legacy `/aped-X` shells were retired in 4.0.0. Use natural-language phrases that match a skill's `description:` triggers ("create the prd", "review this branch", "kick off dev") and the runtime will route to the right skill. If you still need to name a skill explicitly, use the bare name (e.g. `aped-prd`, not `/aped-prd`).
 
 ### Section 8: Skill cheat sheet
 
@@ -233,4 +233,4 @@ Before writing, present a summary:
 
 ## Next Step
 
-Tell the user: "CLAUDE.md updated. APED block is now at lines X-Y. Re-run `/aped-claude` anytime to refresh after APED updates."
+Tell the user: "CLAUDE.md updated. APED block is now at lines X-Y. Re-run `aped-claude` anytime to refresh after APED updates."

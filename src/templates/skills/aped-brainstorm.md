@@ -1,7 +1,7 @@
 ---
 name: aped-brainstorm
-description: 'Use when user says "brainstorm", "ideate", "generate ideas", "divergent thinking", or invokes /aped-brainstorm. Horizontal — invokable at any phase.'
-when_to_use: 'Use when user says "brainstorm", "help me ideate", "explore ideas". Runs before /aped-analyze when the idea is still fuzzy.'
+description: 'Use when user says "brainstorm", "ideate", "generate ideas", "divergent thinking", or invokes aped-brainstorm. Horizontal — invokable at any phase.'
+when_to_use: 'Use when user says "brainstorm", "help me ideate", "explore ideas". Runs before aped-analyze when the idea is still fuzzy.'
 argument-hint: "[topic]"
 allowed-tools: Read Write Edit Glob Grep Bash TaskCreate TaskUpdate
 license: MIT
@@ -160,8 +160,8 @@ Technique {name} complete — {N} ideas captured.
 Choose next move:
 [K] Keep exploring this technique (you have ideas left)
 [T] Try a different technique (suggest 2-3 from the library that pair well with what we found)
-[A] Advanced elicitation — call /aped-elicit on the strongest 1-2 ideas (deep critique, sharpening)
-[B] Take a break (save and pause; resume by re-running /aped-brainstorm)
+[A] Advanced elicitation — call aped-elicit on the strongest 1-2 ideas (deep critique, sharpening)
+[B] Take a break (save and pause; resume by re-running aped-brainstorm)
 [C] Converge — quota met or close enough → Phase 4
 ```
 
@@ -223,7 +223,7 @@ After writing the spec/session-output document, look at it with fresh eyes — t
 
 1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
 2. **Internal consistency:** Do any sections contradict each other? Does the architecture sketch match the feature descriptions in the survivors?
-3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition? If multiple independent subsystems, flag for split before handing off to `/aped-prd`.
+3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition? If multiple independent subsystems, flag for split before handing off to `aped-prd`.
 4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
 5. **YAGNI sweep:** Any unrequested features or over-engineering survived convergence? Remove them now — every line in the spec becomes implementation cost downstream.
 
@@ -231,7 +231,7 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 ### Spec-reviewer dispatch
 
-After the inline self-review passes, dispatch a fresh subagent to review the spec document **before** the user gate. The reviewer's job is to verify the spec is complete, consistent, and ready for `/aped-prd` / `/aped-epics` planning.
+After the inline self-review passes, dispatch a fresh subagent to review the spec document **before** the user gate. The reviewer's job is to verify the spec is complete, consistent, and ready for `aped-prd` / `aped-epics` planning.
 
 Use the `Agent` tool (`subagent_type: "general-purpose"`) with this verbatim prompt (substitute `[SPEC_FILE_PATH]` with the actual path of the brainstorm spec just written):
 
@@ -289,8 +289,8 @@ Before handing off the brainstorm output, walk this checklist. Each `[ ]` must f
 
 Brainstorm is not a formal pipeline phase — it does NOT update `{{OUTPUT_DIR}}/state.yaml`. It's a creative tool usable at any time.
 
-If the brainstorm was a precursor to `/aped-analyze`, tell the user:
-> "Brainstorm saved at `{{OUTPUT_DIR}}/brainstorm/session-{date}.md`. When you're ready, run `/aped-analyze` to turn one of these survivors into a validated product brief."
+If the brainstorm was a precursor to `aped-analyze`, tell the user:
+> "Brainstorm saved at `{{OUTPUT_DIR}}/brainstorm/session-{date}.md`. When you're ready, run `aped-analyze` to turn one of these survivors into a validated product brief."
 
 ## Next Step
 

@@ -1,6 +1,6 @@
 ---
 name: aped-review
-description: 'Use when user says "review code", "run review", "aped review", or invokes /aped-review.'
+description: 'Use when user says "review code", "run review", "aped review", or invokes aped-review.'
 argument-hint: "[story-key]"
 disable-model-invocation: true
 license: MIT
@@ -65,7 +65,7 @@ Look for these artefacts (✱ = required):
 - Epic Context Cache — `{{OUTPUT_DIR}}/epic-{N}-context.md`
 - Project Context — `*context*.md` or `project-context.md`
 - Product Brief — `*brief*.md` or `product-brief.md`
-- Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter entries with `Scope: /aped-review` or `Scope: all` — produced by `/aped-retro` after each epic)
+- Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter entries with `Scope: aped-review` or `Scope: all` — produced by `aped-retro` after each epic)
 
 ### 2. Required-input validation (hard-stop)
 
@@ -77,7 +77,7 @@ For the ✱ Story file:
 (This validation runs *after* Worktree Mode Detection, since `story_key` is resolved there.)
 
 For Architecture (recommended, not required):
-- If missing: WARN the user — "No `architecture.md` found. Pattern Compliance review will operate in degraded mode (specialist must infer conventions from the codebase). Consider running `/aped-arch` first if patterns matter for this review."
+- If missing: WARN the user — "No `architecture.md` found. Pattern Compliance review will operate in degraded mode (specialist must infer conventions from the codebase). Consider running `aped-arch` first if patterns matter for this review."
 - Continue without HALT.
 
 ### 3. Load + report
@@ -85,7 +85,7 @@ For Architecture (recommended, not required):
 - Load every discovered file completely (no offset/limit).
 - Brownfield/greenfield is detected via `project-context.md` presence.
 
-Present a discovery report (full in classic mode; in worktree mode, log a one-liner since `/aped-review` is auto-launched without a human at the keyboard):
+Present a discovery report (full in classic mode; in worktree mode, log a one-liner since `aped-review` is auto-launched without a human at the keyboard):
 
 > Reviewing story {story-key} in {project_name}.
 > Loaded: Story ✓, PRD {✓|—}, Architecture {✓|⚠ missing — degraded mode}, UX Spec {✓|—}, Epic Context {✓|—}, Project Context {✓ brownfield|—}, Lessons ({K} review-scoped rules to enforce).
@@ -99,7 +99,7 @@ Loaded artefacts inform every specialist's review:
 - AC Coverage specialist cross-references the story's ACs back to PRD FRs.
 - Frontend specialist (when applicable) verifies UX spec components are used as specified.
 - Edge Case Hunter pulls scenarios from PRD NFRs and (in brownfield mode) from existing-system constraints.
-- **Lessons become explicit checks, not implicit advisory.** For each loaded lesson with scope `/aped-review` or `all`:
+- **Lessons become explicit checks, not implicit advisory.** For each loaded lesson with scope `aped-review` or `all`:
   - The `Rule:` is added to the relevant specialist's checklist (e.g. if Epic 1's lesson was "always verify error states are reachable in the UI", the Frontend specialist gets that as a mandatory check).
   - The `Mistake:` from the lesson becomes a specific finding category — the team is explicitly asked "did this story repeat the {Mistake} we identified after Epic {N}?".
   - A lesson never "passes review by default" — if the relevant specialist can't confirm the rule was applied, that's a finding, not a non-event.
@@ -128,7 +128,7 @@ reviews_running = count(stories where status == "review" AND story_key != this o
 If `reviews_running >= review_limit`:
 - Update this story's status to `review-queued` in state.yaml
 - Post a comment on the ticket (if applicable): "Review capacity reached — queued."
-- Tell the user: "Review queue is full (`{running}`/`{limit}`). This story is `review-queued`. Re-run `/aped-review {story-key}` when a slot frees (see `/aped-status`)."
+- Tell the user: "Review queue is full (`{running}`/`{limit}`). This story is `review-queued`. Re-run `aped-review {story-key}` when a slot frees (see `aped-status`)."
 - STOP — do not dispatch specialists.
 
 Otherwise, continue to Step 2. (Do NOT change status yet; it stays `review` until either `done` or queued again.)
@@ -195,13 +195,13 @@ Eva flagged AC gap(s):
 {list Eva's findings here verbatim — file:line + AC ID per finding}
 
 Options:
-[F] Fix — return story to dev (status flips back to in-progress, /aped-review exits without dispatching the other specialists)
+[F] Fix — return story to dev (status flips back to in-progress, aped-review exits without dispatching the other specialists)
 [O] Override — proceed with Marcus, Rex, and conditional specialists despite the AC gap. You will be asked for a reason; that reason is recorded as the first line of the merged report.
 ```
 
 ⏸ **HALT — wait for `[F]` or `[O]`.**
 
-- On `[F]`: run `bash {{APED_DIR}}/scripts/sync-state.sh set-story-status {key} in-progress`, exit `/aped-review`.
+- On `[F]`: run `bash {{APED_DIR}}/scripts/sync-state.sh set-story-status {key} in-progress`, exit `aped-review`.
 - On `[O]`: prompt the user for a reason (one line, will appear in the report). **The reason must be non-empty** — the entire purpose of the override gate is the recorded justification. If the user submits an empty reason, re-prompt: "Override requires a reason. Please state why the AC gap is acceptable to proceed." Re-loop until non-empty or the user types `[F]` instead. Set `OVERRIDE_REASON="<text>"` for use in Step 7. Continue to Stage 2.
 
 If Eva's subagent fails to return a structured verdict (transport error, malformed report), re-dispatch her once with sharper instructions. If the second attempt also fails, HALT and escalate to the user — the gate cannot pass on a missing verdict.
@@ -363,7 +363,7 @@ If Marcus finds even one of these, he raises it as a finding with the exact gate
 
 **git-auditor** — **Rex**, Code Archaeologist — "Every commit tells a story."
 - `subagent_type: "general-purpose"`
-- Runs `bash {{APED_DIR}}/aped-review/scripts/git-audit.sh`
+- Runs `bash {{APED_DIR}}aped-review/scripts/git-audit.sh`
 - Reports out-of-scope changes and missing expected changes
 
 ### Conditional Specialists (by file surface)
@@ -383,7 +383,7 @@ If Marcus finds even one of these, he raises it as a finding with the exact gate
 - **Ownership**: dev already ran React Grab at each GREEN (see `aped-dev` § Frontend Detection). Aria's job is to **validate** that work, not redo it from scratch.
 - **Validate**: design-spec compliance (tokens, spacing, typography), cross-screen consistency, edge cases dev may have skipped (loading / empty / error / disabled states), responsive behaviour
 - **Re-inspect with React Grab only when**: dev flagged an unresolved visual issue, a design-spec violation is suspected, or a cross-component consistency check is needed
-- **If React Grab MCP is unavailable**: fall back to static screenshots + code review; explicitly note in the report that a deep visual audit wasn't possible (do not silently pass), AND append a `Visual Review: deferred — React Grab MCP unavailable at <ISO timestamp>` line to the story file's Review Record so /aped-status and /aped-ship surface that the visual gate is incomplete. In prod, treat persistent MCP unavailability as a BLOCKER for that story until the user explicitly waives.
+- **If React Grab MCP is unavailable**: fall back to static screenshots + code review; explicitly note in the report that a deep visual audit wasn't possible (do not silently pass), AND append a `Visual Review: deferred — React Grab MCP unavailable at <ISO timestamp>` line to the story file's Review Record so aped-status and aped-ship surface that the visual gate is incomplete. In prod, treat persistent MCP unavailability as a BLOCKER for that story until the user explicitly waives.
 
 **devops** — **Kai**, Platform Engineer, on-call veteran — "If it's not automated, it's not done." (if infra files)
 - `subagent_type: "feature-dev:code-reviewer"`
@@ -428,7 +428,7 @@ As the Lead, collect all specialist reports and merge:
 3. **Prioritize** — CRITICAL > HIGH > MEDIUM > LOW
 4. **Verify minimum 3** — if total findings across team < 3, **re-dispatch** the most relevant specialist with stricter instructions ("look harder at edge cases, error handling, security surface")
 5. **Check ticket comments** — if a team member commented on the ticket about a known limitation, don't re-flag it as a finding; note it as "acknowledged"
-6. **Route root-cause findings to `/aped-debug`** — for any finding whose mechanism is unclear (Eva flags a bug whose cause she can't articulate, Marcus surfaces a regression with no obvious origin, Rex spots a behavioural delta in the git audit that nobody can explain), dispatch `/aped-debug` rather than letting the specialist guess. Phase 1 inherits the finding's repro; the verdict is appended to this review's evidence trail. See `aped-debug.md` § Invocation contexts.
+6. **Route root-cause findings to `aped-debug`** — for any finding whose mechanism is unclear (Eva flags a bug whose cause she can't articulate, Marcus surfaces a regression with no obvious origin, Rex spots a behavioural delta in the git audit that nobody can explain), dispatch `aped-debug` rather than letting the specialist guess. Phase 1 inherits the finding's repro; the verdict is appended to this review's evidence trail. See `aped-debug.md` § Invocation contexts.
 
 ## Self-review (run before final report)
 
@@ -444,7 +444,7 @@ Before presenting the merged report to the user, walk this checklist. Each `[ ]`
 
 ## Verification gate (run before Step 7)
 
-The Iron Law for `/aped-review` is *NO PASS WITHOUT FRESH EVIDENCE IN THIS MESSAGE*. This gate operationalises that.
+The Iron Law for `aped-review` is *NO PASS WITHOUT FRESH EVIDENCE IN THIS MESSAGE*. This gate operationalises that.
 
 **Forbidden phrases** — these alone are not evidence. If the report draft contains any of them and the message has no captured tool output, the gate fails.
 
@@ -456,7 +456,7 @@ The Iron Law for `/aped-review` is *NO PASS WITHOUT FRESH EVIDENCE IN THIS MESSA
 2. **Diff with test output** — short diff of the story's changes paired with the test output that exercises them.
 3. **Screenshot reference** — for frontend stories, an explicit React Grab visual check or screenshot path captured this session.
 
-If none of the three is present, **HALT** and re-run the verification, capturing the output here. Do not present a verdict on confidence. Same gate as `/aped-dev` § Verification gate — same standards either side of the dev/review handoff.
+If none of the three is present, **HALT** and re-run the verification, capturing the output here. Do not present a verdict on confidence. Same gate as `aped-dev` § Verification gate — same standards either side of the dev/review handoff.
 
 ## Step 7: Present Report to User
 
@@ -524,7 +524,7 @@ Do this BEFORE local state — remote failures are recoverable, but state.yaml g
 If `ticket_system` != `none`: post the review report as a comment on the ticket.
 
 If story → `done`:
-1. **Open (or update) the story PR — target = sprint umbrella, NOT base.** Read `sprint.umbrella_branch` from state.yaml; that's the PR base. The PR's job is to be the unit of review against the umbrella; the umbrella aggregates the sprint and PRs once into base via `/aped-ship`.
+1. **Open (or update) the story PR — target = sprint umbrella, NOT base.** Read `sprint.umbrella_branch` from state.yaml; that's the PR base. The PR's job is to be the unit of review against the umbrella; the umbrella aggregates the sprint and PRs once into base via `aped-ship`.
 
    ```bash
    UMBRELLA=$(yq '.sprint.umbrella_branch' ${project_root}/{{OUTPUT_DIR}}/state.yaml)
@@ -539,11 +539,11 @@ If story → `done`:
 
    If the PR already exists (re-review of a story), update its body/comments instead.
 
-2. **Do NOT merge here.** The merge into umbrella is owned by `/aped-lead` after it approves the `review-done` check-in (au-fil-de-l'eau policy: each story PR is merged into umbrella the moment lead approves, not batched at /aped-ship).
+2. **Do NOT merge here.** The merge into umbrella is owned by `aped-lead` after it approves the `review-done` check-in (au-fil-de-l'eau policy: each story PR is merged into umbrella the moment lead approves, not batched at aped-ship).
 
 3. Move ticket to **In Review** (if `ticket_system` != none).
 
-4. Worktree cleanup is **deferred to /aped-lead's approval handler**, which knows the merge succeeded. Don't remove the worktree from /aped-review — if the merge ends up failing, the worktree is the only way to recover the local state.
+4. Worktree cleanup is **deferred to aped-lead's approval handler**, which knows the merge succeeded. Don't remove the worktree from aped-review — if the merge ends up failing, the worktree is the only way to recover the local state.
 
 If story stays `review`:
 1. Post each finding as a PR comment with line anchor
@@ -568,17 +568,17 @@ bash ${project_root}/{{APED_DIR}}/scripts/checkin.sh post {story-key} review-don
 
 No HALT — the story is finished. The Lead picks up the check-in and tells the user what to do next (typically `workmux merge` inside this window, or the scripted fallback).
 
-If the story stayed `review`, do NOT post a check-in — the user stays in control and will re-invoke /aped-review after fixing.
+If the story stayed `review`, do NOT post a check-in — the user stays in control and will re-invoke aped-review after fixing.
 
 ### Next Step messaging
 
 If story → `done`:
-- In parallel mode: "review-done check-in posted. Wait for `/aped-lead` to confirm cleanup instructions."
-- Classic mode: "Run `/aped-story` to prepare the next story."
+- In parallel mode: "review-done check-in posted. Wait for `aped-lead` to confirm cleanup instructions."
+- Classic mode: "Run `aped-story` to prepare the next story."
 - Sprint complete: report completion.
 
 If story stays `review`:
-- "Fix the remaining findings, then re-run `/aped-review`."
+- "Fix the remaining findings, then re-run `aped-review`."
 
 **Do NOT auto-chain.** The user decides when to proceed.
 
@@ -601,7 +601,7 @@ User: "Fix all HIGH, dismiss the MEDIUM."
 → Lead applies 2 simple fixes, re-dispatches backend-specialist for the path traversal fix
 → All specialists re-verify → clean → story `done`
 → Ticket comment posted, PR merged, state updated
-→ "Run /aped-story for the next."
+→ "Run aped-story for the next."
 
 ## What NOT to Do
 

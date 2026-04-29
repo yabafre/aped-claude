@@ -1,6 +1,6 @@
 # APED Skill Authoring — Persuasion Principles (Reference)
 
-> Reference document. No `description:` triggers — read on demand from other APED skills (e.g. `/aped-claude` when generating new skills, `/aped-retro` when explaining why an Iron Law works).
+> Reference document. No `description:` triggers — read on demand from other APED skills (e.g. `aped-claude` when generating new skills, `aped-retro` when explaining why an Iron Law works).
 
 ## Contents
 
@@ -50,9 +50,9 @@ This is the empirical basis for APED's "Iron Law" rhetorical pattern — imperat
 - Established best practices
 
 **APED applications:**
-- `/aped-dev`'s Iron Law: "NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST."
-- `/aped-review`'s Iron Law: "NO PASS WITHOUT FRESH EVIDENCE IN THIS MESSAGE."
-- `/aped-debug`'s Iron Law: "NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST."
+- `aped-dev`'s Iron Law: "NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST."
+- `aped-review`'s Iron Law: "NO PASS WITHOUT FRESH EVIDENCE IN THIS MESSAGE."
+- `aped-debug`'s Iron Law: "NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST."
 
 **Example:**
 ```markdown
@@ -75,8 +75,8 @@ This is the empirical basis for APED's "Iron Law" rhetorical pattern — imperat
 - Accountability mechanisms
 
 **APED applications:**
-- The `[F]ix` / `[O]verride` user gate in `/aped-review` — explicit choice, recorded reason.
-- `/aped-brainstorm` energy checkpoint `[K] / [S] / [P] / [D]` — user picks; default if silent is `[K]`.
+- The `[F]ix` / `[O]verride` user gate in `aped-review` — explicit choice, recorded reason.
+- `aped-brainstorm` energy checkpoint `[K] / [S] / [P] / [D]` — user picks; default if silent is `[K]`.
 - TaskCreate / TaskUpdate cycle in every skill that has a checklist.
 
 **Example:**
@@ -100,8 +100,8 @@ This is the empirical basis for APED's "Iron Law" rhetorical pattern — imperat
 - Preventing "I'll do it later"
 
 **APED applications:**
-- `/aped-dev`'s "Verification gate (run before Completion)" — fresh evidence in **this** message, not next session.
-- `/aped-debug`'s 3-failed-fixes rule — STOP at attempt 3, don't try fix 4.
+- `aped-dev`'s "Verification gate (run before Completion)" — fresh evidence in **this** message, not next session.
+- `aped-debug`'s 3-failed-fixes rule — STOP at attempt 3, don't try fix 4.
 
 **Example:**
 ```markdown
@@ -124,8 +124,8 @@ This is the empirical basis for APED's "Iron Law" rhetorical pattern — imperat
 - Reinforcing standards
 
 **APED applications:**
-- `/aped-story`'s Reader persona ("the enthusiastic junior with poor taste") — establishes the universal failure mode.
-- `/aped-review`'s "Don't rubber-stamp" anti-pattern — names what every undisciplined reviewer does.
+- `aped-story`'s Reader persona ("the enthusiastic junior with poor taste") — establishes the universal failure mode.
+- `aped-review`'s "Don't rubber-stamp" anti-pattern — names what every undisciplined reviewer does.
 
 **Example:**
 ```markdown
@@ -147,8 +147,8 @@ This is the empirical basis for APED's "Iron Law" rhetorical pattern — imperat
 - Non-hierarchical practices
 
 **APED applications:**
-- `/aped-review` specialist personas (Marcus, Eva, Diego, Lucas, Aria, Kai, Sam) — named team members with defining traits make the review feel like a council, not a tribunal.
-- `/aped-dev`'s fullstack team mode (Kenji + Amelia + Leo) — same pattern, applied to implementation.
+- `aped-review` specialist personas (Marcus, Eva, Diego, Lucas, Aria, Kai, Sam) — named team members with defining traits make the review feel like a council, not a tribunal.
+- `aped-dev`'s fullstack team mode (Kenji + Amelia + Leo) — same pattern, applied to implementation.
 
 **Example:**
 ```markdown
@@ -175,15 +175,15 @@ This is the empirical basis for APED's "Iron Law" rhetorical pattern — imperat
 - Conflicts with honest feedback culture.
 - Creates sycophancy.
 
-**When to avoid:** Always for discipline enforcement. APED's "no performative agreement" rule in `/aped-receive-review` is the explicit reaction to Liking-driven sycophancy ("You're absolutely right!").
+**When to avoid:** Always for discipline enforcement. APED's "no performative agreement" rule in `aped-receive-review` is the explicit reaction to Liking-driven sycophancy ("You're absolutely right!").
 
 ## Principle combinations by skill type
 
 | Skill type | Use | Avoid |
 |------------|-----|-------|
-| **Discipline-enforcing** (`/aped-dev`, `/aped-review`, `/aped-debug`, `/aped-receive-review`) | Authority + Commitment + Social Proof | Liking, Reciprocity |
-| **Guidance/technique** (`/aped-arch`, `/aped-prd`) | Moderate Authority + Unity | Heavy authority |
-| **Collaborative** (`/aped-brainstorm`, `/aped-story` user gate) | Unity + Commitment | Authority, Liking |
+| **Discipline-enforcing** (`aped-dev`, `aped-review`, `aped-debug`, `aped-receive-review`) | Authority + Commitment + Social Proof | Liking, Reciprocity |
+| **Guidance/technique** (`aped-arch`, `aped-prd`) | Moderate Authority + Unity | Heavy authority |
+| **Collaborative** (`aped-brainstorm`, `aped-story` user gate) | Unity + Commitment | Authority, Liking |
 | **Reference** (this file, `anthropic-best-practices.md`, `testing-skills-with-subagents.md`) | Clarity only | All persuasion |
 
 ## Why this works: the psychology

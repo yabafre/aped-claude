@@ -1,6 +1,6 @@
 ---
 name: aped-epics
-description: 'Use when user says "create epics", "break into stories", "aped epics", or invokes /aped-epics. Does NOT create story files — that''s /aped-story.'
+description: 'Use when user says "create epics", "break into stories", "aped epics", or invokes aped-epics. Does NOT create story files — that''s aped-story.'
 license: MIT
 metadata:
   author: yabafre
@@ -13,7 +13,7 @@ metadata:
 
 - EVERY FR must map to exactly one epic — no orphans, no phantoms
 - Epics describe USER VALUE, not technical layers — "User Authentication" not "Database Setup"
-- This skill creates the PLAN, not the story files — `/aped-story` creates one story file at a time
+- This skill creates the PLAN, not the story files — `aped-story` creates one story file at a time
 - Quality is more important than speed — do not skip coverage validation
 
 ## Input Discovery
@@ -41,7 +41,7 @@ For the UX spec folder, load all 4 files (`design-spec.md`, `screen-inventory.md
 For the ✱ PRD:
 - If found: extract ALL FRs and NFRs by number
 - If missing: HALT with this message:
-  > "Epic decomposition requires a PRD. Every epic and story maps back to FRs/NFRs. Run `/aped-prd` first, or provide the PRD file path."
+  > "Epic decomposition requires a PRD. Every epic and story maps back to FRs/NFRs. Run `aped-prd` first, or provide the PRD file path."
 
 ### 3. Load + report
 
@@ -50,7 +50,7 @@ For the ✱ PRD:
 
 Present a discovery report (adapt to `communication_language`):
 
-> Welcome {user_name}! Setting up `/aped-epics` for {project_name}.
+> Welcome {user_name}! Setting up `aped-epics` for {project_name}.
 >
 > **Documents discovered:**
 > - PRD: {N} files {✓ loaded — {M} FRs / {K} NFRs extracted | ✱ MISSING — HALT}
@@ -94,7 +94,7 @@ TaskCreate: "FR coverage validation"
 
 ## File structure design (upfront)
 
-Before breaking epics into stories, sketch the file boundaries the epic will touch **across stories**. Story-level file design (in `/aped-story`) keeps each story's files coherent; epic-level file design ensures stories within the same epic don't fight over the same modules and that files-that-change-together stay in the same story.
+Before breaking epics into stories, sketch the file boundaries the epic will touch **across stories**. Story-level file design (in `aped-story`) keeps each story's files coherent; epic-level file design ensures stories within the same epic don't fight over the same modules and that files-that-change-together stay in the same story.
 
 Apply the same rule as story-level decomposition: **split by responsibility, not by technical layer.** An epic delivering "user auth" is not "story 1 = backend, story 2 = frontend, story 3 = tests" — that's the layer trap, and it produces three stories that all need each other to ship anything user-visible. The right split is by user-value slice (registration, sessions, password reset), where each slice cuts vertically through layers and ships independently.
 
@@ -108,7 +108,7 @@ Two stories of the same epic should NOT both create the same file from scratch (
 
 ## Epic Design
 
-Read `{{APED_DIR}}/aped-epics/references/epic-rules.md` for design principles.
+Read `{{APED_DIR}}aped-epics/references/epic-rules.md` for design principles.
 
 ### Core Rules
 
@@ -124,13 +124,13 @@ For each epic, list the stories with:
 - **Story key** — `{epic#}-{story#}-{slug}` (slug from title, lowercase, hyphens, max 30 chars)
 - **Summary** — 1-2 sentences of scope
 - **FRs covered** — which FR numbers this story addresses
-- **Acceptance Criteria** — high-level Given/When/Then (will be refined in /aped-story)
+- **Acceptance Criteria** — high-level Given/When/Then (will be refined in aped-story)
 - **Estimated complexity** — S / M / L
-- **Depends on** — comma-separated list of story keys this one blocks on, or `none`. Required for parallel sprint (`/aped-sprint`).
+- **Depends on** — comma-separated list of story keys this one blocks on, or `none`. Required for parallel sprint (`aped-sprint`).
 
 Pick dependencies conservatively: if story B *needs* an artefact produced by story A (contract, schema, shared util), list A. If B only shares files with A but could technically be rebased after, no dep — parallel sprint wins. "Pure foundation" stories (1-1 auth scaffold, 1-1 schema base) usually have `depends_on: none` and unlock a fan-out.
 
-Do NOT create the detailed story files here. The user will run `/aped-story` to create each one individually before implementing it.
+Do NOT create the detailed story files here. The user will run `aped-story` to create each one individually before implementing it.
 
 ## Discussion with User — A/P/C menu
 
@@ -146,7 +146,7 @@ Then display the A/P/C menu:
 Epic structure draft ready ({E} epics, {S} stories, {N} dependencies tracked).
 
 Choose your next move:
-[A] Advanced elicitation — invoke /aped-elicit on the decomposition
+[A] Advanced elicitation — invoke aped-elicit on the decomposition
     (Tree of Thoughts to compare alternative groupings; Pre-mortem to find
     sequencing risks; Occam's Razor to spot over-engineering)
 [P] Party / Council — convene a 3-specialist sub-team to challenge the structure:
@@ -163,7 +163,7 @@ Choose your next move:
 
 ### Behaviour by choice
 
-- `[A]` → invoke `/aped-elicit` with the epic structure as target. When elicit returns enhanced content (e.g. "Story 3 should be split — too many ACs touching different layers"), apply the change and redisplay the menu.
+- `[A]` → invoke `aped-elicit` with the epic structure as target. When elicit returns enhanced content (e.g. "Story 3 should be split — too many ACs touching different layers"), apply the change and redisplay the menu.
 - `[P]` → dispatch Sam + Eva + the PM persona in parallel via the `Agent` tool, each with the epic structure + PRD excerpt + their persona's brief. Merge findings, present as "Council says: …", ask "Apply any of these? (numbers / all / none)". On selection, integrate; redisplay the menu.
 - `[C]` → mark the discussion task `completed`, proceed to FR Coverage Map + Validation + Output.
 - Direct feedback → apply the user's edit, redisplay.
@@ -175,7 +175,7 @@ Every FR from PRD mapped to exactly one epic. No orphans, no phantoms.
 ## Validation
 
 ```bash
-bash {{APED_DIR}}/aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md
+bash {{APED_DIR}}aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md
 ```
 
 ### Spec self-review
@@ -192,7 +192,7 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 ### Spec-reviewer dispatch
 
-After the inline self-review passes, dispatch a fresh subagent to review the epics breakdown **before** the user gate. The reviewer's job is to verify the structure is sound and ready for `/aped-story` and `/aped-dev` consumption.
+After the inline self-review passes, dispatch a fresh subagent to review the epics breakdown **before** the user gate. The reviewer's job is to verify the structure is sound and ready for `aped-story` and `aped-dev` consumption.
 
 Use the `Agent` tool (`subagent_type: "general-purpose"`) with this verbatim prompt (substitute `[ARTEFACT_FILE_PATH]` with the actual path of `epics.md` just written):
 
@@ -213,7 +213,7 @@ You are a spec document reviewer. Verify this epics breakdown is complete and re
 
 ## Calibration
 
-**Only flag issues that would cause real problems for `/aped-story` and `/aped-dev`.**
+**Only flag issues that would cause real problems for `aped-story` and `aped-dev`.**
 Story granularity that obviously needs to split (one story owning multiple
 subsystems) or merge (two stories that touch identical code), orphan FRs not
 covered by any story, or cycles in `depends_on` — those are issues. Naming
@@ -260,13 +260,13 @@ Before presenting the epics breakdown to the user, walk this checklist. Each `[ 
    - Add `phases.epics` with status `done` and output path
    - Add `sprint.stories` — one entry per story with `status: pending`, `depends_on: [array of story keys]`, `ticket: null` (filled by Ticket System Setup), `worktree: null`
    - `"sprint"` covers the entire story→dev→review cycle — no further phase changes needed
-3. Do NOT create `{{OUTPUT_DIR}}/stories/` files — that is `/aped-story`'s job
+3. Do NOT create `{{OUTPUT_DIR}}/stories/` files — that is `aped-story`'s job
 
 ## Ticket System Setup
 
 Read `ticket_system` from config. If `none`: skip this phase entirely and write `ticket_sync: skipped` under `phases.epics` in state.yaml.
 
-Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md` for provider-specific syntax.
+Read `{{APED_DIR}}aped-dev/references/ticket-git-workflow.md` for provider-specific syntax.
 
 ### Step 0: Open the sync log
 
@@ -534,6 +534,6 @@ FR Coverage: FR1→1-1, FR2→1-2, FR3→1-2, ... (all mapped)
 
 ## Next Step
 
-Tell the user: "Epics structure is ready. Run `/aped-story` to create the first story file, then `/aped-dev` to implement it."
+Tell the user: "Epics structure is ready. Run `aped-story` to create the first story file, then `aped-dev` to implement it."
 
 **Do NOT auto-chain.** The user decides when to proceed.

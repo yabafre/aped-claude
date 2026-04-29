@@ -1,6 +1,6 @@
 ---
 name: aped-analyze
-description: 'Use when user says "research idea", "aped analyze", or invokes /aped-analyze. Runs alongside /aped-context — both can apply on hybrid projects (new feature in existing system).'
+description: 'Use when user says "research idea", "aped analyze", or invokes aped-analyze. Runs alongside aped-context — both can apply on hybrid projects (new feature in existing system).'
 license: MIT
 metadata:
   author: yabafre
@@ -39,7 +39,7 @@ Search these locations in order:
 - `{{APED_DIR}}/**`
 - `docs/**` (project root)
 
-Look for these artefacts (none required for `/aped-analyze` — it's an entry-point skill):
+Look for these artefacts (none required for `aped-analyze` — it's an entry-point skill):
 - Product Brief — `*brief*.md` or `product-brief.md`
 - Project Context — `*context*.md` or `project-context.md`
 - Research — `*research*.md`
@@ -48,7 +48,7 @@ For sharded folders (folder with `index.md` + multiple files), load the index fi
 
 ### 2. Required-input validation
 
-None — `/aped-analyze` is an entry-point. It runs with or without prior artefacts.
+None — `aped-analyze` is an entry-point. It runs with or without prior artefacts.
 
 ### 3. Load + report
 
@@ -59,7 +59,7 @@ None — `/aped-analyze` is an entry-point. It runs with or without prior artefa
 
 Present a discovery report to the user (adapt to `communication_language`):
 
-> Welcome {user_name}! Setting up `/aped-analyze` for {project_name}.
+> Welcome {user_name}! Setting up `aped-analyze` for {project_name}.
 >
 > **Documents discovered:**
 > - Product Brief: {N} files {✓ loaded — will refine | (none — fresh analysis)}
@@ -141,7 +141,7 @@ Then present the A/C menu:
 
 ```
 Discovery summary ready. Choose:
-[A] Advanced elicitation — invoke /aped-elicit on the summary
+[A] Advanced elicitation — invoke aped-elicit on the summary
     (Socratic / Pre-mortem / Devil's Advocate to surface blind spots before research)
 [C] Continue — accept the summary, dispatch parallel research (Mary / Derek / Tom)
 [Other] Direct correction — type changes; I'll apply and redisplay
@@ -160,7 +160,7 @@ TaskCreate: "Synthesize into product brief"
 TaskCreate: "Validate brief with user"
 ```
 
-Read `{{APED_DIR}}/aped-analyze/references/research-prompts.md` for detailed agent prompts.
+Read `{{APED_DIR}}aped-analyze/references/research-prompts.md` for detailed agent prompts.
 
 Launch **3 Agent tool calls in a single message** (parallel execution) with `run_in_background: true`.
 
@@ -234,7 +234,7 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 ### Spec-reviewer dispatch
 
-After the inline self-review passes, dispatch a fresh subagent to review the brief **before** the user gate. The reviewer's job is to verify the brief is complete, consistent, and ready for `/aped-prd` planning.
+After the inline self-review passes, dispatch a fresh subagent to review the brief **before** the user gate. The reviewer's job is to verify the brief is complete, consistent, and ready for `aped-prd` planning.
 
 Use the `Agent` tool (`subagent_type: "general-purpose"`) with this verbatim prompt (substitute `[ARTEFACT_FILE_PATH]` with the actual path of `product-brief.md` just written):
 
@@ -255,7 +255,7 @@ You are a spec document reviewer. Verify this product brief is complete and read
 
 ## Calibration
 
-**Only flag issues that would cause real problems for `/aped-prd` planning.**
+**Only flag issues that would cause real problems for `aped-prd` planning.**
 Inconsistencies between market and tech findings (e.g. "low competition" +
 "saturated tooling"), weak evidence backing key claims, or non-falsifiable
 assertions — those are issues. Subjective interpretations of market opportunity
@@ -283,7 +283,7 @@ When the reviewer returns:
 ## Phase 5: Validation
 
 ```bash
-bash {{APED_DIR}}/aped-analyze/scripts/validate-brief.sh {{OUTPUT_DIR}}/product-brief.md
+bash {{APED_DIR}}aped-analyze/scripts/validate-brief.sh {{OUTPUT_DIR}}/product-brief.md
 ```
 
 If validation fails: fix missing sections and re-validate.
@@ -326,7 +326,7 @@ pipeline:
 
 ## Next Step
 
-Tell the user: "Product brief is ready. When you're ready, run `/aped-prd` to generate the PRD."
+Tell the user: "Product brief is ready. When you're ready, run `aped-prd` to generate the PRD."
 
 **Do NOT auto-chain.** The user decides when to proceed.
 
@@ -342,7 +342,7 @@ User says: "I want to build a SaaS for restaurant inventory management"
 7. Present findings: "Found 2 direct competitors (FoodWaste Pro, KitchenTrack)..."
 8. User confirms direction
 9. Synthesize → validate → present brief → user approves
-10. "Run /aped-prd when ready."
+10. "Run aped-prd when ready."
 
 ## Common Issues
 

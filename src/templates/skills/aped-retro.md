@@ -1,6 +1,6 @@
 ---
 name: aped-retro
-description: 'Use when user says "retro", "retrospective", "epic done — what did we learn", "aped retro", or invokes /aped-retro. Runs after the last story of an epic ships.'
+description: 'Use when user says "retro", "retrospective", "epic done — what did we learn", "aped retro", or invokes aped-retro. Runs after the last story of an epic ships.'
 when_to_use: 'Use when user says "retro", "retrospective", "review the epic".'
 argument-hint: "[epic-number]"
 allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate
@@ -138,7 +138,7 @@ Present to user, refine with their input. Then present the A/C menu — action i
 
 ```
 {N} action items drafted across {categories}. Choose:
-[A] Advanced elicitation — invoke /aped-elicit on the action item list
+[A] Advanced elicitation — invoke aped-elicit on the action item list
     (Pre-mortem: "we hit the next retro and these actions weren't done — why?";
     SMART audit: are they all Specific, Measurable, Achievable, Relevant, Time-bound?;
     Devil's Advocate: "this list is theatre — which 2 actions actually move the needle?")
@@ -163,7 +163,7 @@ Check against these triggers (be honest — don't suppress to avoid scope change
 
 If ANY trigger fires:
 - Present to the user as `🚨 Significant Discovery`
-- Recommend: update epic {N+1} definition, hold a planning-review session, OR invoke `/aped-course` to formally pivot
+- Recommend: update epic {N+1} definition, hold a planning-review session, OR invoke `aped-course` to formally pivot
 - Add "Epic {N+1} planning review" to the critical path
 
 ## Phase 6: Readiness Assessment
@@ -185,7 +185,7 @@ For each, ask the user directly. Any concern → add to critical path before epi
 Before persisting the retro outputs, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
 
 - [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/retros/epic-{N}-retro-{date}.md`.
-- [ ] **Action items scoped** — every action item has a `Scope:` directive (`/aped-dev | /aped-story | /aped-review | all`); items that downstream skills can't consume are useless.
+- [ ] **Action items scoped** — every action item has a `Scope:` directive (`aped-dev | aped-story | aped-review | all`); items that downstream skills can't consume are useless.
 - [ ] **Required sections non-empty** — `What Went Well`, `What Didn't`, and (if present) `What Surprised Us` each have at least one entry.
 - [ ] **Lessons updated** — `lessons.md` has been touched with this epic's new entries (otherwise the feedback loop is broken).
 
@@ -251,7 +251,7 @@ Append distilled lessons to `{{OUTPUT_DIR}}/lessons.md`:
 ### Mistake: {systemic pattern from retro}
 **Correction:** {what should change}
 **Rule:** {pattern to apply going forward}
-**Scope:** {affects /aped-dev | /aped-review | /aped-story | all}
+**Scope:** {affects aped-dev | aped-review | aped-story | all}
 
 (repeat for each significant lesson)
 ```
@@ -281,9 +281,9 @@ Tell the user (adapt to `communication_language`):
 > "Retro saved at `{{OUTPUT_DIR}}/retros/epic-{N}-retro-{date}.md`. Lessons appended to `{{OUTPUT_DIR}}/lessons.md`.
 >
 > Next: {depending on outcomes}
-> - No significant discoveries + no critical path → `/aped-story` to start epic {N+1}'s first story
-> - Critical path items → address them in order, then `/aped-story`
-> - Significant discoveries → `/aped-course` to formally pivot OR re-run `/aped-epics` to update the epic plan"
+> - No significant discoveries + no critical path → `aped-story` to start epic {N+1}'s first story
+> - Critical path items → address them in order, then `aped-story`
+> - Significant discoveries → `aped-course` to formally pivot OR re-run `aped-epics` to update the epic plan"
 
 **Do NOT auto-chain.** The user decides the next move.
 
@@ -302,7 +302,7 @@ User: "retro on epic 1"
 6. Phase 5: no significant discoveries
 7. Phase 6: readiness assessment — all green except "deployment not yet scheduled"
 8. Phase 7: retro file written, lessons appended, state.yaml updated
-9. Next step: "Schedule the deploy, then /aped-story for epic 2 first story"
+9. Next step: "Schedule the deploy, then aped-story for epic 2 first story"
 
 ## Common Issues
 

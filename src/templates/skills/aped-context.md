@@ -1,6 +1,6 @@
 ---
 name: aped-context
-description: 'Use when user says "document codebase", "project context", "existing project", "aped context", or invokes /aped-context. Runs alongside /aped-analyze — both can apply on hybrid projects (new feature in legacy system).'
+description: 'Use when user says "document codebase", "project context", "existing project", "aped context", or invokes aped-context. Runs alongside aped-analyze — both can apply on hybrid projects (new feature in legacy system).'
 allowed-tools: "Read Grep Glob Bash"
 license: MIT
 metadata:
@@ -10,13 +10,13 @@ metadata:
 
 # APED Context — Brownfield Project Analysis
 
-Use on existing codebases to generate `project-context.md`. Other APED skills (`/aped-analyze`, `/aped-prd`, `/aped-ux`, `/aped-arch`, etc.) discover this file automatically at entry and bias their behaviour accordingly. You can run this skill before, after, or instead of `/aped-analyze` — they are no longer mutually exclusive. Hybrid projects (a new feature in a legacy system) benefit from running both.
+Use on existing codebases to generate `project-context.md`. Other APED skills (`aped-analyze`, `aped-prd`, `aped-ux`, `aped-arch`, etc.) discover this file automatically at entry and bias their behaviour accordingly. You can run this skill before, after, or instead of `aped-analyze` — they are no longer mutually exclusive. Hybrid projects (a new feature in a legacy system) benefit from running both.
 
 ## Setup
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config
-2. Confirm there is existing code to analyse (if the directory is empty / freshly initialised, tell the user this skill produces no useful output — they should run `/aped-analyze` instead)
-3. Read `{{APED_DIR}}/aped-context/references/analysis-checklist.md` for the full analysis checklist
+2. Confirm there is existing code to analyse (if the directory is empty / freshly initialised, tell the user this skill produces no useful output — they should run `aped-analyze` instead)
+3. Read `{{APED_DIR}}aped-context/references/analysis-checklist.md` for the full analysis checklist
 
 ## Codebase Analysis
 
@@ -123,9 +123,9 @@ pipeline:
 ## Next Steps
 
 The generated `project-context.md` is now discoverable by every downstream APED skill. Suggest based on what the user has already produced:
-- No brief yet → run `/aped-analyze` (it will discover and consume the context automatically — no flag needed)
-- Brief exists, no PRD → run `/aped-prd` (same — auto-consumes the context)
-- PRD exists → context will be picked up by `/aped-arch`, `/aped-ux`, `/aped-dev`, `/aped-review`, `/aped-from-ticket`
+- No brief yet → run `aped-analyze` (it will discover and consume the context automatically — no flag needed)
+- Brief exists, no PRD → run `aped-prd` (same — auto-consumes the context)
+- PRD exists → context will be picked up by `aped-arch`, `aped-ux`, `aped-dev`, `aped-review`, `aped-from-ticket`
 
 ## Example
 

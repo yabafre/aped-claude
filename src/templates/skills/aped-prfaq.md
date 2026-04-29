@@ -1,7 +1,7 @@
 ---
 name: aped-prfaq
-description: 'Use when user says "prfaq", "working backwards", "press release first", "stress-test the concept", or invokes /aped-prfaq. Optional upstream tooling — can run before /aped-analyze.'
-when_to_use: 'Use when user says "PRFAQ", "work backwards", "press release first". Optional upstream of /aped-analyze.'
+description: 'Use when user says "prfaq", "working backwards", "press release first", "stress-test the concept", or invokes aped-prfaq. Optional upstream tooling — can run before aped-analyze.'
+when_to_use: 'Use when user says "PRFAQ", "work backwards", "press release first". Optional upstream of aped-analyze.'
 argument-hint: "[--headless]"
 allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate WebSearch WebFetch
 disable-model-invocation: true
@@ -81,7 +81,7 @@ Once the concept is sketched, fan out research in parallel via `Agent` tool (`su
 ### Graceful Redirect
 
 If after 2-3 exchanges the user can't articulate a customer or problem, suggest the idea needs brainstorm first:
-> "We're not landing on a clear customer yet. Want to run `/aped-brainstorm` first to develop the idea, then come back here?"
+> "We're not landing on a clear customer yet. Want to run `aped-brainstorm` first to develop the idea, then come back here?"
 
 ### Create Working Document
 
@@ -150,7 +150,7 @@ Then present the A/C menu:
 
 ```
 Press release draft passes all 5 quality bars internally. Choose:
-[A] Advanced elicitation — invoke /aped-elicit on the press release
+[A] Advanced elicitation — invoke aped-elicit on the press release
     (Devil's Advocate on the leader quote; Feynman test for "would my non-tech parent
     understand why this matters?"; Mom-test on the customer quote)
 [C] Continue — press release accepted, move to Stage 3 (Customer FAQ)
@@ -196,7 +196,7 @@ Then present the A/C menu — this is the last gate before the Verdict synthesis
 
 ```
 Internal FAQ drafted with brutally honest answers. Choose:
-[A] Advanced elicitation — invoke /aped-elicit on the FAQ
+[A] Advanced elicitation — invoke aped-elicit on the FAQ
     (Pre-mortem: "this concept ships and dies in 6 months — why?";
     Shark Tank Pitch: 3 hostile investor questions you didn't anticipate;
     Red Team on the moat answer)
@@ -228,9 +228,9 @@ Produce a concise verdict section at the end of `{{OUTPUT_DIR}}/prfaq.md`:
 - {specific}
 
 **Recommendation:**
-- If STRONG: proceed to `/aped-analyze` — this concept is ready for pipeline entry
+- If STRONG: proceed to `aped-analyze` — this concept is ready for pipeline entry
 - If PROMISING: address {specific gaps} before proceeding
-- If WEAK: step back to `/aped-brainstorm` — this concept needs more exploration
+- If WEAK: step back to `aped-brainstorm` — this concept needs more exploration
 
 **PRD Distillate (for downstream consumption):**
 - Customer: {persona}
@@ -255,11 +255,11 @@ Before presenting the PRFAQ verdict to the user, walk this checklist. Each `[ ]`
 ## State Update
 
 PRFAQ is optional upstream tooling — it does NOT update `{{OUTPUT_DIR}}/state.yaml` phases directly. But if the verdict is STRONG, tell the user:
-> "PRFAQ complete (`{{OUTPUT_DIR}}/prfaq.md`). Verdict: STRONG. When you're ready, run `/aped-analyze` — the PRD distillate at the bottom of the PRFAQ is ready to seed it."
+> "PRFAQ complete (`{{OUTPUT_DIR}}/prfaq.md`). Verdict: STRONG. When you're ready, run `aped-analyze` — the PRD distillate at the bottom of the PRFAQ is ready to seed it."
 
 ## Next Step
 
-**Do NOT auto-chain.** The user decides whether to proceed to `/aped-analyze`, refine the PRFAQ further, or abandon the concept.
+**Do NOT auto-chain.** The user decides whether to proceed to `aped-analyze`, refine the PRFAQ further, or abandon the concept.
 
 ## Example
 
@@ -272,7 +272,7 @@ User: "I want to build a SaaS for restaurant inventory"
 5. Stage 2 — Press release drafted in 6 sections with challenge-invite-deepen on each
 6. Stage 3 — Customer FAQ: "Why not a spreadsheet?" "Why should I trust photo recognition?"
 7. Stage 4 — Internal FAQ: "What's the moat?" "Why won't Toast acquire this?"
-8. Stage 5 — Verdict: PROMISING (strong problem, weak moat) — recommendation: address moat before /aped-analyze
+8. Stage 5 — Verdict: PROMISING (strong problem, weak moat) — recommendation: address moat before aped-analyze
 
 ## Common Issues
 

@@ -1,6 +1,6 @@
 ---
 name: aped-course
-description: 'Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes /aped-course.'
+description: 'Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes aped-course.'
 argument-hint: "[description of the change]"
 disable-model-invocation: true
 license: MIT
@@ -17,10 +17,10 @@ Use when requirements change, priorities shift, or the current approach needs re
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config (incl. `ticket_system`, `git_provider`)
 2. **Validate state integrity:** run `bash {{APED_DIR}}/scripts/validate-state.sh`. Non-zero → HALT with the reported error. Corrupt state makes the "scope_change_active" toggle dangerous.
-3. **Stuck-lock detection.** If `scope_change_active: true` is already set in `state.yaml` when this skill starts, a previous `/aped-course` session crashed before clearing it — every subsequent scope-change attempt would then refuse to proceed. Check how old the flag is: compute `now - stat_mtime({{OUTPUT_DIR}}/state.yaml)`. If the mtime is > 2 hours (7200s), auto-clear the stale flag with `bash {{APED_DIR}}/scripts/sync-state.sh` (command: `set-scope-change false`) and warn the user: "Stale scope_change_active cleared from a previous crashed /aped-course run (state.yaml was last touched {X}h ago). Verify no partial PRD/architecture/UX edits were left behind before starting the new scope change." If the mtime is < 2h, HALT and tell the user another scope-change session may still be active — they can either wait for it, or manually reset via `bash {{APED_DIR}}/scripts/sync-state.sh` + the `set-scope-change false` stdin command.
+3. **Stuck-lock detection.** If `scope_change_active: true` is already set in `state.yaml` when this skill starts, a previous `aped-course` session crashed before clearing it — every subsequent scope-change attempt would then refuse to proceed. Check how old the flag is: compute `now - stat_mtime({{OUTPUT_DIR}}/state.yaml)`. If the mtime is > 2 hours (7200s), auto-clear the stale flag with `bash {{APED_DIR}}/scripts/sync-state.sh` (command: `set-scope-change false`) and warn the user: "Stale scope_change_active cleared from a previous crashed aped-course run (state.yaml was last touched {X}h ago). Verify no partial PRD/architecture/UX edits were left behind before starting the new scope change." If the mtime is < 2h, HALT and tell the user another scope-change session may still be active — they can either wait for it, or manually reset via `bash {{APED_DIR}}/scripts/sync-state.sh` + the `set-scope-change false` stdin command.
 4. Read `{{OUTPUT_DIR}}/state.yaml` — understand current pipeline state
 5. Read existing artifacts: brief, PRD, epics, stories
-6. Read `{{APED_DIR}}/aped-course/references/scope-change-guide.md` for impact matrix and process
+6. Read `{{APED_DIR}}aped-course/references/scope-change-guide.md` for impact matrix and process
 
 ## Active-Worktree Check (parallel sprint awareness)
 
@@ -53,7 +53,7 @@ Then analyze impact:
 | Feature removed | PRD, Epics | Remove FRs → archive stories |
 | Architecture change | PRD NFRs, All stories | Update NFRs → review all Dev Notes |
 | Priority reorder | Epics, Sprint | Reorder stories → update sprint |
-| Complete pivot | Everything | Reset to /aped-analyze |
+| Complete pivot | Everything | Reset to aped-analyze |
 
 ## Open the sync log (when scope change touches tickets)
 
@@ -69,9 +69,9 @@ Reuse `$LOG` across all subsequent ticket operations. If `sync_logs.enabled: fal
 
 ### Minor change (new/removed feature)
 1. Update PRD: add/remove FRs, update scope
-2. Re-run validation: `bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md`
+2. Re-run validation: `bash {{APED_DIR}}aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md`
 3. Update epics: add/archive affected stories
-4. Re-run coverage: `bash {{APED_DIR}}/aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md`
+4. Re-run coverage: `bash {{APED_DIR}}aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md`
 5. Update `{{OUTPUT_DIR}}/state.yaml`: mark affected stories as `backlog`
 
 After modifying ticket fields (titles, descriptions, labels, ACs):
@@ -104,7 +104,7 @@ bash {{APED_DIR}}/scripts/sync-log.sh end $LOG
 ### Major change (architecture/pivot)
 1. Confirm with user: "This invalidates in-progress work. Proceed?"
 2. Archive current artifacts to `{{OUTPUT_DIR}}/archive/{date}/`
-3. Update PRD or restart from `/aped-analyze`
+3. Update PRD or restart from `aped-analyze`
 4. Regenerate affected downstream artifacts
 
 ## Story Impact Report
@@ -122,7 +122,7 @@ Update `{{OUTPUT_DIR}}/state.yaml`:
 
 ### Append a `corrections` entry (always)
 
-`corrections` is a top-level append-only log on `state.yaml`, distinct from `lessons.md` (post-epic retrospectives) and CHANGELOG (product-level). Every `/aped-course` run that materially changes scope MUST append one entry.
+`corrections` is a top-level append-only log on `state.yaml`, distinct from `lessons.md` (post-epic retrospectives) and CHANGELOG (product-level). Every `aped-course` run that materially changes scope MUST append one entry.
 
 Use the Edit tool to append directly to `{{OUTPUT_DIR}}/state.yaml` — `corrections` is append-only and doesn't need transactional semantics across multiple stories. If the `corrections:` key doesn't exist yet, add it at the top level (alongside `pipeline`, `sprint`, `ticket_sync`, etc.).
 
@@ -154,7 +154,7 @@ Append to existing entries — never replace the whole list.
 
 If you set `scope_change_active: true` at the start, you MUST clear it before handing control back:
 
-1. Invalidate any now-stale epic-context caches — delete `{{OUTPUT_DIR}}/epic-*-context.md` for the affected epic(s) so `/aped-dev` recompiles on the next story.
+1. Invalidate any now-stale epic-context caches — delete `{{OUTPUT_DIR}}/epic-*-context.md` for the affected epic(s) so `aped-dev` recompiles on the next story.
 2. Set `sprint.scope_change_active: false` in state.yaml (atomic).
 3. Post a follow-up comment on each previously notified ticket:
    > "Scope change applied. If you're in an active worktree, pull the latest `{{OUTPUT_DIR}}/` artefacts and restart your story loop — the epic-context cache has been invalidated."

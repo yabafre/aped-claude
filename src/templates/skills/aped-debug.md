@@ -1,6 +1,6 @@
 ---
 name: aped-debug
-description: 'Use when user says "debug", "troubleshoot", "why is X failing", "find the root cause", "aped debug", or invokes /aped-debug. Also invoked from /aped-dev on persistent test red (≥3 failed attempts) and from /aped-review on findings that need root-cause investigation.'
+description: 'Use when user says "debug", "troubleshoot", "why is X failing", "find the root cause", "aped debug", or invokes aped-debug. Also invoked from aped-dev on persistent test red (≥3 failed attempts) and from aped-review on findings that need root-cause investigation.'
 allowed-tools: Read Edit Bash Grep Glob Agent
 license: MIT
 metadata:
@@ -311,7 +311,7 @@ When you find a bug:
 
 If you reach Phase 3 (Fix-with-test) and three successive attempts have not turned the original repro green — the test is still red, a different test broke, or the fix didn't survive a re-run — **STOP**.
 
-The unifying definition (consistent with `/aped-dev` HALT Conditions and `/aped-review` Step 6 routing): the rule fires when **three attempts in a row failed to make the original failing repro pass**. A different test breaking is not a sign of progress; it is a sign that the cause is broader than assumed.
+The unifying definition (consistent with `aped-dev` HALT Conditions and `aped-review` Step 6 routing): the rule fires when **three attempts in a row failed to make the original failing repro pass**. A different test breaking is not a sign of progress; it is a sign that the cause is broader than assumed.
 
 Three failed attempts on the same failure means **your model of the cause is wrong**. Not "I need a smarter fix #4". The architecture, the spec, the test itself, or the assumption you're operating under is the suspect. Question those, not the fix.
 
@@ -340,15 +340,15 @@ This skill is called in three situations.
 
 ### Standalone (user-driven)
 
-User invokes `/aped-debug` directly. Start at Phase 1 with the user's failure description.
+User invokes `aped-debug` directly. Start at Phase 1 with the user's failure description.
 
-### From `/aped-dev` (persistent test red)
+### From `aped-dev` (persistent test red)
 
-`/aped-dev` enforces a 3-failed-fixes trigger via the same rule documented here. When a TDD task has had three red attempts that didn't move the failure forward, `/aped-dev` HALTs and recommends `/aped-debug`. Phase 1 inherits the failing test as the repro; the 3-failed-fixes rule fires immediately and HALTs to question the architecture/spec.
+`aped-dev` enforces a 3-failed-fixes trigger via the same rule documented here. When a TDD task has had three red attempts that didn't move the failure forward, `aped-dev` HALTs and recommends `aped-debug`. Phase 1 inherits the failing test as the repro; the 3-failed-fixes rule fires immediately and HALTs to question the architecture/spec.
 
-### From `/aped-review` (root-cause finding)
+### From `aped-review` (root-cause finding)
 
-`/aped-review` Step 6 (Merge Findings) routes findings whose mechanism is unclear (Eva flags a bug, Marcus surfaces a regression) to `/aped-debug` rather than letting the specialist guess. Phase 1 takes the finding's repro; the verdict feeds back as evidence appended to the review report.
+`aped-review` Step 6 (Merge Findings) routes findings whose mechanism is unclear (Eva flags a bug, Marcus surfaces a regression) to `aped-debug` rather than letting the specialist guess. Phase 1 takes the finding's repro; the verdict feeds back as evidence appended to the review report.
 
 ## Output
 
@@ -364,4 +364,4 @@ User invokes `/aped-debug` directly. Start at Phase 1 with the user's failure de
 
 ## Next Step
 
-After Phase 4 verifies, return control to the calling skill (`/aped-dev` resumes the next TDD task; `/aped-review` resumes Step 7) or to the user (standalone invocation).
+After Phase 4 verifies, return control to the calling skill (`aped-dev` resumes the next TDD task; `aped-review` resumes Step 7) or to the user (standalone invocation).
