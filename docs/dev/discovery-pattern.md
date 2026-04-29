@@ -8,8 +8,8 @@
 
 Older APED skills loaded upstream artefacts via `state.yaml` paths (e.g. `pipeline.phases.analyze.output`). That coupling had three problems:
 
-1. **Brittle** — if the user produced an artefact outside the state-tracked flow (e.g. ran `/aped-context` standalone, or hand-edited `docs/aped/context.md`), downstream skills never saw it.
-2. **Fork-prone** — `/aped-analyze` and `/aped-context` advertised themselves as mutually exclusive entry points ("not for greenfield — use X"), forcing users to pick a lane up front instead of letting tooling adapt.
+1. **Brittle** — if the user produced an artefact outside the state-tracked flow (e.g. ran `aped-context` standalone, or hand-edited `docs/aped/context.md`), downstream skills never saw it.
+2. **Fork-prone** — `aped-analyze` and `aped-context` advertised themselves as mutually exclusive entry points ("not for greenfield — use X"), forcing users to pick a lane up front instead of letting tooling adapt.
 3. **Latent bugs** — at least two skills (`aped-arch`, `aped-ux`) referenced upstream documents in their prose without ever loading them at runtime, relying on the model having the right artefacts in conversation context by accident.
 
 The pattern below mirrors how BMAD handles input discovery in its `step-01-init.md` files: glob → confirm → load all → bias the rest of the workflow. Each downstream skill consumes whatever exists, hard-stops on missing required prereqs, and reports brownfield/greenfield mode based on what it found rather than what the user declared.
@@ -77,7 +77,7 @@ For each ✱ artefact:
 - If found: continue
 - If missing: HALT with a clear message naming the missing prereq and
   the upstream skill that produces it. Example:
-  > "Architecture requires a PRD to work from. Run `/aped-prd` first,
+  > "Architecture requires a PRD to work from. Run `aped-prd` first,
   > or provide the PRD file path."
 
 Do NOT auto-generate a missing prereq. Hard-stop is intentional.
@@ -154,8 +154,8 @@ For the nine pipeline-phase skills that need this pattern, the customization is:
 ## What this pattern does NOT do
 
 - It does not introduce a shared runtime include. Each skill duplicates the customised pattern. This matches how BMAD ships `step-01-init.md` per skill and avoids cross-skill coupling.
-- It does not auto-generate missing prereqs. Hard-stop is intentional — generating a placeholder PRD inside `/aped-arch` would hide a real gap and produce architecture grounded in fiction.
-- It does not remove `/aped-context` as a command. `/aped-context` stays a first-class artefact producer (like `/aped-research`); other skills consume its output via discovery.
+- It does not auto-generate missing prereqs. Hard-stop is intentional — generating a placeholder PRD inside `aped-arch` would hide a real gap and produce architecture grounded in fiction.
+- It does not remove `aped-context` as a command. `aped-context` stays a first-class artefact producer (like `aped-research`); other skills consume its output via discovery.
 
 ## Reference implementation already in tree
 

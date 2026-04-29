@@ -255,43 +255,43 @@ fi
 if [[ "\$WANTS_CODE" == "true" || "\$WANTS_DEV" == "true" ]] && [[ "\$IN_SPRINT" == "false" ]]; then
   if [[ "\$HAS_EPICS" == "false" ]]; then
     WARNINGS="\$WARNINGS
-SKIP_DETECTED: Attempting dev/code without epics. Current phase: \$CURRENT_PHASE. Run /aped-analyze, /aped-prd, /aped-epics first."
+SKIP_DETECTED: Attempting dev/code without epics. Current phase: \$CURRENT_PHASE. Run aped-analyze, aped-prd, aped-epics first."
   elif [[ "\$HAS_PRD" == "false" ]]; then
     WARNINGS="\$WARNINGS
-SKIP_DETECTED: Attempting dev/code without PRD. Current phase: \$CURRENT_PHASE. Run /aped-analyze, /aped-prd first."
+SKIP_DETECTED: Attempting dev/code without PRD. Current phase: \$CURRENT_PHASE. Run aped-analyze, aped-prd first."
   fi
 fi
 
 # Rule 2: PRD without brief
 if [[ "\$WANTS_PRD" == "true" ]] && [[ "\$HAS_BRIEF" == "false" ]] && [[ "\$CURRENT_PHASE" != "prd" ]]; then
   WARNINGS="\$WARNINGS
-MISSING_ARTIFACT: No product brief found. Run /aped-analyze first."
+MISSING_ARTIFACT: No product brief found. Run aped-analyze first."
 fi
 
 # Rule 3: Epics without PRD
 if [[ "\$WANTS_EPICS" == "true" ]] && [[ "\$HAS_PRD" == "false" ]]; then
   WARNINGS="\$WARNINGS
-MISSING_ARTIFACT: No PRD found. Run /aped-prd first."
+MISSING_ARTIFACT: No PRD found. Run aped-prd first."
 fi
 
 # Rule 4: Review without a story in review status
 if [[ "\$WANTS_REVIEW" == "true" ]] && [[ "\$HAS_STORY_IN_REVIEW" == "false" ]]; then
   WARNINGS="\$WARNINGS
-PREMATURE_REVIEW: No story in review status. Run /aped-dev first."
+PREMATURE_REVIEW: No story in review status. Run aped-dev first."
 fi
 
 # Rule 5: Modifying upstream during sprint
 if [[ "\$IN_SPRINT" == "true" ]]; then
   if [[ "\$WANTS_PRD" == "true" || "\$WANTS_ANALYZE" == "true" ]]; then
     WARNINGS="\$WARNINGS
-SCOPE_CHANGE: Sprint is active. Modifying PRD/brief invalidates epics and stories. Use /aped-course instead."
+SCOPE_CHANGE: Sprint is active. Modifying PRD/brief invalidates epics and stories. Use aped-course instead."
   fi
 fi
 
 # Rule 6: dev without entering sprint
 if [[ "\$WANTS_DEV" == "true" ]] && [[ "\$IN_SPRINT" == "false" ]] && [[ "\$HAS_EPICS" == "true" ]]; then
   WARNINGS="\$WARNINGS
-PHASE_SKIP: Epics exist but sprint not started. Run /aped-epics to finalize and enter sprint phase."
+PHASE_SKIP: Epics exist but sprint not started. Run aped-epics to finalize and enter sprint phase."
 fi
 
 # No warnings → allow silently.
@@ -321,7 +321,7 @@ printf '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalCon
       content: `#!/usr/bin/env bash
 # APED Upstream Lock — PreToolUse hook
 # Denies Write/Edit on upstream docs (PRD, architecture, UX, product-brief)
-# while any story is "in-progress" in state.yaml. Exception: /aped-course
+# while any story is "in-progress" in state.yaml. Exception: aped-course
 # sets \`scope_change_active: true\` in state.yaml to unlock temporarily.
 #
 # stdin:  JSON with tool_name + tool_input.file_path
@@ -385,7 +385,7 @@ if ! grep -q 'status:[[:space:]]*"*in-progress"*' "\$STATE_FILE" 2>/dev/null; th
   exit 0
 fi
 
-# /aped-course unlocked writes?
+# aped-course unlocked writes?
 if grep -q 'scope_change_active:[[:space:]]*true' "\$STATE_FILE" 2>/dev/null; then
   exit 0
 fi
@@ -395,7 +395,7 @@ REASON="Upstream doc write blocked.
 
 Stories are in-progress (see \${STATE_FILE#\$PROJECT_ROOT/}) and modifying \${ABS_PATH#\$PROJECT_ROOT/} now would invalidate epic-context caches and confuse running worktrees.
 
-Run /aped-course to go through the coordinated scope-change workflow: it notifies active worktrees via ticket comments, then unlocks upstream writes for the duration of the change."
+Run aped-course to go through the coordinated scope-change workflow: it notifies active worktrees via ticket comments, then unlocks upstream writes for the duration of the change."
 
 if command -v jq >/dev/null 2>&1; then
   REASON_ENC=\$(printf '%s' "\$REASON" | jq -Rs '.')
