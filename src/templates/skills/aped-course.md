@@ -138,7 +138,7 @@ Update `{{OUTPUT_DIR}}/state.yaml`:
 
 `corrections` is the append-only log of mid-sprint scope changes, distinct from `lessons.md` (post-epic retrospectives) and CHANGELOG (product-level). Every `aped-course` run that materially changes scope MUST append one entry.
 
-Schema **v2** (4.1.0+) splits this log out of `state.yaml` into the file referenced by `corrections_pointer` (default `docs/state-corrections.yaml`). The state.yaml mirror `corrections_count` is bumped automatically. Use the helper — it validates the required keys, locks the file, and updates the count atomically:
+Schema **v2** (4.1.0+) splits this log out of `state.yaml` into the file referenced by `corrections_pointer` (default tracks `output_path` from config.yaml — for the standard scaffold that's `docs/aped/state-corrections.yaml`; configurable via `state.corrections_path`). The state.yaml mirror `corrections_count` is bumped automatically. Use the helper — it validates the required keys, locks the file, and updates the count atomically:
 
 ```bash
 bash {{APED_DIR}}/scripts/sync-state.sh <<< 'append-correction {"date":"<YYYY-MM-DD>","type":"<major|minor|bug>","reason":"<one-liner>","artifacts_updated":["docs/prd.md","docs/epics.md"],"affected_stories":["<story-key>"]}'

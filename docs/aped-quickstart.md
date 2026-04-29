@@ -179,7 +179,7 @@ Top-level slots:
 
 - **`ticket_sync`** (v1+) — provider-agnostic sync metadata after `aped-epics` Ticket System Setup. Replaces project-specific `linear_sync` / `github_sync` / etc. patterns. Re-syncs append to `modified_tickets`.
 - **`backlog_future_scope`** (v1+) — explicitly-punted tickets with category buckets. Written by `aped-epics` and `aped-course`.
-- **`corrections_pointer` + `corrections_count`** (v2; in v1 was a top-level `corrections:` array) — append-only log of artefact revisions (PRD edit, FR descope, etc.) split into `docs/state-corrections.yaml` (overridable via `state.corrections_path`). state.yaml carries the pointer + count cache. Writer: `bash {{APED_DIR}}/scripts/sync-state.sh <<< 'append-correction <json>'`. Distinct from `lessons.md` and CHANGELOG.
+- **`corrections_pointer` + `corrections_count`** (v2; in v1 was a top-level `corrections:` array) — append-only log of artefact revisions (PRD edit, FR descope, etc.) split into a sister file at the path tracked by `output_path` (default `docs/aped/state-corrections.yaml`; overridable via `state.corrections_path` in config.yaml). state.yaml carries the pointer + count cache. Writer: `bash {{APED_DIR}}/scripts/sync-state.sh <<< 'append-correction <json>'`. Distinct from `lessons.md` and CHANGELOG.
 
 Plus richer per-phase records under `pipeline.phases.<phase>` (PRD `fr_count` / `mode`, architecture `councils_dispatched` / `adrs` / `watch_items` / `residual_gaps`, epics `epic_count` / `story_count` / `fr_coverage`, context `type` ∈ {brownfield, greenfield, hybrid}, etc.).
 

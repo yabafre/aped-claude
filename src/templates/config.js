@@ -106,9 +106,10 @@ state:
       path: `${o}/state.yaml`,
       content: `# APED state.yaml schema version.
 #   v1 — 3.x line: corrections live in a top-level \`corrections:\` array.
-#   v2 — 4.1.0+: corrections are split out to docs/state-corrections.yaml
-#        (overridable via \`state.corrections_path\` in config.yaml).
-#        state.yaml carries the pointer + count mirror.
+#   v2 — 4.1.0+: corrections are split out to a sister file at the path
+#        read from \`state.corrections_path\` in config.yaml (default
+#        \`\${output_path}/state-corrections.yaml\`). state.yaml carries
+#        the pointer + count mirror.
 # validate-state.sh refuses unknown versions; migrate-state.sh runs
 # automatically on \`aped-method --update\` to bump v1 → v2.
 # Missing schema_version is treated as implicit 1 (backwards compat with
@@ -214,7 +215,8 @@ sprint:
 #     - { id: "<ticket-id>", category: "<bucket>" }
 #
 # # Corrections live in \`corrections_pointer\` (top-level above) — schema v2.
-# # See docs/state-corrections.yaml for the canonical shape and
+# # See the file referenced by that pointer (default
+# # \`\${output_path}/state-corrections.yaml\`) for the canonical shape and
 # # \`bash {{APED_DIR}}/scripts/sync-state.sh <<< "append-correction <json>"\`
 # # for the writer.
 `,
