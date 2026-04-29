@@ -1144,41 +1144,39 @@ set_story_field() {
 mark_story_done() {
   local key="\$1"
   [[ -n "\$key" ]] || { echo "ERROR: mark-story-done requires a story key" >&2; return 3; }
+  # 4.1.2 — yq is hard-required. The previous awk fallback claimed to set
+  # status + completed_at, but \`set_story_field\`'s awk path can only REWRITE
+  # existing fields, not INSERT new ones. \`completed_at\` is the field being
+  # ADDED, so it was silently dropped while status flipped — leaving the
+  # audit trail incomplete. Refusing loudly matches the behaviour of
+  # append_correction (4.1.0) and is the contract this skill needs.
+  if ! command -v yq >/dev/null 2>&1; then
+    echo "ERROR: mark-story-done requires \\\`yq\\\` for atomic flip + runtime-fields trim. Install yq (\\\`brew install yq\\\` or \\\`npm i -g yq\\\`) and retry." >&2
+    return 3
+  fi
   local tmp="\$STATE_FILE.tmp"
   local completed_at
   completed_at=\$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-  if command -v yq >/dev/null 2>&1; then
-    cp -f "\$STATE_FILE" "\$tmp"
-    # Existence check via yq — non-existent path returns "null" (or empty).
-    local exists
-    exists=\$(yq eval ".sprint.stories.\\"\$key\\" // \\"\\"" "\$tmp" 2>/dev/null || echo "")
-    if [[ -z "\$exists" || "\$exists" == "null" ]]; then
-      rm -f "\$tmp" 2>/dev/null || true
-      echo "ERROR: story '\$key' not found in sprint.stories" >&2
-      return 3
-    fi
-    # Single yq invocation: set 2 fields, delete 4. Atomic via write_atomic.
-    yq eval -i "
-      .sprint.stories.\\"\$key\\".status = \\"done\\" |
-      .sprint.stories.\\"\$key\\".completed_at = \\"\$completed_at\\" |
-      del(.sprint.stories.\\"\$key\\".worktree) |
-      del(.sprint.stories.\\"\$key\\".started_at) |
-      del(.sprint.stories.\\"\$key\\".dispatched_at) |
-      del(.sprint.stories.\\"\$key\\".ticket_sync_status)
-    " "\$tmp"
-    write_atomic "\$tmp"
-    return
+  cp -f "\$STATE_FILE" "\$tmp"
+  # Existence check via yq — non-existent path returns "null" (or empty).
+  local exists
+  exists=\$(yq eval ".sprint.stories.\\"\$key\\" // \\"\\"" "\$tmp" 2>/dev/null || echo "")
+  if [[ -z "\$exists" || "\$exists" == "null" ]]; then
+    rm -f "\$tmp" 2>/dev/null || true
+    echo "ERROR: story '\$key' not found in sprint.stories" >&2
+    return 3
   fi
-
-  # awk fallback: yq absent → degrade gracefully. We can set fields safely
-  # (set_story_field handles indentation), but we cannot reliably DELETE
-  # fields under a specific story key from awk without a much larger script.
-  # Status + completed_at land; runtime fields stay. Users who want full
-  # hygiene should install yq (already a soft dep across APED).
-  echo "WARN: yq not found — mark-story-done set status + completed_at, but runtime fields (worktree, started_at, dispatched_at, ticket_sync_status) were not removed. Install yq for full done-flip cleanup." >&2
-  set_story_field "\$key" "status" "\\"done\\""
-  set_story_field "\$key" "completed_at" "\\"\$completed_at\\""
+  # Single yq invocation: set 2 fields, delete 4. Atomic via write_atomic.
+  yq eval -i "
+    .sprint.stories.\\"\$key\\".status = \\"done\\" |
+    .sprint.stories.\\"\$key\\".completed_at = \\"\$completed_at\\" |
+    del(.sprint.stories.\\"\$key\\".worktree) |
+    del(.sprint.stories.\\"\$key\\".started_at) |
+    del(.sprint.stories.\\"\$key\\".dispatched_at) |
+    del(.sprint.stories.\\"\$key\\".ticket_sync_status)
+  " "\$tmp"
+  write_atomic "\$tmp"
 }
 
 # 4.1.0 — Append a correction entry to the corrections file referenced by
@@ -1197,6 +1195,18 @@ append_correction() {
     echo "ERROR: append-correction requires \\\`yq\\\` to manipulate YAML structurally. Install yq and retry." >&2
     return 3
   fi
+  # 4.1.2 — schema-version guard. append-correction is the v2 helper. On a
+  # v1 scaffold (3.x line, never run through migrate-state.sh), the legacy
+  # top-level \`corrections:\` array is the source of truth — writing
+  # corrections_pointer/corrections_count alongside it would orphan the
+  # legacy entries and produce a wrong count. Refuse loudly with a hint.
+  local schema_v
+  schema_v=\$(yq eval '.schema_version // 1' "\$STATE_FILE" 2>/dev/null || echo 1)
+  schema_v=\${schema_v%.0}
+  if [[ "\$schema_v" != "2" ]]; then
+    echo "ERROR: append-correction requires state.yaml schema v2 (current: v\$schema_v). Run \\\`bash \$(dirname "\$0")/migrate-state.sh\\\` to migrate first, or — on legacy 3.x scaffolds — append directly to the top-level \\\`corrections:\\\` array in state.yaml until you upgrade." >&2
+    return 3
+  fi
   # Validate JSON shape via node (always available — APED ships as a Node CLI).
   local check
   check=\$(node -e '
@@ -1209,15 +1219,27 @@ append_correction() {
       process.stdout.write("ok");
     } catch (e) { process.stdout.write("invalid-json"); }
   ' "\$json" 2>/dev/null || echo "node-failed")
-  if [[ "\$check" == "invalid-json" ]]; then
-    echo "ERROR: append-correction blob is not valid JSON: \$json" >&2
-    return 3
-  fi
-  if [[ "\$check" == missing:* ]]; then
-    local k="\${check#missing:}"
-    echo "ERROR: append-correction missing required key '\$k'. Required: date, type, reason, artifacts_updated, affected_stories." >&2
-    return 3
-  fi
+  case "\$check" in
+    ok)
+      ;;
+    invalid-json)
+      echo "ERROR: append-correction blob is not valid JSON: \$json" >&2
+      return 3
+      ;;
+    missing:*)
+      local k="\${check#missing:}"
+      echo "ERROR: append-correction missing required key '\$k'. Required: date, type, reason, artifacts_updated, affected_stories." >&2
+      return 3
+      ;;
+    *)
+      # 4.1.2 — explicit handler for node-failed and any future signal that
+      # isn't one of the expected forms. Previously this fell through silently
+      # and the unvalidated blob was passed to yq. Refuse loudly so a broken
+      # node setup or unexpected validator output never lets garbage through.
+      echo "ERROR: append-correction validator returned '\$check' — node may be missing from PATH or the validator script crashed. Refusing to write." >&2
+      return 3
+      ;;
+  esac
 
   # Resolve corrections file: state.yaml pointer wins, else config default.
   local corrections_path
@@ -1302,12 +1324,12 @@ apply_patch() {
       mark_story_done "\$1"
       ;;
     append-correction)
-      # The JSON blob may contain spaces, so the read_cmd \`set -- \$line\`
-      # split would shred it. We re-join everything from \$1 onwards back
-      # into a single argument before calling the worker. Callers should
-      # quote the blob in their stdin (e.g. \`echo "append-correction {...}"\`).
-      [[ \$# -ge 1 ]] || { echo "Usage: append-correction <json-blob>" >&2; return 3; }
-      append_correction "\$*"
+      # 4.1.2 — read_cmd hands the JSON blob in as a single verbatim
+      # argument (no word-split, no globbing). Earlier versions used
+      # \`append_correction "\$*"\` which collapsed multi-space sequences in
+      # JSON string values; the verbatim path preserves them.
+      [[ -n "\${1:-}" ]] || { echo "Usage: append-correction <json-blob>" >&2; return 3; }
+      append_correction "\$1"
       ;;
     set-story-field)
       # Generic escape hatch — used by /aped-sprint for ticket_sync_status,
@@ -1372,11 +1394,31 @@ apply_patch() {
 }
 
 read_cmd() {
-  local line
+  local line cmd rest
   IFS= read -r line || return 1
-  # shellcheck disable=SC2086
-  set -- \$line
-  apply_patch "\$@"
+  # 4.1.2 — split off the first word as the command, take the remainder
+  # verbatim for commands that need it (e.g. append-correction, where the
+  # rest is a JSON blob whose internal whitespace and \`*\`/\`?\`/\`[\` characters
+  # must NOT be word-split or pathname-expanded). For the legacy commands
+  # (set-story-status, mark-story-done, etc.) we keep the historical
+  # word-split behaviour, but with globbing disabled (\`set -f\`) so a story
+  # key that happens to contain shell metacharacters never expands against
+  # the working directory.
+  cmd="\${line%% *}"
+  rest="\${line#"\$cmd"}"
+  rest="\${rest# }"
+  case "\$cmd" in
+    append-correction)
+      apply_patch "\$cmd" "\$rest"
+      ;;
+    *)
+      set -f
+      # shellcheck disable=SC2086
+      set -- \$line
+      set +f
+      apply_patch "\$@"
+      ;;
+  esac
 }
 
 acquire_lock || exit 1
