@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.2] - 2026-04-29
+
+Hotfix for a real-world bug surfaced by an upgrade on a v1 scaffold with existing corrections (BonjourStalwart, ~4 corrections in state.yaml). The 4.1.0 / 4.1.1 `migrate-state.sh` 1 → 2 path silently failed mid-run: the sister file got written, but state.yaml was never bumped to schema 2 nor stripped of its top-level `corrections:` block. Re-running `--update` made it worse — the merge path accumulated multi-document YAML in the sister file. No data was ever lost (state.yaml backup at `state.yaml.pre-v2-migration.bak` is intact and rewindable).
+
+Anyone who already ran `npx aped-method --update` on a 4.1.0 / 4.1.1 build and ended up with `schema_version: 1` still in `docs/aped/state.yaml` after the run should upgrade to 4.1.2 and re-run `npx aped-method --update` — the migration is now self-healing (deduplicates correctly, refuses multi-document output) and idempotent.
+
+### Fixed
+
+- **`migrate-state.sh` merge path produced multi-document YAML.** The `yq eval-all` recipe previously emitted one output document per input file (default eval-all behaviour), so the sister file ended up with 2 docs (and grew to 3 / 4 / N on every retry). Downstream, `count=$(yq eval '.corrections | length')` then read multi-line garbage, breaking the state.yaml mutation's count interpolation — schema stayed at v1, top-level `corrections:` stayed in place. Replaced with a single-doc `yq eval -n` + `load(...)` pattern: read each file's `corrections` array as standalone YAML, combine via load() in one expression, write a single document. A regression guard at the end of the merge step now refuses any multi-document output explicitly.
+- **Dedup on (date, type, reason) failed across mixed scalar styles.** `unique_by([.date, .type, .reason])` compares array nodes structurally and respects YAML scalar style — so `type: minor` (plain) and `type: "minor"` (quoted) were treated as different even though they decode to the same string. Re-running the migration after a partial failure therefore duplicated every entry in the sister file. Replaced with a string-concat key `unique_by(.date + "|" + .type + "|" + .reason)` which coerces all components to plain strings before comparison. Recovery on a botched scaffold now self-heals to the correct count.
+- **Sister-file corruption from a pre-4.1.2 botched migration is forgiven.** When the merge path encounters a multi-document sister file (the pre-4.1.2 corruption shape), only the FIRST document is read — the rest is dropped — and the output is a clean single-doc YAML. Combined with the dedup fix above, this means a 4.1.0 / 4.1.1 user who re-runs `--update` on 4.1.2 lands on the correct schema-v2 state without manual intervention.
+
+### Added
+
+- **Regression tests in `tests/sprint-scripts.test.js`.** Two new cases under `migrate-state.sh`: (a) recovery from a botched previous migration where state.yaml is still v1 and the sister file already has the same corrections (mixed scalar styles); (b) recovery from a multi-document corrupted sister file (the exact pre-4.1.2 corruption shape). Both expect single-document YAML output, correct dedup, and `schema_version: 2`.
+
 ## [4.1.1] - 2026-04-29
 
 Documentation patch — brings `docs/` (the deep-dive references shipped with the package) in line with the 4.1.0 reality. No code, no test, no behaviour change. Engine is byte-identical to 4.1.0; users on 4.1.0 don't need to upgrade urgently — they only gain accurate prose.

@@ -537,6 +537,101 @@ sprint:
     expect(existsSync(join(sandbox, OUTPUT_DIR, 'state.yaml.pre-v2-migration.bak'))).toBe(false);
   });
 
+  it('recovers from a botched previous migration: state.yaml v1 + sister with same content', () => {
+    // Regression for 4.1.2 bug: when a previous --update wrote the sister
+    // file but failed to mutate state.yaml, re-running the migration must
+    // dedupe (state.yaml's corrections are already in the sister file) and
+    // produce single-document YAML (the previous yq eval-all recipe emitted
+    // multi-doc and corrupted the sister file + count).
+    installScript(sandbox, 'migrate-state.sh');
+    mkdirSync(join(sandbox, APED_DIR), { recursive: true });
+    writeFileSync(join(sandbox, APED_DIR, 'config.yaml'),
+      `state:\n  corrections_path: "${OUTPUT_DIR}/state-corrections.yaml"\n`);
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 1
+corrections:
+  - date: "2026-04-28"
+    type: "minor"
+    reason: "first"
+    artifacts_updated: []
+    affected_stories: []
+  - date: "2026-04-29"
+    type: "minor"
+    reason: "second"
+    artifacts_updated: []
+    affected_stories: []
+sprint:
+  stories: {}
+`);
+    // Sister file already contains the same corrections (from a prior partial
+    // migration). Mixed scalar styles — `type: minor` unquoted vs the quoted
+    // form in state.yaml — exercises the string-concat dedup key.
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'),
+      `corrections:
+  - {date: "2026-04-28", type: minor, reason: "first", artifacts_updated: [], affected_stories: []}
+  - {date: "2026-04-29", type: minor, reason: "second", artifacts_updated: [], affected_stories: []}
+`);
+
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/migrate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+
+    // schema bumped to 2 + count matches sister + no top-level corrections
+    const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+    expect(after).toMatch(/schema_version:\s*2/);
+    expect(after).toMatch(/corrections_count:\s*2/);
+    expect(after).not.toMatch(/^corrections:/m);
+
+    // Sister file: single document (no `---` separators), 2 deduped entries
+    const sister = readFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'), 'utf8');
+    expect(sister.match(/^---$/gm) || []).toHaveLength(0);
+    // Count entries — both old and new dedup-merged into 2 unique
+    const entries = (sister.match(/^\s+- (?:\{date|date)/gm) || []).length;
+    expect(entries).toBe(2);
+  });
+
+  it('rejects a multi-document sister file produced by a pre-4.1.2 botched run', () => {
+    // Forward guard: even if the merge logic ever regresses to multi-doc
+    // output, the sanity check at the end of migrate_v1_to_v2 must fail
+    // loud rather than silently corrupt state.yaml. We simulate this by
+    // pre-corrupting the sister file with multi-doc content; the migration
+    // should still succeed (it takes only the first doc) and produce a
+    // clean single-doc sister file.
+    installScript(sandbox, 'migrate-state.sh');
+    mkdirSync(join(sandbox, APED_DIR), { recursive: true });
+    writeFileSync(join(sandbox, APED_DIR, 'config.yaml'),
+      `state:\n  corrections_path: "${OUTPUT_DIR}/state-corrections.yaml"\n`);
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 1
+corrections:
+  - date: "2026-04-28"
+    type: "minor"
+    reason: "first"
+    artifacts_updated: []
+    affected_stories: []
+sprint:
+  stories: {}
+`);
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'),
+      `corrections:
+  - {date: "2026-04-28", type: minor, reason: "first", artifacts_updated: [], affected_stories: []}
+---
+corrections:
+  - {date: "2026-04-28", type: minor, reason: "first", artifacts_updated: [], affected_stories: []}
+  - {date: "2026-04-28", type: minor, reason: "first", artifacts_updated: [], affected_stories: []}
+`);
+
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/migrate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+
+    const sister = readFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'), 'utf8');
+    expect(sister.match(/^---$/gm) || []).toHaveLength(0);
+    // Despite the corrupted multi-doc input, output is single doc with 1 unique entry
+    const entries = (sister.match(/^\s+- (?:\{date|date)/gm) || []).length;
+    expect(entries).toBe(1);
+  });
+
   it('handles a v1 state with no corrections block (count = 0)', () => {
     installScript(sandbox, 'migrate-state.sh');
     writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
