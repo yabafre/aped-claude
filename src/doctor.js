@@ -87,7 +87,17 @@ export function inspectInstallation(config, cwd = process.cwd()) {
   checks.push(checkScopeChangeFlag(cwd, config));
   checks.push(checkStateBackup(cwd, config));
 
-  for (const binary of ['jq', 'gh', 'workmux']) {
+  // Per-binary hints. yq carries a sharper message because two 4.1.0 paths
+  // depend on it: migrate-state.sh (1 → 2 schema migration is hard-required)
+  // and mark-story-done's full runtime-fields trim (degraded gracefully
+  // without yq, but the trim half doesn't run — runtime fields stay).
+  const BINARY_HINTS = {
+    jq: 'Install jq to unlock the optional APED integrations that use it (sync-log JSON manipulation, doctor smoke-tests).',
+    gh: 'Install gh to enable APED ↔ GitHub integration (PR creation, label management, ticket workflows).',
+    workmux: 'Install workmux to unlock parallel-sprint dispatch via tmux windows (https://github.com/raine/workmux).',
+    yq: 'Install yq for full APED state hygiene: migrate-state.sh (v1 → v2 schema migration on `aped-method --update`) hard-requires it, and mark-story-done falls back to a partial cleanup without it (status + completed_at land, but runtime fields like worktree/started_at stay until yq is installed). `brew install yq` (macOS) or `npm i -g yq`.',
+  };
+  for (const binary of ['jq', 'gh', 'workmux', 'yq']) {
     const exists = commandExists(binary);
     checks.push({
       id: `bin-${binary}`,
@@ -95,7 +105,7 @@ export function inspectInstallation(config, cwd = process.cwd()) {
       required: false,
       status: exists ? 'pass' : 'warn',
       message: exists ? `${binary} is available` : `${binary} is not installed`,
-      fix: exists ? null : `Install ${binary} to unlock the optional APED integrations that use it.`,
+      fix: exists ? null : (BINARY_HINTS[binary] || `Install ${binary} to unlock the optional APED integrations that use it.`),
     });
   }
 
