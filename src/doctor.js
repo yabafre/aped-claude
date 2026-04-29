@@ -79,6 +79,9 @@ export function inspectInstallation(config, cwd = process.cwd()) {
         : null,
   });
 
+  const legacyCheck = checkLegacy4xResidue(cwd, config);
+  if (legacyCheck) checks.push(legacyCheck);
+
   checks.push(checkStateLock(cwd, config));
   checks.push(checkSprintLocks(cwd, config));
   checks.push(checkScopeChangeFlag(cwd, config));
@@ -136,6 +139,54 @@ function commandExists(binary) {
   const tool = process.platform === 'win32' ? 'where' : 'which';
   const result = spawnSync(tool, [binary], { stdio: 'ignore' });
   return result.status === 0;
+}
+
+// Surface 3.x → 4.0 migration leftovers. Non-blocking (required: false) so
+// existing 3.12 installs upgrade quietly; the diagnostic only renders when
+// something is actually found, so a clean 4.0+ scaffold is silent here.
+function checkLegacy4xResidue(cwd, config) {
+  const stubs = listLegacyCommandStubs(cwd);
+  const hasLegacyConfigKey = configHasLegacyCommandsPath(cwd, config.apedDir);
+  if (stubs.length === 0 && !hasLegacyConfigKey) return null;
+
+  const messages = [];
+  const fixes = [];
+  if (stubs.length > 0) {
+    messages.push(`${stubs.length} legacy slash-command stub(s) under .claude/commands/`);
+    fixes.push('rm -rf .claude/commands/aped-*.md');
+  }
+  if (hasLegacyConfigKey) {
+    messages.push(`legacy "commands_path" key in ${join(config.apedDir, 'config.yaml')}`);
+    fixes.push(`remove the "commands_path:" line from ${join(config.apedDir, 'config.yaml')}`);
+  }
+  return {
+    id: 'legacy-4x-residue',
+    label: 'Legacy 3.x slash-command residue',
+    required: false,
+    status: 'warn',
+    message: messages.join('; ') + ' — safe to remove',
+    fix: fixes.join(' && '),
+  };
+}
+
+function listLegacyCommandStubs(cwd) {
+  const dir = join(cwd, '.claude', 'commands');
+  if (!existsSync(dir)) return [];
+  try {
+    return readdirSync(dir).filter((name) => /^aped-.*\.md$/.test(name));
+  } catch {
+    return [];
+  }
+}
+
+function configHasLegacyCommandsPath(cwd, apedDir) {
+  const configPath = join(cwd, apedDir, 'config.yaml');
+  if (!existsSync(configPath)) return false;
+  try {
+    return /^[ \t]*commands_path[ \t]*:/m.test(readFileSync(configPath, 'utf-8'));
+  } catch {
+    return false;
+  }
 }
 
 function mtimeAgeSeconds(path) {
