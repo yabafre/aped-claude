@@ -29,14 +29,18 @@ test -x .aped/hooks/guardrail.sh || { echo "::error::guardrail.sh not executable
 echo "OK"
 echo "::endgroup::"
 
-echo "::group::Phase 3 — slash commands count"
-cmd_count=$(find .claude/commands -maxdepth 1 -type f -name 'aped-*.md' | wc -l | tr -d ' ')
-echo "slash commands found: $cmd_count"
-if (( cmd_count < 8 )); then
-  echo "::error::Expected at least 8 aped-*.md slash commands, got $cmd_count" >&2
-  ls .claude/commands || true
-  exit 1
+echo "::group::Phase 3 — no legacy .claude/commands stubs"
+# 4.0.0 removed the slash-command shells. The directory should not be
+# created on a fresh install.
+if [[ -d .claude/commands ]]; then
+  legacy_count=$(find .claude/commands -maxdepth 1 -type f -name 'aped-*.md' | wc -l | tr -d ' ')
+  if (( legacy_count > 0 )); then
+    echo "::error::4.0.0 contract violated: $legacy_count aped-*.md stubs found under .claude/commands/" >&2
+    ls .claude/commands
+    exit 1
+  fi
 fi
+echo "OK — no slash-command stubs scaffolded"
 echo "::endgroup::"
 
 echo "::group::Phase 4 — skill directories count"
