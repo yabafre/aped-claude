@@ -221,6 +221,96 @@ sprint:
       expect(after).toMatch(/completed_at:\s*"?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"?/);
     });
   });
+
+  // ── append-correction (4.1.0, schema v2) ──
+  describe('append-correction', () => {
+    function setupV2(initialCorrections = '[]') {
+      installScript(sandbox, 'sync-state.sh');
+      writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+        `schema_version: 2
+corrections_pointer: "${OUTPUT_DIR}/state-corrections.yaml"
+corrections_count: 0
+sprint:
+  stories: {}
+`);
+      writeFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'),
+        `corrections: ${initialCorrections}\n`);
+    }
+
+    it('appends a valid entry and bumps corrections_count', () => {
+      setupV2();
+      const blob = JSON.stringify({
+        date: '2026-04-29',
+        type: 'minor',
+        reason: 'descope story 1-2',
+        artifacts_updated: ['docs/epics.md'],
+        affected_stories: ['1-2-foo'],
+      });
+      const r = run(
+        `echo 'append-correction ${blob}' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox },
+      );
+      expect(r.code, r.stderr).toBe(0);
+
+      const corrections = readFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'), 'utf8');
+      expect(corrections).toMatch(/date:\s*"?2026-04-29"?/);
+      expect(corrections).toMatch(/reason:\s*"?descope story 1-2"?/);
+
+      const state = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+      expect(state).toMatch(/corrections_count:\s*1/);
+    });
+
+    it('errors with exit 3 on missing required keys', () => {
+      setupV2();
+      // Missing affected_stories.
+      const blob = JSON.stringify({
+        date: '2026-04-29',
+        type: 'minor',
+        reason: 'r',
+        artifacts_updated: [],
+      });
+      const r = run(
+        `echo 'append-correction ${blob}' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox },
+      );
+      expect(r.code).toBe(3);
+      expect(r.stderr).toMatch(/missing required key 'affected_stories'/);
+    });
+
+    it('errors on invalid JSON blob', () => {
+      setupV2();
+      const r = run(
+        `echo 'append-correction not-json-at-all' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox },
+      );
+      expect(r.code).toBe(3);
+      expect(r.stderr).toMatch(/not valid json/i);
+    });
+
+    it('three sequential appends produce count = 3 and three array entries', () => {
+      setupV2();
+      for (let i = 1; i <= 3; i++) {
+        const blob = JSON.stringify({
+          date: `2026-04-${20 + i}`,
+          type: 'minor',
+          reason: `entry-${i}`,
+          artifacts_updated: [],
+          affected_stories: [],
+        });
+        const r = run(
+          `echo 'append-correction ${blob}' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+          { CLAUDE_PROJECT_DIR: sandbox },
+        );
+        expect(r.code, `iteration ${i}: ${r.stderr}`).toBe(0);
+      }
+      const state = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+      expect(state).toMatch(/corrections_count:\s*3/);
+      const corrections = readFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'), 'utf8');
+      expect(corrections).toContain('entry-1');
+      expect(corrections).toContain('entry-2');
+      expect(corrections).toContain('entry-3');
+    });
+  });
 });
 
 describe('validate-state.sh', () => {
@@ -294,12 +384,14 @@ sprint:
     expect(r.code, r.stderr).toBe(0);
   });
 
-  it('errors on schema_version 2 with a clear "upgrade aped-method" message', () => {
-    // Tier 6 reserves schema_version: 2 for 4.0.0; on a 3.x install this
-    // must be rejected with a hint pointing at the upgrade path.
+  it('errors on schema_version 3 with a clear "upgrade aped-method" message', () => {
+    // 4.1.0 raises KNOWN_SCHEMA_VERSIONS to "1 2"; the next reserved version
+    // (3) must still be rejected with a hint pointing at the upgrade path.
+    // This test guards the forward-compat refusal contract for any future
+    // schema beyond what this build understands.
     installScript(sandbox, 'validate-state.sh');
     writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
-      `schema_version: 2
+      `schema_version: 3
 sprint:
   stories: {}
 `);
@@ -325,6 +417,139 @@ sprint:
       { CLAUDE_PROJECT_DIR: sandbox });
     expect(r.code, r.stderr).toBe(0);
     expect(r.stderr).toMatch(/unknown top-level block.*custom_metrics/);
+  });
+
+  // ── 4.1.0 — schema v2 + corrections split ──
+  it('accepts schema_version 2 with corrections_pointer + corrections_count', () => {
+    installScript(sandbox, 'validate-state.sh');
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 2
+corrections_pointer: "${OUTPUT_DIR}/state-corrections.yaml"
+corrections_count: 0
+sprint:
+  stories: {}
+`);
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/validate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+  });
+
+  it('errors with exit 4 on schema v2 with residual top-level corrections:', () => {
+    installScript(sandbox, 'validate-state.sh');
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 2
+corrections_pointer: "${OUTPUT_DIR}/state-corrections.yaml"
+corrections_count: 1
+corrections:
+  - date: "2026-04-29"
+    type: "minor"
+    reason: "leaked"
+    artifacts_updated: []
+    affected_stories: []
+sprint:
+  stories: {}
+`);
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/validate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code).toBe(4);
+    expect(r.stderr).toMatch(/top-level.*corrections.*still present/);
+  });
+
+  it('still accepts schema v1 with top-level corrections (legacy)', () => {
+    installScript(sandbox, 'validate-state.sh');
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 1
+corrections:
+  - date: "2026-04-29"
+    type: "minor"
+    reason: "v1 still works"
+    artifacts_updated: []
+    affected_stories: []
+sprint:
+  stories: {}
+`);
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/validate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+  });
+});
+
+describe('migrate-state.sh', () => {
+  it('migrates v1 → v2 and writes a backup', () => {
+    installScript(sandbox, 'migrate-state.sh');
+    // Need a config.yaml so the migration can resolve corrections_path.
+    mkdirSync(join(sandbox, APED_DIR), { recursive: true });
+    writeFileSync(join(sandbox, APED_DIR, 'config.yaml'),
+      `state:\n  corrections_path: "${OUTPUT_DIR}/state-corrections.yaml"\n`);
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 1
+corrections:
+  - date: "2026-04-28"
+    type: "minor"
+    reason: "first"
+    artifacts_updated: []
+    affected_stories: []
+  - date: "2026-04-29"
+    type: "minor"
+    reason: "second"
+    artifacts_updated: []
+    affected_stories: []
+sprint:
+  stories: {}
+`);
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/migrate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+
+    // state.yaml: schema bumped, corrections removed, pointer + count present.
+    const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+    expect(after).toMatch(/schema_version:\s*2/);
+    expect(after).toMatch(/corrections_pointer:\s*"?[^"\n]*state-corrections\.yaml"?/);
+    expect(after).toMatch(/corrections_count:\s*2/);
+    expect(after).not.toMatch(/^corrections:/m);
+
+    // Sister file exists with both entries.
+    const corrFile = readFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'), 'utf8');
+    expect(corrFile).toContain('"first"');
+    expect(corrFile).toContain('"second"');
+
+    // Backup exists.
+    const backup = join(sandbox, OUTPUT_DIR, 'state.yaml.pre-v2-migration.bak');
+    expect(existsSync(backup)).toBe(true);
+  });
+
+  it('is idempotent on schema v2 (re-run is no-op)', () => {
+    installScript(sandbox, 'migrate-state.sh');
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 2
+corrections_pointer: "${OUTPUT_DIR}/state-corrections.yaml"
+corrections_count: 0
+sprint:
+  stories: {}
+`);
+    const before = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/migrate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+    const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+    expect(after).toBe(before);
+    // No backup created on a no-op.
+    expect(existsSync(join(sandbox, OUTPUT_DIR, 'state.yaml.pre-v2-migration.bak'))).toBe(false);
+  });
+
+  it('handles a v1 state with no corrections block (count = 0)', () => {
+    installScript(sandbox, 'migrate-state.sh');
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 1
+sprint:
+  stories: {}
+`);
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/migrate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+    const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+    expect(after).toMatch(/schema_version:\s*2/);
+    expect(after).toMatch(/corrections_count:\s*0/);
   });
 });
 

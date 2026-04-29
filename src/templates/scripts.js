@@ -949,6 +949,8 @@ printf '%s\\n' "\$JSON" >> "\$LOG_FILE" 2>/dev/null || {
 #   set-story-worktree     <key> <path>
 #   clear-story-worktree   <key>
 #   mark-story-done        <key>          # 4.1.0 — atomic flip + runtime trim
+#   append-correction      <json-blob>    # 4.1.0 — append to corrections file
+#                                          # (schema v2; mirrors count in state)
 #
 # Exit codes: 0 ok, 1 generic error, 2 stale lock cleared + state untouched,
 #             3 invalid command, 4 state.yaml missing or unreadable,
@@ -1179,6 +1181,104 @@ mark_story_done() {
   set_story_field "\$key" "completed_at" "\\"\$completed_at\\""
 }
 
+# 4.1.0 — Append a correction entry to the corrections file referenced by
+# \`corrections_pointer\` in state.yaml. The pointer is single source of truth
+# (config.yaml exposes \`state.corrections_path\` as the install-time default;
+# state.yaml's pointer wins at runtime so a config edit can't desync from
+# already-written corrections). Updates \`corrections_count\` in state.yaml
+# in the same call so reader skills can do a single-file lookup.
+#
+# Required JSON keys: date, type, reason, artifacts_updated, affected_stories.
+# Anything beyond is preserved as-is (forward-compat with project extensions).
+append_correction() {
+  local json="\$1"
+  [[ -n "\$json" ]] || { echo "ERROR: append-correction requires a JSON blob" >&2; return 3; }
+  if ! command -v yq >/dev/null 2>&1; then
+    echo "ERROR: append-correction requires \\\`yq\\\` to manipulate YAML structurally. Install yq and retry." >&2
+    return 3
+  fi
+  # Validate JSON shape via node (always available — APED ships as a Node CLI).
+  local check
+  check=\$(node -e '
+    try {
+      const d = JSON.parse(process.argv[1]);
+      const req = ["date","type","reason","artifacts_updated","affected_stories"];
+      for (const k of req) {
+        if (!(k in d)) { process.stdout.write("missing:" + k); process.exit(0); }
+      }
+      process.stdout.write("ok");
+    } catch (e) { process.stdout.write("invalid-json"); }
+  ' "\$json" 2>/dev/null || echo "node-failed")
+  if [[ "\$check" == "invalid-json" ]]; then
+    echo "ERROR: append-correction blob is not valid JSON: \$json" >&2
+    return 3
+  fi
+  if [[ "\$check" == missing:* ]]; then
+    local k="\${check#missing:}"
+    echo "ERROR: append-correction missing required key '\$k'. Required: date, type, reason, artifacts_updated, affected_stories." >&2
+    return 3
+  fi
+
+  # Resolve corrections file: state.yaml pointer wins, else config default.
+  local corrections_path
+  corrections_path=\$(yq eval '.corrections_pointer // ""' "\$STATE_FILE" 2>/dev/null || echo "")
+  if [[ -z "\$corrections_path" || "\$corrections_path" == "null" ]]; then
+    # Fallback to config.yaml \`state.corrections_path\`, else a hardcoded default.
+    local cfg=""
+    for candidate in "\$PROJECT_ROOT/${a}/config.yaml" "\$PROJECT_ROOT/.aped/config.yaml"; do
+      if [[ -f "\$candidate" ]]; then cfg="\$candidate"; break; fi
+    done
+    if [[ -n "\$cfg" ]]; then
+      corrections_path=\$(awk '
+        /^state:[[:space:]]*\$/ { in_block=1; next }
+        in_block && /^[^[:space:]]/ { in_block=0 }
+        in_block && /^  corrections_path:/ {
+          sub(/^  corrections_path:[[:space:]]*/, "")
+          sub(/[ \\t]*#.*\$/, "")
+          gsub(/^[ \\t"'\\'']+|[ \\t"'\\'']+\$/, "")
+          print
+          exit
+        }
+      ' "\$cfg" 2>/dev/null)
+    fi
+    [[ -z "\$corrections_path" ]] && corrections_path="${o}/state-corrections.yaml"
+  fi
+
+  local corrections_abs="\$PROJECT_ROOT/\$corrections_path"
+  mkdir -p "\$(dirname "\$corrections_abs")"
+  if [[ ! -f "\$corrections_abs" ]]; then
+    # Lazy-init the file on first append (covers schema-v1 scaffolds that
+    # never went through migrate-state.sh — e.g. someone calling this helper
+    # directly during dev). \`yq\` will create the array on the first write.
+    printf 'corrections: []\\n' > "\$corrections_abs"
+  fi
+
+  # Append using yq's \`+=\` over an array. The blob is JSON; yq accepts JSON
+  # via \`from_yaml\` after we feed it as a string.
+  local corrections_tmp
+  corrections_tmp=\$(mktemp "\$(dirname "\$corrections_abs")/.state-corrections.XXXXXX")
+  cp -f "\$corrections_abs" "\$corrections_tmp"
+  yq eval -i ".corrections += [\$json]" "\$corrections_tmp"
+  if ! yq eval 'true' "\$corrections_tmp" >/dev/null 2>&1; then
+    echo "ERROR: append-correction produced invalid YAML — refusing to write. Original \$corrections_abs untouched." >&2
+    rm -f "\$corrections_tmp" 2>/dev/null || true
+    return 1
+  fi
+  mv -f "\$corrections_tmp" "\$corrections_abs"
+
+  # Mirror count in state.yaml. Read fresh from the corrections file we
+  # just wrote so a re-entrant caller sees the canonical length.
+  local count
+  count=\$(yq eval '.corrections | length' "\$corrections_abs" 2>/dev/null || echo 0)
+  local state_tmp="\$STATE_FILE.tmp"
+  cp -f "\$STATE_FILE" "\$state_tmp"
+  yq eval -i ".corrections_count = \$count" "\$state_tmp"
+  # Also write the pointer so a fresh-on-v1-then-call scenario (no migration
+  # yet) leaves state.yaml self-consistent for subsequent reads.
+  yq eval -i ".corrections_pointer = \\"\$corrections_path\\"" "\$state_tmp"
+  write_atomic "\$state_tmp"
+}
+
 apply_patch() {
   local cmd="\${1:-}"; shift || true
   case "\$cmd" in
@@ -1200,6 +1300,14 @@ apply_patch() {
     mark-story-done)
       [[ \$# -eq 1 ]] || { echo "Usage: mark-story-done <key>" >&2; return 3; }
       mark_story_done "\$1"
+      ;;
+    append-correction)
+      # The JSON blob may contain spaces, so the read_cmd \`set -- \$line\`
+      # split would shred it. We re-join everything from \$1 onwards back
+      # into a single argument before calling the worker. Callers should
+      # quote the blob in their stdin (e.g. \`echo "append-correction {...}"\`).
+      [[ \$# -ge 1 ]] || { echo "Usage: append-correction <json-blob>" >&2; return 3; }
+      append_correction "\$*"
       ;;
     set-story-field)
       # Generic escape hatch — used by /aped-sprint for ticket_sync_status,
@@ -1257,7 +1365,7 @@ apply_patch() {
       return 3
       ;;
     *)
-      echo "ERROR: unknown command '\$cmd' (known: set-scope-change | set-story-status | set-story-worktree | clear-story-worktree | mark-story-done | set-story-field | set-sprint-field)" >&2
+      echo "ERROR: unknown command '\$cmd' (known: set-scope-change | set-story-status | set-story-worktree | clear-story-worktree | mark-story-done | append-correction | set-story-field | set-sprint-field)" >&2
       return 3
       ;;
   esac
@@ -1325,9 +1433,11 @@ fi
 # ── Schema version check ─────────────────────────────────────────────────
 # Hand-edited state.yaml may omit schema_version (legacy files); accept
 # missing as version 1 so existing projects keep working until they bump.
-# Schema versions > 1 are reserved for 4.0.0 — refuse with a clear hint
+# v1 → v2 migration (4.1.0) splits \`corrections:\` out into a sibling file
+# (\`corrections_pointer\` + \`corrections_count\` mirror in state.yaml).
+# Schema versions beyond KNOWN_SCHEMA_VERSIONS — refuse with a clear hint
 # instead of silently best-effort-parsing a future shape.
-KNOWN_SCHEMA_VERSIONS="1"
+KNOWN_SCHEMA_VERSIONS="1 2"
 schema_version="1"
 if command -v yq >/dev/null 2>&1; then
   schema_version=\$(yq eval '.schema_version // 1' "\$STATE_FILE" 2>/dev/null || echo "1")
@@ -1349,7 +1459,23 @@ fi
 # top-level keys as a non-fatal warning so a project on a slightly newer
 # template still validates on an older CLI. Known set tracks the canonical
 # blocks declared by config.js + the documented schema-extension slots.
-KNOWN_TOP_LEVEL_BLOCKS="schema_version pipeline sprint ticket_sync backlog_future_scope corrections"
+KNOWN_TOP_LEVEL_BLOCKS_V1="schema_version pipeline sprint ticket_sync backlog_future_scope corrections"
+KNOWN_TOP_LEVEL_BLOCKS_V2="schema_version pipeline sprint ticket_sync backlog_future_scope corrections_pointer corrections_count"
+case "\$schema_version" in
+  2) KNOWN_TOP_LEVEL_BLOCKS="\$KNOWN_TOP_LEVEL_BLOCKS_V2" ;;
+  *) KNOWN_TOP_LEVEL_BLOCKS="\$KNOWN_TOP_LEVEL_BLOCKS_V1" ;;
+esac
+
+# In v2, top-level \`corrections:\` is a hard error — the migration moves it
+# to docs/state-corrections.yaml and replaces it with a pointer. A residual
+# top-level \`corrections:\` after migration means manual editing or a botched
+# migration; either way the audit invariant ("one source of truth for
+# corrections") is broken. Surface it loudly.
+if [[ "\$schema_version" == "2" ]] && grep -qE '^corrections:' "\$STATE_FILE" 2>/dev/null; then
+  echo "ERROR: state.yaml schema_version=2 but a top-level \\\`corrections:\\\` block is still present. In v2 corrections live in the file pointed to by \\\`corrections_pointer\\\`. Run \\\`bash ${a}/scripts/migrate-state.sh\\\` to migrate, or remove the residual top-level block manually." >&2
+  exit 4
+fi
+
 while IFS= read -r block; do
   [[ -z "\$block" ]] && continue
   if ! grep -qw "\$block" <<< "\$KNOWN_TOP_LEVEL_BLOCKS"; then
@@ -1953,21 +2079,29 @@ esac
       content: `#!/usr/bin/env bash
 # APED migrate-state — schema_version migration framework.
 #
-# Today: stub. schema_version: 1 → no-op (the only known version on the
-# 3.x line). The call site exists so 4.0.0 can land actual migration steps
-# (rename/removal/restructure) without skills having to grow new wiring.
+# 4.1.0 — first real migration: v1 → v2 splits the top-level \`corrections\`
+# block out into a sibling file (default \`docs/state-corrections.yaml\`,
+# overridable via \`state.corrections_path\` in config.yaml). The state.yaml
+# gains a \`corrections_pointer\` (path string) and \`corrections_count\`
+# (length cache for fast reads) at the top level; \`corrections:\` is removed.
+#
+# Idempotent: running on v2 is a no-op. Always writes a backup at
+# \`docs/state.yaml.pre-v2-migration.bak\` BEFORE any mutation, so a botched
+# migration is recoverable with \`mv state.yaml.pre-v2-migration.bak state.yaml\`.
 #
 # Usage: migrate-state.sh
 #
 # Exit codes:
 #   0 ok (no migration needed, or migration applied)
 #   1 unsupported schema_version — caller must upgrade aped-method
+#   3 missing dependency (yq required for v1→v2)
 #   4 state.yaml missing or malformed
 
 set -uo pipefail
 
 PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-\$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 STATE_FILE="\$PROJECT_ROOT/${o}/state.yaml"
+APED_DIR_ABS="\$PROJECT_ROOT/${a}"
 
 if [[ ! -f "\$STATE_FILE" ]]; then
   echo "ERROR: state.yaml not found at \$STATE_FILE" >&2
@@ -1991,13 +2125,119 @@ if ! [[ "\$schema_version" =~ ^[0-9]+\$ ]]; then
   exit 4
 fi
 
+# Read state.corrections_path from config.yaml — returns default if absent.
+read_corrections_path() {
+  local default="${o}/state-corrections.yaml"
+  local cfg=""
+  for candidate in "\$APED_DIR_ABS/config.yaml" "\$PROJECT_ROOT/.aped/config.yaml"; do
+    if [[ -f "\$candidate" ]]; then cfg="\$candidate"; break; fi
+  done
+  [[ -n "\$cfg" ]] || { echo "\$default"; return; }
+  local got
+  got=\$(awk '
+    /^state:[[:space:]]*\$/ { in_block=1; next }
+    in_block && /^[^[:space:]]/ { in_block=0 }
+    in_block && /^  corrections_path:/ {
+      sub(/^  corrections_path:[[:space:]]*/, "")
+      sub(/[ \\t]*#.*\$/, "")
+      gsub(/^[ \\t"'\\'']+|[ \\t"'\\'']+\$/, "")
+      print
+      exit
+    }
+  ' "\$cfg" 2>/dev/null)
+  [[ -n "\$got" ]] && echo "\$got" || echo "\$default"
+}
+
+migrate_v1_to_v2() {
+  if ! command -v yq >/dev/null 2>&1; then
+    echo "ERROR: v1 → v2 migration requires \\\`yq\\\` to manipulate YAML structurally. Install yq (\\\`brew install yq\\\` or \\\`npm i -g yq\\\`) and re-run \\\`aped-method --update\\\`." >&2
+    return 3
+  fi
+
+  local corrections_path
+  corrections_path=\$(read_corrections_path)
+  local corrections_abs="\$PROJECT_ROOT/\$corrections_path"
+  local backup="\$PROJECT_ROOT/${o}/state.yaml.pre-v2-migration.bak"
+
+  echo "Migrating state.yaml schema 1 → 2 (extracting corrections to \$corrections_path)..." >&2
+
+  # 1. Backup before any mutation. On failure here, abort: better fail
+  # cleanly than mutate without rollback.
+  if ! cp -f "\$STATE_FILE" "\$backup"; then
+    echo "ERROR: failed to write backup at \$backup — aborting migration." >&2
+    return 1
+  fi
+
+  # 2. Read existing corrections array from state.yaml. yq returns "[]" if
+  # the key is missing or null — so length(0) is the correct count for an
+  # empty/absent corrections block.
+  local corrections_yaml count
+  corrections_yaml=\$(yq eval '.corrections // []' "\$STATE_FILE")
+  count=\$(yq eval '.corrections // [] | length' "\$STATE_FILE")
+  [[ -z "\$count" || "\$count" == "null" ]] && count=0
+
+  # 3. Write to corrections file. If file exists with content, append-merge
+  # (defensive — covers the edge case of partial migration retry).
+  mkdir -p "\$(dirname "\$corrections_abs")"
+  local corrections_tmp
+  corrections_tmp=\$(mktemp "\$(dirname "\$corrections_abs")/.state-corrections.XXXXXX")
+  if [[ -f "\$corrections_abs" ]] && [[ -s "\$corrections_abs" ]]; then
+    # Merge: existing.corrections + state.yaml.corrections.
+    yq eval-all '
+      select(fileIndex == 0) as \$existing
+      | select(fileIndex == 1) as \$incoming
+      | {"corrections": ((\$existing.corrections // []) + (\$incoming.corrections // []))}
+    ' "\$corrections_abs" "\$STATE_FILE" > "\$corrections_tmp"
+    count=\$(yq eval '.corrections | length' "\$corrections_tmp")
+  else
+    # Fresh write.
+    yq eval '{"corrections": (.corrections // [])}' "\$STATE_FILE" > "\$corrections_tmp"
+  fi
+
+  # Sanity check the temp file before promoting it.
+  if ! yq eval 'true' "\$corrections_tmp" >/dev/null 2>&1; then
+    echo "ERROR: produced corrections file is not valid YAML (\$corrections_tmp). State.yaml not yet mutated. Backup at \$backup." >&2
+    rm -f "\$corrections_tmp" 2>/dev/null || true
+    return 1
+  fi
+  mv -f "\$corrections_tmp" "\$corrections_abs"
+
+  # 4. Mutate state.yaml: remove corrections, add pointer + count, bump
+  # schema_version. All in one yq invocation = single atomic write.
+  local state_tmp
+  state_tmp=\$(mktemp "\$(dirname "\$STATE_FILE")/.state.XXXXXX")
+  cp -f "\$STATE_FILE" "\$state_tmp"
+  yq eval -i "
+    del(.corrections) |
+    .corrections_pointer = \\"\$corrections_path\\" |
+    .corrections_count = \$count |
+    .schema_version = 2
+  " "\$state_tmp"
+
+  if ! yq eval 'true' "\$state_tmp" >/dev/null 2>&1; then
+    echo "ERROR: produced state.yaml is not valid YAML. State unchanged. Backup at \$backup; produced file at \$state_tmp." >&2
+    return 1
+  fi
+  mv -f "\$state_tmp" "\$STATE_FILE"
+
+  echo "Migration complete. \$count correction(s) moved. Backup at \$backup." >&2
+  return 0
+}
+
 case "\$schema_version" in
   1)
-    echo "schema_version 1 — no migration needed"
+    # Sub-case: if there's nothing to migrate (no corrections block at all),
+    # we still bump schema + write the pointer + count=0 so subsequent calls
+    # are no-ops. This keeps the validate-state.sh contract uniform.
+    migrate_v1_to_v2
+    exit \$?
+    ;;
+  2)
+    # Already on v2 — idempotent no-op.
     exit 0
     ;;
   *)
-    echo "ERROR: unsupported schema_version \$schema_version; upgrade aped-method (\\\`npm i -g aped-method@latest\\\`) and retry. 4.0.0 will register migration steps for newer schemas." >&2
+    echo "ERROR: unsupported schema_version \$schema_version; upgrade aped-method (\\\`npm i -g aped-method@latest\\\`) and retry." >&2
     exit 1
     ;;
 esac
