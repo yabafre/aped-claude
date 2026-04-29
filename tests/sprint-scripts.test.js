@@ -205,6 +205,32 @@ sprint:
       expect(r.stderr).toMatch(/not found/i);
     });
 
+    it('refuses loudly when yq is unavailable (4.1.2 — drops broken awk fallback)', () => {
+      // 4.1.0 / 4.1.1 claimed an awk fallback that landed status + completed_at.
+      // In reality, set_story_field's awk path can only REWRITE existing fields,
+      // not INSERT new ones, so completed_at was silently dropped — leaving the
+      // audit trail incomplete. 4.1.2 refuses loudly when yq is absent.
+      installScript(sandbox, 'sync-state.sh');
+      writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+        `schema_version: 1
+sprint:
+  stories:
+    1-1-foo:
+      status: review
+`);
+      // Strip yq from PATH by setting a minimal PATH that doesn't include yq's dir.
+      // Use /usr/bin which has bash, sed, awk, grep, etc. — but no yq on most macOS / linux setups.
+      const r = run(`echo 'mark-story-done 1-1-foo' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox, PATH: '/usr/bin:/bin' });
+      expect(r.code).toBe(3);
+      expect(r.stderr).toMatch(/requires.*yq/i);
+      expect(r.stderr).toMatch(/install yq/i);
+      // state.yaml must not have been touched.
+      const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+      expect(after).toMatch(/status:\s*review/);
+      expect(after).not.toMatch(/completed_at/);
+    });
+
     it('writes ISO 8601 UTC timestamp into completed_at', () => {
       installScript(sandbox, 'sync-state.sh');
       writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
@@ -285,6 +311,93 @@ sprint:
       );
       expect(r.code).toBe(3);
       expect(r.stderr).toMatch(/not valid json/i);
+    });
+
+    it('preserves multi-space sequences inside JSON string values (4.1.2 — read_cmd word-split fix)', () => {
+      // 4.1.0 / 4.1.1 read_cmd did `set -- $line` unquoted, which collapsed
+      // multi-space runs in JSON string values via shell word-splitting.
+      // 4.1.2 splits off the command and passes the rest verbatim.
+      setupV2();
+      const blob = JSON.stringify({
+        date: '2026-04-29',
+        type: 'minor',
+        reason: 'fix the    spacing   issue',
+        artifacts_updated: [],
+        affected_stories: [],
+      });
+      const r = run(
+        `echo 'append-correction ${blob}' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox },
+      );
+      expect(r.code, r.stderr).toBe(0);
+      const corrections = readFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'), 'utf8');
+      // The 4-space and 3-space runs in the reason must survive the round-trip.
+      expect(corrections).toContain('fix the    spacing   issue');
+    });
+
+    it('does not glob-expand `*` in JSON string values (4.1.2 — read_cmd globbing fix)', () => {
+      // 4.1.0 / 4.1.1 read_cmd's `set -- $line` performed pathname expansion.
+      // A `*` inside a JSON string would have been replaced with the cwd's
+      // file list. 4.1.2 disables globbing for legacy commands and skips the
+      // word-split entirely for append-correction.
+      setupV2();
+      const blob = JSON.stringify({
+        date: '2026-04-29',
+        type: 'minor',
+        reason: 'wildcard * in reason should not glob',
+        artifacts_updated: ['*'],
+        affected_stories: [],
+      });
+      // Run from sandbox cwd (where state.yaml lives) — globbing would expand
+      // against state.yaml + state-corrections.yaml etc. if the bug were live.
+      const r = run(
+        `cd ${sandbox} && echo 'append-correction ${blob}' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox },
+      );
+      expect(r.code, r.stderr).toBe(0);
+      const corrections = readFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'), 'utf8');
+      expect(corrections).toContain('wildcard * in reason should not glob');
+      // The artifacts_updated list must still be exactly ['*'], not the cwd's files.
+      // yq emits the lone-asterisk scalar single-quoted, others (depends on version)
+      // may use double-quoted — accept either.
+      expect(corrections).toMatch(/artifacts_updated:[\s\S]*?-\s*['"]\*['"]/);
+    });
+
+    it('refuses to run on a v1 state.yaml schema (4.1.2 — schema guard)', () => {
+      // 4.1.0 / 4.1.1 had no schema check on append_correction. On a legacy
+      // v1 scaffold with a top-level corrections: array, the helper would
+      // write corrections_pointer/corrections_count alongside, orphaning the
+      // legacy entries and producing a wrong count.
+      installScript(sandbox, 'sync-state.sh');
+      writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+        `schema_version: 1
+corrections:
+  - date: "2026-04-28"
+    type: "minor"
+    reason: "legacy"
+    artifacts_updated: []
+    affected_stories: []
+sprint:
+  stories: {}
+`);
+      const blob = JSON.stringify({
+        date: '2026-04-29',
+        type: 'minor',
+        reason: 'try-add-on-v1',
+        artifacts_updated: [],
+        affected_stories: [],
+      });
+      const r = run(
+        `echo 'append-correction ${blob}' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox },
+      );
+      expect(r.code).toBe(3);
+      expect(r.stderr).toMatch(/schema v2/i);
+      expect(r.stderr).toMatch(/migrate-state\.sh/);
+      // state.yaml must NOT have gained pointer/count keys.
+      const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+      expect(after).not.toMatch(/^corrections_pointer:/m);
+      expect(after).not.toMatch(/^corrections_count:/m);
     });
 
     it('three sequential appends produce count = 3 and three array entries', () => {
