@@ -2177,26 +2177,55 @@ migrate_v1_to_v2() {
   [[ -z "\$count" || "\$count" == "null" ]] && count=0
 
   # 3. Write to corrections file. If file exists with content, append-merge
-  # (defensive — covers the edge case of partial migration retry).
+  # (defensive — covers the edge case of partial migration retry where a
+  # previous run wrote the sister file but failed to mutate state.yaml).
+  #
+  # 4.1.2 fix: the previous \`yq eval-all\` recipe emitted MULTI-DOCUMENT YAML
+  # because eval-all over N inputs produces N output documents by default.
+  # That corrupted the sister file (multi-doc) and made the downstream
+  # \`length\` read return multi-line garbage, which then broke the state.yaml
+  # mutation's count interpolation. Now we extract corrections from each
+  # input as a single doc and combine via \`load()\` in a single -n eval —
+  # guaranteed single-document output.
   mkdir -p "\$(dirname "\$corrections_abs")"
   local corrections_tmp
   corrections_tmp=\$(mktemp "\$(dirname "\$corrections_abs")/.state-corrections.XXXXXX")
   if [[ -f "\$corrections_abs" ]] && [[ -s "\$corrections_abs" ]]; then
-    # Merge: existing.corrections + state.yaml.corrections.
-    yq eval-all '
-      select(fileIndex == 0) as \$existing
-      | select(fileIndex == 1) as \$incoming
-      | {"corrections": ((\$existing.corrections // []) + (\$incoming.corrections // []))}
-    ' "\$corrections_abs" "\$STATE_FILE" > "\$corrections_tmp"
+    # Merge path: read both as separate single-doc files, combine via yq -n + load().
+    local incoming_yaml existing_yaml
+    incoming_yaml=\$(mktemp "\$(dirname "\$corrections_abs")/.incoming.XXXXXX.yaml")
+    existing_yaml=\$(mktemp "\$(dirname "\$corrections_abs")/.existing.XXXXXX.yaml")
+    yq eval '.corrections // []' "\$STATE_FILE" > "\$incoming_yaml"
+    # Sister file may itself be multi-doc from a pre-4.1.2 botched migration.
+    # Take only the FIRST doc to avoid carrying the corruption forward.
+    yq eval-all 'select(documentIndex == 0) | .corrections // []' "\$corrections_abs" > "\$existing_yaml"
+    # Dedupe by (date, type, reason) — handles the common partial-migration
+    # case where state.yaml.corrections is identical to (or a strict subset of)
+    # the sister file from a previous attempt. Two legit corrections sharing
+    # all three fields is exceptional; the trade-off favours recovery.
+    #
+    # Implementation note: \`unique_by([.a, .b, .c])\` compares array nodes
+    # structurally and respects scalar style — so \`type: minor\` (plain) and
+    # \`type: "minor"\` (quoted) are treated as DIFFERENT, even though they
+    # represent the same string. We sidestep the issue by composing the key
+    # via string concatenation, which coerces both to plain strings.
+    yq eval -n "{\\"corrections\\": ((load(\\"\$existing_yaml\\") + load(\\"\$incoming_yaml\\")) | unique_by(.date + \\"|\\" + .type + \\"|\\" + .reason))}" > "\$corrections_tmp"
+    rm -f "\$incoming_yaml" "\$existing_yaml" 2>/dev/null || true
     count=\$(yq eval '.corrections | length' "\$corrections_tmp")
   else
-    # Fresh write.
+    # Fresh-write path: state.yaml is the only source.
     yq eval '{"corrections": (.corrections // [])}' "\$STATE_FILE" > "\$corrections_tmp"
   fi
 
-  # Sanity check the temp file before promoting it.
+  # Sanity check the temp file before promoting it. Reject multi-document
+  # output (regression guard for the 4.1.2 fix above — single-doc only).
   if ! yq eval 'true' "\$corrections_tmp" >/dev/null 2>&1; then
     echo "ERROR: produced corrections file is not valid YAML (\$corrections_tmp). State.yaml not yet mutated. Backup at \$backup." >&2
+    rm -f "\$corrections_tmp" 2>/dev/null || true
+    return 1
+  fi
+  if [[ \$(grep -c '^---' "\$corrections_tmp") -gt 0 ]]; then
+    echo "ERROR: produced corrections file is multi-document YAML (\$corrections_tmp). This indicates a yq merge bug — please open an issue. State.yaml not yet mutated. Backup at \$backup." >&2
     rm -f "\$corrections_tmp" 2>/dev/null || true
     return 1
   fi
