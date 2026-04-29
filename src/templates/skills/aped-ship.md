@@ -1,6 +1,6 @@
 ---
 name: aped-ship
-description: 'Use when user says "ship", "sprint pr", "pre-push", "aped ship", or invokes /aped-ship. Only runs from the main project on the base branch — never from inside a worktree. HALTs before push.'
+description: 'Use when user says "ship", "sprint pr", "pre-push", "aped ship", or invokes aped-ship. Only runs from the main project on the base branch — never from inside a worktree. HALTs before push.'
 disable-model-invocation: true
 license: MIT
 metadata:
@@ -10,9 +10,9 @@ metadata:
 
 # APED Ship — Sprint Umbrella → Base PR
 
-The end-of-sprint counterpart to `/aped-sprint`. The umbrella branch (`sprint/epic-{N}`, created by /aped-sprint at sprint start) has been accumulating story merges from /aped-lead's au-fil-de-l'eau approvals. `/aped-ship`'s job is the **final PR**: verify the umbrella is integration-complete, run the composite pre-push review on it, push, and print the `gh pr create --base <base> --head sprint/epic-N` command for the user.
+The end-of-sprint counterpart to `aped-sprint`. The umbrella branch (`sprint/epic-{N}`, created by aped-sprint at sprint start) has been accumulating story merges from aped-lead's au-fil-de-l'eau approvals. `aped-ship`'s job is the **final PR**: verify the umbrella is integration-complete, run the composite pre-push review on it, push, and print the `gh pr create --base <base> --head sprint/epic-N` command for the user.
 
-`/aped-ship` does NOT merge stories. Per-story merges into the umbrella are owned by `/aped-lead` (au-fil-de-l'eau, see aped-lead.md). If a story isn't merged into the umbrella by ship time, that's a workflow gap the user fixes (re-run /aped-lead, or merge manually) — not something /aped-ship works around.
+`aped-ship` does NOT merge stories. Per-story merges into the umbrella are owned by `aped-lead` (au-fil-de-l'eau, see aped-lead.md). If a story isn't merged into the umbrella by ship time, that's a workflow gap the user fixes (re-run aped-lead, or merge manually) — not something aped-ship works around.
 
 ## Critical Rules
 
@@ -21,7 +21,7 @@ The end-of-sprint counterpart to `/aped-sprint`. The umbrella branch (`sprint/ep
 - NEVER push the umbrella to origin automatically. Print the push + `gh pr create` commands; the user runs them.
 - NEVER push directly to base from this skill. Base only ever sees commits via the umbrella PR — that's the umbrella convention.
 - NEVER skip the composite review, even if the user says "just open the PR". The review IS the ship gate; its summary becomes the PR body.
-- NEVER mutate the umbrella content here (no extra commits, no auto-fixes). The umbrella reflects /aped-lead's merges; /aped-ship is read-only on it apart from the push.
+- NEVER mutate the umbrella content here (no extra commits, no auto-fixes). The umbrella reflects aped-lead's merges; aped-ship is read-only on it apart from the push.
 - Support `--plan-only`: if the user passes the flag, run Setup → Integration Check → Composite Review → Findings Report, then **STOP before the GATE**. Do not push, do not print `gh pr create` as a recommendation, do not archive inboxes. Show what *would* be done. Useful for pre-flight inspection on a sensitive sprint.
 
 ## Setup
@@ -35,7 +35,7 @@ The end-of-sprint counterpart to `/aped-sprint`. The umbrella branch (`sprint/ep
    ```bash
    UMBRELLA=$(yq '.sprint.umbrella_branch' {{OUTPUT_DIR}}/state.yaml)
    ```
-   If empty/null → HALT: "No sprint umbrella recorded. /aped-sprint creates it at the start of the sprint — did you skip /aped-sprint?"
+   If empty/null → HALT: "No sprint umbrella recorded. aped-sprint creates it at the start of the sprint — did you skip aped-sprint?"
    If the local branch doesn't exist → HALT: "Umbrella `$UMBRELLA` recorded in state.yaml but not in local git. Fetch and re-create with `git branch $UMBRELLA origin/$UMBRELLA` (if remote exists) before re-running."
 7. Fetch remote to compute accurate "ahead" counts: `git fetch origin --quiet`.
 
@@ -56,7 +56,7 @@ for key in $DONE_KEYS; do
     unmerged+=("$key|state=$merged_flag|git=NO")
   elif [[ "$merged_flag" != "true" ]]; then
     # Git says merged but state.yaml says no — usually a manual merge by the
-    # user that bypassed /aped-lead. Surface as a soft inconsistency.
+    # user that bypassed aped-lead. Surface as a soft inconsistency.
     unmerged+=("$key|state=$merged_flag|git=YES")
   fi
 done
@@ -65,7 +65,7 @@ done
 Surface the result:
 
 - **All done stories merged into umbrella, both signals agree** → proceed to Composite Review.
-- **Stories `done` in state.yaml but NOT in umbrella git history** → HALT with the list. Tell the user: "These stories are marked done but their feature branches haven't been merged into `$UMBRELLA`. Either re-run `/aped-lead` (it will retry the merge during the review-done approval handler) or merge them manually before re-running `/aped-ship`."
+- **Stories `done` in state.yaml but NOT in umbrella git history** → HALT with the list. Tell the user: "These stories are marked done but their feature branches haven't been merged into `$UMBRELLA`. Either re-run `aped-lead` (it will retry the merge during the review-done approval handler) or merge them manually before re-running `aped-ship`."
 - **Stories merged in git but `merged_into_umbrella: false` in state.yaml** → WARN, offer to reconcile by setting the flag. Do not auto-reconcile silently — surface the inconsistency.
 - **Stories with status != done but branch exists and is unmerged** → INFO ("In flight: 1-6 review, 1-7 in-progress — not part of this ship.")
 - **No done stories at all** → HALT: "No done stories to ship. Nothing to do."
@@ -191,7 +191,7 @@ Sprint umbrella ship — `sprint/epic-1` is {AHEAD} commits ahead of origin/main
 
 Present three options:
 
-1. **Fix blockers first** (recommended when BLOCKERS > 0) — the user applies fixes on the umbrella branch directly (or on a story branch + rerun `/aped-lead` to merge), then re-runs `/aped-ship`. The composite review re-runs on the new tip.
+1. **Fix blockers first** (recommended when BLOCKERS > 0) — the user applies fixes on the umbrella branch directly (or on a story branch + rerun `aped-lead` to merge), then re-runs `aped-ship`. The composite review re-runs on the new tip.
 2. **Open the PR anyway** — only sensible when findings are all WARNINGS or INFO. Print the exact commands:
 
    ```
@@ -218,10 +218,10 @@ Present three options:
 ## Edge Cases
 
 - **Umbrella missing from local git but recorded in state.yaml**: HALT (see Setup step 6). The user fetches and re-creates it from origin or restarts the sprint.
-- **Stories `done` in state.yaml but unmerged in umbrella**: HALT with the list (see Integration Check). Re-run `/aped-lead` or merge manually.
+- **Stories `done` in state.yaml but unmerged in umbrella**: HALT with the list (see Integration Check). Re-run `aped-lead` or merge manually.
 - **`merged_into_umbrella: true` but git disagrees**: WARN, surface the inconsistency. Likely the user manually unmerged or rebased the umbrella.
 - **Base branch name differs from `main`**: read `base_branch` from `{{APED_DIR}}/config.yaml` (or `.workmux.yaml`) if present; default to `main`. Used everywhere as `$BASE_BRANCH`.
-- **Multiple `done` epics**: `/aped-ship` only ships the active epic (`sprint.active_epic`). Stories from other epics are excluded with an INFO line.
+- **Multiple `done` epics**: `aped-ship` only ships the active epic (`sprint.active_epic`). Stories from other epics are excluded with an INFO line.
 - **User has unpushed non-sprint commits on the umbrella**: surface as INFO (`N non-sprint commits also on the umbrella`) — they'll go to base via the same PR.
 
 ## Inbox archive (post-PR)
@@ -232,7 +232,7 @@ After the user confirms the PR is opened (option 2 was chosen and they ran the p
 bash {{APED_DIR}}/scripts/checkin.sh archive
 ```
 
-This moves `{{APED_DIR}}/checkins/*.jsonl` to `{{APED_DIR}}/checkins/archive/{date}/`. Do NOT run if the user picked "Fix blockers" or "Abandon" — they may re-run /aped-lead and need the live inboxes.
+This moves `{{APED_DIR}}/checkins/*.jsonl` to `{{APED_DIR}}/checkins/archive/{date}/`. Do NOT run if the user picked "Fix blockers" or "Abandon" — they may re-run aped-lead and need the live inboxes.
 
 ## Ticket close on merge (audit trail)
 
@@ -281,10 +281,10 @@ Surface the log path to the user. If `ticket_system: none` or `sync_logs.enabled
 
 After the user opens the PR:
 
-> "Umbrella PR opened: <PR URL>. The composite review summary is in the body. The PR is the prod gate now — base will not move until it's merged. Once merged, run `/aped-sprint` (or `/aped-epics` if you need a new epic) to start the next sprint; the umbrella branch can be deleted then."
+> "Umbrella PR opened: <PR URL>. The composite review summary is in the body. The PR is the prod gate now — base will not move until it's merged. Once merged, run `aped-sprint` (or `aped-epics` if you need a new epic) to start the next sprint; the umbrella branch can be deleted then."
 
 If the user chose "Fix blockers first" or "Abandon":
 
-> "Nothing pushed. The umbrella still has all the merged stories locally — re-run `/aped-ship` after fixing the blockers."
+> "Nothing pushed. The umbrella still has all the merged stories locally — re-run `aped-ship` after fixing the blockers."
 
-**Do NOT auto-chain to `/aped-sprint`.** The user decides when to start the next sprint.
+**Do NOT auto-chain to `aped-sprint`.** The user decides when to start the next sprint.

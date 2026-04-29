@@ -1,6 +1,6 @@
 ---
 name: aped-from-ticket
-description: 'Use when user says "from ticket", "pickup ticket", "ingest ticket", references an external ticket ID, "aped from-ticket", or invokes /aped-from-ticket.'
+description: 'Use when user says "from ticket", "pickup ticket", "ingest ticket", references an external ticket ID, "aped from-ticket", or invokes aped-from-ticket.'
 argument-hint: "<ticket-id-or-url>"
 license: MIT
 metadata:
@@ -10,15 +10,15 @@ metadata:
 
 # APED From-Ticket — External Ticket Intake
 
-Bridge an external ticket (one that was NOT planned via `/aped-epics`) into the project's story flow. The skill fetches the ticket, analyses the codebase context, drafts a project-conformant story, persists it under the right placement, and optionally posts a comment back on the source ticket.
+Bridge an external ticket (one that was NOT planned via `aped-epics`) into the project's story flow. The skill fetches the ticket, analyses the codebase context, drafts a project-conformant story, persists it under the right placement, and optionally posts a comment back on the source ticket.
 
 ## Critical Rules
 
-- This skill is for **tickets that have no entry in `epics.md` / `state.yaml` yet**. For stories already planned in the sprint, use `/aped-story`.
+- This skill is for **tickets that have no entry in `epics.md` / `state.yaml` yet**. For stories already planned in the sprint, use `aped-story`.
 - The ticket system in use is determined by `ticket_system` in `{{APED_DIR}}/config.yaml` — never assume or default.
 - If `ticket_system: none`, refuse to run with a clear message: this skill requires a configured ticket system.
 - **Provider parity is mandatory.** The skill must handle every value the APED installer offers (`linear`, `jira`, `github-issues`, `gitlab-issues`). For `linear` and `jira`, that means the corresponding MCP must be configured in the user's Claude Code; for `github-issues` and `gitlab-issues`, `gh` / `glab` CLIs must be installed and authenticated.
-- **Do not auto-chain into dev.** After the story is written, ask the user how to proceed — do not silently run `/aped-dev`.
+- **Do not auto-chain into dev.** After the story is written, ask the user how to proceed — do not silently run `aped-dev`.
 - **Do not modify the ticket without permission.** Comment-back is opt-in via config.
 
 ## Setup
@@ -42,7 +42,7 @@ Bridge an external ticket (one that was NOT planned via `/aped-epics`) into the 
 
 If `ticket_system == none`:
 
-> "ticket_system is set to 'none' in `.aped/config.yaml`. `/aped-from-ticket` requires a configured ticket system (linear, jira, github-issues, or gitlab-issues). Reconfigure APED or use `/aped-quick` instead."
+> "ticket_system is set to 'none' in `.aped/config.yaml`. `aped-from-ticket` requires a configured ticket system (linear, jira, github-issues, or gitlab-issues). Reconfigure APED or use `aped-quick` instead."
 
 HALT.
 
@@ -62,8 +62,8 @@ Before fetching, verify the toolchain for the configured `ticket_system`:
 
 - `github-issues`: `gh auth status` must succeed → otherwise HALT with `"gh CLI not authenticated. Run 'gh auth login' first."`
 - `gitlab-issues`: `glab auth status` must succeed → otherwise HALT with `"glab CLI not authenticated. Run 'glab auth login' first."`
-- `linear`: the Linear MCP must be available in this Claude Code session (i.e., a tool prefixed `mcp__linear` is exposed) → otherwise HALT with `"Linear MCP is not configured in Claude Code. Configure it before using /aped-from-ticket."`
-- `jira`: the Atlassian/Jira MCP must be available → otherwise HALT with `"Jira/Atlassian MCP is not configured in Claude Code. Configure it before using /aped-from-ticket."`
+- `linear`: the Linear MCP must be available in this Claude Code session (i.e., a tool prefixed `mcp__linear` is exposed) → otherwise HALT with `"Linear MCP is not configured in Claude Code. Configure it before using aped-from-ticket."`
+- `jira`: the Atlassian/Jira MCP must be available → otherwise HALT with `"Jira/Atlassian MCP is not configured in Claude Code. Configure it before using aped-from-ticket."`
 
 Never silently downgrade to a different provider. The user chose `ticket_system` at install — respect it.
 
@@ -106,7 +106,7 @@ bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total 1
 
 ## Codebase & Project Context Compilation
 
-Before drafting the story, gather context — same spirit as `/aped-story` but starting from the ticket, not from a planned epic:
+Before drafting the story, gather context — same spirit as `aped-story` but starting from the ticket, not from a planned epic:
 
 1. **PRD** — read `{{OUTPUT_DIR}}/prd.md` if it exists. Identify FRs/NFRs that semantically overlap with the ticket; flag in the draft.
 2. **Architecture** — read `{{OUTPUT_DIR}}/architecture.md` if it exists. Note any constraint that affects how the ticket should be implemented.
@@ -155,13 +155,13 @@ Present a draft story to the user (no file written yet):
 
 ## Story File Creation
 
-Use template `{{APED_DIR}}/templates/story.md`. In addition to the standard sections required by `/aped-story`:
+Use template `{{APED_DIR}}/templates/story.md`. In addition to the standard sections required by `aped-story`:
 
 - Header includes:
   - `**Source:** ticket`
   - `**Ticket ID:** {ticket_id}`
   - `**Ticket URL:** {ticket_url}`
-  - `**Origin:** /aped-from-ticket`
+  - `**Origin:** aped-from-ticket`
 - An `## Origin` section near the top reproducing the ticket title and a 2-3 line summary of the ticket body, plus the URL.
 
 Write the file to `{{OUTPUT_DIR}}/stories/{story-key}.md`. Status: `ready-for-dev`.
@@ -192,7 +192,7 @@ Update `{{OUTPUT_DIR}}/state.yaml`:
    - If `from_ticket.sprint_integration.auto_add: false` (default): do NOT touch `sprint.active_epic` or any sprint-ordering field. The story is registered but kept out of the active sprint until the user explicitly promotes it.
    - If `auto_add: true`: append the story key to the active sprint's ordered list, after all currently-pending stories.
 
-State.yaml authority — same rule as the rest of APED: in worktree mode, write the worktree's local state.yaml; resolution to main happens at `/aped-ship` time. In solo mode, write directly.
+State.yaml authority — same rule as the rest of APED: in worktree mode, write the worktree's local state.yaml; resolution to main happens at `aped-ship` time. In solo mode, write directly.
 
 After state registration:
 
@@ -232,12 +232,12 @@ Per `from_ticket.handoff.after_story`:
 - **`ask`** (default): present the user with three options:
   ```
   Story drafted at {{OUTPUT_DIR}}/stories/{story-key}.md.
-  [D] Run /aped-dev {story-key} now
+  [D] Run aped-dev {story-key} now
   [P] Promote to current sprint (add to sprint ordering)
   [S] Stop here — I'll pick this up later
   ```
 - **`stop`**: report the path and exit.
-- **`continue_to_dev`**: invoke `/aped-dev {story-key}` directly.
+- **`continue_to_dev`**: invoke `aped-dev {story-key}` directly.
 
 **Do NOT auto-chain unless `continue_to_dev` is explicitly configured.**
 
@@ -246,7 +246,7 @@ Per `from_ticket.handoff.after_story`:
 Before presenting the drafted story to the user, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
 
 - [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/stories/<story-key>.md`.
-- [ ] **Same checks as `/aped-story`** — exact file paths, full code blocks, exact test commands, Given/When/Then ACs, reader-persona check.
+- [ ] **Same checks as `aped-story`** — exact file paths, full code blocks, exact test commands, Given/When/Then ACs, reader-persona check.
 - [ ] **Ticket reference preserved** — the source ticket ID and link appear verbatim in the story frontmatter.
 - [ ] **Dependencies resolved** — every `depends_on:` story is `done` (or the story is correctly placed in the bucket epic).
 - [ ] **Sync log emitted** at `docs/sync-logs/<provider>-sync-<ISO>.json` (or skipped silently if `sync_logs.enabled: false` in `config.yaml`).
@@ -260,7 +260,7 @@ Before presenting the drafted story to the user, walk this checklist. Each `[ ]`
 
 ## Example
 
-User: `/aped-from-ticket LIN-1234`
+User: `aped-from-ticket LIN-1234`
 
 Configured: `ticket_system: linear`, defaults otherwise (placement=ask, comment=disabled, sprint=manual, handoff=ask).
 
@@ -272,13 +272,13 @@ Configured: `ticket_system: linear`, defaults otherwise (placement=ask, comment=
 6. Draft story shown — user adjusts AC2.
 7. ⏸ User validates → file written, state.yaml updated (story registered, NOT added to active sprint).
 8. Handoff prompt → user picks `[P]` → story key appended to sprint ordering.
-9. Console: "Story `ext-lin-1234-fix-login-redirect-loop` ready and queued in sprint. Run `/aped-dev` when ready."
+9. Console: "Story `ext-lin-1234-fix-login-redirect-loop` ready and queued in sprint. Run `aped-dev` when ready."
 
 ## Common Issues
 
 - **Ticket has minimal description** (e.g., one-liner production bug): proceed, but the draft story will be sparse — flag it to the user, suggest enriching the ticket first OR proceed with the user's verbal clarification captured in `## Dev Notes`.
 - **Multiple identical-looking tickets**: the skill operates on one ticket per invocation; do not auto-merge.
-- **Ticket already linked to an existing story** (state.yaml has it): HALT, point the user at the existing story; suggest `/aped-story` to refresh from the ticket instead.
+- **Ticket already linked to an existing story** (state.yaml has it): HALT, point the user at the existing story; suggest `aped-story` to refresh from the ticket instead.
 - **MCP / CLI absent**: HALT with the exact remediation message — never silently fall back.
 - **`ticket_system: none`**: refuse early — see Refusal Gate.
 

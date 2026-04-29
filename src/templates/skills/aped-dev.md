@@ -1,6 +1,6 @@
 ---
 name: aped-dev
-description: 'Use when user says "start dev", "implement story", "aped dev", or invokes /aped-dev.'
+description: 'Use when user says "start dev", "implement story", "aped dev", or invokes aped-dev.'
 argument-hint: "[story-key]"
 disable-model-invocation: true
 license: MIT
@@ -57,7 +57,7 @@ Some failures are not "try harder" failures — they are "stop and surface" fail
 
 In addition: **never start implementation on `main` / `master` branch without explicit user consent.** APED's branch-per-story rule (one feature branch per story) is non-negotiable; if the current branch is `main` (classic mode without a worktree), HALT and ask the user to create a feature branch first or to confirm a one-off exception in writing.
 
-When this gate fires inside a worktree session, post a `dev-blocked` check-in (see `## HALT Conditions` § parallel-sprint mode) before halting — the user is in `/aped-lead` in the main project, not watching this terminal. A silent HALT is invisible to them.
+When this gate fires inside a worktree session, post a `dev-blocked` check-in (see `## HALT Conditions` § parallel-sprint mode) before halting — the user is in `aped-lead` in the main project, not watching this terminal. A silent HALT is invisible to them.
 
 **Don't force through blockers** — stop and ask.
 
@@ -110,14 +110,14 @@ Look for these artefacts (✱ = required):
 - Epic Context Cache — `{{OUTPUT_DIR}}/epic-{N}-context.md` (where N = epic number from story key)
 - Project Context — `*context*.md` or `project-context.md`
 - Product Brief — `*brief*.md` or `product-brief.md`
-- Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter entries with `Scope: /aped-dev` or `Scope: all` — produced by `/aped-retro` after each epic)
+- Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter entries with `Scope: aped-dev` or `Scope: all` — produced by `aped-retro` after each epic)
 
 ### 2. Required-input validation (hard-stop)
 
 For the ✱ Story file:
 - If found: continue
 - If missing: HALT with this message:
-  > "No story file found at `{{OUTPUT_DIR}}/stories/{story-key}.md`. Run `/aped-story` first to prepare it."
+  > "No story file found at `{{OUTPUT_DIR}}/stories/{story-key}.md`. Run `aped-story` first to prepare it."
 
 (This validation is performed *after* Worktree Mode Detection in Setup, since `story_key` is resolved there.)
 
@@ -126,12 +126,12 @@ For the ✱ Story file:
 - Load every discovered file completely (no offset/limit).
 - Brownfield/greenfield is detected via `project-context.md` presence.
 
-Present a short discovery report (full report in interactive sessions; in worktree mode where `/aped-dev` was auto-launched, log a one-liner instead — the user is not at the keyboard for a `[C]` confirmation):
+Present a short discovery report (full report in interactive sessions; in worktree mode where `aped-dev` was auto-launched, log a one-liner instead — the user is not at the keyboard for a `[C]` confirmation):
 
 > Implementing story {story-key} in {project_name}.
 > Loaded: PRD ({M} FRs), Architecture {✓|—}, UX Spec {✓|—}, Project Context {✓ brownfield|—}, Epic Context Cache {✓ fresh|recompiling|—}, Lessons ({K} dev-scoped rules to enforce).
 
-In **classic (non-worktree)** mode, present the full discovery report and HALT for `[C]` confirmation. In **worktree mode**, skip the confirmation — the worktree was launched by `/aped-sprint` with auto-injected prompt, no human at the keyboard.
+In **classic (non-worktree)** mode, present the full discovery report and HALT for `[C]` confirmation. In **worktree mode**, skip the confirmation — the worktree was launched by `aped-sprint` with auto-injected prompt, no human at the keyboard.
 
 ### 4. Bias the rest of the workflow
 
@@ -140,14 +140,14 @@ Loaded artefacts inform every TDD cycle:
 - Implementation respects naming conventions, layering, and patterns from the architecture document.
 - Frontend tasks render the components listed in the UX spec, not invented ones.
 - In brownfield mode, "Existing Patterns Are Law" (Guiding Principle 4) means the patterns documented in `project-context.md` win even over architecture decisions if the architecture decision was made for greenfield work.
-- **Lessons are enforced, not advisory.** For each loaded lesson with scope `/aped-dev` or `all`:
+- **Lessons are enforced, not advisory.** For each loaded lesson with scope `aped-dev` or `all`:
   - The `Rule:` becomes a check in the Pre-Implementation Checklist (e.g. if Epic 1's lesson was "always include error states in TDD", the checklist gains a "Error states test exists?" line).
   - When the lesson's `Mistake:` matches a pattern detectable in the current task, surface it before writing code: "Per Epic {N}'s lesson, this kind of task historically forgot {X}. Including {X} now."
   - Lessons that contradict the story's ACs win — flag the conflict to the user rather than silently overriding.
 
 ### 4b. Update the epic-context cache to reflect lessons
 
-The epic-context cache compiled below now has lessons as a 4th input source (see Epic Context Compilation). When recompiling, lessons scoped `/aped-dev` or `all` are interpolated into the "Key code patterns" section so they're surfaced inline during implementation, not just at skill entry.
+The epic-context cache compiled below now has lessons as a 4th input source (see Epic Context Compilation). When recompiling, lessons scoped `aped-dev` or `all` are interpolated into the "Key code patterns" section so they're surfaced inline during implementation, not just at skill entry.
 
 ## Setup
 
@@ -162,7 +162,7 @@ The epic-context cache compiled below now has lessons as a 4th input source (see
 
    In worktree mode (1 or 2), this session is **pinned** to the inferred story. Read state.yaml from the **worktree's own checkout** (`./{{OUTPUT_DIR}}/state.yaml`, i.e. the file on the feature branch) — NOT main's copy. See "State.yaml authority" below for why.
 
-   Verify the story exists in the worktree's state.yaml; if not, HALT with a clear error — the worktree doesn't map to a known story (likely a branch checked out without /aped-sprint, or a state.yaml that was never propagated by /aped-story).
+   Verify the story exists in the worktree's state.yaml; if not, HALT with a clear error — the worktree doesn't map to a known story (likely a branch checked out without aped-sprint, or a state.yaml that was never propagated by aped-story).
 
    In worktree mode, skip "Story Selection" and skip any git branch creation — the worktree already has the right branch.
 
@@ -171,12 +171,12 @@ The epic-context cache compiled below now has lessons as a 4th input source (see
 
 ### State.yaml authority
 
-**Each worktree owns its own copy of state.yaml on its feature branch.** /aped-story writes it, /aped-dev reads + writes it, /aped-review reads + writes it — all locally. Worktrees never reach across to main's state.yaml at runtime.
+**Each worktree owns its own copy of state.yaml on its feature branch.** aped-story writes it, aped-dev reads + writes it, aped-review reads + writes it — all locally. Worktrees never reach across to main's state.yaml at runtime.
 
-Main's state.yaml is the **authoritative** copy. /aped-lead writes there when it approves check-ins (status flips to `done`, etc.). At merge time, /aped-ship resolves state.yaml conflicts with `--ours` — main wins, the feature branch's state.yaml is intentionally discarded. This is by design, not a workaround:
+Main's state.yaml is the **authoritative** copy. aped-lead writes there when it approves check-ins (status flips to `done`, etc.). At merge time, aped-ship resolves state.yaml conflicts with `--ours` — main wins, the feature branch's state.yaml is intentionally discarded. This is by design, not a workaround:
 
 - It keeps each worktree autonomous (no cross-process state lookup, no cache invalidation, no race on a shared file).
-- It makes /aped-lead the single source of truth for sprint lifecycle transitions.
+- It makes aped-lead the single source of truth for sprint lifecycle transitions.
 - It's safe because worktree-local state.yaml writes are scoped to the story being worked on; nothing else cares.
 
 **Do not "fix" perceived inconsistencies between worktree state.yaml and main's** — they are expected and resolved at ship.
@@ -186,10 +186,10 @@ Main's state.yaml is the **authoritative** copy. /aped-lead writes there when it
 **Worktree mode:** the story is already pinned by `{{APED_DIR}}/WORKTREE`. Skip this section.
 
 **Classic mode:** scan `sprint.stories` top-to-bottom for the first `ready-for-dev` story.
-- If the user passed an argument (`/aped-dev {story-key}`), use that one instead
+- If the user passed an argument (`aped-dev {story-key}`), use that one instead
 - If none found: report "All stories implemented or in review" and stop
 - Check if story file exists at `{{OUTPUT_DIR}}/stories/{story-key}.md`
-  - If file missing: tell user "Story file not found. Run `/aped-story` first to prepare it." and stop
+  - If file missing: tell user "Story file not found. Run `aped-story` first to prepare it." and stop
 - Read story file
 - Story key format: `{epic#}-{story#}-{slug}`
 
@@ -197,7 +197,7 @@ Main's state.yaml is the **authoritative** copy. /aped-lead writes there when it
 
 If story has `[AI-Review]` items: address them BEFORE regular tasks.
 
-When `/aped-review` has reported findings and handed control back to `/aped-dev`, invoke `/aped-receive-review` to process the feedback before touching code. The receive-review skill enforces the "no performative agreement, technical verification first" discipline (verify each item against the codebase, ask for clarification on any unclear item, push back on technically wrong feedback with evidence, run a YAGNI grep before "implementing properly" on possibly-unused features). Skipping this step typically produces partial fixes plus rework.
+When `aped-review` has reported findings and handed control back to `aped-dev`, invoke `aped-receive-review` to process the feedback before touching code. The receive-review skill enforces the "no performative agreement, technical verification first" discipline (verify each item against the codebase, ask for clarification on any unclear item, push back on technically wrong feedback with evidence, run a YAGNI grep before "implementing properly" on possibly-unused features). Skipping this step typically produces partial fixes plus rework.
 
 ## State Update (start)
 
@@ -233,7 +233,7 @@ The agent reads and compiles into a single `epic-{N}-context.md`:
 2. **Architecture decisions** — relevant patterns and conventions (from `{{OUTPUT_DIR}}/architecture.md` if exists)
 3. **UX references** — screens and components for this epic (from `{{OUTPUT_DIR}}/ux/` if exists)
 4. **Project context** — existing-system constraints and conventions (from `{{OUTPUT_DIR}}/project-context.md` if exists — brownfield only)
-5. **Lessons** — entries from `{{OUTPUT_DIR}}/lessons.md` with `Scope: /aped-dev` or `Scope: all` (rules to enforce during implementation; missing on the first epic of a project)
+5. **Lessons** — entries from `{{OUTPUT_DIR}}/lessons.md` with `Scope: aped-dev` or `Scope: all` (rules to enforce during implementation; missing on the first epic of a project)
 6. **Completed stories** — implementation details and decisions from already-done stories in this epic (from `{{OUTPUT_DIR}}/stories/`)
 7. **Key code patterns** — scan the codebase for established patterns relevant to this epic
 
@@ -333,19 +333,19 @@ Detect if this is a frontend story:
 
 This is systematic — every frontend task gets a visual check at GREEN, not just at review time.
 
-**If React Grab MCP is unavailable** (connection error, not configured): log a WARNING to the user, proceed without the visual check, and mention in the Dev Agent Record that visual verification was deferred to review. Never block dev on MCP availability — `/aped-review` (Aria) will catch missed visual issues.
+**If React Grab MCP is unavailable** (connection error, not configured): log a WARNING to the user, proceed without the visual check, and mention in the Dev Agent Record that visual verification was deferred to review. Never block dev on MCP availability — `aped-review` (Aria) will catch missed visual issues.
 
 ## TDD Implementation
 
-Read `{{APED_DIR}}/aped-dev/references/tdd-engine.md` for detailed rules.
+Read `{{APED_DIR}}aped-dev/references/tdd-engine.md` for detailed rules.
 
 For each task (update TaskUpdate to `in_progress` when starting):
 
 ### RED
-Write failing tests first. Run: `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh`
+Write failing tests first. Run: `bash {{APED_DIR}}aped-dev/scripts/run-tests.sh`
 
 ### GREEN
-Write minimal code to pass. Run: `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh`
+Write minimal code to pass. Run: `bash {{APED_DIR}}aped-dev/scripts/run-tests.sh`
 **Frontend tasks:** after tests pass, use React Grab to verify the component renders correctly in the layout.
 
 ### REFACTOR
@@ -359,30 +359,30 @@ Mark `[x]` ONLY when: tests exist, pass 100%, implementation matches, ACs satisf
 
 **STOP and ask user if:** new dependency, 3 consecutive failures, missing config, ambiguity.
 
-**3-failed-fixes rule:** if a task's test has gone red 3 times in a row — **three attempts that did not turn the original failing repro green** — **do not try fix #4**. Invoke `/aped-debug`. A "different test broke" counts as not turning the original repro green. The fourth attempt to patch a misunderstood cause costs more than the fifteen minutes of stepping back. `/aped-debug` Phase 1 inherits the failing test as the repro and immediately HALTs to question the architecture/spec/test rather than the fix. See `aped-debug.md` § 3-failed-fixes rule.
+**3-failed-fixes rule:** if a task's test has gone red 3 times in a row — **three attempts that did not turn the original failing repro green** — **do not try fix #4**. Invoke `aped-debug`. A "different test broke" counts as not turning the original repro green. The fourth attempt to patch a misunderstood cause costs more than the fifteen minutes of stepping back. `aped-debug` Phase 1 inherits the failing test as the repro and immediately HALTs to question the architecture/spec/test rather than the fix. See `aped-debug.md` § 3-failed-fixes rule.
 
 ### Parallel-sprint mode — post a `dev-blocked` check-in
 
-In a worktree session (parallel sprint), the user is in `/aped-lead` in main, not watching this terminal. A silent HALT is invisible to them. Before stopping, post a check-in so /aped-status surfaces it and /aped-lead can escalate:
+In a worktree session (parallel sprint), the user is in `aped-lead` in main, not watching this terminal. A silent HALT is invisible to them. Before stopping, post a check-in so aped-status surfaces it and aped-lead can escalate:
 
 ```bash
 bash ${project_root}/{{APED_DIR}}/scripts/checkin.sh post {story-key} dev-blocked "<one-line reason — e.g. 'new dep needed: foo@^2.0'>"
 ```
 
-Then HALT and tell the user in this worktree: "Posted dev-blocked check-in — Lead will see it on next /aped-lead or /aped-status. Waiting for instruction."
+Then HALT and tell the user in this worktree: "Posted dev-blocked check-in — Lead will see it on next aped-lead or aped-status. Waiting for instruction."
 
 In classic (non-parallel) mode, just HALT inline — the user is here.
 
 ## Git & Ticket Workflow
 
-Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md` for full integration guide.
+Read `{{APED_DIR}}aped-dev/references/ticket-git-workflow.md` for full integration guide.
 
 Read `ticket_system` and `git_provider` from `{{APED_DIR}}/config.yaml`.
 
 ### Before Implementation
 If `ticket_system` is not `none`:
 1. Read ticket ID from `sprint.stories.{key}.ticket` in state.yaml
-2. **Fetch ticket** — get latest state (title, body, comments, labels). The ticket may have been updated by the team since /aped-story ran.
+2. **Fetch ticket** — get latest state (title, body, comments, labels). The ticket may have been updated by the team since aped-story ran.
 3. Compare ticket body with story file — if there are divergences (new ACs, clarifications in comments), **HALT and ask the user** which version is correct
 4. Move ticket status to **In Progress**:
    - `github-issues`: `gh issue edit {id} --remove-label "status/ready" --add-label "status/in-progress"` (or use project board if configured)
@@ -414,7 +414,7 @@ If `ticket_system` is `none`:
 
 ## Verification gate (run before Completion)
 
-The Iron Law for `/aped-dev` is *NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST*; the Iron Law for marking the story `review` is *no completion claim without fresh evidence in this message*. This gate operationalises that. Walk it before the steps under `## Completion`.
+The Iron Law for `aped-dev` is *NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST*; the Iron Law for marking the story `review` is *no completion claim without fresh evidence in this message*. This gate operationalises that. Walk it before the steps under `## Completion`.
 
 **Forbidden phrases** — these words alone are not evidence. If you wrote them in this message and the message contains no captured tool output below, you have NOT verified anything.
 
@@ -444,13 +444,13 @@ bash ${project_root}/{{APED_DIR}}/scripts/checkin.sh post {story-key} dev-done
 
 Then tell the user in the worktree session:
 
-> "dev-done check-in posted. Waiting for the Lead Dev to approve in the main project (`/aped-lead`). This session will receive `/aped-review {story-key}` automatically via tmux send-keys once approved (or the user can run it manually)."
+> "dev-done check-in posted. Waiting for the Lead Dev to approve in the main project (`aped-lead`). This session will receive `aped-review {story-key}` automatically via tmux send-keys once approved (or the user can run it manually)."
 
-**STOP. Do not continue to /aped-review yourself.**
+**STOP. Do not continue to aped-review yourself.**
 
 ## Next Step — classic mode only
 
-If this is NOT a parallel-sprint worktree session, tell the user: "Story implementation complete. Run `/aped-review` to review, or `/aped-dev` to start the next story."
+If this is NOT a parallel-sprint worktree session, tell the user: "Story implementation complete. Run `aped-review` to review, or `aped-dev` to start the next story."
 
 **Do NOT auto-chain.** The user (or the Lead in parallel mode) decides when to proceed.
 

@@ -1,8 +1,8 @@
 # APED Skill Authoring — Anthropic Best Practices (Reference)
 
-> Reference document. No `description:` triggers — this file is read on demand from other APED skills (e.g. `/aped-claude` when generating new skills, `/aped-retro` when refining existing ones).
+> Reference document. No `description:` triggers — this file is read on demand from other APED skills (e.g. `aped-claude` when generating new skills, `aped-retro` when refining existing ones).
 
-This file captures the Anthropic-recommended best practices for writing skills, adapted to APED's `/aped-*` namespacing. Lifted from `obra/superpowers` writing-skills with project-specific adjustments.
+This file captures the Anthropic-recommended best practices for writing skills, adapted to APED's `aped-*` namespacing. Lifted from `obra/superpowers` writing-skills with project-specific adjustments.
 
 ## Contents
 
@@ -46,11 +46,11 @@ with pdfplumber.open("file.pdf") as pdf:
 
 Match the level of specificity to the task's fragility and variability.
 
-**High freedom** (text-based instructions) — multiple approaches valid, decisions depend on context, heuristics guide the approach. Example: APED's `/aped-review` Lead role has high freedom — it dispatches specialists by file surface, merges findings by judgment.
+**High freedom** (text-based instructions) — multiple approaches valid, decisions depend on context, heuristics guide the approach. Example: APED's `aped-review` Lead role has high freedom — it dispatches specialists by file surface, merges findings by judgment.
 
-**Medium freedom** (pseudocode or scripts with parameters) — a preferred pattern exists, some variation is acceptable, configuration affects behaviour. Example: APED's `/aped-dev` TDD cycle is medium freedom — RED→GREEN→REFACTOR is mandated, but the test framework and assertions are project-specific.
+**Medium freedom** (pseudocode or scripts with parameters) — a preferred pattern exists, some variation is acceptable, configuration affects behaviour. Example: APED's `aped-dev` TDD cycle is medium freedom — RED→GREEN→REFACTOR is mandated, but the test framework and assertions are project-specific.
 
-**Low freedom** (specific scripts, few or no parameters) — operations are fragile and error-prone, consistency is critical, a specific sequence must be followed. Example: APED's `/aped-ship` git release flow is low freedom — the exact commands and the workflow_dispatch route are mandated.
+**Low freedom** (specific scripts, few or no parameters) — operations are fragile and error-prone, consistency is critical, a specific sequence must be followed. Example: APED's `aped-ship` git release flow is low freedom — the exact commands and the workflow_dispatch route are mandated.
 
 **Analogy:** Think of Claude as a robot exploring a path:
 - **Narrow bridge with cliffs on both sides** — only one safe way forward. Provide specific guardrails and exact instructions (low freedom).
@@ -69,7 +69,7 @@ Anthropic recommends **gerund form** (verb + -ing) for skill names — clearly d
 
 **APED naming convention (project-specific):**
 
-APED skills follow `aped-{verb-or-noun}` for namespace consistency and slash-command ergonomics (`/aped-dev`, `/aped-review`, `/aped-debug`). The CLI form takes precedence over pure gerund — but the **internal section headings** within a skill should still use action-oriented language ("Phase 1 — Reproduce", "Step 4 — Dispatch Specialists").
+APED skills follow `aped-{verb-or-noun}` for namespace consistency and slash-command ergonomics (`aped-dev`, `aped-review`, `aped-debug`). The CLI form takes precedence over pure gerund — but the **internal section headings** within a skill should still use action-oriented language ("Phase 1 — Reproduce", "Step 4 — Dispatch Specialists").
 
 **APED examples:**
 - `aped-dev` (TDD story implementation)
@@ -110,7 +110,7 @@ The **CSO description principle**: triggers only, no workflow summary.
 ### APED examples
 
 ```yaml
-description: 'Use when user says "debug", "troubleshoot", "why is X failing", "find the root cause", "aped debug", or invokes /aped-debug. Also invoked from /aped-dev on persistent test red (≥3 failed attempts) and from /aped-review on findings that need root-cause investigation.'
+description: 'Use when user says "debug", "troubleshoot", "why is X failing", "find the root cause", "aped debug", or invokes aped-debug. Also invoked from aped-dev on persistent test red (≥3 failed attempts) and from aped-review on findings that need root-cause investigation.'
 ```
 
 This description hits CSO: triggering phrases (Conditions), the upstream-skill HALT cases (Symptoms), and the implicit Output (a deterministic repro + root-cause statement + regression test) is named in the body, not the description.
@@ -142,7 +142,7 @@ These tokens are **failures** in any prescriptive section of a skill (Iron Law /
 Reference files (this file, `persuasion-principles.md`, `testing-skills-with-subagents.md`) document the rule, which means quoting the banned tokens to explain them. Wrap such quotations in `<!-- aped-lint-disable -->` / `<!-- aped-lint-enable -->` markers so the lint skips them. Keep the disabled span tight — never wrap a whole file.
 
 <!-- aped-lint-disable -->
-**Why this rule:** placeholders are the single biggest source of agent improvisation. "Add appropriate error handling" produces five different implementations on five different runs. APED's "Reader persona" doctrine (`/aped-story`) generalises here: every skill must produce the right behaviour from a fresh agent who has never read it before, not from one who knows what was meant.
+**Why this rule:** placeholders are the single biggest source of agent improvisation. "Add appropriate error handling" produces five different implementations on five different runs. APED's "Reader persona" doctrine (`aped-story`) generalises here: every skill must produce the right behaviour from a fresh agent who has never read it before, not from one who knows what was meant.
 <!-- aped-lint-enable -->
 
 ## Progressive disclosure
@@ -203,12 +203,12 @@ The v1 API used `api.example.com/v1/messages`. No longer supported.
 
 Choose one term and use it throughout the skill. APED's terminology canon:
 
-- "Skill" — a `/aped-*` markdown file with frontmatter and body, invoked by the agent.
+- "Skill" — a `aped-*` markdown file with frontmatter and body, invoked by the agent.
 - "Subagent" / "specialist" — a fresh agent dispatched via the `Agent` tool from inside a skill.
-- "Story" — APED unit of implementation (one feature branch, one PR, one `/aped-dev` cycle).
+- "Story" — APED unit of implementation (one feature branch, one PR, one `aped-dev` cycle).
 - "Epic" — group of stories delivering a coherent user-value slice.
 - "Sprint" — the current active set of stories.
-- "Worktree" — git worktree used by `/aped-sprint` to isolate one story per terminal.
+- "Worktree" — git worktree used by `aped-sprint` to isolate one story per terminal.
 - "Reader persona" — the enthusiastic-junior reader of every story file.
 
 Mixing "task" and "story" or "review" and "audit" in the same skill produces ambiguity that the Reader persona will resolve in the wrong direction.
@@ -217,7 +217,7 @@ Mixing "task" and "story" or "review" and "audit" in the same skill produces amb
 
 ### Use workflows for complex tasks
 
-Break complex operations into clear, sequential steps. For particularly complex skills (e.g. `/aped-review`'s 13 steps), provide a checklist Claude can copy into its response and check off as it progresses.
+Break complex operations into clear, sequential steps. For particularly complex skills (e.g. `aped-review`'s 13 steps), provide a checklist Claude can copy into its response and check off as it progresses.
 
 APED uses the `## Self-review` checklist pattern at the end of every skill — each `[ ]` must flip to `[x]` or HALT. This is the feedback loop: run validator → fix errors → repeat.
 
@@ -235,7 +235,7 @@ APED uses the `## Self-review` checklist pattern at the end of every skill — e
 4. **Only proceed when validation passes**
 ```
 
-The validation loop catches placeholder regressions before they reach `/aped-dev`.
+The validation loop catches placeholder regressions before they reach `aped-dev`.
 
 ## Anti-patterns to avoid
 

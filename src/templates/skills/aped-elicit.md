@@ -1,6 +1,6 @@
 ---
 name: aped-elicit
-description: 'Use when user says "elicit", "critique this", "stress-test", "deeper review", "pre-mortem", "red team", "socratic", "tree of thoughts", "first principles", or invokes /aped-elicit. Horizontal — invokable at any phase.'
+description: 'Use when user says "elicit", "critique this", "stress-test", "deeper review", "pre-mortem", "red team", "socratic", "tree of thoughts", "first principles", or invokes aped-elicit. Horizontal — invokable at any phase.'
 when_to_use: 'Use when user says "critique this", "stress-test", "deeper review", "socratic", "pre-mortem", "red team".'
 argument-hint: "[method-name | target-file]"
 allowed-tools: Read Write Edit Glob Grep Bash TaskCreate TaskUpdate
@@ -23,7 +23,7 @@ metadata:
 ## Guiding Principles
 
 ### 1. Horizontal Tool, Not a Phase
-Elicit is invokable from anywhere — inside `/aped-prd`, `/aped-arch`, `/aped-story`, `/aped-review`, or standalone. It does NOT appear in the pipeline linearly.
+Elicit is invokable from anywhere — inside `aped-prd`, `aped-arch`, `aped-story`, `aped-review`, or standalone. It does NOT appear in the pipeline linearly.
 
 ### 2. One Method at a Time
 Each method is a distinct lens. Applying two at once muddles the signal. Run them sequentially, show results, re-offer the menu.
@@ -141,16 +141,16 @@ x. Proceed / no more critique
 
 ## Integration (invoked from another skill)
 
-When another APED skill invokes `/aped-elicit` mid-workflow:
+When another APED skill invokes `aped-elicit` mid-workflow:
 
 1. Receive the current section content as target
 2. Apply elicitation iteratively until user selects 'x'
 3. Return the final enhanced version back to the invoking skill
 4. The invoking skill continues its workflow with the enhanced content
 
-Example use from `/aped-prd`:
-> "Section 3 draft complete. Run `/aped-elicit` to stress-test before user review? (y/n)"
-> If yes: hand off to `/aped-elicit`, receive enhanced draft back, present to user for validation.
+Example use from `aped-prd`:
+> "Section 3 draft complete. Run `aped-elicit` to stress-test before user review? (y/n)"
+> If yes: hand off to `aped-elicit`, receive enhanced draft back, present to user for validation.
 
 ## State Update
 
@@ -168,7 +168,7 @@ When 'x' is selected:
 
 ## Example (standalone)
 
-User: "/aped-elicit {{OUTPUT_DIR}}/architecture.md"
+User: "aped-elicit {{OUTPUT_DIR}}/architecture.md"
 
 1. Setup: confirm target = `{{OUTPUT_DIR}}/architecture.md`, section = "Database choice (Postgres vs Foundation)"
 2. Smart selection: First Principles, Tree of Thoughts, Pre-mortem, Occam's Razor, Shark Tank
@@ -182,9 +182,9 @@ User: "/aped-elicit {{OUTPUT_DIR}}/architecture.md"
 10. User: "y" then "x"
 11. Summary: "Applied Pre-mortem + Tree of Thoughts to {{OUTPUT_DIR}}/architecture.md. 2 subsections enhanced."
 
-## Example (integrated from /aped-prd)
+## Example (integrated from aped-prd)
 
-`/aped-prd` Section 4 is complete. Auto-prompt: "Run `/aped-elicit` on this section? (y/n)"
+`aped-prd` Section 4 is complete. Auto-prompt: "Run `aped-elicit` on this section? (y/n)"
 
 User: y
 
@@ -192,7 +192,7 @@ Elicit runs: Socratic → user picks → "What if the constraint you listed as '
 
 User iterates: Pre-mortem → finds 2 new risks → added to the PRD.
 
-User: x → enhanced content returns to `/aped-prd`, which presents to user for final validation before writing to `{{OUTPUT_DIR}}/prd.md`.
+User: x → enhanced content returns to `aped-prd`, which presents to user for final validation before writing to `{{OUTPUT_DIR}}/prd.md`.
 
 ## Common Issues
 

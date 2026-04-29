@@ -1,6 +1,6 @@
 # APED Skill Authoring — Testing Skills with Subagents (Reference)
 
-> Reference document. No `description:` triggers — read on demand by the skill-triggering harness under `tests/skill-triggering/` and by `/aped-claude` when authoring or refactoring skills.
+> Reference document. No `description:` triggers — read on demand by the skill-triggering harness under `tests/skill-triggering/` and by `aped-claude` when authoring or refactoring skills.
 
 ## Contents
 
@@ -23,7 +23,7 @@ You run scenarios without the skill (RED — watch agent fail), write the skill 
 
 **Core principle:** If you didn't watch an agent fail without the skill, you don't know if the skill prevents the right failures.
 
-**REQUIRED BACKGROUND:** You MUST understand `/aped-dev`'s TDD discipline before using this reference. That skill defines the fundamental RED-GREEN-REFACTOR cycle. This reference provides skill-specific test formats (pressure scenarios, rationalization tables).
+**REQUIRED BACKGROUND:** You MUST understand `aped-dev`'s TDD discipline before using this reference. That skill defines the fundamental RED-GREEN-REFACTOR cycle. This reference provides skill-specific test formats (pressure scenarios, rationalization tables).
 
 ## When to use
 
@@ -38,7 +38,7 @@ Test APED skills that:
 - Skills without rules to violate
 - Skills agents have no incentive to bypass
 
-The skills under APED's Tier 1 set (`/aped-dev`, `/aped-review`, `/aped-debug`, `/aped-receive-review`) are the prime candidates — every one of them has Iron Laws an unsupervised agent would rationalize past.
+The skills under APED's Tier 1 set (`aped-dev`, `aped-review`, `aped-debug`, `aped-receive-review`) are the prime candidates — every one of them has Iron Laws an unsupervised agent would rationalize past.
 
 ## TDD mapping for skill testing
 
@@ -175,9 +175,9 @@ Make the agent believe it's real work, not a quiz.
 
 Pressure scenarios live under `tests/skill-triggering/scenarios/` and are named `{skill}-{pressure-type}-{name}.md`. Examples:
 
-- `aped-debug-time-pressure-emergency-fix.md` — production API down, $15k/min, manager pressure; tests `/aped-debug` Phase 1 compliance.
+- `aped-debug-time-pressure-emergency-fix.md` — production API down, $15k/min, manager pressure; tests `aped-debug` Phase 1 compliance.
 - `aped-debug-sunk-cost-exhaustion.md` — 4h debugging at 8pm, dinner waits; tests the 3-failed-fixes rule under exhaustion.
-- `aped-receive-review-authority-pushback.md` — senior + tech-lead approve a quick fix without root cause; tests `/aped-receive-review` pushback discipline.
+- `aped-receive-review-authority-pushback.md` — senior + tech-lead approve a quick fix without root cause; tests `aped-receive-review` pushback discipline.
 
 Three or more named scenarios per discipline-enforcing skill is the floor; six is the goal.
 
@@ -259,7 +259,7 @@ Every discipline-enforcing APED skill ships with a `### Rationalizations` block.
 - One excuse per row — do not combine.
 - Order: most-frequently-observed first (helps the agent's pattern-match catch it earlier).
 
-**Example (from `/aped-dev`):**
+**Example (from `aped-dev`):**
 
 | Excuse | Reality |
 |--------|---------|
@@ -412,5 +412,5 @@ When refactoring an APED skill in response to a failed pressure test:
 
 1. **Update the skill body** — add the explicit negation, the rationalization-table row, the Red Flag entry, the description-symptom update.
 2. **Add the scenario to `tests/skill-triggering/scenarios/`** — even if it now passes; this protects against regression when the skill is touched again later.
-3. **Bump nothing else** — version bumps are user-driven; the skill update goes through the normal commit / review / `/aped-ship` flow.
-4. **Update `/aped-retro` lessons** — if the failure mode is general (e.g. "agents under exhaustion always argue for skipping the gate"), record it as a `Scope: all` lesson so future skills inherit the counter.
+3. **Bump nothing else** — version bumps are user-driven; the skill update goes through the normal commit / review / `aped-ship` flow.
+4. **Update `aped-retro` lessons** — if the failure mode is general (e.g. "agents under exhaustion always argue for skipping the gate"), record it as a `Scope: all` lesson so future skills inherit the counter.

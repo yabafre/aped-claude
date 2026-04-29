@@ -1,6 +1,6 @@
 ---
 name: aped-story
-description: 'Use when user says "create story", "prepare next story", "aped story", or invokes /aped-story.'
+description: 'Use when user says "create story", "prepare next story", "aped story", or invokes aped-story.'
 argument-hint: "[story-key]"
 license: MIT
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # APED Story — Detailed Story Preparation
 
-Create a single, implementation-ready story file with all the context needed for `/aped-dev`.
+Create a single, implementation-ready story file with all the context needed for `aped-dev`.
 
 ## Critical Rules
 
@@ -18,8 +18,8 @@ Create a single, implementation-ready story file with all the context needed for
 - The story file must be self-contained — everything the dev agent needs to implement
 - Discuss the story with the user before finalizing — this is a collaborative process
 - Quality of story definition determines quality of implementation
-- **Branch-per-story is inviolable.** In parallel-sprint mode (worktree present), /aped-story runs **inside the worktree on the feature branch** and commits the story file there — never in main. The `story-ready` check-in is posted by this skill, not by /aped-sprint.
-- **State.yaml authority lives in main.** In worktree mode, /aped-story writes the worktree's local state.yaml (status flip to `ready-for-dev`) and commits it on the feature branch. This local copy is intentionally divergent from main: /aped-lead is the only writer of main's state.yaml, and /aped-ship resolves merge conflicts on state.yaml with `--ours`. Don't treat the divergence as a bug — it's the design (see aped-dev.md § State.yaml authority).
+- **Branch-per-story is inviolable.** In parallel-sprint mode (worktree present), aped-story runs **inside the worktree on the feature branch** and commits the story file there — never in main. The `story-ready` check-in is posted by this skill, not by aped-sprint.
+- **State.yaml authority lives in main.** In worktree mode, aped-story writes the worktree's local state.yaml (status flip to `ready-for-dev`) and commits it on the feature branch. This local copy is intentionally divergent from main: aped-lead is the only writer of main's state.yaml, and aped-ship resolves merge conflicts on state.yaml with `--ours`. Don't treat the divergence as a bug — it's the design (see aped-dev.md § State.yaml authority).
 
 ### Iron Law
 
@@ -129,16 +129,16 @@ Five failures: no path (`auth module`), snippet-or-less ("similar to story 2-1")
 
 ## Mode Detection
 
-Before anything else, decide whether we are in **solo mode** (main project, no parallel sprint) or **worktree mode** (dispatched by /aped-sprint):
+Before anything else, decide whether we are in **solo mode** (main project, no parallel sprint) or **worktree mode** (dispatched by aped-sprint):
 
-- `ls {{APED_DIR}}/WORKTREE` succeeds → **worktree mode** (expected when invoked from a /aped-sprint dispatch). Read the marker to recover `story_key`, `ticket`, `branch`.
-- `ls {{APED_DIR}}/WORKTREE` fails → **solo mode** (user running /aped-story directly to prep the next story in main).
+- `ls {{APED_DIR}}/WORKTREE` succeeds → **worktree mode** (expected when invoked from a aped-sprint dispatch). Read the marker to recover `story_key`, `ticket`, `branch`.
+- `ls {{APED_DIR}}/WORKTREE` fails → **solo mode** (user running aped-story directly to prep the next story in main).
 
-In worktree mode, the story-key argument is optional — the marker tells us. If the user passed one and it mismatches, HALT and ask the user which is authoritative. If the current branch is `main` (not the feature branch), HALT: "Run `/aped-story` in the worktree's feature branch, not main. Branch-per-story rule."
+In worktree mode, the story-key argument is optional — the marker tells us. If the user passed one and it mismatches, HALT and ask the user which is authoritative. If the current branch is `main` (not the feature branch), HALT: "Run `aped-story` in the worktree's feature branch, not main. Branch-per-story rule."
 
 ## Input Discovery
 
-Before story selection, discover and load upstream APED artefacts. The story file must be self-contained for `/aped-dev`, so it embeds context drawn from these documents.
+Before story selection, discover and load upstream APED artefacts. The story file must be self-contained for `aped-dev`, so it embeds context drawn from these documents.
 
 ### 1. Glob discovery
 
@@ -154,7 +154,7 @@ Look for these artefacts (✱ = required):
 - Architecture — `*architecture*.md` or `architecture.md`
 - Product Brief — `*brief*.md` or `product-brief.md`
 - Project Context — `*context*.md` or `project-context.md`
-- Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter entries with `Scope: /aped-story` or `Scope: all` — produced by `/aped-retro` after each epic)
+- Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter entries with `Scope: aped-story` or `Scope: all` — produced by `aped-retro` after each epic)
 - Previous stories — `{{OUTPUT_DIR}}/stories/*.md` from completed stories of the current epic (continuity, decisions made earlier)
 
 ### 2. Required-input validation (hard-stop)
@@ -162,7 +162,7 @@ Look for these artefacts (✱ = required):
 For ✱ Epics:
 - If found: continue
 - If missing: HALT with this message:
-  > "Story preparation requires `epics.md` (the story plan). Run `/aped-epics` first."
+  > "Story preparation requires `epics.md` (the story plan). Run `aped-epics` first."
 
 ### 3. Load + report
 
@@ -171,7 +171,7 @@ For ✱ Epics:
 
 Present a discovery report (adapt to `communication_language`):
 
-> Setting up `/aped-story` for {project_name}.
+> Setting up `aped-story` for {project_name}.
 >
 > **Documents discovered:**
 > - Epics: {N} files {✓ loaded — {M} stories indexed | ✱ MISSING — HALT}
@@ -179,7 +179,7 @@ Present a discovery report (adapt to `communication_language`):
 > - UX Spec: {N} files {✓ loaded — story will reference screens/components | (none)}
 > - Architecture: {N} files {✓ loaded — story respects pattern decisions | (none)}
 > - Project Context: {N} files {✓ loaded (brownfield) | (none)}
-> - Lessons: {N} entries scoped to `/aped-story` or `all` {✓ applied to draft | (none — first epic)}
+> - Lessons: {N} entries scoped to `aped-story` or `all` {✓ applied to draft | (none — first epic)}
 > - Previous stories: {N} completed stories in epic {epic#} {✓ loaded for continuity | (none — first story of epic)}
 >
 > **Files loaded:** {comma-separated filenames}
@@ -196,7 +196,7 @@ Loaded artefacts inform story-file content:
 - Implementation notes reference architecture decisions by section (e.g. "use the auth pattern from architecture.md §2.2").
 - Frontend stories list concrete components/screens from the UX spec.
 - In brownfield mode, story files include "files to modify" pulled from `project-context.md` rather than only "files to create".
-- **Lessons are applied to the draft, not just acknowledged.** For each loaded lesson with scope `/aped-story` or `all`:
+- **Lessons are applied to the draft, not just acknowledged.** For each loaded lesson with scope `aped-story` or `all`:
   - Apply its `Rule:` to the story being drafted (e.g. if Epic 1's lesson was "always split auth from authz", check whether the new story conflates them and propose splitting).
   - Cite the lesson in Discussion Points: "Per Epic {N}'s retro lesson on `{topic}`, I'd suggest {adjustment}. Override?"
   - This is the feedback loop the retro phase exists for — do not treat lessons as advisory.
@@ -215,14 +215,14 @@ Loaded artefacts inform story-file content:
 
 Scan `sprint.stories` for the first story with status `pending` (no story file yet).
 - If user specifies a story key: use that one instead
-- If all stories have files: "All stories are prepared. Run `/aped-dev` to implement."
+- If all stories have files: "All stories are prepared. Run `aped-dev` to implement."
 - Show the selected story's summary from epics.md
 
 ## Ticket Fetch (source of truth)
 
 If `ticket_system` is not `none` and the story has a ticket ID in `sprint.stories.{key}.ticket`:
 
-1. Fetch the ticket from the system (it may have been edited by the team since `/aped-epics` ran):
+1. Fetch the ticket from the system (it may have been edited by the team since `aped-epics` ran):
    - `github-issues`: `gh issue view {id} --json title,body,labels,comments,assignees,state`
    - `gitlab-issues`: `glab issue view {id}`
    - `linear`: linear CLI or API
@@ -275,7 +275,7 @@ Use template `{{APED_DIR}}/templates/story.md`. Fill every section:
 
 ### Ticket Integration
 If `ticket_system` is not `none`:
-- Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md`
+- Read `{{APED_DIR}}aped-dev/references/ticket-git-workflow.md`
 - Add `**Ticket:** {{ticket_id}}`
 - Add `**Branch:** feature/{{ticket_id}}-{{story-slug}}`
 - Add commit prefix in Dev Notes
@@ -304,7 +304,7 @@ Before presenting the story file to the user, walk this checklist. Each `[ ]` mu
 
 ### Worktree mode only — commit + story-ready
 
-In worktree mode, the story file and state.yaml edit must land on the feature branch, then a `story-ready` check-in is posted so `/aped-lead` can approve.
+In worktree mode, the story file and state.yaml edit must land on the feature branch, then a `story-ready` check-in is posted so `aped-lead` can approve.
 
 1. Verify branch: `git symbolic-ref --short HEAD` must match the marker's `branch`. If not, HALT.
 2. Stage and commit on the feature branch:
@@ -316,20 +316,20 @@ In worktree mode, the story file and state.yaml edit must land on the feature br
    ```bash
    bash {{APED_DIR}}/scripts/checkin.sh post {story-key} story-ready
    ```
-4. Report to the user: "`story-ready` posted. Back in the main project, run `/aped-lead` to approve. Once approved, the Lead will `tmux send-keys` `/aped-dev {story-key}` into this window (or print the command to run here manually)."
+4. Report to the user: "`story-ready` posted. Back in the main project, run `aped-lead` to approve. Once approved, the Lead will `tmux send-keys` `aped-dev {story-key}` into this window (or print the command to run here manually)."
 
-In solo mode, skip steps 1–3 and tell the user: "Story file ready. Run `/aped-dev {story-key}` to implement."
+In solo mode, skip steps 1–3 and tell the user: "Story file ready. Run `aped-dev {story-key}` to implement."
 
 ## Example
 
-User runs `/aped-story`:
+User runs `aped-story`:
 1. Next pending story: 1-2-inventory-crud
 2. Reads FR2, FR3 from PRD + inventory screen from UX spec
 3. Presents draft: "CRUD for inventory items — 4 ACs, 6 tasks"
 4. User: "Add an AC for duplicate item names"
 5. Updates draft, user validates
 6. Writes `{{OUTPUT_DIR}}/stories/1-2-inventory-crud.md`
-7. "Story ready. Run `/aped-dev` to implement."
+7. "Story ready. Run `aped-dev` to implement."
 
 ## Common Issues
 
@@ -340,7 +340,7 @@ User runs `/aped-story`:
 
 ## Next Step
 
-- **Solo mode**: "Story file is ready at `{{OUTPUT_DIR}}/stories/{story-key}.md`. Run `/aped-dev` to implement it."
-- **Worktree mode**: "Story file committed on `{branch}`. `story-ready` check-in posted. Go to the main project and run `/aped-lead` — the Lead will approve and push `/aped-dev {story-key}` back into this window."
+- **Solo mode**: "Story file is ready at `{{OUTPUT_DIR}}/stories/{story-key}.md`. Run `aped-dev` to implement it."
+- **Worktree mode**: "Story file committed on `{branch}`. `story-ready` check-in posted. Go to the main project and run `aped-lead` — the Lead will approve and push `aped-dev {story-key}` back into this window."
 
 **Do NOT auto-chain.** The user decides when to proceed.

@@ -1,6 +1,6 @@
 ---
 name: aped-ux
-description: 'Use when user says "design UX", "UX spec", "aped ux", or invokes /aped-ux. Runs between PRD and Epics.'
+description: 'Use when user says "design UX", "UX spec", "aped ux", or invokes aped-ux. Runs between PRD and Epics.'
 license: MIT
 compatibility: 'Requires Node.js 18+ and npm for Vite+React preview scaffold'
 metadata:
@@ -17,7 +17,7 @@ metadata:
 - Take your time with each screen — quality is more important than speed
 - Do not skip the user review cycle — the prototype MUST be approved before proceeding
 
-Produces a validated, interactive React prototype from the PRD. The prototype becomes the UX spec that `/aped-epics` consumes as the visual source of truth.
+Produces a validated, interactive React prototype from the PRD. The prototype becomes the UX spec that `aped-epics` consumes as the visual source of truth.
 
 **ANF = Assemble → Normalize → Fill**
 
@@ -29,7 +29,7 @@ Inspirations         Vite + React app        All screens built
 + UI library         with REAL content       + interaction states
 + color/typo         from PRD context        + responsive behavior
 + components         (no lorem ipsum)        + user review cycles
-                                             = UX spec for /aped-epics
+                                             = UX spec for aped-epics
 ```
 
 ## Input Discovery
@@ -54,7 +54,7 @@ Look for these artefacts (✱ = required):
 For the ✱ PRD:
 - If found: continue
 - If missing: HALT with this message:
-  > "UX design requires a PRD — every screen, journey, and FR reference is grounded in it. Run `/aped-prd` first, or provide the PRD file path."
+  > "UX design requires a PRD — every screen, journey, and FR reference is grounded in it. Run `aped-prd` first, or provide the PRD file path."
 
 Do NOT proceed without the PRD. The previous behaviour (referencing the PRD in prose without loading it) caused hallucinated content and is the bug this discovery step fixes.
 
@@ -65,7 +65,7 @@ Do NOT proceed without the PRD. The previous behaviour (referencing the PRD in p
 
 Present a discovery report (adapt to `communication_language`):
 
-> Welcome {user_name}! Setting up `/aped-ux` for {project_name}.
+> Welcome {user_name}! Setting up `aped-ux` for {project_name}.
 >
 > **Documents discovered:**
 > - PRD: {N} files {✓ loaded | ✱ MISSING — HALT}
@@ -95,7 +95,7 @@ Loaded artefacts inform every phase of this skill:
 2. Read `{{OUTPUT_DIR}}/state.yaml` — check pipeline state
    - If `pipeline.phases.ux.status` is `done`: ask user — redo or skip?
    - If user skips: stop here (user will invoke next phase manually)
-3. Read `{{APED_DIR}}/aped-ux/references/ux-patterns.md` for design patterns catalog
+3. Read `{{APED_DIR}}aped-ux/references/ux-patterns.md` for design patterns catalog
 
 ## Task Tracking
 
@@ -172,7 +172,7 @@ Create `src/data/mock.ts` — **real content from PRD**, not lorem ipsum:
 
 ### N1: Layout + Navigation
 
-Read PRD user journeys and screen inventory (from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`).
+Read PRD user journeys and screen inventory (from `{{APED_DIR}}aped-ux/references/ux-patterns.md`).
 
 1. **Map screens** from PRD user journeys:
    - Each journey → concrete screens
@@ -188,7 +188,7 @@ Read PRD user journeys and screen inventory (from `{{APED_DIR}}/aped-ux/referenc
    - `src/App.tsx` — router config
    - `src/pages/{ScreenSlug}.tsx` — one page per screen (initially placeholder)
 
-4. **Navigation** — read rules P9 (Navigation) from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`:
+4. **Navigation** — read rules P9 (Navigation) from `{{APED_DIR}}aped-ux/references/ux-patterns.md`:
    - Sidebar or top nav matching design inspiration
    - Active state indicators on current route
    - Mobile: bottom nav ≤5 items (icon + label) or hamburger/drawer
@@ -221,7 +221,7 @@ For each screen, in priority order (core journey first):
 
 ### F1: Interaction States
 
-Read rules P7 (Animation) and P8 (Forms & Feedback) from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`.
+Read rules P7 (Animation) and P8 (Forms & Feedback) from `{{APED_DIR}}aped-ux/references/ux-patterns.md`.
 
 For each screen, add:
 
@@ -235,7 +235,7 @@ For each screen, add:
 
 ### F2: Responsive + Dark Mode
 
-Read rules P5 (Layout) and P6 (Typography & Color) from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`.
+Read rules P5 (Layout) and P6 (Typography & Color) from `{{APED_DIR}}aped-ux/references/ux-patterns.md`.
 
 1. **Responsive** — test and fix at 3 breakpoints:
    - Mobile (375px): single column, hamburger nav, touch targets ≥44px, safe areas
@@ -252,7 +252,7 @@ Read rules P5 (Layout) and P6 (Typography & Color) from `{{APED_DIR}}/aped-ux/re
 
 ### F3: Accessibility Pass
 
-Read rules P1 (Accessibility) and P2 (Touch) from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`.
+Read rules P1 (Accessibility) and P2 (Touch) from `{{APED_DIR}}aped-ux/references/ux-patterns.md`.
 
 - Contrast: 4.5:1 normal text, 3:1 large text (test with browser devtools)
 - Focus rings: 2-4px, visible on all interactive elements
@@ -266,7 +266,7 @@ Read rules P1 (Accessibility) and P2 (Touch) from `{{APED_DIR}}/aped-ux/referenc
 
 ### F4: Pre-Delivery Checklist
 
-Read the full Pre-Delivery Checklist from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`.
+Read the full Pre-Delivery Checklist from `{{APED_DIR}}aped-ux/references/ux-patterns.md`.
 
 Run through ALL checks before presenting to user:
 
@@ -301,7 +301,7 @@ After running the checklist + initial walkthrough, present the A/C menu:
 
 ```
 UX prototype ready for sign-off. Choose your next move:
-[A] Advanced elicitation — invoke /aped-elicit on the prototype
+[A] Advanced elicitation — invoke aped-elicit on the prototype
     (Feynman test for clarity; Devil's Advocate on flows; Hindsight: "if a real
     user breaks this in 30 days, what did we miss?")
 [C] Continue — accept the prototype, write the UX spec, update state.yaml
@@ -333,7 +333,7 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 ### Spec-reviewer dispatch
 
-After the inline self-review passes, dispatch a fresh subagent to review the UX spec **before** the user gate. The reviewer's job is to verify the spec is complete, consistent, and ready for `/aped-epics` and `/aped-dev` consumption.
+After the inline self-review passes, dispatch a fresh subagent to review the UX spec **before** the user gate. The reviewer's job is to verify the spec is complete, consistent, and ready for `aped-epics` and `aped-dev` consumption.
 
 Use the `Agent` tool (`subagent_type: "general-purpose"`) with this verbatim prompt (substitute `[ARTEFACT_FILE_PATH]` with the actual path of the UX spec folder just written):
 
@@ -417,7 +417,7 @@ The preview app (`{{OUTPUT_DIR}}/ux-preview/`) IS the source of truth for downst
 ## Validation
 
 ```bash
-bash {{APED_DIR}}/aped-ux/scripts/validate-ux.sh {{OUTPUT_DIR}}/ux
+bash {{APED_DIR}}aped-ux/scripts/validate-ux.sh {{OUTPUT_DIR}}/ux
 ```
 
 If validation fails: fix missing files or content and re-validate.
@@ -440,7 +440,7 @@ pipeline:
 
 ## Next Step
 
-Tell the user: "UX design is ready. Run `/aped-epics` to create epics and stories."
+Tell the user: "UX design is ready. Run `aped-epics` to create epics and stories."
 
 The epics phase reads `{{OUTPUT_DIR}}/ux/` (all 4 spec files) and inspects the live preview app via React Grab to enrich stories with:
 - Component references (which component to use, which props)

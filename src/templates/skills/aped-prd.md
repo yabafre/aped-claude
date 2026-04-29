@@ -1,6 +1,6 @@
 ---
 name: aped-prd
-description: 'Use when user says "create PRD", "generate PRD", "aped prd", or invokes /aped-prd. Headless mode available via --headless.'
+description: 'Use when user says "create PRD", "generate PRD", "aped prd", or invokes aped-prd. Headless mode available via --headless.'
 argument-hint: "[--headless]"
 license: MIT
 metadata:
@@ -63,7 +63,7 @@ Look for these artefacts (✱ = required, others = optional):
 For the ✱ Product Brief:
 - If found: continue
 - If missing: HALT with this message:
-  > "PRD generation requires a Product Brief to work from. Run `/aped-analyze` first, or provide the brief file path."
+  > "PRD generation requires a Product Brief to work from. Run `aped-analyze` first, or provide the brief file path."
 
 Do NOT auto-generate a missing brief. Hard-stop is intentional.
 
@@ -74,7 +74,7 @@ Do NOT auto-generate a missing brief. Hard-stop is intentional.
 
 Present a discovery report (adapt to `communication_language`):
 
-> Welcome {user_name}! Setting up `/aped-prd` for {project_name}.
+> Welcome {user_name}! Setting up `aped-prd` for {project_name}.
 >
 > **Documents discovered:**
 > - Product Brief: {N} files {✓ loaded | ✱ MISSING — HALT}
@@ -109,11 +109,11 @@ Loaded artefacts inform every subsequent section:
 
 ## Domain & Project Type Detection
 
-1. Read `{{APED_DIR}}/aped-prd/references/domain-complexity.csv`
+1. Read `{{APED_DIR}}aped-prd/references/domain-complexity.csv`
    - Match brief content against `signals` column
    - If match found: note `complexity`, `key_concerns`, `special_sections`
    - High-complexity domains (healthcare, fintech, govtech, etc.) — mandatory Domain Requirements section
-2. Read `{{APED_DIR}}/aped-prd/references/project-types.csv`
+2. Read `{{APED_DIR}}aped-prd/references/project-types.csv`
    - Match against `detection_signals`
    - Note `required_sections`, `skip_sections`, `key_questions`
 
@@ -150,7 +150,7 @@ After **each** section is drafted, present the section content to the user, then
 Section {N} of 4 — {section name} draft complete.
 
 Choose your next move:
-[A] Advanced elicitation — invoke /aped-elicit on this section to stress-test
+[A] Advanced elicitation — invoke aped-elicit on this section to stress-test
     (socratic / pre-mortem / red team / first principles / shark tank, etc.)
 [P] Party / Council — invoke a focused sub-team to challenge this section:
       • Section 1 (Foundation): Mary (Market) + Derek (Domain) cross-check vision
@@ -165,7 +165,7 @@ Choose your next move:
 
 ### Behaviour by choice
 
-- `[A]` → invoke `/aped-elicit` with the current section as target. When elicit returns enhanced content, ask: "Apply these changes? (y/n/other)". On `y`: replace the section. Then redisplay the same A/P/C menu.
+- `[A]` → invoke `aped-elicit` with the current section as target. When elicit returns enhanced content, ask: "Apply these changes? (y/n/other)". On `y`: replace the section. Then redisplay the same A/P/C menu.
 - `[P]` → dispatch the section-specific sub-team via the `Agent` tool, in parallel. Each subagent reviews the section through its persona's lens and returns 2-4 findings. Merge findings, present to user as "Council says: …", then ask: "Apply any of these? (numbers / all / none)". On selection: integrate into the section. Then redisplay the menu.
 - `[C]` → mark the task `completed` and move to the next section.
 - Direct feedback (anything else) → apply the user's edits to the section, redisplay the menu.
@@ -198,7 +198,7 @@ Generate the PRD using `{{APED_DIR}}/templates/prd.md` as structure. **One secti
 - Functional Requirements (target 10-80 FRs)
   - Format: `FR#: [Actor] can [capability] [context/constraint]`
   - Group by capability area
-  - Read `{{APED_DIR}}/aped-prd/references/fr-rules.md` — validate quality
+  - Read `{{APED_DIR}}aped-prd/references/fr-rules.md` — validate quality
 - Non-Functional Requirements (relevant categories only)
   - Format: `The system shall [metric] [condition] [measurement method]`
 
@@ -218,7 +218,7 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 ### Spec-reviewer dispatch
 
-After the inline self-review passes, dispatch a fresh subagent to review the PRD **before** the user gate. The reviewer's job is to verify the PRD is complete, consistent, and ready for `/aped-arch` / `/aped-epics` planning.
+After the inline self-review passes, dispatch a fresh subagent to review the PRD **before** the user gate. The reviewer's job is to verify the PRD is complete, consistent, and ready for `aped-arch` / `aped-epics` planning.
 
 Use the `Agent` tool (`subagent_type: "general-purpose"`) with this verbatim prompt (substitute `[ARTEFACT_FILE_PATH]` with the actual path of the PRD just written):
 
@@ -242,7 +242,7 @@ You are a spec document reviewer. Verify this PRD is complete and ready for plan
 **Only flag issues that would cause real problems during architecture or epic planning.**
 FR/NFR contradictions, missing acceptance criteria, or ambiguous metrics that could
 be interpreted two ways — those are issues. Approve unless there are serious gaps
-that would lead to a flawed `/aped-arch` or `/aped-epics` cycle.
+that would lead to a flawed `aped-arch` or `aped-epics` cycle.
 
 ## Output Format
 
@@ -264,7 +264,7 @@ When the reviewer returns:
 ## Validation
 
 ```bash
-bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md
+bash {{APED_DIR}}aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md
 ```
 
 In interactive mode, run this AFTER all sections accepted. If it fails, surface the errors and offer one final A/P/C round on the failing area.
@@ -300,9 +300,9 @@ Downstream tooling reads `mode` to know whether human gating actually happened.
 ## Next Step
 
 Tell the user: "PRD is ready. Next options:"
-- `/aped-ux` — Design UX (recommended for UI-heavy projects)
-- `/aped-arch` — Define architecture decisions (recommended before epics)
-- `/aped-epics` — Go straight to epics (if arch/UX not needed)
+- `aped-ux` — Design UX (recommended for UI-heavy projects)
+- `aped-arch` — Define architecture decisions (recommended before epics)
+- `aped-epics` — Go straight to epics (if arch/UX not needed)
 
 **Do NOT auto-chain.** The user decides when to proceed.
 
@@ -318,6 +318,6 @@ From a restaurant inventory brief → PRD generates:
 
 - **FR count too low (<10)**: Brief may lack detail — re-read brief, extract implicit capabilities. The Section 4 menu's `[A]` Advanced elicit (Socratic / What If) is good for surfacing missing capabilities.
 - **Anti-pattern words detected**: Replace "easy" with step count, "fast" with time threshold. Use `[A]` Advanced elicit with the Feynman method to find vague language.
-- **Validation script fails**: Run `bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md` — fix reported issues one by one. In interactive mode, this happens automatically after Section 4 with one final remediation round.
-- **User wants the old autonomous behaviour (no menus)**: Tell them to invoke `/aped-prd --headless`. This skips every A/P/C menu and produces the PRD straight-through, equivalent to the 3.7 behaviour.
+- **Validation script fails**: Run `bash {{APED_DIR}}aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md` — fix reported issues one by one. In interactive mode, this happens automatically after Section 4 with one final remediation round.
+- **User wants the old autonomous behaviour (no menus)**: Tell them to invoke `aped-prd --headless`. This skips every A/P/C menu and produces the PRD straight-through, equivalent to the 3.7 behaviour.
 - **Model auto-picks `[C]` without showing the menu**: This is a bug. The skill MUST present the menu and HALT after every section in interactive mode. If you catch it auto-continuing, stop, redisplay the menu, wait.

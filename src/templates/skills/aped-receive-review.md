@@ -1,6 +1,6 @@
 ---
 name: aped-receive-review
-description: 'Use when receiving code review feedback or when /aped-dev hands back review comments to address. Invoked from /aped-dev after /aped-review reports issues, or standalone when user pastes external review feedback (PR comments, GitHub thread, senior engineer Slack message). Triggers on phrases like "address review", "fix the review feedback", "the reviewer said", "received PR comments".'
+description: 'Use when receiving code review feedback or when aped-dev hands back review comments to address. Invoked from aped-dev after aped-review reports issues, or standalone when user pastes external review feedback (PR comments, GitHub thread, senior engineer Slack message). Triggers on phrases like "address review", "fix the review feedback", "the reviewer said", "received PR comments".'
 allowed-tools: Read Edit Bash Grep Glob Agent
 license: MIT
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # APED Receive Review — Receiving Code Review Feedback
 
-Code review reception requires technical evaluation, not emotional performance. APED reviews stories aggressively (`/aped-review`); this skill is the symmetric discipline for handling reviews — yours, an external reviewer's, or `/aped-review`'s own findings — without capitulating, rubber-stamping, or guessing.
+Code review reception requires technical evaluation, not emotional performance. APED reviews stories aggressively (`aped-review`); this skill is the symmetric discipline for handling reviews — yours, an external reviewer's, or `aped-review`'s own findings — without capitulating, rubber-stamping, or guessing.
 
 **Core principle:** Verify before implementing. Ask before assuming. Technical correctness over social comfort.
 
@@ -189,7 +189,7 @@ State the correction factually and move on.
 
 ## Source-specific handling
 
-### From /aped-review (the APED specialist team)
+### From aped-review (the APED specialist team)
 
 Treat as authoritative for the artefact under review (Eva, Marcus, Rex, Diego, Lucas, Aria, Kai, Sam ran with full context loaded). Still apply the 6-step pattern — verify each finding against the code before implementing — but the EVALUATE step usually short-circuits to "yes, this is correct for this codebase" because the specialists know it.
 
@@ -201,7 +201,7 @@ Apply the 6-step pattern strictly. Do not assume the external reviewer has full 
 your human partner's rule: "External feedback — be skeptical, but check carefully"
 ```
 
-If the external suggestion conflicts with `/aped-review` findings or prior architectural decisions: HALT and surface the conflict to the user. Do not silently override prior decisions to please an external reviewer.
+If the external suggestion conflicts with `aped-review` findings or prior architectural decisions: HALT and surface the conflict to the user. Do not silently override prior decisions to please an external reviewer.
 
 ### From the user directly
 
@@ -222,7 +222,7 @@ FOR multi-item feedback:
 
 ## Self-review
 
-Before sending your response back to the reviewer (or back into `/aped-dev` for re-implementation), walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
+Before sending your response back to the reviewer (or back into `aped-dev` for re-implementation), walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
 
 - [ ] **Read complete** — every item in the feedback has been read end-to-end before drafting any response.
 - [ ] **Restated each item** — for every item I plan to act on, I have restated the technical requirement in my own words. Items I could not restate were sent through the Multi-item clarification gate.
@@ -231,7 +231,7 @@ Before sending your response back to the reviewer (or back into `/aped-dev` for 
 - [ ] **No performative phrases** — my draft response contains zero of: "You're absolutely right", "Great point", "Thanks for catching", "Let me implement that now". (Search the draft.)
 - [ ] **Pushback has evidence** — every push-back paragraph includes the command I ran and its output, not just my opinion.
 - [ ] **One item at a time** — I am not about to batch-commit fixes for items I have not individually verified.
-- [ ] **Conflicts surfaced** — if any item conflicts with prior architectural decisions or with `/aped-review`'s findings, I have surfaced the conflict to the user instead of silently siding with one.
+- [ ] **Conflicts surfaced** — if any item conflicts with prior architectural decisions or with `aped-review`'s findings, I have surfaced the conflict to the user instead of silently siding with one.
 
 ## GitHub thread replies
 
@@ -268,8 +268,8 @@ No performative agreement. Technical rigor always.
 ## Next Step
 
 After implementing acknowledged fixes:
-- Run the test command for the affected story (re-using the Iron Law from `/aped-dev`: fresh evidence in this message, not "tests should pass").
+- Run the test command for the affected story (re-using the Iron Law from `aped-dev`: fresh evidence in this message, not "tests should pass").
 - Commit per APED's commit-discipline rules (one logical change per commit, ticket prefix).
-- Hand control back to `/aped-dev` (if invoked from dev) or report to the user (if standalone).
+- Hand control back to `aped-dev` (if invoked from dev) or report to the user (if standalone).
 
-**Do NOT auto-chain to /aped-review.** The user (or the dev session) decides when the next review pass should run.
+**Do NOT auto-chain to aped-review.** The user (or the dev session) decides when the next review pass should run.

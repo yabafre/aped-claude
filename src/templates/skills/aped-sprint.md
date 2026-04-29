@@ -1,6 +1,6 @@
 ---
 name: aped-sprint
-description: 'Use when user says "parallel sprint", "dispatch stories", "aped sprint", or invokes /aped-sprint. Only runs inside the main project, not inside a worktree. Creates worktrees only — story-ready and state flips are owned by /aped-story.'
+description: 'Use when user says "parallel sprint", "dispatch stories", "aped sprint", or invokes aped-sprint. Only runs inside the main project, not inside a worktree. Creates worktrees only — story-ready and state flips are owned by aped-story.'
 disable-model-invocation: true
 license: MIT
 metadata:
@@ -17,30 +17,30 @@ metadata:
 - Exactly **one active epic** at a time. Refuse if `sprint.active_epic` is set to a different epic and that epic still has stories not `done`.
 - Respect `sprint.parallel_limit` and `sprint.review_limit` in state.yaml.
 - NEVER dispatch a story whose `depends_on` list contains a story not yet `done`.
-- NEVER auto-launch `/aped-dev`. The Story Leader's first action in its worktree is always `/aped-story <story-key>` — story files belong to the feature branch, never to main.
-- NEVER post the `story-ready` check-in from this skill. That is `/aped-story`'s responsibility once the file is committed on the feature branch.
-- NEVER flip `sprint.stories.{key}.status` to `in-progress` from this skill. Record the worktree path only; status changes are owned by `/aped-story` (→ `ready-for-dev`) and `/aped-dev` (→ `in-progress`).
+- NEVER auto-launch `aped-dev`. The Story Leader's first action in its worktree is always `aped-story <story-key>` — story files belong to the feature branch, never to main.
+- NEVER post the `story-ready` check-in from this skill. That is `aped-story`'s responsibility once the file is committed on the feature branch.
+- NEVER flip `sprint.stories.{key}.status` to `in-progress` from this skill. Record the worktree path only; status changes are owned by `aped-story` (→ `ready-for-dev`) and `aped-dev` (→ `in-progress`).
 
 ## Setup
 
 1. Verify you are in the main project root: `ls {{APED_DIR}}/WORKTREE` must fail. If it exists, tell the user "You're inside a worktree. Switch to the main project to dispatch."
 2. Read `{{APED_DIR}}/config.yaml` — extract `ticket_system`, `git_provider`, paths.
 3. **Validate state integrity:** run `bash {{APED_DIR}}/scripts/validate-state.sh`. Exit code 0 = proceed; non-zero = HALT and show the user the reported error (missing file, bad YAML, or invalid status value). Do NOT attempt to repair state.yaml automatically — tell the user to inspect and fix, or restore from `{{APED_DIR}}/state.yaml.backup` if present.
-4. Read `{{OUTPUT_DIR}}/state.yaml` — must have `current_phase: "sprint"` and `sprint.stories` populated by `/aped-epics`.
+4. Read `{{OUTPUT_DIR}}/state.yaml` — must have `current_phase: "sprint"` and `sprint.stories` populated by `aped-epics`.
 5. Read `{{OUTPUT_DIR}}/epics.md` — for the DAG and story metadata.
 6. If `sprint.active_epic` is `null`: ask the user which epic to start. Write it to state.yaml.
 7. **Detect workmux + multiplexer** (preferred path):
    - `command -v workmux >/dev/null` → workmux binary present.
    - `command -v tmux >/dev/null || command -v wezterm >/dev/null` → a multiplexer exists.
    - **Apply the WezTerm PATH fix automatically** — workmux shells out to the `wezterm` CLI. If `command -v wezterm` fails but `$WEZTERM_EXECUTABLE_DIR` is set, run `export PATH="$WEZTERM_EXECUTABLE_DIR:$PATH"` in the skill's shell **before any workmux invocation**, and tell the user once: "Add `[[ -n \"\$WEZTERM_EXECUTABLE_DIR\" ]] && export PATH=\"\$WEZTERM_EXECUTABLE_DIR:\$PATH\"` to your `~/.zshrc` so workmux finds the CLI in every new shell." Don't just mention it — export it here so dispatch works in this session.
-   - **Check tmux session state.** Workmux auto-picks its backend: if `$TMUX` is set you get tmux windows (sidebar/dashboard work); if empty it falls back to WezTerm native tabs (sidebar/dashboard do NOT work). If `$TMUX` is empty, warn the user ONCE before proceeding: "You're not inside a tmux session. workmux will dispatch to WezTerm native tabs — `workmux sidebar` and the tmux-based `workmux dashboard` pane will be blind to these agents. If you want live status tracking, exit and re-enter via: `tmux new-session -As aped` → `claude --permission-mode bypassPermissions` → `/aped-sprint`. Otherwise proceed — dispatch still works, you just won't get the live bar."
+   - **Check tmux session state.** Workmux auto-picks its backend: if `$TMUX` is set you get tmux windows (sidebar/dashboard work); if empty it falls back to WezTerm native tabs (sidebar/dashboard do NOT work). If `$TMUX` is empty, warn the user ONCE before proceeding: "You're not inside a tmux session. workmux will dispatch to WezTerm native tabs — `workmux sidebar` and the tmux-based `workmux dashboard` pane will be blind to these agents. If you want live status tracking, exit and re-enter via: `tmux new-session -As aped` → `claude --permission-mode bypassPermissions` → `aped-sprint`. Otherwise proceed — dispatch still works, you just won't get the live bar."
    - **Verify `workmux setup` has been run.** Status tracking hooks (the `AGENT` column icons, agent-waiting detection) and the companion skills (`/merge`, `/rebase`, `/coordinator`, `/worktree`, `/open-pr`, `/workmux`) are installed by `workmux setup --skills`. Detect absence: if `~/.claude/skills/workmux` is missing, say once: "Run `workmux setup` (one-time, user-level) to enable agent-status icons and install the `/merge` skill the Lead delegates to." Don't block on it — APED falls back to `worktree-cleanup.sh` if `/merge` is absent.
    - If workmux + a multiplexer present → use Path A. Else fall back to Path B.
    - Do NOT reject Path A for cosmetic reasons (flag renames, missing `.workmux.yaml`). If syntax differs from what you expect, run `workmux add --help` to adapt. The current 0.1.x signature is `workmux add [OPTIONS] [BRANCH_NAME]` (positional, no `--branch`).
 
 ## Sprint Umbrella Branch
 
-Every parallel sprint runs under a **sprint umbrella branch** that is the parent of every story feature branch and the only thing that ever PRs into the base branch. The umbrella is the unit of review for prod: stories PR into it (reviewed individually), and `/aped-ship` opens one final PR from umbrella to the base branch.
+Every parallel sprint runs under a **sprint umbrella branch** that is the parent of every story feature branch and the only thing that ever PRs into the base branch. The umbrella is the unit of review for prod: stories PR into it (reviewed individually), and `aped-ship` opens one final PR from umbrella to the base branch.
 
 After `sprint.active_epic` is set:
 
@@ -61,7 +61,7 @@ fi
 bash {{APED_DIR}}/scripts/sync-state.sh <<< "set-sprint-field umbrella_branch \"$UMBRELLA\""
 ```
 
-If the umbrella already exists in `state.yaml` and matches `sprint/epic-${EPIC_N}`, skip creation — we're resuming a sprint already in flight. If `sprint.umbrella_branch` is set but to a different name, HALT and ask the user (a previous /aped-sprint run named it differently, or someone changed the active epic mid-sprint).
+If the umbrella already exists in `state.yaml` and matches `sprint/epic-${EPIC_N}`, skip creation — we're resuming a sprint already in flight. If `sprint.umbrella_branch` is set but to a different name, HALT and ask the user (a previous aped-sprint run named it differently, or someone changed the active epic mid-sprint).
 
 **Naming**: `sprint/epic-{N}` is fixed. The epic slug (e.g. "Foundation & Validators") goes in PR titles and commit prefixes, not in the branch name — so renaming an epic mid-sprint doesn't require renaming the branch.
 
@@ -84,7 +84,7 @@ Before computing capacity, reconcile state.yaml against the disk:
 bash {{APED_DIR}}/scripts/check-active-worktrees.sh
 ```
 
-Exit 0 → state matches reality, proceed. Exit 1 → one or more registered worktrees are gone (user did `rm -rf`, or a previous /aped-ship cleanup didn't fully clear state). Surface the missing entries to the user with two choices:
+Exit 0 → state matches reality, proceed. Exit 1 → one or more registered worktrees are gone (user did `rm -rf`, or a previous aped-ship cleanup didn't fully clear state). Surface the missing entries to the user with two choices:
 - **Reset the orphan rows** (recommended if the work was abandoned): for each missing story, run `bash {{APED_DIR}}/scripts/sync-state.sh <<< "set-story-status {key} ready-for-dev"` and `bash {{APED_DIR}}/scripts/sync-state.sh <<< "clear-story-worktree {key}"`. This frees the slot.
 - **Skip and respect the registered count** (if the user expects to recreate the worktree): proceed without resetting; capacity stays tight.
 
@@ -96,7 +96,7 @@ reviews_running = count(status == "review")
 reviews_available = review_limit - reviews_running
 ```
 
-If `slots_available == 0`: tell the user "At parallel capacity. Wait for a story to finish review or merge, then re-run `/aped-sprint`."
+If `slots_available == 0`: tell the user "At parallel capacity. Wait for a story to finish review or merge, then re-run `aped-sprint`."
 
 ## Story Proposal
 
@@ -134,7 +134,7 @@ bash {{APED_DIR}}/scripts/log.sh dispatch_started \\
 
 ## Pre-dispatch ticket validation (read-only, if ticket_system != none)
 
-Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md` for provider syntax.
+Read `{{APED_DIR}}aped-dev/references/ticket-git-workflow.md` for provider syntax.
 
 **Read-only check** for each story to dispatch — no mutations yet:
 1. Fetch the ticket — verify it exists and is in a state that allows being picked up (no one else actively assigned, status is in the "ready" lane).
@@ -144,13 +144,13 @@ Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md` for provider synt
 
 ## Dispatch
 
-Two paths, picked by the Setup detection. **Neither path posts `story-ready` nor flips story `status` to `in-progress`** — /aped-story (running inside the worktree on the feature branch) owns both transitions.
+Two paths, picked by the Setup detection. **Neither path posts `story-ready` nor flips story `status` to `in-progress`** — aped-story (running inside the worktree on the feature branch) owns both transitions.
 
 ### Path A — workmux available (preferred)
 
-`workmux` creates the worktree, opens a tmux/wezterm window, launches Claude Code per the configured pane command, **and auto-injects the first prompt via `-p`**. There is no manual step per window — `/aped-story` runs as soon as claude is up.
+`workmux` creates the worktree, opens a tmux/wezterm window, launches Claude Code per the configured pane command, **and auto-injects the first prompt via `-p`**. There is no manual step per window — `aped-story` runs as soon as claude is up.
 
-If `.workmux.yaml` is missing at the repo root, bootstrap from `{{APED_DIR}}/templates/workmux.yaml.example` before dispatching. The template copies everything the worktree needs to run Claude Code + APED end-to-end: `.env*`, `.mcp.json` (project-scoped MCPs — Linear/Stripe/etc., critical for /aped-story ticket fetches), **the full `.claude/` directory** (commands, skills, settings.local.json — permissions shared across worktrees), and **the full `{{APED_DIR}}/` directory** (APED skills, hooks, scripts, templates, config.yaml — without this the UserPromptSubmit hook fails immediately because `{{APED_DIR}}/hooks/guardrail.sh` is missing). It symlinks `node_modules`, runs `pnpm install --frozen-lockfile` post_create, and uses `claude --permission-mode bypassPermissions` as the pane command so parallel Story Leaders don't block on approval prompts (the copied `settings.local.json` is the source of truth for permissions). Many APED users gitignore `.claude/` and `{{APED_DIR}}/` as user-local tooling, so the copy is not redundant — it's what makes the worktree functional at all.
+If `.workmux.yaml` is missing at the repo root, bootstrap from `{{APED_DIR}}/templates/workmux.yaml.example` before dispatching. The template copies everything the worktree needs to run Claude Code + APED end-to-end: `.env*`, `.mcp.json` (project-scoped MCPs — Linear/Stripe/etc., critical for aped-story ticket fetches), **the full `.claude/` directory** (commands, skills, settings.local.json — permissions shared across worktrees), and **the full `{{APED_DIR}}/` directory** (APED skills, hooks, scripts, templates, config.yaml — without this the UserPromptSubmit hook fails immediately because `{{APED_DIR}}/hooks/guardrail.sh` is missing). It symlinks `node_modules`, runs `pnpm install --frozen-lockfile` post_create, and uses `claude --permission-mode bypassPermissions` as the pane command so parallel Story Leaders don't block on approval prompts (the copied `settings.local.json` is the source of truth for permissions). Many APED users gitignore `.claude/` and `{{APED_DIR}}/` as user-local tooling, so the copy is not redundant — it's what makes the worktree functional at all.
 
 For each approved story (fresh worktree):
 
@@ -165,7 +165,7 @@ UMBRELLA=$(yq '.sprint.umbrella_branch' {{OUTPUT_DIR}}/state.yaml)
 if ! git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
   git branch "$BRANCH" "$UMBRELLA"
 fi
-workmux add "$BRANCH" -p "/aped-story {story-key}"
+workmux add "$BRANCH" -p "aped-story {story-key}"
 ```
 
 No `-a` flag — the pane config (`command: claude --permission-mode bypassPermissions`) already defines how claude launches. Workmux auto-detects the built-in `claude` agent in the pane command and injects `-p` via the supported prompt-injection path (writes a prompt file, claude reads it on startup).
@@ -177,7 +177,7 @@ HANDLE=$(workmux list --format name | grep -F "$BRANCH" | awk '{print $1}')   # 
 WORKTREE=$(workmux path "$HANDLE")
 ```
 
-**If a git worktree already exists for the story** (user ran `sprint-dispatch.sh` earlier, or /aped-sprint was interrupted), use the recovery path:
+**If a git worktree already exists for the story** (user ran `sprint-dispatch.sh` earlier, or aped-sprint was interrupted), use the recovery path:
 
 ```bash
 # 1. Ensure the worktree exists (idempotent)
@@ -194,7 +194,7 @@ workmux open "$HANDLE" --run-hooks --force-files
 # 3. Push the initial prompt. `workmux send` requires a running agent —
 #    claude is up from step 2's pane command, so this works. (It wouldn't
 #    work as a launcher — that's what step 2 is for.)
-workmux send "$HANDLE" "/aped-story <story-key>"
+workmux send "$HANDLE" "aped-story <story-key>"
 ```
 
 **Why not `workmux run "$HANDLE" -- claude`?** `run` captures output as artifacts and blocks by default — it's for scripted commands, not for launching an interactive agent in the existing pane. The close+open cycle is the clean way to (re)start the configured agent pane.
@@ -231,7 +231,7 @@ If any command exits non-zero, halt the whole dispatch — do not create a half-
 After success, update state.yaml **atomically** (one write at the end, not per story) with the **worktree path only**:
 - story `worktree` → the captured path
 
-Do NOT set `status: in-progress` and do NOT set `started_at` here. `/aped-story` will flip the story to `ready-for-dev` when the story file is committed on the feature branch; `/aped-dev` will flip it to `in-progress` when it starts the TDD loop.
+Do NOT set `status: in-progress` and do NOT set `started_at` here. `aped-story` will flip the story to `ready-for-dev` when the story file is committed on the feature branch; `aped-dev` will flip it to `in-progress` when it starts the TDD loop.
 
 ## Post-dispatch ticket sync (if ticket_system != none)
 
@@ -244,24 +244,24 @@ For each successfully dispatched story:
 
 **On ticket-sync failure** (network blip, provider 5xx, permission denied), do NOT roll back the worktree. Instead:
 - Mark the story in state.yaml: set `ticket_sync_status: failed` and `ticket_sync_error: "<short reason>"` (use `sync-state.sh set-story-field` if available, or write directly).
-- Tell the user once: "Ticket sync failed for {N} stories: {keys}. Worktrees are healthy — re-run `/aped-lead` to retry the ticket-side mutation, or fix manually in {provider}."
+- Tell the user once: "Ticket sync failed for {N} stories: {keys}. Worktrees are healthy — re-run `aped-lead` to retry the ticket-side mutation, or fix manually in {provider}."
 
-`/aped-lead` watches for `ticket_sync_status: failed` and offers a retry on its dashboard. `/aped-status` surfaces the same as a ⚠ on the worktree row. The worktree itself stays usable — Story Leader can keep working; only ticket-system reflection is deferred.
+`aped-lead` watches for `ticket_sync_status: failed` and offers a retry on its dashboard. `aped-status` surfaces the same as a ⚠ on the worktree row. The worktree itself stays usable — Story Leader can keep working; only ticket-system reflection is deferred.
 
 ## User Instructions
 
-**Path A (workmux)** — claude is running in each window AND `/aped-story` was auto-injected via `-p`. Tell the user:
+**Path A (workmux)** — claude is running in each window AND `aped-story` was auto-injected via `-p`. Tell the user:
 
 ```
 ▶ Dispatched 2 stories via workmux. Each Story Leader is already running
-  /aped-story on its own feature branch — no manual step needed.
+  aped-story on its own feature branch — no manual step needed.
 
     1-2-contract   handle: feature-kon-83-1-2-contract   <project>__worktrees/feature-kon-83-1-2-contract
     1-3-rpc        handle: feature-kon-84-1-3-rpc        <project>__worktrees/feature-kon-84-1-3-rpc
 
-  Each /aped-story will: draft the story file on the feature branch, commit it,
-  post the story-ready check-in, then HALT. Come back here and run /aped-lead
-  to approve — the Lead will push /aped-dev into each window via workmux send.
+  Each aped-story will: draft the story file on the feature branch, commit it,
+  post the story-ready check-in, then HALT. Come back here and run aped-lead
+  to approve — the Lead will push aped-dev into each window via workmux send.
 
   Monitor:
     workmux list                       status of every worktree
@@ -274,10 +274,10 @@ For each successfully dispatched story:
 
 ```
   NOTE: worktrees existed, so windows were re-created via workmux close+open
-  and /aped-story was pushed via workmux send. If you see a bare shell in any
+  and aped-story was pushed via workmux send. If you see a bare shell in any
   window (no claude banner), type:
     claude --permission-mode bypassPermissions
-  then /aped-story <story-key> yourself. The .workmux.yaml may be missing a
+  then aped-story <story-key> yourself. The .workmux.yaml may be missing a
   `command: claude …` pane.
 
   AGENT column in `workmux list` shows `-`? Run `workmux setup` once in
@@ -295,11 +295,11 @@ For each successfully dispatched story:
   In a new terminal:
     cd ../cloudvault-KON-83
     claude
-    /aped-story 1-2-contract      # NOT /aped-dev — story file must live on
+    aped-story 1-2-contract      # NOT aped-dev — story file must live on
                                   # the feature branch, not main
 ```
 
-**In both paths, never suggest running `/aped-story` in main.** Branch-per-story is non-negotiable — the story file is committed on the feature branch.
+**In both paths, never suggest running `aped-story` in main.** Branch-per-story is non-negotiable — the story file is committed on the feature branch.
 
 ## Edge Cases
 
@@ -312,6 +312,6 @@ For each successfully dispatched story:
 ## Next Step
 
 After dispatch, tell the user:
-> "Worktrees created and `/aped-story` auto-injected into each window via workmux. Each Story Leader will draft its story file on the feature branch, commit it, post `story-ready`, and HALT. **Come back to this main session and run `/aped-lead`** to approve the batch — the Lead will push `/aped-dev` into each worktree via `workmux send`. As stories progress, each Story Leader will post `dev-done` and `review-done` check-ins; re-run `/aped-lead` when `/aped-status` shows new pending ones. Come back to `/aped-sprint` to dispatch more when capacity frees up."
+> "Worktrees created and `aped-story` auto-injected into each window via workmux. Each Story Leader will draft its story file on the feature branch, commit it, post `story-ready`, and HALT. **Come back to this main session and run `aped-lead`** to approve the batch — the Lead will push `aped-dev` into each worktree via `workmux send`. As stories progress, each Story Leader will post `dev-done` and `review-done` check-ins; re-run `aped-lead` when `aped-status` shows new pending ones. Come back to `aped-sprint` to dispatch more when capacity frees up."
 
-**Do NOT auto-chain beyond `/aped-story`.** Auto-injecting `/aped-story` is fine because it IS the Story Leader's legitimate first act on its own branch (nothing is approved yet, nothing merges). The user controls `/aped-dev` and `/aped-review` via `/aped-lead`, and `/aped-ship` handles the end-of-sprint batch merge.
+**Do NOT auto-chain beyond `aped-story`.** Auto-injecting `aped-story` is fine because it IS the Story Leader's legitimate first act on its own branch (nothing is approved yet, nothing merges). The user controls `aped-dev` and `aped-review` via `aped-lead`, and `aped-ship` handles the end-of-sprint batch merge.
