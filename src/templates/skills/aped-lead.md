@@ -140,13 +140,22 @@ For each approved check-in:
    - `dev-done`    → push `aped-review {story-key}` to the Story Leader's worktree.
    - `review-done` → **merge the story PR into the sprint umbrella (au-fil-de-l'eau)**, then teardown the worktree. Sequence:
 
-     a. Flip `sprint.stories.{story-key}.status` to `done` in `{{OUTPUT_DIR}}/state.yaml`.
-
-     b. Merge the story PR into the umbrella branch. `aped-review` already opened the PR with `--base $UMBRELLA`; here you trigger the merge.
+     a. Read the umbrella branch and worktree path BEFORE flipping (`mark-story-done` deletes `worktree` as part of the runtime-fields trim, so capture it first):
 
         ```bash
         UMBRELLA=$(yq '.sprint.umbrella_branch' {{OUTPUT_DIR}}/state.yaml)
         WORKTREE=$(yq ".sprint.stories.\\"{key}\\".worktree" {{OUTPUT_DIR}}/state.yaml)
+        ```
+
+     b. Flip the story to `done` atomically. `mark-story-done` (4.1.0) sets `status: done`, sets `completed_at` (ISO UTC), and deletes the runtime fields (`worktree`, `started_at`, `dispatched_at`, `ticket_sync_status`) in a single atomic write. Permanent fields (`ticket`, `depends_on`, custom user fields) are preserved.
+
+        ```bash
+        bash {{APED_DIR}}/scripts/sync-state.sh <<< "mark-story-done {key}"
+        ```
+
+     c. Merge the story PR into the umbrella branch. `aped-review` already opened the PR with `--base $UMBRELLA`; here you trigger the merge.
+
+        ```bash
         # github — merge with squash or merge commit per project convention
         gh pr merge --auto --squash $(cd "$WORKTREE" && gh pr view --json number -q .number)
         # gitlab equivalent
@@ -155,16 +164,15 @@ For each approved check-in:
 
         On merge failure (conflicts, branch protection, missing approval): do NOT proceed to teardown. Surface to the user with the exact PR URL. Treat as ESCALATE: the user resolves on the PR side, then re-runs `aped-lead`.
 
-     c. Teardown the worktree (the merge succeeded → local copy is no longer needed). Prefer `workmux merge` if available (it cleans up worktree + window + branch in one); else `bash {{APED_DIR}}/scripts/worktree-cleanup.sh "$WORKTREE" --delete-branch`. Both are safe-by-default since aped-review left a clean tree.
+     d. Teardown the worktree (the merge succeeded → local copy is no longer needed). Prefer `workmux merge` if available (it cleans up worktree + window + branch in one); else `bash {{APED_DIR}}/scripts/worktree-cleanup.sh "$WORKTREE" --delete-branch`. Both are safe-by-default since aped-review left a clean tree.
 
-     d. Clear `worktree` and set `merged_into_umbrella: true` on the story in state.yaml:
+     e. Record the umbrella merge as a permanent state fact:
 
         ```bash
-        bash {{APED_DIR}}/scripts/sync-state.sh <<< "clear-story-worktree {key}"
         bash {{APED_DIR}}/scripts/sync-state.sh <<< "set-story-field {key} merged_into_umbrella true"
         ```
 
-     e. **Do NOT push `aped-ship` automatically** — even when the last story merges. The user runs `aped-ship` to open the umbrella → base PR with the composite review.
+     f. **Do NOT push `aped-ship` automatically** — even when the last story merges. The user runs `aped-ship` to open the umbrella → base PR with the composite review.
 
      **Why au-fil-de-l'eau and not batch:** the umbrella is the single integration point. Merging stories into it as they're approved keeps the umbrella always-deployable to a preview environment, gives the team continuous review feedback at the umbrella level, and means `aped-ship` has nothing to do beyond the final composite + PR. Batching merges defers conflict pain to ship time.
 3. **Clear context before pushing** (story-ready and dev-done only — review-done has no push). Each APED phase should start with a fresh conversation to avoid cross-phase hallucinations (e.g., aped-dev relitigating scope decisions from aped-story, or aped-review being anchored by aped-dev's rationale). Send `/clear` first, then the follow-up command as a separate message — workmux's send API sends sequentially, and `/clear` is a Claude Code built-in that resets the session context while keeping it alive. Preferring workmux when available:
@@ -192,7 +200,7 @@ This labels the ticket `aped-blocked-{kind}` and posts a comment. The Story Lead
 
 ## Teardown — Done Stories
 
-Teardown of a story is part of the `review-done` approval handler above (steps b–d): the PR is merged into the umbrella, the worktree is removed, the local branch is deleted (or kept if the user chose --keep-branch), and state.yaml records `merged_into_umbrella: true`. Once all stories of the active epic are merged, tell the user:
+Teardown of a story is part of the `review-done` approval handler above (steps b–e): the story is flipped to `done` (with runtime fields trimmed), the PR is merged into the umbrella, the worktree is removed, the local branch is deleted (or kept if the user chose --keep-branch), and state.yaml records `merged_into_umbrella: true`. Once all stories of the active epic are merged, tell the user:
 
 > "{N} stories merged into `$UMBRELLA`. Sprint is integration-complete. Run `aped-ship` to open the umbrella → {base} PR with the composite review."
 

@@ -130,6 +130,97 @@ sprint:
     const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
     expect(after).toMatch(/umbrella_branch:\s*"?sprint\/epic-1"?/);
   });
+
+  // ── mark-story-done (4.1.0) ──
+  describe('mark-story-done', () => {
+    it('flips status to done, sets completed_at, and trims runtime fields', () => {
+      installScript(sandbox, 'sync-state.sh');
+      writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+        `schema_version: 1
+sprint:
+  active_epic: 1
+  stories:
+    1-1-foo:
+      status: in-progress
+      worktree: ".aped/worktrees/1-1"
+      started_at: "2026-04-29T08:00:00Z"
+      dispatched_at: "2026-04-29T07:55:00Z"
+      ticket_sync_status: failed
+      ticket: "BON-100"
+      depends_on: []
+      merged_into_umbrella: false
+`);
+      const r = run(`echo 'mark-story-done 1-1-foo' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox });
+      expect(r.code, r.stderr).toBe(0);
+      const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+      // Permanent fields preserved.
+      expect(after).toMatch(/status:\s*"?done"?/);
+      expect(after).toMatch(/completed_at:\s*"?2026-/);
+      expect(after).toMatch(/ticket:\s*"?BON-100"?/);
+      expect(after).toMatch(/depends_on:\s*\[\]/);
+      expect(after).toMatch(/merged_into_umbrella:\s*false/);
+      // Runtime fields removed.
+      expect(after).not.toMatch(/^\s*worktree:/m);
+      expect(after).not.toMatch(/^\s*started_at:/m);
+      expect(after).not.toMatch(/^\s*dispatched_at:/m);
+      expect(after).not.toMatch(/^\s*ticket_sync_status:/m);
+    });
+
+    it('preserves a custom user-defined field on the story', () => {
+      installScript(sandbox, 'sync-state.sh');
+      writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+        `schema_version: 1
+sprint:
+  active_epic: 1
+  stories:
+    1-1-foo:
+      status: in-progress
+      worktree: ".aped/worktrees/1-1"
+      ticket: "BON-100"
+      custom_audit_tag: "shipped-by-fred"
+      reviewer: "alice"
+`);
+      const r = run(`echo 'mark-story-done 1-1-foo' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox });
+      expect(r.code, r.stderr).toBe(0);
+      const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+      expect(after).toMatch(/custom_audit_tag:\s*"?shipped-by-fred"?/);
+      expect(after).toMatch(/reviewer:\s*"?alice"?/);
+      expect(after).not.toMatch(/^\s*worktree:/m);
+    });
+
+    it('errors with exit 3 on unknown story key', () => {
+      installScript(sandbox, 'sync-state.sh');
+      writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+        `schema_version: 1
+sprint:
+  stories:
+    1-1-foo:
+      status: pending
+`);
+      const r = run(`echo 'mark-story-done nonexistent-key' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox });
+      expect(r.code).toBe(3);
+      expect(r.stderr).toMatch(/not found/i);
+    });
+
+    it('writes ISO 8601 UTC timestamp into completed_at', () => {
+      installScript(sandbox, 'sync-state.sh');
+      writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+        `schema_version: 1
+sprint:
+  stories:
+    1-1-foo:
+      status: review
+`);
+      const r = run(`echo 'mark-story-done 1-1-foo' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox });
+      expect(r.code, r.stderr).toBe(0);
+      const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+      expect(after).toMatch(/completed_at:\s*"?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"?/);
+    });
+  });
 });
 
 describe('validate-state.sh', () => {
