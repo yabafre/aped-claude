@@ -948,6 +948,7 @@ printf '%s\\n' "\$JSON" >> "\$LOG_FILE" 2>/dev/null || {
 #   set-story-status       <key> <new-status>
 #   set-story-worktree     <key> <path>
 #   clear-story-worktree   <key>
+#   mark-story-done        <key>          # 4.1.0 — atomic flip + runtime trim
 #
 # Exit codes: 0 ok, 1 generic error, 2 stale lock cleared + state untouched,
 #             3 invalid command, 4 state.yaml missing or unreadable,
@@ -1132,6 +1133,52 @@ set_story_field() {
   write_atomic "\$tmp"
 }
 
+# 4.1.0 — mark a story done in a single atomic write.
+# Sets status=done, completed_at=<ISO UTC>, and DELETES the runtime fields
+# (worktree, started_at, dispatched_at, ticket_sync_status). Permanent
+# fields like merged_into_umbrella, ticket, depends_on, and any user-custom
+# field are preserved (blocklist approach — we only touch what we know is
+# transient). Validates that the story key exists before mutating.
+mark_story_done() {
+  local key="\$1"
+  [[ -n "\$key" ]] || { echo "ERROR: mark-story-done requires a story key" >&2; return 3; }
+  local tmp="\$STATE_FILE.tmp"
+  local completed_at
+  completed_at=\$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+  if command -v yq >/dev/null 2>&1; then
+    cp -f "\$STATE_FILE" "\$tmp"
+    # Existence check via yq — non-existent path returns "null" (or empty).
+    local exists
+    exists=\$(yq eval ".sprint.stories.\\"\$key\\" // \\"\\"" "\$tmp" 2>/dev/null || echo "")
+    if [[ -z "\$exists" || "\$exists" == "null" ]]; then
+      rm -f "\$tmp" 2>/dev/null || true
+      echo "ERROR: story '\$key' not found in sprint.stories" >&2
+      return 3
+    fi
+    # Single yq invocation: set 2 fields, delete 4. Atomic via write_atomic.
+    yq eval -i "
+      .sprint.stories.\\"\$key\\".status = \\"done\\" |
+      .sprint.stories.\\"\$key\\".completed_at = \\"\$completed_at\\" |
+      del(.sprint.stories.\\"\$key\\".worktree) |
+      del(.sprint.stories.\\"\$key\\".started_at) |
+      del(.sprint.stories.\\"\$key\\".dispatched_at) |
+      del(.sprint.stories.\\"\$key\\".ticket_sync_status)
+    " "\$tmp"
+    write_atomic "\$tmp"
+    return
+  fi
+
+  # awk fallback: yq absent → degrade gracefully. We can set fields safely
+  # (set_story_field handles indentation), but we cannot reliably DELETE
+  # fields under a specific story key from awk without a much larger script.
+  # Status + completed_at land; runtime fields stay. Users who want full
+  # hygiene should install yq (already a soft dep across APED).
+  echo "WARN: yq not found — mark-story-done set status + completed_at, but runtime fields (worktree, started_at, dispatched_at, ticket_sync_status) were not removed. Install yq for full done-flip cleanup." >&2
+  set_story_field "\$key" "status" "\\"done\\""
+  set_story_field "\$key" "completed_at" "\\"\$completed_at\\""
+}
+
 apply_patch() {
   local cmd="\${1:-}"; shift || true
   case "\$cmd" in
@@ -1149,6 +1196,10 @@ apply_patch() {
     clear-story-worktree)
       [[ \$# -eq 1 ]] || { echo "Usage: clear-story-worktree <key>" >&2; return 3; }
       set_story_field "\$1" "worktree" "null"
+      ;;
+    mark-story-done)
+      [[ \$# -eq 1 ]] || { echo "Usage: mark-story-done <key>" >&2; return 3; }
+      mark_story_done "\$1"
       ;;
     set-story-field)
       # Generic escape hatch — used by /aped-sprint for ticket_sync_status,
@@ -1206,7 +1257,7 @@ apply_patch() {
       return 3
       ;;
     *)
-      echo "ERROR: unknown command '\$cmd' (known: set-scope-change | set-story-status | set-story-worktree | clear-story-worktree | set-story-field | set-sprint-field)" >&2
+      echo "ERROR: unknown command '\$cmd' (known: set-scope-change | set-story-status | set-story-worktree | clear-story-worktree | mark-story-done | set-story-field | set-sprint-field)" >&2
       return 3
       ;;
   esac
