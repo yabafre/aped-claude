@@ -294,7 +294,7 @@ Existing scaffolds keep working without changes (missing `schema_version` is tre
 
 ### Slash-commands removal (4.0.0)
 
-The 3.x slash-command shells (`/aped-X`, scaffolded as `.claude/commands/aped-*.md`) were retired in 4.0.0. Skills are the only invocation surface — call them by name via Claude Code's Skill tool, or let the runtime route from a phrase that matches the skill's `description:`. `aped-method doctor` flags any leftover `.claude/commands/aped-*.md` stubs and a leftover `commands_path:` key in `aped/config.yaml` as info-level hints until the user removes them.
+The 3.x slash-command shells (`/aped-X`, scaffolded as `.claude/commands/aped-*.md`) were retired in 4.0.0. Skills are the only invocation surface — call them by name via Claude Code's Skill tool, or let the runtime route from a phrase that matches the skill's `description:`. `aped-method doctor` flags any leftover `.claude/commands/aped-*.md` stubs and a leftover `commands_path:` key in `aped/config.yaml` as warn-level diagnostics (non-blocking — exitCode stays 0) until the user removes them.
 
 
 ---

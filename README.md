@@ -7,6 +7,8 @@
 
 CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — **25 skills** invoked via the Skill tool or natural-language triggers, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, **parallel sprint** mode via `git worktree` with a Lead Dev coordinator, sprint **umbrella branch convention** so parallel sprints integrate via one reviewable PR per sprint, an **external ticket intake** for tickets that bypass the planning flow, and **cross-tool skill distribution** via symlinks so OpenCode, Codex CLI, and any `agents.md` reader see the same skills as Claude Code.
 
+> **Upgrading from 3.x?** The slash-command surface was retired in 4.0.0 — see [Migrating from 3.x](#migrating-from-3x) before running `--update`.
+
 ```
 npx aped-method
 ```
@@ -89,7 +91,7 @@ rm -rf .claude/commands/aped-*.md   # remove the now-obsolete shells
 sed -i '' '/^commands_path:/d' .aped/config.yaml   # drop the dead key (macOS; use `sed -i` on Linux)
 ```
 
-`aped-method doctor` reports both leftovers as informational warnings until they are cleaned up. Existing `lessons.md` entries that filter by `Scope: /aped-X` should be rewritten to `Scope: aped-X` so 4.0 skills load them.
+`aped-method doctor` reports both leftovers as warn-level diagnostics (non-blocking — exitCode stays 0) until they are cleaned up. Existing `lessons.md` entries that filter by `Scope: /aped-X` should be rewritten to `Scope: aped-X` so 4.0 skills load them.
 
 ## Operational commands
 
