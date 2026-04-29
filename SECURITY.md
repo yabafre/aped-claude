@@ -4,14 +4,14 @@
 
 ## Supported Versions
 
-Security patches are issued for the latest `3.x` minor release only.
+Security patches are issued for the latest `4.x` minor release only.
 
 | Version  | Supported          |
 | -------- | ------------------ |
-| 3.12.x   | :white_check_mark: |
-| < 3.12   | :x:                |
+| 4.0.x    | :white_check_mark: |
+| < 4.0    | :x:                |
 
-Users on older minors should upgrade to the latest 3.x before reporting an issue.
+Users on 3.x should upgrade to 4.0 before reporting an issue. The 3.x line will not receive new security patches.
 
 ## Reporting a Vulnerability
 
