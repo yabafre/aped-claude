@@ -183,7 +183,7 @@ Top-level slots:
 
 Plus richer per-phase records under `pipeline.phases.<phase>` (PRD `fr_count` / `mode`, architecture `councils_dispatched` / `adrs` / `watch_items` / `residual_gaps`, epics `epic_count` / `story_count` / `fr_coverage`, context `type` ∈ {brownfield, greenfield, hybrid}, etc.).
 
-`mark-story-done <key>` (4.1.0) is the new atomic helper for the review-done flip — sets status to done + completed_at, deletes runtime fields (`worktree`, `started_at`, `dispatched_at`, `ticket_sync_status`), preserves permanent fields (`merged_into_umbrella`, `ticket`, `depends_on`, custom user fields). yq is recommended for full cleanup; without yq, the awk fallback lands status + completed_at and warns on stderr.
+`mark-story-done <key>` (4.1.0) is the new atomic helper for the review-done flip — sets status to done + completed_at, deletes runtime fields (`worktree`, `started_at`, `dispatched_at`, `ticket_sync_status`), preserves permanent fields (`merged_into_umbrella`, `ticket`, `depends_on`, custom user fields). **Since 4.1.2, hard-requires `yq`** — refuses loudly on absence (the previous awk fallback claimed to land status + completed_at but silently dropped the latter, since `set_story_field`'s awk path can only rewrite existing fields, not insert).
 
 ### `aped-skills/` reference directory (since 3.11.0)
 

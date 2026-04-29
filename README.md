@@ -34,7 +34,7 @@ APED turns Claude Code into a disciplined, user-driven dev pipeline. Every phase
 - **Node.js ≥ 18** — APED ships as a Node CLI; the bundled scripts also fall back to `node -e` when JSON CLI tools are missing.
 - **bash** (any POSIX-compatible shell with `bash` available) — every APED helper is a `.sh` script.
 - **`jq`** *(soft dep, recommended)* — preferred JSON manipulator for `sync-log.sh`. Falls back to `node -e` when absent.
-- **`yq`** *(soft dep, recommended)* — preferred YAML manipulator for `sync-state.sh` and **hard-required** for `migrate-state.sh` (the v1 → v2 schema migration runs on `aped-method --update`). `mark-story-done` falls back to a partial cleanup without yq (status + completed_at land; runtime fields stay). Install with `brew install yq` (macOS) or `npm i -g yq`.
+- **`yq`** *(hard-required for two paths, soft dep elsewhere)* — preferred YAML manipulator for `sync-state.sh`. **Hard-required** for `migrate-state.sh` (the v1 → v2 schema migration runs on `aped-method --update`), `sync-state.sh mark-story-done` (atomic flip + runtime-fields trim — refuses without yq since 4.1.2), and `sync-state.sh append-correction` (validates required keys + writes to the corrections sister file). Other commands (`set-story-status`, `set-sprint-field`, etc.) keep an awk fallback when yq is absent. Install with `brew install yq` (macOS) or `npm i -g yq`.
 - **`gh`** *(soft dep)* — needed for GitHub PR creation, label management, and the `aped-ship` workflow when `git_provider: github`.
 - **`workmux`** *(opt-in)* — unlocks parallel-sprint dispatch via tmux windows. See [github.com/raine/workmux](https://github.com/raine/workmux).
 
@@ -91,7 +91,7 @@ aped-method sync-logs prune       # one-shot retention sweep (4.1.0+; default
 
 Each opt-in subcommand also accepts `--uninstall` to remove its installed bits.
 
-**4.1.0 lifecycle hygiene** (opt-in unless noted): `sync_logs.retention.{mode, keep_last_n}` config block prunes old audit logs after every sync; `sync-state.sh mark-story-done <key>` is the new atomic helper for the review-done flip (clears runtime fields); `state.yaml` schema bumps to `2` and corrections are split into `docs/state-corrections.yaml` (auto-migration on `--update`, idempotent + backed-up).
+**4.1.0 lifecycle hygiene** (opt-in unless noted): `sync_logs.retention.{mode, keep_last_n}` config block prunes old audit logs after every sync; `sync-state.sh mark-story-done <key>` is the new atomic helper for the review-done flip (clears runtime fields); `state.yaml` schema bumps to `2` and corrections are split into a sister file at `<output_path>/state-corrections.yaml` (default `docs/aped/state-corrections.yaml`, configurable via `state.corrections_path` — auto-migration on `--update`, idempotent + backed-up). **4.1.2** patches the 4.1.0 schema-v2 helpers: dedup on migration retry, self-heal for legacy wrong pointers, hard-yq for `mark-story-done` and `append-correction`, JSON-safe argument parsing.
 
 ## Skill catalog
 
