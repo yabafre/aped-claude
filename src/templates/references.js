@@ -866,11 +866,11 @@ Epic 1: {{title}}  [████████░░] 80% (4/5 stories)
 
 | Current State | Suggestion |
 |---------------|------------|
-| Stories ready-for-dev | "Run /aped-dev to implement next story" |
-| Stories in review | "Run /aped-review to review completed story" |
-| All stories done | "Pipeline complete! Run /aped-qa for E2E tests" |
+| Stories ready-for-dev | "Run aped-dev to implement next story" |
+| Stories in review | "Run aped-review to review completed story" |
+| All stories done | "Pipeline complete! Run aped-qa for E2E tests" |
 | Blockers found | Describe each blocker and resolution path |
-| No state file | "Run /aped-analyze to start the pipeline" |
+| No state file | "Run aped-analyze to start the pipeline" |
 `;
 
 const SCOPE_CHANGE_GUIDE = `# Scope Change Management Guide

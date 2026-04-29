@@ -7,7 +7,7 @@ tags: [aped, personas, agents, teams]
 
 APED runs work through **named personas** (BMAD-inspired) so each agent stays in character and focuses its scope. The type of coordination depends on whether specialists need to talk to each other.
 
-> 🔗 See: [APED — Workflow](./aped-workflow.md) · [APED — Phases](./aped-phases.md)
+> 🔗 See: [APED — Workflow](.aped-workflow.md) · [APED — Phases](.aped-phases.md)
 
 ---
 
@@ -15,32 +15,32 @@ APED runs work through **named personas** (BMAD-inspired) so each agent stays in
 
 | Persona | Role | Invoked by | Mode |
 |---|---|---|---|
-| **Mary** | Senior Market Analyst | `/aped-analyze` | Independent parallel |
-| **Derek** | Domain Expert | `/aped-analyze` | Independent parallel |
-| **Tom** | Staff Engineer | `/aped-analyze` | Independent parallel |
-| **Winston** | Systems Architect | `/aped-arch` (Council) | Independent verdict |
-| **Lena** | Pragmatic Engineer | `/aped-arch` (Council) | Independent verdict |
-| **Raj** | Security & Compliance | `/aped-arch` (Council) | Independent verdict |
-| **Nina** | Cost & Ops Analyst | `/aped-arch` (Council) | Independent verdict |
-| **Maya** | Edge Case Hunter | `/aped-arch` (Council) | Independent verdict |
-| **Kenji** | API Designer | `/aped-dev` fullstack | Team (SendMessage) |
-| **Amelia** | Senior Backend | `/aped-dev` fullstack | Team (SendMessage) |
-| **Leo** (dev) | Senior Frontend | `/aped-dev` fullstack | Team (SendMessage) |
-| **Eva** | AC Validator / QA | `/aped-review` (always) | Parallel, Lead merges |
-| **Marcus** | Code Quality / Staff Eng | `/aped-review` (always) | Parallel, Lead merges |
-| **Rex** | Git Auditor | `/aped-review` (always) | Parallel, Lead merges |
-| **Diego** | Backend Reviewer | `/aped-review` (if backend) | Parallel, Lead merges |
-| **Lucas** | Frontend Reviewer | `/aped-review` (if frontend) | Parallel, Lead merges |
-| **Aria** | Visual / Design Engineer | `/aped-review` (if FE + preview) | Parallel, Lead merges |
-| **Kai** | Platform / DevOps | `/aped-review` (if infra) | Parallel, Lead merges |
-| **Sam** | Fullstack Tech Lead | `/aped-review` (if ≥ 2 layers) | Parallel, Lead merges |
-| **Mia** | Struggle Analyzer | `/aped-retro` | Independent parallel |
-| **Leo** (retro) | Velocity & Quality | `/aped-retro` | Independent parallel |
-| **Ava** | Previous-Retro Auditor | `/aped-retro` | Independent parallel |
+| **Mary** | Senior Market Analyst | `aped-analyze` | Independent parallel |
+| **Derek** | Domain Expert | `aped-analyze` | Independent parallel |
+| **Tom** | Staff Engineer | `aped-analyze` | Independent parallel |
+| **Winston** | Systems Architect | `aped-arch` (Council) | Independent verdict |
+| **Lena** | Pragmatic Engineer | `aped-arch` (Council) | Independent verdict |
+| **Raj** | Security & Compliance | `aped-arch` (Council) | Independent verdict |
+| **Nina** | Cost & Ops Analyst | `aped-arch` (Council) | Independent verdict |
+| **Maya** | Edge Case Hunter | `aped-arch` (Council) | Independent verdict |
+| **Kenji** | API Designer | `aped-dev` fullstack | Team (SendMessage) |
+| **Amelia** | Senior Backend | `aped-dev` fullstack | Team (SendMessage) |
+| **Leo** (dev) | Senior Frontend | `aped-dev` fullstack | Team (SendMessage) |
+| **Eva** | AC Validator / QA | `aped-review` (always) | Parallel, Lead merges |
+| **Marcus** | Code Quality / Staff Eng | `aped-review` (always) | Parallel, Lead merges |
+| **Rex** | Git Auditor | `aped-review` (always) | Parallel, Lead merges |
+| **Diego** | Backend Reviewer | `aped-review` (if backend) | Parallel, Lead merges |
+| **Lucas** | Frontend Reviewer | `aped-review` (if frontend) | Parallel, Lead merges |
+| **Aria** | Visual / Design Engineer | `aped-review` (if FE + preview) | Parallel, Lead merges |
+| **Kai** | Platform / DevOps | `aped-review` (if infra) | Parallel, Lead merges |
+| **Sam** | Fullstack Tech Lead | `aped-review` (if ≥ 2 layers) | Parallel, Lead merges |
+| **Mia** | Struggle Analyzer | `aped-retro` | Independent parallel |
+| **Leo** (retro) | Velocity & Quality | `aped-retro` | Independent parallel |
+| **Ava** | Previous-Retro Auditor | `aped-retro` | Independent parallel |
 
 ---
 
-## Research subagents — `/aped-analyze`
+## Research subagents — `aped-analyze`
 
 **Independent parallel work**, no coordination. Each delivers a deliverable.
 
@@ -50,7 +50,7 @@ APED runs work through **named personas** (BMAD-inspired) so each agent stays in
 
 ---
 
-## Architecture Council — `/aped-arch` (high-stakes mode)
+## Architecture Council — `aped-arch` (high-stakes mode)
 
 Dispatched in parallel via `Agent` when a Phase-2 decision would take **weeks to reverse** (primary DB, auth model, API paradigm, frontend framework, infra platform).
 
@@ -66,7 +66,7 @@ The user **picks the final option**; the minority view is documented for future 
 
 ---
 
-## Fullstack dev team — `/aped-dev` (optional mode)
+## Fullstack dev team — `aped-dev` (optional mode)
 
 Triggered when a story touches **≥ 2 layers**. Contract-first coordination via `SendMessage`.
 
@@ -78,7 +78,7 @@ Uses `TeamCreate` / `TeamDelete` / `SendMessage` — because the three genuinely
 
 ---
 
-## Review specialists — `/aped-review`
+## Review specialists — `aped-review`
 
 **Plain subagents** (no `TeamCreate`, no `SendMessage`), dispatched in parallel. Each specialist returns its findings to the Lead, who **merges and cross-references manually**.
 
@@ -100,7 +100,7 @@ Why? Keeps the workflow focused on **validation**, avoids tmux-pane rendering is
 
 ---
 
-## Retrospective specialists — `/aped-retro`
+## Retrospective specialists — `aped-retro`
 
 Three parallel subagents reading post-mortem data once an epic completes.
 
@@ -108,7 +108,7 @@ Three parallel subagents reading post-mortem data once an epic completes.
 - **Leo** — Velocity & Quality Analyzer. Review rounds, complexity vs effort, quality signals.
 - **Ava** — Previous-Retro Auditor. Continuity check — did the prior retro's action items **actually** ship?
 
-Output: `docs/aped/retros/epic-{N}.md` + `docs/aped/lessons.md` (distilled, cross-epic). Since 3.10.2, `lessons.md` is consumed at runtime by `/aped-story`, `/aped-dev`, and `/aped-review` (filtered by `Scope:`), closing the post-epic feedback loop the retro phase always promised.
+Output: `docs/aped/retros/epic-{N}.md` + `docs/aped/lessons.md` (distilled, cross-epic). Since 3.10.2, `lessons.md` is consumed at runtime by `aped-story`, `aped-dev`, and `aped-review` (filtered by `Scope:`), closing the post-epic feedback loop the retro phase always promised.
 
 ---
 
@@ -118,7 +118,7 @@ Output: `docs/aped/retros/epic-{N}.md` + `docs/aped/lessons.md` (distilled, cros
 |---|---|
 | `Agent` | All specialist dispatches |
 | `TaskCreate` / `TaskUpdate` / `TaskList` | Sprint task tracking |
-| `TeamCreate` / `TeamDelete` / `SendMessage` | **Only** `/aped-dev` fullstack mode (Kenji / Amelia / Leo co-edit a contract) |
+| `TeamCreate` / `TeamDelete` / `SendMessage` | **Only** `aped-dev` fullstack mode (Kenji / Amelia / Leo co-edit a contract) |
 
 Review is **pure validation** → skips the team machinery entirely, each reviewer is a plain subagent.
 
@@ -153,7 +153,7 @@ The Self-review checklist gains a "Marcus checked for the 5 testing anti-pattern
 
 ### Eva — runs **first** as a synchronous gate (since 3.11.0, two-stage review)
 
-`/aped-review` no longer fan-outs all specialists in parallel. **Eva** (AC Validator) runs alone first as a **blocking gate**. On Eva PASS, Marcus + Rex + conditionals dispatch in parallel. On Eva NACK, the skill HALTs and asks `[F]ix → return story to dev` / `[O]verride → proceed with reason recorded`. Spec-compliance precedes quality — no wasted dispatches on a story that's about to return for an AC gap.
+`aped-review` no longer fan-outs all specialists in parallel. **Eva** (AC Validator) runs alone first as a **blocking gate**. On Eva PASS, Marcus + Rex + conditionals dispatch in parallel. On Eva NACK, the skill HALTs and asks `[F]ix → return story to dev` / `[O]verride → proceed with reason recorded`. Spec-compliance precedes quality — no wasted dispatches on a story that's about to return for an AC gap.
 
 ### Spec-reviewer — adversarial subagent (NEW since 3.11.0, expanded in 3.12.0)
 
@@ -161,17 +161,17 @@ A **non-persona** subagent dispatched via the `Agent` tool by every artefact-pro
 
 | Skill | Calibration target |
 |---|---|
-| `/aped-brainstorm` (since 3.11.0) | Spec contradictions, vague requirements, scope decomposition needed, YAGNI |
-| `/aped-prd` (since 3.12.0) | FR/NFR contradictions, missing ACs, ambiguous metrics, scope creep |
-| `/aped-ux` (since 3.12.0) | Screen/flow inconsistency, missing component inventory, accessibility gaps |
-| `/aped-epics` (since 3.12.0) | Story granularity, orphan FRs, depends_on cycles, FR-coverage gap vs PRD |
-| `/aped-analyze` (since 3.12.0) | Research consistency, evidence quality, scope clarity, non-falsifiable claims |
+| `aped-brainstorm` (since 3.11.0) | Spec contradictions, vague requirements, scope decomposition needed, YAGNI |
+| `aped-prd` (since 3.12.0) | FR/NFR contradictions, missing ACs, ambiguous metrics, scope creep |
+| `aped-ux` (since 3.12.0) | Screen/flow inconsistency, missing component inventory, accessibility gaps |
+| `aped-epics` (since 3.12.0) | Story granularity, orphan FRs, depends_on cycles, FR-coverage gap vs PRD |
+| `aped-analyze` (since 3.12.0) | Research consistency, evidence quality, scope clarity, non-falsifiable claims |
 
 Output format: `## Spec Review` with **Status: Approved | Issues Found** + bulleted issues + advisory recommendations. NACK behaviour: HALT → `[F]ix → revise + redispatch once` / `[O]verride → proceed with reason recorded`. After re-dispatch, persistent NACK escalates to the user.
 
 This is **not** a named persona — it's a fresh subagent per call, with a verbatim adversarial prompt. The pattern is lifted from Superpowers' `brainstorming/spec-document-reviewer-prompt.md`.
 
-### `/aped-receive-review` skill (NEW since 3.11.0) — no new persona, but a new discipline
+### `aped-receive-review` skill (NEW since 3.11.0) — no new persona, but a new discipline
 
 Closes the asymmetry: APED reviewed code but had no discipline for **receiving** review. The skill enforces:
 - Forbidden performative responses (no "you're absolutely right!", no gratitude expressions)
@@ -179,7 +179,7 @@ Closes the asymmetry: APED reviewed code but had no discipline for **receiving**
 - YAGNI grep gate on "implement properly" suggestions
 - Multi-item clarification gate (HALT before implementing partial feedback)
 
-Invoked by the **Story Leader** (the implementer persona, no specific name — usually you or a Claude Code session) after `/aped-review` returns issues, or standalone when external review feedback (PR comments, Slack, senior eng email) is pasted.
+Invoked by the **Story Leader** (the implementer persona, no specific name — usually you or a Claude Code session) after `aped-review` returns issues, or standalone when external review feedback (PR comments, Slack, senior eng email) is pasted.
 
 ### Architecture Council — councils now persist to state.yaml (since 3.12.0)
 
@@ -191,8 +191,8 @@ When the Architecture Council (Winston / Lena / Raj / Nina / Maya) is dispatched
 |---|---|
 | `Agent` | All specialist dispatches **+** spec-reviewer subagent (since 3.11.0–3.12.0) |
 | `TaskCreate` / `TaskUpdate` / `TaskList` | Sprint task tracking |
-| `TeamCreate` / `TeamDelete` / `SendMessage` | **Only** `/aped-dev` fullstack mode (Kenji / Amelia / Leo co-edit a contract) |
-| `Skill` | **New primary invocation surface** (since 3.12.0) — replaces deprecated `/aped-X` slash commands. Use the skill name without the leading slash. |
+| `TeamCreate` / `TeamDelete` / `SendMessage` | **Only** `aped-dev` fullstack mode (Kenji / Amelia / Leo co-edit a contract) |
+| `Skill` | Primary invocation surface (slash commands removed in 4.0.0). Use the bare skill name (`aped-prd`, `aped-review`…) — no leading slash. |
 
 
 ---

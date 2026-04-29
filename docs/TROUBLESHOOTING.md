@@ -26,7 +26,7 @@ You can also pin the exact version: `npx aped-method@3.7.1`.
 
 ## 2. Skills don't appear in Claude Code / OpenCode / Codex after scaffold
 
-**Symptom.** The scaffold reports success, `.aped/aped-*` directories exist, but the tool doesn't see the slash commands or skills.
+**Symptom.** The scaffold reports success, `.aped/aped-*` directories exist, but the tool doesn't see the APED skills.
 
 **Cause.** The symlinks under `.claude/skills/`, `.opencode/skills/`, `.agents/skills/`, or `.codex/skills/` weren't created, or they point to the wrong target. This usually happens when:
 - You're on Windows (see section 3).
@@ -146,7 +146,7 @@ cat docs/aped/state.yaml
 # Expect a clean YAML with current_phase: analyze|prd|ux|arch|epics|story|dev|review
 ```
 
-**Fix — temporary (unblock yourself).** Disable the hook for one prompt by removing it from `.claude/settings.local.json`, or use `/aped-quick` which bypasses the pipeline.
+**Fix — temporary (unblock yourself).** Disable the hook for one prompt by removing it from `.claude/settings.local.json`, or use `aped-quick` which bypasses the pipeline.
 
 **Fix — permanent.** Reset state to a known phase:
 
@@ -158,7 +158,7 @@ last_updated: 2026-04-22T00:00:00Z
 EOF
 ```
 
-Or rerun the phase that should be active (e.g., `/aped-story`) to have it fix the state for you.
+Or rerun the phase that should be active (e.g., `aped-story`) to have it fix the state for you.
 
 ---
 
