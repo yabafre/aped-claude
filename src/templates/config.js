@@ -78,9 +78,18 @@ visual_companion:
 # exits 0 with empty stdout — useful when you don't want forensic logs
 # committed alongside the project, e.g. on personal scratch repos).
 # \`dir\` is project-relative and auto-created on first \`start\`.
+#
+# Retention (4.1.0+, opt-in). When \`mode: keep_last_n\`, every successful
+# \`sync-log.sh end\` prunes the oldest provider-scoped logs beyond \`keep_last_n\`
+# (newest by mtime are kept). Default \`mode: none\` preserves the previous
+# behaviour (logs accumulate forever). Use \`aped-method sync-logs prune\` for
+# a one-shot cleanup; default is dry-run, \`--apply\` actually deletes.
 sync_logs:
   enabled: true
   dir: "docs/sync-logs/"
+  # retention:
+  #   mode: keep_last_n      # none | keep_last_n
+  #   keep_last_n: 50        # used when mode = keep_last_n
 `,
     },
     {
