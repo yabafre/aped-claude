@@ -3,21 +3,18 @@
 // tool (Claude Code, OpenCode, Codex, agents.md readers) can reach the same
 // file:
 //
+//   .claude/skills/aped-*      → ../../.aped/aped-*   (Claude Code)
 //   .opencode/skills/aped-*    → ../../.aped/aped-*   (OpenCode)
 //   .agents/skills/aped-*      → ../../.aped/aped-*   (Codex CLI + agents.md)
 //   .codex/skills/aped-*       → ../../.aped/aped-*   (Codex-native)
 //
-// Claude Code gets its slash commands via `.claude/commands/aped-*.md` —
-// NOT via `.claude/skills/aped-*/SKILL.md`. Symlinking into
-// `.claude/skills/` as well caused Claude Code to register every APED
-// command twice (once for the explicit command file, once for the
-// auto-discovered skill), which showed as duplicate slashes in the command
-// palette (see 3.7.5 fix in CHANGELOG).
+// Claude Code reaches APED skills via .claude/skills/aped-*/SKILL.md — the
+// 3.x slash-command stubs (.claude/commands/aped-*.md) were retired in
+// 4.0.0. The 3.7.5 duplicate-registration concern is gone with them.
 //
 // TARGET_CATALOG is the historical superset used by `--fresh` and the
-// `symlink` subcommand for cleanup, so that legacy installs (pre-3.7.5 had
-// symlinks under .claude/skills/ too) get tidied up automatically on the
-// next run.
+// `symlink` subcommand for cleanup, so legacy installs whose symlinks
+// pointed elsewhere get tidied up on the next run.
 //
 // By default we auto-detect which of the non-Claude tools are actually
 // present in the project (by the existence of their top-level directory)
@@ -33,18 +30,25 @@ import { skills } from './skills.js';
 
 // The set we auto-detect against. Every entry is an object so we can
 // expand later with auxiliary-path hints without breaking config shape.
+// `.claude/skills` returned to active duty in 4.0.0 once the legacy
+// `.claude/commands/aped-*.md` stubs were retired — without those stubs
+// there is no risk of double-registration, so Claude Code now reads APED
+// skills through the standard `.claude/skills/<name>/SKILL.md` discovery.
+// The scaffold runner ensures `.claude/` exists before the symlink pass
+// so a fresh project still gets links on first install.
 const AUTO_DETECT_TARGETS = [
+  { marker: '.claude',   skillsPath: '.claude/skills'   },
   { marker: '.opencode', skillsPath: '.opencode/skills' },
   { marker: '.agents',   skillsPath: '.agents/skills'   },
   { marker: '.codex',    skillsPath: '.codex/skills'    },
 ];
 
-// All historical skill-symlink locations APED has ever written to. Used by
-// cleanup paths (`--fresh`, the `symlink` subcommand) so that leftover
-// symlinks from older APED versions get removed even once they are no
-// longer in the active default. Never used directly for writes.
+// All skill-symlink locations APED has ever written to. Used by cleanup
+// paths (`--fresh`, the `symlink` subcommand) so that leftover symlinks
+// from older APED versions get tidied up automatically. Never used
+// directly for writes.
 export const TARGET_CATALOG = [
-  '.claude/skills',     // pre-3.7.5 default, now retired (caused duplicate slash registrations in Claude Code)
+  '.claude/skills',
   '.opencode/skills',
   '.agents/skills',
   '.codex/skills',

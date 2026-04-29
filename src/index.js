@@ -13,7 +13,6 @@ const CLI_VERSION = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'
 const DEFAULTS = {
   apedDir: '.aped',
   outputDir: 'docs/aped',
-  commandsDir: '.claude/commands',
   authorName: '',
   projectName: '',
   communicationLang: 'english',
@@ -51,6 +50,9 @@ const SUBCOMMANDS = new Set([
 
 // Keys we accept from a user-edited config.yaml. Anything else is ignored silently
 // (logged in debug mode) to avoid loading attacker-controlled values.
+// `commands_path` was retired in 4.0.0 alongside the slash-command stubs;
+// older configs that still carry it pass through harmlessly because unknown keys
+// are dropped here and the doctor surfaces it as a one-line cleanup hint.
 const VALID_YAML_KEYS = new Set([
   'project_name',
   'user_name',
@@ -58,7 +60,6 @@ const VALID_YAML_KEYS = new Set([
   'document_output_language',
   'aped_path',
   'output_path',
-  'commands_path',
   'aped_version',
   'ticket_system',
   'git_provider',
@@ -74,7 +75,6 @@ const VALID_ARG_KEYS = new Set([
   'docLang', 'documentLang',
   'aped', 'apedDir',
   'output', 'outputDir',
-  'commands', 'commandsDir',
   'tickets', 'ticketSystem',
   'git', 'gitProvider',
 ]);
@@ -94,8 +94,8 @@ SUBCOMMANDS
   verify-claims           Install the optional verification-claims advisory hook
   session-start           Install the opt-in SessionStart hook (skill-index preload).
                           Pass --uninstall to remove the hook entry from settings.
-  visual-companion        Install the opt-in /aped-brainstorm visual companion server.
-                          Pass --uninstall to remove the visual-companion directory.
+  visual-companion        Install the opt-in visual companion server used by the
+                          aped-brainstorm skill. Pass --uninstall to remove it.
 
 OPTIONS
   --yes, -y                Non-interactive mode (use defaults or existing config)
@@ -112,7 +112,6 @@ NON-INTERACTIVE FLAGS (with --yes)
   --doc-lang=LANG          Document output language
   --aped=DIR               APED engine directory (default: .aped)
   --output=DIR             Output artifacts directory (default: docs/aped)
-  --commands=DIR           Slash commands directory (default: .claude/commands)
   --tickets=SYSTEM         Ticket system (none|linear|jira|github-issues|gitlab-issues)
   --git=PROVIDER           Git provider (github|gitlab|bitbucket)
 
@@ -194,7 +193,6 @@ function detectExisting(apedDir) {
 
   const apedPath = validateSafePath(existing.aped_path, 'aped_path') || apedDir;
   const outputPath = validateSafePath(existing.output_path, 'output_path') || DEFAULTS.outputDir;
-  const commandsPath = validateSafePath(existing.commands_path, 'commands_path') || DEFAULTS.commandsDir;
 
   return {
     projectName: existing.project_name || '',
@@ -203,7 +201,6 @@ function detectExisting(apedDir) {
     documentLang: existing.document_output_language || DEFAULTS.documentLang,
     apedDir: apedPath,
     outputDir: outputPath,
-    commandsDir: commandsPath,
     ticketSystem: VALID_TICKET_VALUES.has(existing.ticket_system) ? existing.ticket_system : DEFAULTS.ticketSystem,
     gitProvider: VALID_GIT_VALUES.has(existing.git_provider) ? existing.git_provider : DEFAULTS.gitProvider,
     installedVersion: existing.aped_version || '0.0.0',
@@ -333,7 +330,6 @@ export async function run() {
       documentLang: args.docLang || args.documentLang || defaults.documentLang,
       apedDir: validateSafePath(args.aped || args.apedDir, '--aped') || defaults.apedDir || DEFAULTS.apedDir,
       outputDir: validateSafePath(args.output || args.outputDir, '--output') || defaults.outputDir || DEFAULTS.outputDir,
-      commandsDir: validateSafePath(args.commands || args.commandsDir, '--commands') || defaults.commandsDir || DEFAULTS.commandsDir,
       ticketSystem: args.tickets || args.ticketSystem || defaults.ticketSystem || DEFAULTS.ticketSystem,
       gitProvider: args.git || args.gitProvider || defaults.gitProvider || DEFAULTS.gitProvider,
       cliVersion: CLI_VERSION,
@@ -414,12 +410,6 @@ export async function run() {
         initialValue: defaults.outputDir || DEFAULTS.outputDir,
         validate: (v) => pathPromptValidator(v, 'Output dir'),
       }),
-      commandsDir: () => p.text({
-        message: 'Commands dir',
-        placeholder: defaults.commandsDir || DEFAULTS.commandsDir,
-        initialValue: defaults.commandsDir || DEFAULTS.commandsDir,
-        validate: (v) => pathPromptValidator(v, 'Commands dir'),
-      }),
       ticketSystem: () => p.select({
         message: 'Ticket system',
         options: TICKET_OPTIONS,
@@ -456,7 +446,6 @@ export async function run() {
       `${color.dim('Documents'.padEnd(16))}${color.bold(config.documentLang)}`,
       `${color.dim('APED'.padEnd(16))}${color.bold(config.apedDir + '/')}  ${color.dim('engine')}`,
       `${color.dim('Output'.padEnd(16))}${color.bold(config.outputDir + '/')}  ${color.dim('artifacts')}`,
-      `${color.dim('Commands'.padEnd(16))}${color.bold(config.commandsDir + '/')}`,
       `${color.dim('Tickets'.padEnd(16))}${color.bold(config.ticketSystem)}`,
       `${color.dim('Git'.padEnd(16))}${color.bold(config.gitProvider)}`,
     ].join('\n'),
@@ -469,7 +458,6 @@ export async function run() {
     p.log.message([
       `  • ${config.apedDir}/ ${color.dim('(engine)')}`,
       `  • ${config.outputDir}/ ${color.dim('(artifacts — brief, PRD, epics, stories, state.yaml)')}`,
-      `  • ${config.commandsDir}/aped-*.md ${color.dim('(slash commands)')}`,
       `  • .claude/skills/aped-*, .opencode/skills/aped-*, .agents/skills/aped-*, .codex/skills/aped-* ${color.dim('(skill symlinks)')}`,
     ].join('\n'));
     p.log.info(color.dim('A compressed backup will be written to .aped-backups/ before deletion.'));
@@ -534,10 +522,12 @@ async function runScaffold(config, mode) {
           const cwd = process.cwd();
           try { rmSync(join(cwd, config.apedDir), { recursive: true, force: true }); } catch { /* ok */ }
           try { rmSync(join(cwd, config.outputDir), { recursive: true, force: true }); } catch { /* ok */ }
+          // Sweep the legacy .claude/commands/aped-*.md stubs left over from
+          // pre-4.0 installs so a `--fresh` actually wipes the slate.
           try {
-            const cmdDir = join(cwd, config.commandsDir);
-            for (const f of readdirSync(cmdDir)) {
-              if (f.startsWith('aped-')) rmSync(join(cmdDir, f), { force: true });
+            const legacyCmdDir = join(cwd, '.claude', 'commands');
+            for (const f of readdirSync(legacyCmdDir)) {
+              if (f.startsWith('aped-') && f.endsWith('.md')) rmSync(join(legacyCmdDir, f), { force: true });
             }
           } catch { /* ok */ }
           for (const targetBase of TARGET_CATALOG) {
@@ -606,6 +596,12 @@ async function scaffoldWithProgress(config, mode) {
   const { join, dirname } = await import('node:path');
 
   const cwd = process.cwd();
+
+  // Ensure `.claude/` exists so the symlink auto-detect picks Claude Code
+  // up on a fresh project — APED is Claude-Code-first and 4.0.0 routes all
+  // skill discovery through `.claude/skills/aped-*/SKILL.md`.
+  mkdirSync(join(cwd, '.claude'), { recursive: true });
+
   const templates = [
     ...getTemplates(config),
     ...getInstalledOptionalTemplates(config, cwd),
@@ -614,7 +610,6 @@ async function scaffoldWithProgress(config, mode) {
   const groups = [
     { key: 'config',     label: 'Config & State',    items: [] },
     { key: 'templates',  label: 'Templates',         items: [] },
-    { key: 'commands',   label: 'Slash Commands',     items: [] },
     { key: 'skills',     label: 'Skills',             items: [] },
     { key: 'symlinks',   label: 'Skill Symlinks',     items: [] },
     { key: 'scripts',    label: 'Validation Scripts', items: [] },
@@ -631,7 +626,6 @@ async function scaffoldWithProgress(config, mode) {
     else if (pt.includes('/scripts/'))                         groupMap.scripts.items.push(tpl);
     else if (pt.includes('/references/'))                      groupMap.references.items.push(tpl);
     else if (pt.includes('SKILL.md'))                          groupMap.skills.items.push(tpl);
-    else if (pt.includes('/commands/'))                        groupMap.commands.items.push(tpl);
     else if (pt.includes('/templates/'))                       groupMap.templates.items.push(tpl);
     else                                                       groupMap.config.items.push(tpl);
   }
