@@ -208,11 +208,13 @@ FORCE_COLOR=1 npx aped-method --yes --project=ci-test
 
 ---
 
-## 11. `migrate-state.sh` failed during `aped-method --update` (4.1.0+)
+## 11. `migrate-state.sh` failed (or silently misbehaved) during `aped-method --update` (4.1.0+)
 
-**Symptom.** `aped-method --update` reports `Migration failed (exit N)` for the "Migrating state.yaml schema..." task. The previous schema and corrections are intact (no destructive change happened).
+**Symptom A — explicit failure.** `aped-method --update` reports `Migration failed (exit N)` for the "Migrating state.yaml schema..." task. The previous schema and corrections are intact (no destructive change happened).
 
-**Cause.** The 1 → 2 schema migration (4.1.0) requires `yq` for structural YAML manipulation. The most common failure is yq not being on PATH; less commonly, a malformed `schema_version` value in state.yaml or a custom `state.corrections_path` that points outside the project root.
+**Symptom B — silent partial success on 4.1.0 / 4.1.1.** `aped-method --update` reported success, but `docs/aped/state.yaml` is still on `schema_version: 1` with the top-level `corrections:` block in place — and `docs/aped/state-corrections.yaml` (or `docs/state-corrections.yaml` for older custom paths) was created with the same entries duplicated. Re-running `--update` made the duplication worse on each retry, eventually producing multi-document YAML in the sister file. **No data was lost** — `state.yaml.pre-v2-migration.bak` is intact and rewindable. **Fixed in 4.1.2** — upgrading and re-running `--update` is now self-healing (the migration deduplicates correctly, refuses multi-document output, and is idempotent on already-migrated v2 scaffolds).
+
+**Cause.** The 1 → 2 schema migration (4.1.0) requires `yq` for structural YAML manipulation. The most common failure is yq not being on PATH; less commonly, a malformed `schema_version` value in state.yaml or a custom `state.corrections_path` that points outside the project root. The 4.1.0 / 4.1.1 silent-partial-success bug was the merge path emitting multi-doc YAML, breaking the downstream count read — fixed in 4.1.2.
 
 **Diagnose.**
 
@@ -242,15 +244,15 @@ bash .aped/scripts/migrate-state.sh
 npx aped-method --update
 ```
 
-**Recovery.** A backup at `docs/aped/state.yaml.pre-v2-migration.bak` is written **before** any mutation. If something went catastrophically wrong:
+**Recovery.** A backup at `<output_path>/state.yaml.pre-v2-migration.bak` (e.g. `docs/aped/state.yaml.pre-v2-migration.bak` for the standard scaffold) is written **before** any mutation. If something went catastrophically wrong:
 
 ```bash
 cp docs/aped/state.yaml.pre-v2-migration.bak docs/aped/state.yaml
 # Optional: roll back the corrections sister file too
-rm -f docs/state-corrections.yaml
+rm -f docs/aped/state-corrections.yaml
 ```
 
-The migration is idempotent on schema 2, so re-running after a partial rollback is safe.
+The migration is idempotent on schema 2, so re-running after a partial rollback is safe. **For users who hit Symptom B on 4.1.0 / 4.1.1**: just upgrade to 4.1.2 and re-run `npx aped-method --update`. The migration's merge path now reads the first document from a multi-document sister file (dropping the legacy corruption), deduplicates entries by `(date, type, reason)` after merging state.yaml's still-v1 corrections with the existing sister file, and refuses multi-document output at sanity-check. The result is a clean v2 state.yaml with the correct count and a single-document sister file. No manual action required.
 
 ---
 
@@ -342,6 +344,35 @@ yq eval '.corrections_count' docs/aped/state.yaml
 ```
 
 The two counts must agree — if they diverge, run any `append-correction` (even a no-op probe followed by manual rollback isn't necessary; `mark-story-done` calls don't touch this) to re-sync the cache, or hand-edit `corrections_count` to match `length`.
+
+---
+
+## 15. `corrections_pointer` points to the wrong path on a 4.1.0 / 4.1.1 install (4.1.2+ self-heal)
+
+**Symptom.** Your `state.yaml` has `corrections_pointer: "docs/state-corrections.yaml"` but your `output_path` is `docs/aped/` (the default scaffold). The actual file at `docs/state-corrections.yaml` is empty, and `docs/aped/state-corrections.yaml` is also empty (or missing). `append-correction` writes to the path the pointer says, so any past entries landed at the orphaned `docs/state-corrections.yaml`.
+
+**Cause.** The 4.1.0 / 4.1.1 scaffold hardcoded the literal `"docs/state-corrections.yaml"` for both `corrections_pointer` (in state.yaml) and `state.corrections_path` (in config.yaml). For projects whose `output_path` happened to match (e.g. `output_path: docs`), the bug was invisible. For default scaffolds with `output_path: docs/aped`, the pointer pointed one level too high.
+
+**Fix — automatic in 4.1.2.** `migrate-state.sh` 4.1.2+ runs a `self_heal_corrections_pointer` step on every invocation (regardless of `schema_version`). If the pointer differs from the expected `<output_path>/state-corrections.yaml` AND the wrong location is empty/missing, the pointer is retargeted to the correct value. **User data at the wrong location is never moved without explicit user action** — the self-heal is conservative on purpose.
+
+```bash
+# The self-heal runs automatically on:
+npx aped-method --update      # part of the Phase-3 migration task
+bash .aped/scripts/migrate-state.sh   # standalone invocation
+```
+
+**Manual fix — if the wrong location has user data.** The self-heal won't move data on your behalf. You either keep the (wrong-but-stable) pointer where the data lives, or you relocate manually. For relocating, follow §14 above (move the file + update both `corrections_pointer` in state.yaml and `state.corrections_path` in config.yaml in lock-step, then re-validate counts).
+
+**Verify the heal worked.**
+
+```bash
+# After 4.1.2 --update:
+grep '^corrections_pointer:' docs/aped/state.yaml
+# Should print: corrections_pointer: docs/aped/state-corrections.yaml  (matches output_path)
+
+bash .aped/scripts/validate-state.sh
+# Exit 0 = clean
+```
 
 ---
 

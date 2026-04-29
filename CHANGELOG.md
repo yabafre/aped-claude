@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.3] - 2026-04-29
+
+Documentation patch — brings `docs/` and `README.md` in line with the **4.1.2** schema-v2 hotfix. Engine surface is byte-identical to 4.1.2; users on 4.1.2 only gain accurate prose.
+
+The 4.1.2 release notes were complete in `CHANGELOG.md` and the `aped-course` skill body, but the user-facing reference docs still carried 4.1.0 / 4.1.1 wording in three places: (a) `mark-story-done`'s "awk fallback lands status + completed_at" claim (false post-4.1.2 — it now hard-fails without yq), (b) the literal `docs/state-corrections.yaml` path in places where the actual default tracks `output_path`, and (c) TROUBLESHOOTING.md §11 didn't cover the silent-partial-success scenario that bit BonjourStalwart on 4.1.0 / 4.1.1.
+
+### Changed
+
+- **`README.md`** — Requirements section now correctly classifies `yq` as hard-required for `migrate-state.sh`, `mark-story-done`, and `append-correction` (with awk fallbacks remaining only for `set-story-status` and friends). The "4.1.0 lifecycle hygiene" callout under Maintenance now mentions the 4.1.2 patches and clarifies that the corrections file path tracks `output_path` (e.g. `docs/aped/state-corrections.yaml` for the standard scaffold).
+- **`docs/aped-quickstart.md`** — `mark-story-done` paragraph now states explicitly that yq is hard-required since 4.1.2 and explains why the previous awk fallback was broken (it could only rewrite existing fields, not insert `completed_at`).
+- **`docs/aped-phases.md`** — schema-v2 corrections section clarifies that `corrections_pointer` tracks `output_path`. The 4.1.0 / 4.1.1 hardcoded literal is mentioned as historical context, with a pointer to `migrate-state.sh`'s 4.1.2 self-heal.
+- **`docs/TROUBLESHOOTING.md` §11** — extended with **Symptom B** describing the silent-partial-success scenario (sister file written, state.yaml stayed v1, retries duplicated entries, sister file accumulated multi-document YAML). The recovery path now points users at `aped-method --update` on 4.1.2 — the self-heal handles dedup, multi-doc heal-on-read, and idempotent re-runs without manual intervention.
+
+### Added
+
+- **`docs/TROUBLESHOOTING.md` §15** — new section covering the 4.1.0 / 4.1.1 wrong-pointer bug and the 4.1.2 self-heal contract. Explains the symptom (pointer one level too high on default scaffolds, orphaned sister file), the automatic fix on `--update`, and the conservative behaviour: user data is never moved without explicit action — the self-heal only retargets when the wrong location is empty.
+
 ## [4.1.2] - 2026-04-29
 
 Hotfix release covering one real-world bug surfaced by an upgrade on a v1 scaffold with existing corrections (BonjourStalwart) **plus** six findings from a multi-agent review of the 4.1.0 schema-v2 code (`/ultrareview` on PR #5). All seven fix the same delivery — the corrections-split + sync-state helpers shipped in 4.1.0. Engine surface is otherwise identical.
