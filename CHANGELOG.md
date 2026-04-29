@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.1] - 2026-04-29
+
+Documentation patch — brings `docs/` (the deep-dive references shipped with the package) in line with the 4.1.0 reality. No code, no test, no behaviour change. Engine is byte-identical to 4.1.0; users on 4.1.0 don't need to upgrade urgently — they only gain accurate prose.
+
+### Changed
+
+- **`docs/aped-phases.md`** — sync-logs section adds the retention block + `aped-method sync-logs prune` subcommand + `meta` extension. Corrections-log section describes the schema v2 split (pointer + count + sister file + helper) with v1 fallback note. Schema-normalization section split into v1 (since 3.12.0) / v2 (since 4.1.0) sub-sections; the anachronistic *"bump reserved for 4.0.0"* line is gone.
+- **`docs/aped-workflow.md`** — `What gets scaffolded` lists `state.yaml` with v2 top-level slots (`corrections_pointer` + `corrections_count` replacing v1's top-level `corrections`), `state-corrections.yaml` as a sibling output, and the `sync_logs.retention` config block + prune subcommand.
+- **`docs/aped-quickstart.md`** — sync-logs section gains the retention paragraph; state.yaml schema section split into v1 / v2 with explicit migration call-out (auto on `--update`, idempotent, backed-up). Mentions `mark-story-done` and the yq dep stance.
+- **`docs/TROUBLESHOOTING.md`** — four new sections: (11) recovery path when `migrate-state.sh` fails during `--update`, including the backup-restore commands; (12) how to verify the schema version of a given scaffold and what a clean v2 state.yaml looks like; (13) enabling retention to stop sync-logs piling up + the `aped-method sync-logs prune` one-shot sweep; (14) what to do when corrections land in the wrong file because `corrections_pointer` and `state.corrections_path` are out of sync.
+
 ## [4.1.0] - 2026-04-29
 
 Lifecycle hygiene release. Three coupled goals: bound the long-term growth of `docs/sync-logs/` (retention), uniformize how skills extend sync-log JSON (cmd_meta), and bound the growth of `state.yaml` itself (mark-story-done runtime trim + corrections split into a sister file). The state.yaml schema bumps `1 → 2`; `aped-method --update` runs `migrate-state.sh` automatically and the migration is idempotent + non-destructive (backup written).

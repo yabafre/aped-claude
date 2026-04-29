@@ -163,23 +163,27 @@ What was "**23 slash commands**" in 3.10.x is now **25 skills**. The slash-comma
 
 `aped-prd`, `aped-ux`, `aped-epics`, `aped-analyze`, `aped-brainstorm` now dispatch an **adversarial subagent** before the user gate that validates the produced artefact for completeness / consistency / clarity / scope / YAGNI. Calibrated per artefact type. NACK behaviour: HALT → `[F]ix + redispatch once` / `[O]verride with reason recorded`. Catches FR/NFR contradictions, ambiguous metrics, screen/flow inconsistency, orphan FRs, depends_on cycles — before downstream skills burn cycles on flawed inputs.
 
-### Sync-logs natifs (since 3.12.0)
+### Sync-logs natifs (since 3.12.0; retention since 4.1.0)
 
-Every ticket-system operation in `aped-epics`, `aped-from-ticket`, `aped-ship`, `aped-course` now emits a structured JSON audit log at `docs/sync-logs/<provider>-sync-<ISO>.json` via `aped/scripts/sync-log.sh`. Fields: `sync_id`, `started_at`, `ended_at`, `operator` (git config user.email), `directive_version` (env override), `phases.<name>` (auth_check, projects, labels, milestones, etc.), `totals` (api_calls_total, issues_created, etc.). Atomic writes; concurrent calls protected by mkdir-lock with stale-recovery. Configurable via `sync_logs.{enabled, dir}` in `config.yaml`.
+Every ticket-system operation in `aped-epics`, `aped-from-ticket`, `aped-ship`, `aped-course` emits a structured JSON audit log at `docs/sync-logs/<provider>-sync-<ISO>.json` via `aped/scripts/sync-log.sh`. Fields: `sync_id`, `started_at`, `ended_at`, `operator` (git config user.email), `directive_version` (env override), `phases.<name>` (auth_check, projects, labels, milestones, etc.), `totals` (api_calls_total, issues_created, etc.). Atomic writes; concurrent calls protected by mkdir-lock with stale-recovery. Configurable via `sync_logs.{enabled, dir, retention}` in `config.yaml`.
+
+**Retention** (4.1.0, opt-in) — set `sync_logs.retention.mode: keep_last_n` + `keep_last_n: 50` in `config.yaml` and the helper prunes the oldest provider-scoped logs after every successful `end`. Provider isolation is enforced via filename pattern matching, so a Linear sync never touches GitHub logs. For one-shot manual sweeps: `aped-method sync-logs prune [--apply] [--provider=NAME]` (default dry-run). The new `meta` subcommand (4.1.0) is the helper-blessed way to write top-level extension keys (`trigger`, `scope`, `source_pr`, etc.) without hand-rolling JSON in skill bodies.
 
 Useful for: forensic audit when a sync goes wrong, postmortem analysis, cross-machine reproducibility, compliance trails.
 
-### state.yaml schema (since 3.12.0)
+### state.yaml schema (v1 since 3.12.0; v2 since 4.1.0)
 
-Three new top-level slots populated by skills as needed:
+`validate-state.sh` accepts both `schema_version: 1` and `schema_version: 2`. **Migration is automatic** — `aped-method --update` runs `migrate-state.sh` 1 → 2, idempotent on v2, with a backup at `docs/state.yaml.pre-v2-migration.bak` before any mutation. Existing scaffolds without `schema_version` are treated as implicit 1.
 
-- **`ticket_sync`** — provider-agnostic sync metadata after `aped-epics` Ticket System Setup. Replaces project-specific `linear_sync` / `github_sync` / etc. patterns. Re-syncs append to `modified_tickets`.
-- **`backlog_future_scope`** — explicitly-punted tickets with category buckets. Written by `aped-epics` and `aped-course`.
-- **`corrections`** — append-only log of artefact revisions (PRD edit, FR descope, etc.) written by `aped-course`. Distinct from `lessons.md` and CHANGELOG.
+Top-level slots:
+
+- **`ticket_sync`** (v1+) — provider-agnostic sync metadata after `aped-epics` Ticket System Setup. Replaces project-specific `linear_sync` / `github_sync` / etc. patterns. Re-syncs append to `modified_tickets`.
+- **`backlog_future_scope`** (v1+) — explicitly-punted tickets with category buckets. Written by `aped-epics` and `aped-course`.
+- **`corrections_pointer` + `corrections_count`** (v2; in v1 was a top-level `corrections:` array) — append-only log of artefact revisions (PRD edit, FR descope, etc.) split into `docs/state-corrections.yaml` (overridable via `state.corrections_path`). state.yaml carries the pointer + count cache. Writer: `bash {{APED_DIR}}/scripts/sync-state.sh <<< 'append-correction <json>'`. Distinct from `lessons.md` and CHANGELOG.
 
 Plus richer per-phase records under `pipeline.phases.<phase>` (PRD `fr_count` / `mode`, architecture `councils_dispatched` / `adrs` / `watch_items` / `residual_gaps`, epics `epic_count` / `story_count` / `fr_coverage`, context `type` ∈ {brownfield, greenfield, hybrid}, etc.).
 
-`schema_version: 1` at top — bump reserved for 4.0.0 schema migrations. Existing scaffolds without `schema_version` keep working (treated as implicit 1). `validate-state.sh` recognises the new top-level blocks; unknown blocks warn-only (forward-compat).
+`mark-story-done <key>` (4.1.0) is the new atomic helper for the review-done flip — sets status to done + completed_at, deletes runtime fields (`worktree`, `started_at`, `dispatched_at`, `ticket_sync_status`), preserves permanent fields (`merged_into_umbrella`, `ticket`, `depends_on`, custom user fields). yq is recommended for full cleanup; without yq, the awk fallback lands status + completed_at and warns on stderr.
 
 ### `aped-skills/` reference directory (since 3.11.0)
 

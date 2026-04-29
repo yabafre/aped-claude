@@ -208,6 +208,143 @@ FORCE_COLOR=1 npx aped-method --yes --project=ci-test
 
 ---
 
+## 11. `migrate-state.sh` failed during `aped-method --update` (4.1.0+)
+
+**Symptom.** `aped-method --update` reports `Migration failed (exit N)` for the "Migrating state.yaml schema..." task. The previous schema and corrections are intact (no destructive change happened).
+
+**Cause.** The 1 → 2 schema migration (4.1.0) requires `yq` for structural YAML manipulation. The most common failure is yq not being on PATH; less commonly, a malformed `schema_version` value in state.yaml or a custom `state.corrections_path` that points outside the project root.
+
+**Diagnose.**
+
+```bash
+# Check yq presence
+command -v yq || echo "yq is not installed"
+
+# Inspect current schema version
+grep -E '^schema_version:' docs/aped/state.yaml
+
+# Re-run the migration manually to see the full error (the CLI shows it
+# indented under "Full output:" — but running directly is also fine):
+bash .aped/scripts/migrate-state.sh
+```
+
+**Fix.**
+
+```bash
+# Install yq (macOS / Linux / WSL):
+brew install yq           # macOS
+npm i -g yq               # cross-platform fallback (mikefarah/yq via npm)
+
+# Re-run the migration. It is idempotent and non-destructive:
+bash .aped/scripts/migrate-state.sh
+
+# Or trigger via the engine refresh:
+npx aped-method --update
+```
+
+**Recovery.** A backup at `docs/aped/state.yaml.pre-v2-migration.bak` is written **before** any mutation. If something went catastrophically wrong:
+
+```bash
+cp docs/aped/state.yaml.pre-v2-migration.bak docs/aped/state.yaml
+# Optional: roll back the corrections sister file too
+rm -f docs/state-corrections.yaml
+```
+
+The migration is idempotent on schema 2, so re-running after a partial rollback is safe.
+
+---
+
+## 12. How do I know which schema version my state.yaml is on?
+
+**Symptom.** You're not sure if `aped-method --update` already migrated your scaffold to v2.
+
+**Diagnose.**
+
+```bash
+grep -E '^schema_version:' docs/aped/state.yaml
+# v1: schema_version: 1   → corrections still inline at top-level
+# v2: schema_version: 2   → corrections at corrections_pointer
+
+# v2 should also have these top-level keys:
+grep -E '^(corrections_pointer|corrections_count):' docs/aped/state.yaml
+
+# Confirm the sister file exists when v2:
+ls -la docs/state-corrections.yaml
+
+# Use the validator for a binary verdict:
+bash .aped/scripts/validate-state.sh
+```
+
+**Reading.** A clean v2 state.yaml has `schema_version: 2`, `corrections_pointer: "<path>"`, and `corrections_count: <N>` at the top level — and **no** top-level `corrections:` array. If the validator exits with code 4 and complains about a residual `corrections:` block on v2, the migration didn't complete or the file was hand-edited; run `bash .aped/scripts/migrate-state.sh` to converge.
+
+---
+
+## 13. Sync-logs are piling up under `docs/sync-logs/` (4.1.0+ retention)
+
+**Symptom.** `docs/sync-logs/` keeps growing on every `aped-epics`, `aped-from-ticket`, `aped-ship`, or `aped-course` run, and your `git status` is noisy.
+
+**Cause.** Default behavior is to **keep every log forever** (`sync_logs.retention.mode: none`). Retention is opt-in to avoid surprising existing users.
+
+**Fix.** Enable the retention block in `.aped/config.yaml`:
+
+```yaml
+sync_logs:
+  enabled: true
+  dir: "docs/sync-logs/"
+  retention:
+    mode: keep_last_n
+    keep_last_n: 50
+```
+
+After every successful `sync-log.sh end`, the helper now prunes the oldest provider-scoped logs beyond the window. Provider isolation is enforced — a Linear sync never deletes GitHub logs and vice versa.
+
+**One-shot manual sweep.** Without enabling retention permanently:
+
+```bash
+# Dry-run — lists what would be deleted (default):
+aped-method sync-logs prune
+
+# Apply (actually deletes):
+aped-method sync-logs prune --apply
+
+# Scope to one provider:
+aped-method sync-logs prune --apply --provider=linear
+```
+
+If `mode: none` is set in config, the CLI exits 0 with `retention disabled in sync_logs.retention.mode (...). Nothing to prune.` — set the mode first, then re-run.
+
+---
+
+## 14. My corrections appear in the wrong file (custom `corrections_path`)
+
+**Symptom.** You set `state.corrections_path: "custom/path/corrections.yaml"` in `config.yaml`, but `aped-course` is still writing to `docs/state-corrections.yaml` (or vice versa).
+
+**Cause.** The runtime source of truth is **`corrections_pointer` inside state.yaml**, not the config. `state.corrections_path` is the install-time default used by the scaffold and by `migrate-state.sh` when bootstrapping the file. Once `corrections_pointer` is set in state.yaml, every subsequent `append-correction` honors that pointer — a config edit alone won't move existing corrections.
+
+**Fix.** Move both in lock-step:
+
+```bash
+# 1. Move the file to the new location.
+mkdir -p custom/path
+git mv docs/state-corrections.yaml custom/path/corrections.yaml
+
+# 2. Update the pointer in state.yaml (use yq for safety):
+yq eval -i '.corrections_pointer = "custom/path/corrections.yaml"' docs/aped/state.yaml
+
+# 3. Update the install-time default in config.yaml so future scaffolds /
+#    --update runs see the same path.
+yq eval -i '.state.corrections_path = "custom/path/corrections.yaml"' .aped/config.yaml
+
+# 4. Verify state validates and the count matches:
+bash .aped/scripts/validate-state.sh
+yq eval '.corrections | length' custom/path/corrections.yaml
+yq eval '.corrections_count' docs/aped/state.yaml
+```
+
+The two counts must agree — if they diverge, run any `append-correction` (even a no-op probe followed by manual rollback isn't necessary; `mark-story-done` calls don't touch this) to re-sync the cache, or hand-edit `corrections_count` to match `length`.
+
+---
+
 ## Still stuck?
 
 Run with `--debug` to get a stack trace on error:

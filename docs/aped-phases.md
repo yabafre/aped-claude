@@ -207,7 +207,7 @@ Cumulative changes from Tier 4 (3.11.0) and Tier 5+6 (3.12.0). Only deltas from 
 
 ### `aped-epics`
 - 🛡️ **Spec-reviewer dispatch** (since 3.12.0) — calibration: story granularity (split / merge), orphan FRs (no story covers them), `depends_on` cycles, FR-coverage gap vs PRD.
-- 📊 **Sync-logs** (since 3.12.0) — Ticket System Setup wraps every step (`auth_check`, `projects`, `labels`, `milestones`, `modified_tickets`, `out_of_scope_moves`) with `aped/scripts/sync-log.sh phase $LOG <name> <status>`. `record api_calls_total` per provider call. Final path emitted to user + recorded in state.yaml.
+- 📊 **Sync-logs** (since 3.12.0; retention since 4.1.0) — Ticket System Setup wraps every step (`auth_check`, `projects`, `labels`, `milestones`, `modified_tickets`, `out_of_scope_moves`) with `aped/scripts/sync-log.sh phase $LOG <name> <status>`. `record api_calls_total` per provider call. Final path emitted to user + recorded in state.yaml. **Opt-in retention** via `sync_logs.retention.{mode, keep_last_n}` in `config.yaml` prunes the oldest provider-scoped logs on every successful `end`; `aped-method sync-logs prune [--apply] [--provider=NAME]` runs a one-shot manual sweep (default dry-run). The `meta` subcommand (4.1.0) is the helper-blessed way to write top-level extension keys (`trigger`, `scope`, `source_pr`, etc.) without hand-rolling JSON.
 - 📊 **State.yaml `ticket_sync` block** (since 3.12.0) — provider-agnostic record after sync: `{provider, sync_id, sync_log, projects, milestones, modified_tickets, totals}`. Re-syncs append to `modified_tickets`.
 - 📊 **`backlog_future_scope` block** (since 3.12.0) — writes `{project_id, tickets: [{id, category}]}` when M2 buckets exist.
 - 📊 **Phase record** (since 3.12.0): `pipeline.phases.epics.{epic_count, story_count, fr_coverage, ticket_sync, synced_at}`.
@@ -249,7 +249,7 @@ Cumulative changes from Tier 4 (3.11.0) and Tier 5+6 (3.12.0). Only deltas from 
 
 ### `aped-from-ticket`, `aped-ship`, `aped-course`
 - 📊 **Sync-logs** (since 3.12.0) — every ticket-system operation now wraps with `aped/scripts/sync-log.sh`. Phase names per skill: `auth_check`, `ticket_fetch`, `story_drafted`, `state_registered`, `ticket_commented` (`aped-from-ticket`); `branch_close`, `tickets_closed`, `comments_posted` (`aped-ship`); `tickets_modified`, `tickets_moved`, `descope_recorded` (`aped-course`).
-- 📜 **`corrections` log** (since 3.12.0) — `aped-course` appends an entry `{date, type, reason, artifacts_updated, affected_stories}` whenever a scope change touches an upstream artefact mid-sprint. Distinct from `lessons.md` (post-epic retros) and CHANGELOG (product-level). Append-only.
+- 📜 **`corrections` log** (since 3.12.0; split out of state.yaml in 4.1.0 / schema v2) — `aped-course` appends an entry `{date, type, reason, artifacts_updated, affected_stories}` whenever a scope change touches an upstream artefact mid-sprint. Distinct from `lessons.md` (post-epic retros) and CHANGELOG (product-level). Append-only. **Schema v2** (4.1.0+): the array lives in `docs/state-corrections.yaml` (default; overridable via `state.corrections_path` in `config.yaml`). state.yaml carries `corrections_pointer` (runtime source of truth) + `corrections_count` (length cache so readers don't open the sister file just to know whether anything's logged). Writer: `bash {{APED_DIR}}/scripts/sync-state.sh <<< 'append-correction <json>'` — validates required keys, locks the file, updates the count atomically. **Schema v1 fallback**: unmigrated 3.x scaffolds keep using top-level `corrections:` in state.yaml until `aped-method --update` runs `migrate-state.sh`.
 - 📦 **`backlog_future_scope`** (since 3.12.0) — `aped-course` appends descoped tickets here `{id, category}`.
 
 ### `aped-context`
@@ -282,15 +282,25 @@ Three reference docs callable on demand from any skill:
 - **`persuasion-principles.md`** — 7-principle table verbatim (Authority, Commitment, Scarcity, Social Proof, Unity, avoid Liking, avoid Reciprocity), Meincke et al. 2025 attribution (N=28k LLM conversations, compliance 33%→72% under research-grounded patterns), ethical-use test.
 - **`testing-skills-with-subagents.md`** — RED-GREEN-REFACTOR runner methodology for skills (baseline pressure scenarios → write skill → close loopholes), 7-pressure-type table, rationalization-table template, bulletproof checklist. This methodology wakes up the Tier 3 skill-triggering harness placeholder.
 
-### state.yaml schema normalization (since 3.12.0)
+### state.yaml schema (v1 since 3.12.0, v2 since 4.1.0)
 
-Existing scaffolds keep working without changes (missing `schema_version` is treated as implicit 1). New writes by skills now follow the canonical schema:
+Existing scaffolds keep working without changes (missing `schema_version` is treated as implicit 1). `validate-state.sh` accepts both `1` and `2`. Migration is **automatic and idempotent** — `aped-method --update` runs `migrate-state.sh` 1 → 2 as a Phase-3 task, writing a backup at `docs/state.yaml.pre-v2-migration.bak` before any mutation.
 
-- `schema_version: 1` at top — bump reserved for 4.0.0.
+#### Schema v1 (3.12.0 → 4.0.x)
+
+- `schema_version: 1` at top.
 - Optional top-level slots populated by skills: `ticket_sync` (provider-agnostic, by `aped-epics`), `backlog_future_scope` (by `aped-epics` + `aped-course`), `corrections` (append-only, by `aped-course`).
 - Phase-specific structured records under `pipeline.phases.<phase>` (see per-phase deltas above).
 - `validate-state.sh` recognises the new top-level blocks; unknown blocks warn-only (forward-compat).
-- `migrate-state.sh` stub reserves the 4.0.0 migration call site.
+- `migrate-state.sh` was a stub reserving the call site for the next bump.
+
+#### Schema v2 (4.1.0+)
+
+- `schema_version: 2` at top. `migrate-state.sh` 1 → 2 implements the bump; idempotent on v2.
+- **`corrections` is split out of state.yaml** into a sibling file at the path stored in `corrections_pointer` (default `docs/state-corrections.yaml`, overridable via `state.corrections_path` in `config.yaml`). state.yaml carries `corrections_count` as a length cache.
+- All other top-level slots from v1 are unchanged: `ticket_sync`, `backlog_future_scope`, `pipeline`, `sprint`.
+- `validate-state.sh` errors (exit 4) on schema v2 with a residual top-level `corrections:` — that's the unambiguous signal that migration didn't complete or was reverted manually. Hint points at `migrate-state.sh`.
+- New `sync-state.sh` subcommands shipped with v2: `mark-story-done <key>` (atomic flip + runtime trim — clears `worktree`, `started_at`, `dispatched_at`, `ticket_sync_status`; preserves permanent fields) and `append-correction <json>` (writes to the corrections file + bumps the state.yaml count atomically). yq is hard-required for `migrate-state.sh` and recommended for full `mark-story-done` cleanup; without yq, `mark-story-done` falls back to setting status + completed_at and leaves runtime fields with a warn-stderr.
 
 ### Slash-commands removal (4.0.0)
 
