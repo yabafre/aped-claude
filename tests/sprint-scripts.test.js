@@ -205,7 +205,23 @@ sprint:
       expect(r.stderr).toMatch(/not found/i);
     });
 
-    it('refuses loudly when yq is unavailable (4.1.2 — drops broken awk fallback)', () => {
+    // The yq-absent contract is verified two ways: (a) a static grep on
+    // the script template confirms the early `command -v yq` guard exists
+    // and produces the expected error message (runs everywhere), and (b) a
+    // runtime test that strips yq from PATH (skipped on CI because GitHub
+    // Actions ubuntu runners pre-install yq in /usr/bin, which a minimal
+    // PATH=/bin doesn't escape; the dev-machine path of `which yq` is
+    // typically /opt/homebrew/bin or /usr/local/bin and IS escaped).
+    it('declares the yq-absent refusal contract (4.1.2 static check)', () => {
+      const tpl = findScript('sync-state.sh').content;
+      // The mark_story_done function should start with a `command -v yq`
+      // guard that returns 3 and prints an install hint.
+      expect(tpl).toMatch(/mark_story_done\(\)[\s\S]{0,800}command -v yq[\s\S]{0,400}return 3/);
+      expect(tpl).toMatch(/mark-story-done requires[^\n]*\\\`yq\\\`/);
+      expect(tpl).toMatch(/Install yq/);
+    });
+
+    it.skipIf(process.env.CI)('refuses loudly when yq is unavailable (4.1.2 — drops broken awk fallback)', () => {
       // 4.1.0 / 4.1.1 claimed an awk fallback that landed status + completed_at.
       // In reality, set_story_field's awk path can only REWRITE existing fields,
       // not INSERT new ones, so completed_at was silently dropped — leaving the
@@ -218,14 +234,11 @@ sprint:
     1-1-foo:
       status: review
 `);
-      // Strip yq from PATH by setting a minimal PATH that doesn't include yq's dir.
-      // Use /usr/bin which has bash, sed, awk, grep, etc. — but no yq on most macOS / linux setups.
       const r = run(`echo 'mark-story-done 1-1-foo' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
         { CLAUDE_PROJECT_DIR: sandbox, PATH: '/usr/bin:/bin' });
       expect(r.code).toBe(3);
       expect(r.stderr).toMatch(/requires.*yq/i);
       expect(r.stderr).toMatch(/install yq/i);
-      // state.yaml must not have been touched.
       const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
       expect(after).toMatch(/status:\s*review/);
       expect(after).not.toMatch(/completed_at/);
