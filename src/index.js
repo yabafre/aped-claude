@@ -814,24 +814,24 @@ function printDone(created, updated, skipped, mode) {
 
   p.note(
     [
-      `${color.green(color.bold('/aped-analyze'))}     ${color.dim('Analyze — parallel research → product brief')}`,
-      `${color.green(color.bold('/aped-prd'))}     ${color.dim('PRD — autonomous generation from brief')}`,
-      `${color.magenta(color.bold('/aped-ux'))}    ${color.dim('UX — screen flows, wireframes, components')}`,
-      `${color.blue(color.bold('/aped-arch'))}     ${color.dim('Architecture — collaborative solution design')}`,
-      `${color.yellow(color.bold('/aped-epics'))}     ${color.dim('Epics — requirements decomposition')}`,
-      `${color.yellow(color.bold('/aped-story'))}     ${color.dim('Story — prepare next story for dev')}`,
-      `${color.green(color.bold('/aped-dev'))}     ${color.dim('Dev — TDD story implementation')}`,
-      `${color.red(color.bold('/aped-review'))}     ${color.dim('Review — adversarial code review')}`,
+      `${color.green(color.bold('aped-analyze'))}      ${color.dim('Analyze — parallel research → product brief')}`,
+      `${color.green(color.bold('aped-prd'))}          ${color.dim('PRD — autonomous generation from brief')}`,
+      `${color.magenta(color.bold('aped-ux'))}           ${color.dim('UX — screen flows, wireframes, components')}`,
+      `${color.blue(color.bold('aped-arch'))}         ${color.dim('Architecture — collaborative solution design')}`,
+      `${color.yellow(color.bold('aped-epics'))}        ${color.dim('Epics — requirements decomposition')}`,
+      `${color.yellow(color.bold('aped-story'))}        ${color.dim('Story — prepare next story for dev')}`,
+      `${color.green(color.bold('aped-dev'))}          ${color.dim('Dev — TDD story implementation')}`,
+      `${color.red(color.bold('aped-review'))}        ${color.dim('Review — adversarial code review')}`,
       '',
-      `${color.cyan(color.bold('/aped-status'))}     ${color.dim('Sprint status — progress dashboard')}`,
-      `${color.cyan(color.bold('/aped-course'))}     ${color.dim('Correct course — manage scope changes')}`,
-      `${color.cyan(color.bold('/aped-context'))}   ${color.dim('Project context — brownfield analysis')}`,
-      `${color.cyan(color.bold('/aped-qa'))}    ${color.dim('QA — generate E2E & integration tests')}`,
-      `${color.cyan(color.bold('/aped-quick'))} ${color.dim('Quick fix/feature — bypass pipeline')}`,
-      `${color.cyan(color.bold('/aped-check'))} ${color.dim('Checkpoint — review changes, halt for approval')}`,
-      `${color.cyan(color.bold('/aped-claude'))} ${color.dim('Sync APED rules into CLAUDE.md')}`,
+      `${color.cyan(color.bold('aped-status'))}        ${color.dim('Sprint status — progress dashboard')}`,
+      `${color.cyan(color.bold('aped-course'))}        ${color.dim('Correct course — manage scope changes')}`,
+      `${color.cyan(color.bold('aped-context'))}       ${color.dim('Project context — brownfield analysis')}`,
+      `${color.cyan(color.bold('aped-qa'))}           ${color.dim('QA — generate E2E & integration tests')}`,
+      `${color.cyan(color.bold('aped-quick'))}        ${color.dim('Quick fix/feature — bypass pipeline')}`,
+      `${color.cyan(color.bold('aped-checkpoint'))}   ${color.dim('Checkpoint — review changes, halt for approval')}`,
+      `${color.cyan(color.bold('aped-claude'))}       ${color.dim('Sync APED rules into CLAUDE.md')}`,
     ].join('\n'),
-    'Pipeline commands'
+    'Pipeline skills (invoke via the Skill tool or natural-language triggers)'
   );
 
   p.outro(color.dim('Guardrail hook active — pipeline coherence enforced'));
