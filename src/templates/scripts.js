@@ -2128,7 +2128,7 @@ esac
 # (length cache for fast reads) at the top level; \`corrections:\` is removed.
 #
 # Idempotent: running on v2 is a no-op. Always writes a backup at
-# \`docs/state.yaml.pre-v2-migration.bak\` BEFORE any mutation, so a botched
+# \`${o}/state.yaml.pre-v2-migration.bak\` BEFORE any mutation, so a botched
 # migration is recoverable with \`mv state.yaml.pre-v2-migration.bak state.yaml\`.
 #
 # Usage: migrate-state.sh
@@ -2295,6 +2295,32 @@ migrate_v1_to_v2() {
   return 0
 }
 
+# 4.1.2 self-heal: 4.1.0 / 4.1.1 hardcoded the corrections_pointer to
+# the literal "docs/state-corrections.yaml" instead of interpolating the
+# project's outputDir. For default scaffolds (outputDir=docs/aped/), the
+# pointer was wrong by one level and append-correction silently wrote to
+# docs/state-corrections.yaml — orphaning the docs/aped/state-corrections.yaml
+# file shipped by the scaffold. Self-heal runs unconditionally (regardless
+# of schema_version) so 4.1.0 / 4.1.1 users on v2 schema get fixed too on
+# their next \`aped-method --update\`. Conservative: only retargets the
+# pointer when the pointed-to file is empty / missing — never relocates
+# user data. The user can move data manually via TROUBLESHOOTING.md §14.
+self_heal_corrections_pointer() {
+  command -v yq >/dev/null 2>&1 || return 0
+  local current_pointer expected_pointer
+  current_pointer=\$(yq eval '.corrections_pointer // ""' "\$STATE_FILE" 2>/dev/null || echo "")
+  [[ -z "\$current_pointer" || "\$current_pointer" == "null" ]] && return 0
+  expected_pointer="${o}/state-corrections.yaml"
+  [[ "\$current_pointer" == "\$expected_pointer" ]] && return 0
+  local current_abs="\$PROJECT_ROOT/\$current_pointer"
+  if [[ -s "\$current_abs" ]]; then
+    return 0
+  fi
+  yq eval -i ".corrections_pointer = \\"\$expected_pointer\\"" "\$STATE_FILE"
+  echo "Self-healed corrections_pointer: \$current_pointer → \$expected_pointer (no data at the previous location)." >&2
+}
+self_heal_corrections_pointer
+
 case "\$schema_version" in
   1)
     # Sub-case: if there's nothing to migrate (no corrections block at all),
@@ -2304,7 +2330,7 @@ case "\$schema_version" in
     exit \$?
     ;;
   2)
-    # Already on v2 — idempotent no-op.
+    # Already on v2 — idempotent no-op (after self-heal above).
     exit 0
     ;;
   *)

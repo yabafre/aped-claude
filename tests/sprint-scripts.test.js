@@ -745,6 +745,61 @@ corrections:
     expect(entries).toBe(1);
   });
 
+  it('self-heals a wrong corrections_pointer from 4.1.0/4.1.1 (4.1.2 fix #1)', () => {
+    // 4.1.0 / 4.1.1 hardcoded `docs/state-corrections.yaml` instead of
+    // tracking outputDir. On a default scaffold (outputDir=docs/aped/),
+    // the pointer was wrong and the scaffolded sister file was orphaned.
+    // Self-heal retargets the pointer when the wrong location is empty.
+    installScript(sandbox, 'migrate-state.sh');
+    mkdirSync(join(sandbox, APED_DIR), { recursive: true });
+    writeFileSync(join(sandbox, APED_DIR, 'config.yaml'),
+      `state:\n  corrections_path: "${OUTPUT_DIR}/state-corrections.yaml"\n`);
+    // State.yaml is already v2 (so the migration body would no-op), but
+    // pointer is the legacy wrong value `docs/state-corrections.yaml`.
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 2
+corrections_pointer: "docs/state-corrections.yaml"
+corrections_count: 0
+sprint:
+  stories: {}
+`);
+    // No file at the wrong location and no file at the right location.
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/migrate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.stderr).toMatch(/self-healed/i);
+    const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+    expect(after).toMatch(new RegExp(`corrections_pointer:\\s*"?${OUTPUT_DIR}/state-corrections\\.yaml`));
+  });
+
+  it('does NOT self-heal when user data lives at the (wrong) pointer location', () => {
+    // If the user actually has corrections at the wrong path, the pointer
+    // is stable from their POV — moving it would orphan their data. The
+    // self-heal must leave it alone and let the user choose to relocate.
+    installScript(sandbox, 'migrate-state.sh');
+    mkdirSync(join(sandbox, APED_DIR), { recursive: true });
+    writeFileSync(join(sandbox, APED_DIR, 'config.yaml'),
+      `state:\n  corrections_path: "${OUTPUT_DIR}/state-corrections.yaml"\n`);
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 2
+corrections_pointer: "docs/state-corrections.yaml"
+corrections_count: 1
+sprint:
+  stories: {}
+`);
+    // Pre-existing file at the wrong location with content
+    mkdirSync(join(sandbox, 'docs'), { recursive: true });
+    writeFileSync(join(sandbox, 'docs/state-corrections.yaml'),
+      `corrections:\n  - {date: "x", type: minor, reason: "user-data"}\n`);
+
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/migrate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.stderr).not.toMatch(/self-healed/i);
+    const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+    expect(after).toMatch(/corrections_pointer:\s*"docs\/state-corrections\.yaml"/);
+  });
+
   it('handles a v1 state with no corrections block (count = 0)', () => {
     installScript(sandbox, 'migrate-state.sh');
     writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
