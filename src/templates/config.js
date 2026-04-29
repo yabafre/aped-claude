@@ -90,16 +90,37 @@ sync_logs:
   # retention:
   #   mode: keep_last_n      # none | keep_last_n
   #   keep_last_n: 50        # used when mode = keep_last_n
+
+# State files (4.1.0+, schema v2). The corrections log was split out of
+# state.yaml to bound its growth. \`corrections_path\` is project-relative
+# and overrides the default below; state.yaml itself carries a
+# \`corrections_pointer\` that wins at runtime, so a config edit cannot
+# desync from already-written corrections. To move the file safely,
+# edit BOTH this key and the pointer inside state.yaml in lock-step.
+state:
+  corrections_path: "docs/state-corrections.yaml"
 `,
     },
     {
       path: `${o}/state.yaml`,
-      content: `# APED state.yaml schema version. Stays at 1 across all 3.x releases —
-# any breaking layout change (rename, removal, restructure) is reserved
-# for 4.0.0 and will bump to 2. validate-state.sh refuses unknown
-# versions with an "upgrade aped-method" message. Missing schema_version
-# is treated as implicit 1 (backwards compat with pre-3.12 scaffolds).
-schema_version: 1
+      content: `# APED state.yaml schema version.
+#   v1 — 3.x line: corrections live in a top-level \`corrections:\` array.
+#   v2 — 4.1.0+: corrections are split out to docs/state-corrections.yaml
+#        (overridable via \`state.corrections_path\` in config.yaml).
+#        state.yaml carries the pointer + count mirror.
+# validate-state.sh refuses unknown versions; migrate-state.sh runs
+# automatically on \`aped-method --update\` to bump v1 → v2.
+# Missing schema_version is treated as implicit 1 (backwards compat with
+# pre-3.12 scaffolds).
+schema_version: 2
+
+# Corrections pointer (4.1.0+, schema v2). Append-only log of artefact
+# corrections lives in the file below; \`corrections_count\` is a length
+# cache so reader skills don't have to open the corrections file just to
+# learn whether anything's been logged. Both fields are maintained by
+# \`bash {{APED_DIR}}/scripts/sync-state.sh <<< "append-correction <json>"\`.
+corrections_pointer: "docs/state-corrections.yaml"
+corrections_count: 0
 
 # APED Pipeline State
 # Phases: none → analyze → prd → ux → architecture → sprint
@@ -189,15 +210,35 @@ sprint:
 #   tickets:
 #     - { id: "<ticket-id>", category: "<bucket>" }
 #
-# # Append-only log of artefact corrections (PRD edit, FR descope, etc.)
-# # Written primarily by aped-course. Distinct from lessons.md (post-epic
-# # retros) and CHANGELOG (product-level).
-# corrections:
-#   - date: "YYYY-MM-DD"
-#     type: "minor"           # major | minor | bug
-#     reason: "<one-liner>"
-#     artifacts_updated: []   # paths
-#     affected_stories: []    # story keys
+# # Corrections live in \`corrections_pointer\` (top-level above) — schema v2.
+# # See docs/state-corrections.yaml for the canonical shape and
+# # \`bash {{APED_DIR}}/scripts/sync-state.sh <<< "append-correction <json>"\`
+# # for the writer.
+`,
+    },
+    {
+      path: `${o}/state-corrections.yaml`,
+      content: `# APED state corrections — append-only log of mid-sprint scope changes
+# (PRD edits, FR descopes, story descopes, decision amendments, etc.).
+# Schema v2 split this out of state.yaml in 4.1.0 to bound the latter's
+# growth on long-running projects.
+#
+# Writer: \`bash {{APED_DIR}}/scripts/sync-state.sh <<< "append-correction <json>"\`.
+# The helper validates required keys, appends to the array atomically,
+# and updates \`corrections_count\` in state.yaml in the same call.
+#
+# Required keys per entry:
+#   date                ISO 8601 date (YYYY-MM-DD)
+#   type                "major" | "minor" | "bug"
+#   reason              one-liner — why this correction was made
+#   artifacts_updated   list of file paths touched
+#   affected_stories    list of story keys impacted
+#
+# Additional project-specific keys are preserved as-is (forward-compat).
+# Reader skills (aped-retro, aped-status) read this file via
+# \`corrections_pointer\` in state.yaml; they fall back to top-level
+# \`corrections:\` in state.yaml when running against an unmigrated v1 scaffold.
+corrections: []
 `,
     },
     {

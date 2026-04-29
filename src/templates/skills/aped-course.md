@@ -136,20 +136,17 @@ Update `{{OUTPUT_DIR}}/state.yaml`:
 
 ### Append a `corrections` entry (always)
 
-`corrections` is a top-level append-only log on `state.yaml`, distinct from `lessons.md` (post-epic retrospectives) and CHANGELOG (product-level). Every `aped-course` run that materially changes scope MUST append one entry.
+`corrections` is the append-only log of mid-sprint scope changes, distinct from `lessons.md` (post-epic retrospectives) and CHANGELOG (product-level). Every `aped-course` run that materially changes scope MUST append one entry.
 
-Use the Edit tool to append directly to `{{OUTPUT_DIR}}/state.yaml` — `corrections` is append-only and doesn't need transactional semantics across multiple stories. If the `corrections:` key doesn't exist yet, add it at the top level (alongside `pipeline`, `sprint`, `ticket_sync`, etc.).
+Schema **v2** (4.1.0+) splits this log out of `state.yaml` into the file referenced by `corrections_pointer` (default `docs/state-corrections.yaml`). The state.yaml mirror `corrections_count` is bumped automatically. Use the helper — it validates the required keys, locks the file, and updates the count atomically:
 
-```yaml
-corrections:
-  - date: "<YYYY-MM-DD>"
-    type: "<major | minor | bug>"
-    reason: "<one-liner of what changed and why>"
-    artifacts_updated: ["docs/prd.md", "docs/epics.md", ...]
-    affected_stories: ["<story-key>", ...]
+```bash
+bash {{APED_DIR}}/scripts/sync-state.sh <<< 'append-correction {"date":"<YYYY-MM-DD>","type":"<major|minor|bug>","reason":"<one-liner>","artifacts_updated":["docs/prd.md","docs/epics.md"],"affected_stories":["<story-key>"]}'
 ```
 
-Never rewrite an existing `corrections` entry — append-only semantics.
+Required keys per entry: `date`, `type`, `reason`, `artifacts_updated`, `affected_stories`. Project-specific extras are preserved as-is (forward-compat).
+
+Schema **v1** scaffolds (3.x line, never run through `aped-method --update`) keep the old top-level `corrections:` array on `state.yaml`. `aped-method --update` triggers `migrate-state.sh` which moves the array into the new file and bumps the schema in lock-step. Until that update runs, fall back to the legacy in-state-yaml shape.
 
 ### Append to `backlog_future_scope` (when descoping)
 
@@ -197,7 +194,7 @@ User says "We need to add OAuth — the client changed requirements":
 
 Before clearing the upstream lock and handing control back, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
 
-- [ ] **Corrections logged** — a new `corrections` entry was appended to `state.yaml` describing this scope change (date, type, reason, artifacts_updated, affected_stories).
+- [ ] **Corrections logged** — a new entry was appended via `bash {{APED_DIR}}/scripts/sync-state.sh <<< 'append-correction <json>'` (schema v2: writes to the file at `corrections_pointer`, bumps `corrections_count` in state.yaml). On unmigrated v1 scaffolds, the entry lives at top-level `corrections:` in state.yaml directly. Required fields: date, type, reason, artifacts_updated, affected_stories.
 - [ ] **Sync log emitted** — if ticket-system operations ran, `docs/sync-logs/<provider>-sync-<ISO>.json` exists (or skipped silently if no ticket changes / `sync_logs.enabled: false`).
 - [ ] **Backlog future-scope updated** — if any tickets were descoped, `backlog_future_scope.tickets` was appended (not replaced).
 - [ ] **Upstream lock cleared** — `sprint.scope_change_active: false` set, follow-up notification posted on each previously-notified ticket.

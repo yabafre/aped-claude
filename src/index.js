@@ -584,6 +584,35 @@ async function runScaffold(config, mode) {
         return 'Guardrail hook installed';
       },
     },
+    // 4.1.0 — run state.yaml schema migration on --update. The newly-installed
+    // migrate-state.sh handles v1 → v2 (corrections split) and is idempotent
+    // on v2, so re-running this on an already-migrated scaffold is a no-op.
+    // Skipped on --fresh (no existing state to migrate).
+    ...(mode === 'update'
+      ? [
+          {
+            title: 'Migrating state.yaml schema...',
+            async task() {
+              const { spawnSync } = await import('node:child_process');
+              const cwd = process.cwd();
+              const script = join(cwd, config.apedDir, 'scripts/migrate-state.sh');
+              if (!existsSync(script)) return 'Skipped (no migrate-state.sh)';
+              const r = spawnSync('bash', [script], {
+                cwd,
+                encoding: 'utf-8',
+                stdio: ['ignore', 'pipe', 'pipe'],
+              });
+              if (r.status === 0) {
+                const summary = (r.stderr || r.stdout || '').trim().split('\n').pop() || 'Schema is up to date';
+                return summary;
+              }
+              return color.yellow(
+                `Migration exited ${r.status} — inspect ${color.dim(`${config.apedDir}/scripts/migrate-state.sh`)} manually. ${(r.stderr || '').trim()}`
+              );
+            },
+          },
+        ]
+      : []),
     {
       title: 'Verifying installation...',
       async task() {
@@ -659,6 +688,13 @@ async function scaffoldWithProgress(config, mode) {
   // Artifacts that must survive an `--update`.
   const preserveOnUpdate = new Set([
     join(config.outputDir, 'state.yaml'),
+    // 4.1.0 — corrections live outside state.yaml (schema v2). Preserve the
+    // user's accumulated corrections through engine updates, same as state.yaml.
+    // The path here matches the default `state.corrections_path` in config.yaml;
+    // a user who customizes that key will see the default path emitted on
+    // first install and their custom path used at runtime — both coexist
+    // safely (the default is the seed, the custom path is where writes go).
+    join(config.outputDir, 'state-corrections.yaml'),
   ]);
 
   let created = 0;
