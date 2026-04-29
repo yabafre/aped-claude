@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-04-29
+
+The 3.12.0 deprecation cycle ends. The 25 `/aped-X` slash-command shells scaffolded under `.claude/commands/` are gone — skills are the only invocation surface. Claude Code now reaches APED skills through the standard `.claude/skills/<name>/SKILL.md` discovery path (a new symlink target wired into the auto-detect layer). This is a clean break: anything that worked through skills in 3.12 keeps working; anything that depended on the slash shells does not.
+
+### Removed
+
+- **`.claude/commands/aped-*.md` stub generator** — `src/templates/commands.js` (332 lines, exporting `COMMAND_DEFS` + `commands(c)`) deleted. `getTemplates()` no longer emits anything under `.claude/commands/`.
+- **`commandsDir` engine surface** — `DEFAULTS.commandsDir`, the `--commands=DIR` CLI flag, the interactive "Commands dir" prompt, the `commands_path:` key in `aped/config.yaml`, and the per-skill slash listing in the install summary. The YAML whitelist no longer accepts `commands_path:`, so legacy values pass through silently (see Migration).
+- **`commands: { suppress_deprecation_banner: false }` config block** — banner is gone, suppression is meaningless.
+- **`docs/COMMANDS.md` + `scripts/generate-command-catalog.js`** — the catalog had no purpose without the underlying shells; the `npm run generate:catalog` script entry is removed.
+- **`tests/from-ticket-wiring.test.js`** — asserted the shape of `commands()` output; replaced by `tests/no-slash-stubs.test.js` which guards the inverse contract (zero stubs, zero `commands_path` in the scaffolded yaml).
+
+### Changed
+
+- **`.claude/skills/` joins the cross-tool symlink auto-detect layer** — marker `.claude` (now created up-front during scaffold so a fresh greenfield project still picks Claude Code up). The pre-3.7.5 "double-registration" risk that excluded `.claude/skills/` is gone with the slash shells, so the historical exclusion is lifted. `TARGET_CATALOG` (used by `--fresh` and `aped-method symlink`) keeps `.claude/skills` for cleanup parity.
+- **Skill bodies + cross-skill references** — mechanical `/aped-X` → `aped-X` across the 25 top-level skills, the 3 reference docs under `aped-skills/`, the scaffolded `CLAUDE.md` template (Section 7 "Slash command deprecation (3.12.0)" → "Skill invocation (post-4.0.0)"), `src/templates/references.js` status template, and the user-facing strings in `src/templates/guardrail.js`. The guardrail's slash regex + the input-detection comments stay intact — users may still type `/aped-X` from muscle memory and the hook keeps catching them.
+- **`SKILL-INDEX.md` generator** drops the leading `/` from every entry — the file consumed by the opt-in SessionStart hook now lists `- aped-prd — …` instead of `- /aped-prd — …`.
+- **`aped-method doctor`** loses the `commands` check, gains a new `legacy-4x-residue` warn-level diagnostic that surfaces only when `.claude/commands/aped-*.md` stubs or a `commands_path:` key in `aped/config.yaml` exist on disk. Non-blocking: exitCode stays 0 so a 3.12 → 4.0 upgrade doesn't trip CI.
+- **README + 6 docs files** (workflow, phases, personas, quickstart, troubleshooting, dev/discovery-pattern) rewritten skill-first. Tagline no longer mentions slash aliases. New `Migrating from 3.x` subsection in README with the cleanup commands.
+
+### Migration
+
+3.12 → 4.0 is a breaking version, but the data path is intentionally lenient. After `npx aped-method --update`:
+
+1. Run `aped-method doctor` once. If it reports `legacy-4x-residue (warn)`, follow the printed `fix:` line — typically `rm -rf .claude/commands/aped-*.md` and removing the `commands_path:` line from `aped/config.yaml`. Both are safe to leave in place; the warning is informational.
+2. If you maintain a `lessons.md` file produced by `aped-retro` in 3.x, the entries scoped `Scope: /aped-X` will not match 4.0 skill loaders — rewrite them to `Scope: aped-X` (mechanical `sed`). Lessons that don't match are silently skipped, not an error.
+3. CI parsers that consumed `docs/COMMANDS.md` need to switch to reading skill descriptions out of `src/templates/skills/aped-*.md` directly (the file is gone in this release).
+
+The `npm publish` workflow (`release.yml`) is unchanged — provenance attestation, smoke + check + test gates, GitHub release notes auto-extracted from this section.
+
 ## [3.12.0] - 2026-04-29
 
 Tier 5 — Spec-reviewer dispatch on the four artefact-producing skills that lacked it (PRD, UX, Epics, Analyze) plus deprecation of all 25 slash commands ahead of 4.0.0 removal. Skills become the primary invocation surface; slash commands keep working on 3.x but are marked legacy.
