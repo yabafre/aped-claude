@@ -73,9 +73,14 @@ aped-method post-edit-typescript  # install the optional TS quality hook
 aped-method verify-claims         # install the verification-gate advisory hook
 aped-method session-start         # install the SessionStart skill-index hook
 aped-method visual-companion      # install the brainstorm browser companion
+aped-method sync-logs prune       # one-shot retention sweep (4.1.0+; default
+                                  # dry-run, --apply to delete, --provider=NAME
+                                  # to scope; opt-in via sync_logs.retention)
 ```
 
 Each opt-in subcommand also accepts `--uninstall` to remove its installed bits.
+
+**4.1.0 lifecycle hygiene** (opt-in unless noted): `sync_logs.retention.{mode, keep_last_n}` config block prunes old audit logs after every sync; `sync-state.sh mark-story-done <key>` is the new atomic helper for the review-done flip (clears runtime fields); `state.yaml` schema bumps to `2` and corrections are split into `docs/state-corrections.yaml` (auto-migration on `--update`, idempotent + backed-up).
 
 ## Skill catalog
 

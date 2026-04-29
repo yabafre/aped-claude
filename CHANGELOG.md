@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-04-29
+
+Lifecycle hygiene release. Three coupled goals: bound the long-term growth of `docs/sync-logs/` (retention), uniformize how skills extend sync-log JSON (cmd_meta), and bound the growth of `state.yaml` itself (mark-story-done runtime trim + corrections split into a sister file). The state.yaml schema bumps `1 → 2`; `aped-method --update` runs `migrate-state.sh` automatically and the migration is idempotent + non-destructive (backup written).
+
+This is also where the post-4.0 doc residue gets cleaned up (commit `7d8990a`): `SECURITY.md` no longer claims the scaffolder may delete from `config.commandsDir` (retired in 4.0.0), and the `aped-method doctor` 3.x-residue diagnostic level (warn, non-blocking) now matches what the docs say.
+
+### Added
+
+- **Sync-logs retention** (opt-in) — config block `sync_logs.retention.{mode, keep_last_n}` with default `mode: none` preserving the previous behaviour. On every successful `sync-log.sh end`, prunes the oldest provider-scoped logs beyond the retention window. New CLI subcommand `aped-method sync-logs prune [--apply] [--provider=NAME]` (default dry-run) for one-shot manual sweeps. Provider isolation is enforced via filename pattern matching so a Linear sync never touches GitHub logs.
+- **`sync-log.sh meta` subcommand** — writes top-level keys (peer to `phases`/`totals`) for course-correction extensions like `trigger`, `scope`, `source_pr`, `merged_at`. Reserved keys (`sync_id`, `provider`, `started_at`, `ended_at`, `operator`, `directive_version`, `phases`, `totals`) are rejected so the audit-trail spine stays intact. Keys must be snake_case (jq-path safety). Documented with usage example in `aped-course`.
+- **`sync-state.sh mark-story-done <key>`** — atomic helper that flips story status to `done`, sets `completed_at` (ISO UTC), and clears runtime fields (`worktree`, `started_at`, `dispatched_at`, `ticket_sync_status`). Permanent fields (`merged_into_umbrella`, `ticket`, `depends_on`, custom user fields) are preserved (blocklist trim). Replaces the pseudo-code flip in `aped-lead`'s review-done approval handler — the skill now reads umbrella + worktree path BEFORE the flip (since `worktree` is one of the trimmed fields).
+- **`docs/state-corrections.yaml`** — append-only log split out of `state.yaml`. Configurable via `state.corrections_path` in `config.yaml` (default shown). state.yaml carries `corrections_pointer` (the runtime source of truth) and `corrections_count` (length cache).
+- **`sync-state.sh append-correction <json>`** — atomic helper that appends to the corrections file, validates required keys (`date`, `type`, `reason`, `artifacts_updated`, `affected_stories`), and updates `corrections_count` in state.yaml in lock-step. Replaces direct `Edit`-tool appends in `aped-course`.
+
+### Changed
+
+- **state.yaml schema bump 1 → 2** — top-level `corrections` is removed; `corrections_pointer` + `corrections_count` take its place. `validate-state.sh` accepts both versions; in v2 a residual top-level `corrections:` is a hard error (telling the user to run `migrate-state.sh`).
+- **`migrate-state.sh` 1 → 2 implementation** — extracts corrections, writes them to the pointer file (merging if it already has content), removes the top-level block, adds pointer + count, bumps `schema_version`. Backup at `docs/state.yaml.pre-v2-migration.bak`. Idempotent on v2. Triggered automatically by `aped-method --update` as a Phase-3 task (after scaffold, so the freshly-installed migrate script runs).
+- **`docs/aped-phases.md` + `README.md`** — doctor's 3.x-residue diagnostic is now described as `warn` level (non-blocking, exitCode stays 0), matching `src/doctor.js` behaviour.
+- **`README.md`** — adds a one-line callout under the tagline pointing 3.x users at the [Migrating from 3.x](#migrating-from-3x) section before they run `--update`.
+
+### Removed
+
+- **`SECURITY.md:57`** — `config.commandsDir` from the list of paths the scaffolder is allowed to delete from. The surface was retired in 4.0.0; the doc lagged behind.
+
+### Migration
+
+`npx aped-method --update` runs `migrate-state.sh` automatically. The migration is non-destructive (backup written) and idempotent. Existing v1 scaffolds that haven't migrated continue to work — `aped-course` and any future reader fall back to top-level `corrections:` when no pointer exists. Sync-log retention is opt-in (default behaviour preserved). `cmd_meta` and `mark-story-done` are additive (no skill currently in the wild depends on either).
+
+`yq` is recommended for full done-flip cleanup (`mark-story-done`) and is required for `migrate-state.sh` (v1 → v2 needs structural YAML manipulation). The awk fallback for `mark-story-done` lands status + `completed_at` and warns on stderr; runtime fields stay until yq is installed.
+
 ## [4.0.0] - 2026-04-29
 
 The 3.12.0 deprecation cycle ends. The 25 `/aped-X` slash-command shells scaffolded under `.claude/commands/` are gone — skills are the only invocation surface. Claude Code now reaches APED skills through the standard `.claude/skills/<name>/SKILL.md` discovery path (a new symlink target wired into the auto-detect layer). This is a clean break: anything that worked through skills in 3.12 keeps working; anything that depended on the slash shells does not.
