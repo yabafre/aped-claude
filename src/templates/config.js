@@ -97,8 +97,9 @@ sync_logs:
 # \`corrections_pointer\` that wins at runtime, so a config edit cannot
 # desync from already-written corrections. To move the file safely,
 # edit BOTH this key and the pointer inside state.yaml in lock-step.
+# Default tracks \`output_path\` so the sister file lives next to state.yaml.
 state:
-  corrections_path: "docs/state-corrections.yaml"
+  corrections_path: "${o}/state-corrections.yaml"
 `,
     },
     {
@@ -119,7 +120,9 @@ schema_version: 2
 # cache so reader skills don't have to open the corrections file just to
 # learn whether anything's been logged. Both fields are maintained by
 # \`bash {{APED_DIR}}/scripts/sync-state.sh <<< "append-correction <json>"\`.
-corrections_pointer: "docs/state-corrections.yaml"
+# Path is project-relative; tracks \`output_path\` from config.yaml so the
+# sister file lives in the same directory as this state.yaml.
+corrections_pointer: "${o}/state-corrections.yaml"
 corrections_count: 0
 
 # APED Pipeline State
