@@ -603,11 +603,24 @@ async function runScaffold(config, mode) {
                 stdio: ['ignore', 'pipe', 'pipe'],
               });
               if (r.status === 0) {
+                // Migration is non-destructive — the last stderr line is the
+                // human-readable summary ("Migration complete..." or "no
+                // migration needed"). Show it to the user. stdout is unused
+                // by migrate-state.sh.
                 const summary = (r.stderr || r.stdout || '').trim().split('\n').pop() || 'Schema is up to date';
                 return summary;
               }
+              // Failure path: show full stderr (multi-line errors reveal the
+              // root cause — missing yq, malformed schema_version, etc.). A
+              // single-line summary truncates the error and forces the user
+              // to dig into the logs. Better to surface everything here.
+              const fullErr = (r.stderr || '').trim() || (r.stdout || '').trim() || '(no output)';
+              const indented = fullErr.split('\n').map((line) => `  ${line}`).join('\n');
+              p.log.error(
+                `migrate-state.sh exited ${r.status}. The state.yaml backup at docs/state.yaml.pre-v2-migration.bak (if present) is your rollback. Full output:\n${indented}`
+              );
               return color.yellow(
-                `Migration exited ${r.status} — inspect ${color.dim(`${config.apedDir}/scripts/migrate-state.sh`)} manually. ${(r.stderr || '').trim()}`
+                `Migration failed (exit ${r.status}) — see error above. State.yaml not bumped; existing scaffold remains usable on the previous schema.`
               );
             },
           },

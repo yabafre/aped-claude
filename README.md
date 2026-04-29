@@ -29,6 +29,17 @@ npx aped-method
 
 APED turns Claude Code into a disciplined, user-driven dev pipeline. Every phase produces an artifact, requires explicit user validation, and hands off via a guardrail hook that warns on skipped steps. Named agent personas run research, implementation, and review in parallel — with agent teams for anything that needs cross-specialist coordination.
 
+## Requirements
+
+- **Node.js ≥ 18** — APED ships as a Node CLI; the bundled scripts also fall back to `node -e` when JSON CLI tools are missing.
+- **bash** (any POSIX-compatible shell with `bash` available) — every APED helper is a `.sh` script.
+- **`jq`** *(soft dep, recommended)* — preferred JSON manipulator for `sync-log.sh`. Falls back to `node -e` when absent.
+- **`yq`** *(soft dep, recommended)* — preferred YAML manipulator for `sync-state.sh` and **hard-required** for `migrate-state.sh` (the v1 → v2 schema migration runs on `aped-method --update`). `mark-story-done` falls back to a partial cleanup without yq (status + completed_at land; runtime fields stay). Install with `brew install yq` (macOS) or `npm i -g yq`.
+- **`gh`** *(soft dep)* — needed for GitHub PR creation, label management, and the `aped-ship` workflow when `git_provider: github`.
+- **`workmux`** *(opt-in)* — unlocks parallel-sprint dispatch via tmux windows. See [github.com/raine/workmux](https://github.com/raine/workmux).
+
+Run `aped-method doctor` after install to surface any missing dependencies — non-blocking warnings tell you exactly which feature is degraded by each absence.
+
 ## Quick start
 
 ```bash

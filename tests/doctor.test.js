@@ -60,6 +60,23 @@ describe('inspectInstallation', () => {
     expect(report.checks.find((check) => check.id === 'settings-json')?.status).toBe('fail');
   });
 
+  it('emits a yq optional-tool check (4.1.0 — warns when absent, sharp message about migrate + done-flip)', () => {
+    scaffoldHealthyInstall();
+    const report = inspectInstallation(config, dir);
+    const yqCheck = report.checks.find((check) => check.id === 'bin-yq');
+    expect(yqCheck).toBeDefined();
+    expect(yqCheck.required).toBe(false);
+    // The check's status depends on whether yq is on PATH where the test
+    // runs — both pass and warn are valid outcomes. What matters is the
+    // sharp hint when it warns.
+    if (yqCheck.status === 'warn') {
+      expect(yqCheck.fix).toMatch(/migrate-state\.sh/);
+      expect(yqCheck.fix).toMatch(/mark-story-done/);
+    } else {
+      expect(yqCheck.status).toBe('pass');
+    }
+  });
+
   it('warns (but does not fail) when 3.x slash-command stubs and commands_path are present', () => {
     scaffoldHealthyInstall();
     // Pre-seed the leftovers a 3.12 → 4.0 upgrade would carry.
