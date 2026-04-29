@@ -20,6 +20,7 @@ import {
   mkdirSync,
   statSync,
 } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import color from 'picocolors';
 import { inspectInstallation } from './doctor.js';
@@ -107,6 +108,54 @@ export async function runSubcommand(command, args) {
 
   if (command === 'symlink') {
     runSymlinkRepair(config);
+    return;
+  }
+
+  if (command === 'sync-logs') {
+    runSyncLogsSubcommand(config, args);
+    return;
+  }
+}
+
+// ── sync-logs prune ────────────────────────────────────────────────────────
+// Delegates the actual prune to .aped/scripts/sync-log.sh so that the same
+// retention logic is exercised whether prune fires from cmd_end (post-sync)
+// or from this CLI (one-shot manual sweep). Default is dry-run; --apply
+// flips PRUNE_DRY_RUN=0. Optional --provider=NAME scopes the sweep.
+function runSyncLogsSubcommand(config, args) {
+  const action = args.action;
+  if (action !== 'prune') {
+    console.error(
+      `${color.red('Error:')} sync-logs requires an action. Known actions: prune`
+    );
+    console.error(color.dim('Example: aped-method sync-logs prune --apply'));
+    throw new UserError(`Unknown sync-logs action: ${action || '(none)'}`);
+  }
+
+  const script = join(process.cwd(), config.apedDir, 'scripts/sync-log.sh');
+  if (!existsSync(script)) {
+    throw new UserError(
+      `sync-log.sh not found at ${config.apedDir}/scripts/sync-log.sh — re-run \`aped-method --update\` to install it.`
+    );
+  }
+
+  const env = {
+    ...process.env,
+    PRUNE_DRY_RUN: args.apply ? '0' : '1',
+  };
+  if (args.provider) env.PRUNE_PROVIDER_FILTER = String(args.provider);
+
+  const label = args.apply ? color.green('APPLY') : color.dim('dry-run');
+  const scope = args.provider ? ` provider=${args.provider}` : '';
+  p.log.message(`sync-logs prune (${label})${scope}`);
+
+  const result = spawnSync('bash', [script, 'prune'], {
+    cwd: process.cwd(),
+    env,
+    stdio: 'inherit',
+  });
+  if (result.status !== 0) {
+    throw new UserError(`sync-log.sh prune exited with code ${result.status}`);
   }
 }
 

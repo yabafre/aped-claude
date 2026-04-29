@@ -46,6 +46,13 @@ const SUBCOMMANDS = new Set([
   'verify-claims',
   'session-start',
   'visual-companion',
+  'sync-logs',
+]);
+
+// Subcommands that take a second positional action (e.g. `sync-logs prune`).
+// The action is captured into `args.action` by parseArgs.
+const SUBCOMMANDS_WITH_ACTION = new Set([
+  'sync-logs',
 ]);
 
 // Keys we accept from a user-edited config.yaml. Anything else is ignored silently
@@ -77,6 +84,8 @@ const VALID_ARG_KEYS = new Set([
   'output', 'outputDir',
   'tickets', 'ticketSystem',
   'git', 'gitProvider',
+  // Subcommand-scoped (sync-logs prune): --provider=NAME scopes the prune to one provider.
+  'provider',
 ]);
 
 const HELP_TEXT = `aped-method — Scaffold and operate the APED pipeline in Claude Code
@@ -96,6 +105,10 @@ SUBCOMMANDS
                           Pass --uninstall to remove the hook entry from settings.
   visual-companion        Install the opt-in visual companion server used by the
                           aped-brainstorm skill. Pass --uninstall to remove it.
+  sync-logs prune         One-shot retention sweep over docs/sync-logs/. Reads the
+                          \`sync_logs.retention\` block in .aped/config.yaml. Default
+                          is dry-run; pass --apply to actually delete. Optional
+                          --provider=NAME scopes the sweep to one provider.
 
 OPTIONS
   --yes, -y                Non-interactive mode (use defaults or existing config)
@@ -216,6 +229,17 @@ function parseArgs(argv) {
       args.command = arg;
       continue;
     }
+    // Second positional after a multi-action subcommand: capture as args.action.
+    // E.g. `aped-method sync-logs prune` → command=sync-logs, action=prune.
+    if (
+      !arg.startsWith('-')
+      && args.command
+      && !args.action
+      && SUBCOMMANDS_WITH_ACTION.has(args.command)
+    ) {
+      args.action = arg;
+      continue;
+    }
     if (arg === '--yes' || arg === '-y') { args.yes = true; continue; }
     if (arg === '--update' || arg === '-u') { args.mode = 'update'; continue; }
     if (arg === '--fresh' || arg === '--force') { args.mode = 'fresh'; continue; }
@@ -223,6 +247,8 @@ function parseArgs(argv) {
     if (arg === '--help' || arg === '-h') { args.help = true; continue; }
     if (arg === '--debug') { args.debug = true; continue; }
     if (arg === '--uninstall') { args.uninstall = true; continue; }
+    // Boolean flag for `sync-logs prune` — applies the deletion (default is dry-run).
+    if (arg === '--apply') { args.apply = true; continue; }
     const match = arg.match(/^--([a-z][a-z0-9-]*)=(.*)$/i);
     if (match) {
       const key = match[1].replace(/-([a-z])/g, (_, ch) => ch.toUpperCase());

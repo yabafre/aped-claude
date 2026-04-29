@@ -1347,6 +1347,8 @@ exit 0
 #   sync-log.sh phase <log-path> <name> <status> [json-fragment]
 #   sync-log.sh record <log-path> <key> <value>
 #   sync-log.sh end <log-path>                       → prints final path
+#   sync-log.sh prune                                → retention sweep (driven by
+#                                                      \`sync_logs.retention\` config)
 #
 # Provider is free-form (no enum) so future providers don't need a CLI bump.
 # Status enum (phase): complete | skipped | error.
@@ -1389,6 +1391,30 @@ read_sync_logs_field() {
     in_block && /^[^[:space:]]/ { in_block=0 }
     in_block {
       pat = "^  " f ":"
+      if (\$0 ~ pat) {
+        sub(pat "[[:space:]]*", "")
+        sub(/[ \\t]*#.*\$/, "")
+        gsub(/^[ \\t"'\\'']+|[ \\t"'\\'']+\$/, "")
+        print
+        exit
+      }
+    }
+  ' "\$CONFIG_FILE" 2>/dev/null || echo "\$default"
+}
+
+# Read a field under sync_logs.retention.<field>. Two-level state machine
+# (in sync_logs block, then in retention sub-block). Returns default when
+# the retention block is absent or commented out (the scaffolded default).
+read_sync_logs_retention_field() {
+  local field="\$1" default="\$2"
+  [[ -n "\$CONFIG_FILE" ]] || { echo "\$default"; return; }
+  awk -v f="\$field" '
+    /^sync_logs:[[:space:]]*\$/ { in_block=1; in_retention=0; next }
+    in_block && /^[^[:space:]]/ { in_block=0; in_retention=0 }
+    in_block && /^  retention:[[:space:]]*\$/ { in_retention=1; next }
+    in_retention && /^  [^[:space:]]/ { in_retention=0 }
+    in_retention {
+      pat = "^    " f ":"
       if (\$0 ~ pat) {
         sub(pat "[[:space:]]*", "")
         sub(/[ \\t]*#.*\$/, "")
@@ -1539,6 +1565,108 @@ set_json_path() {
     ' "\$current" "\$jq_path" "\$value_json")
   fi
   write_atomic_json "\$log_path" "\$new"
+}
+
+# ── Retention pruning ────────────────────────────────────────────────────
+# Provider-scoped, mtime-ordered prune. Called from cmd_end after the final
+# write, and also re-used by the \`aped-method sync-logs prune\` CLI subcommand
+# (PRUNE_DRY_RUN=1 makes it list-only; PRUNE_PROVIDER_FILTER scopes a one-shot).
+prune_old_logs() {
+  local provider="\$1"
+  local mode keep_last_n
+  mode=\$(read_sync_logs_retention_field "mode" "none")
+  # awk reader returns empty string when the block is absent (fall-through).
+  [[ -z "\$mode" ]] && mode="none"
+  [[ "\$mode" == "keep_last_n" ]] || return 0
+
+  keep_last_n=\$(read_sync_logs_retention_field "keep_last_n" "50")
+  [[ -z "\$keep_last_n" ]] && keep_last_n=50
+  [[ "\$keep_last_n" =~ ^[0-9]+\$ ]] || keep_last_n=50
+
+  local sync_log_dir_abs="\$PROJECT_ROOT/\$SYNC_LOG_DIR"
+  [[ -d "\$sync_log_dir_abs" ]] || return 0
+
+  # List provider logs into an array (NUL-separated to handle weird paths).
+  local -a all_logs=()
+  while IFS= read -r -d '' f; do
+    all_logs+=("\$f")
+  done < <(find "\$sync_log_dir_abs" -maxdepth 1 -type f -name "\${provider}-sync-*.json" -print0 2>/dev/null)
+
+  local total=\${#all_logs[@]}
+  (( total > keep_last_n )) || return 0
+
+  # Sort by mtime descending (newest first).
+  local -a sorted=()
+  while IFS= read -r line; do
+    sorted+=("\${line#* }")
+  done < <(
+    for f in "\${all_logs[@]}"; do
+      local m
+      m=\$(stat -f %m "\$f" 2>/dev/null || stat -c %Y "\$f" 2>/dev/null || echo 0)
+      printf '%s %s\\n' "\$m" "\$f"
+    done | sort -rn
+  )
+
+  local i=0 n_pruned=0
+  for f in "\${sorted[@]}"; do
+    if (( i >= keep_last_n )); then
+      if [[ "\${PRUNE_DRY_RUN:-0}" == "1" ]]; then
+        printf 'would-prune %s\\n' "\$f"
+        n_pruned=\$((n_pruned + 1))
+      else
+        # rm -f tolerates a vanished file (concurrent prune or external delete).
+        if rm -f "\$f" 2>/dev/null; then
+          n_pruned=\$((n_pruned + 1))
+        fi
+      fi
+    fi
+    i=\$((i + 1))
+  done
+
+  if (( n_pruned > 0 )) && [[ "\${PRUNE_QUIET:-0}" != "1" ]]; then
+    if [[ "\${PRUNE_DRY_RUN:-0}" == "1" ]]; then
+      echo "sync-log: would prune \$n_pruned log(s) (keep \$keep_last_n most recent for provider '\$provider')" >&2
+    else
+      echo "sync-log: pruned \$n_pruned log(s) (kept \$keep_last_n most recent for provider '\$provider')" >&2
+    fi
+  fi
+}
+
+# Discover providers present in the sync-log dir (parsed from filenames).
+# Used by the prune CLI subcommand when \`--provider\` is not specified.
+list_providers_in_dir() {
+  local sync_log_dir_abs="\$PROJECT_ROOT/\$SYNC_LOG_DIR"
+  [[ -d "\$sync_log_dir_abs" ]] || return 0
+  find "\$sync_log_dir_abs" -maxdepth 1 -type f -name "*-sync-*.json" 2>/dev/null \\
+    | sed -E 's|.*/||; s|-sync-.*||' \\
+    | sort -u
+}
+
+# CLI entrypoint reused from src/subcommands.js for \`aped-method sync-logs prune\`.
+# Walks all providers (or one if PRUNE_PROVIDER_FILTER is set) under retention.
+cmd_prune() {
+  local mode
+  mode=\$(read_sync_logs_retention_field "mode" "none")
+  [[ -z "\$mode" ]] && mode="none"
+  if [[ "\$mode" == "none" ]]; then
+    echo "retention disabled in sync_logs.retention.mode (set to 'keep_last_n' in $(basename "\$CONFIG_FILE" 2>/dev/null || echo "config.yaml") to enable). Nothing to prune."
+    return 0
+  fi
+
+  local providers
+  if [[ -n "\${PRUNE_PROVIDER_FILTER:-}" ]]; then
+    providers="\$PRUNE_PROVIDER_FILTER"
+  else
+    providers=\$(list_providers_in_dir)
+  fi
+  if [[ -z "\$providers" ]]; then
+    echo "no provider logs found under \$SYNC_LOG_DIR — nothing to prune."
+    return 0
+  fi
+  while IFS= read -r p; do
+    [[ -n "\$p" ]] || continue
+    prune_old_logs "\$p"
+  done <<< "\$providers"
 }
 
 # ── Subcommands ──────────────────────────────────────────────────────────
@@ -1693,6 +1821,20 @@ cmd_end() {
     exit 1
   fi
   write_atomic_json "\$log" "\$new"
+
+  # Retention prune. Pulls provider out of the just-written JSON so we don't
+  # accidentally touch other providers' logs. Best-effort — failure to prune
+  # never fails the end command (the audit trail itself is already written).
+  local provider_for_prune=""
+  if [[ "\$JSON_TOOL" == "jq" ]]; then
+    provider_for_prune=\$(printf '%s' "\$new" | jq -r '.provider // empty' 2>/dev/null || true)
+  else
+    provider_for_prune=\$(printf '%s' "\$new" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{try{const d=JSON.parse(s);process.stdout.write(d.provider||"")}catch(e){}})' 2>/dev/null || true)
+  fi
+  if [[ -n "\$provider_for_prune" ]]; then
+    prune_old_logs "\$provider_for_prune" || true
+  fi
+
   printf '%s\\n' "\$log"
 }
 
@@ -1704,12 +1846,13 @@ case "\$sub" in
   phase)  cmd_phase  "\$@" ;;
   record) cmd_record "\$@" ;;
   end)    cmd_end    "\$@" ;;
+  prune)  cmd_prune  "\$@" ;;
   "")
-    echo "Usage: sync-log.sh {start|phase|record|end} ..." >&2
+    echo "Usage: sync-log.sh {start|phase|record|end|prune} ..." >&2
     exit 3
     ;;
   *)
-    echo "ERROR: unknown sync-log subcommand '\$sub' (expected: start | phase | record | end)" >&2
+    echo "ERROR: unknown sync-log subcommand '\$sub' (expected: start | phase | record | end | prune)" >&2
     exit 3
     ;;
 esac
