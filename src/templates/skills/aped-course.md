@@ -146,7 +146,7 @@ bash {{APED_DIR}}/scripts/sync-state.sh <<< 'append-correction {"date":"<YYYY-MM
 
 Required keys per entry: `date`, `type`, `reason`, `artifacts_updated`, `affected_stories`. Project-specific extras are preserved as-is (forward-compat).
 
-Schema **v1** scaffolds (3.x line, never run through `aped-method --update`) keep the old top-level `corrections:` array on `state.yaml`. `aped-method --update` triggers `migrate-state.sh` which moves the array into the new file and bumps the schema in lock-step. Until that update runs, fall back to the legacy in-state-yaml shape.
+Schema **v1** scaffolds (3.x line, never run through `aped-method --update`) keep the old top-level `corrections:` array on `state.yaml`. `aped-method --update` triggers `migrate-state.sh` which moves the array into the new file and bumps the schema in lock-step. **`append-correction` refuses on v1** (since 4.1.2) — writing the v2 pointer/count alongside the legacy array would orphan the legacy entries and produce a wrong count. On v1, run `bash {{APED_DIR}}/scripts/migrate-state.sh` to migrate first, or — if you genuinely cannot migrate yet — append the entry directly to the top-level `corrections:` array via the Edit tool.
 
 ### Append to `backlog_future_scope` (when descoping)
 
