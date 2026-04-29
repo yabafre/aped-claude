@@ -23,7 +23,7 @@ function buildSkillIndex() {
     '# APED Skill Index',
     '',
     '<!-- AUTO-GENERATED at scaffold time by create-aped. Do not edit by hand. -->',
-    '<!-- One line per skill: /<name> — <description>. -->',
+    '<!-- One line per skill: <name> — <description>. -->',
     '<!-- Consumed by aped/hooks/session-start.sh (opt-in via `aped-method session-start`). -->',
     '',
   ];
@@ -45,7 +45,7 @@ function buildSkillIndex() {
       // Unreadable skill file — emit name with empty description so the
       // index is still complete enough to reason about.
     }
-    lines.push(`- /${name} — ${description}`);
+    lines.push(`- ${name} — ${description}`);
   }
 
   lines.push('');
