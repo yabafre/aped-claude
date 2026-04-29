@@ -1346,6 +1346,11 @@ exit 0
 #   sync-log.sh start <provider>                     → prints log path on stdout
 #   sync-log.sh phase <log-path> <name> <status> [json-fragment]
 #   sync-log.sh record <log-path> <key> <value>
+#   sync-log.sh meta <log-path> <key> <json-value>   → top-level key write (peer
+#                                                      to phases/totals; for
+#                                                      course-correction
+#                                                      extensions like trigger,
+#                                                      scope, source_pr, ...)
 #   sync-log.sh end <log-path>                       → prints final path
 #   sync-log.sh prune                                → retention sweep (driven by
 #                                                      \`sync_logs.retention\` config)
@@ -1794,6 +1799,38 @@ cmd_record() {
   write_atomic_json "\$log" "\$new"
 }
 
+cmd_meta() {
+  local log="\${1:-}" key="\${2:-}" value="\${3:-}"
+  [[ -n "\$log" && -n "\$key" && -n "\$value" ]] || {
+    echo "Usage: sync-log.sh meta <log-path> <key> <json-value>" >&2
+    exit 1
+  }
+  # Same jq-safe identifier shape as cmd_phase — \`set_json_path\` builds a jq
+  # path expression \`.<key>\`, which only parses cleanly with snake_case.
+  if ! [[ "\$key" =~ ^[A-Za-z_][A-Za-z0-9_]*\$ ]]; then
+    echo "ERROR: meta key '\$key' must match [A-Za-z_][A-Za-z0-9_]* (snake_case)." >&2
+    exit 1
+  fi
+  # Reserved top-level keys are written by the helper itself (start/phase/record/end).
+  # Refusing to overwrite them keeps the audit trail's spine intact.
+  case "\$key" in
+    sync_id|provider|started_at|ended_at|operator|directive_version|phases|totals)
+      echo "ERROR: meta key '\$key' is reserved by the sync-log helper. Use a different name." >&2
+      exit 1
+      ;;
+  esac
+  if ! json_validate "\$value"; then
+    echo "ERROR: meta value is not valid JSON: \$value" >&2
+    exit 1
+  fi
+
+  local lock_dir
+  lock_dir=\$(lock_dir_for_log "\$log")
+  acquire_lock "\$lock_dir" || exit 1
+
+  set_json_path "\$log" ".\$key" "\$value"
+}
+
 cmd_end() {
   local log="\${1:-}"
   [[ -n "\$log" ]] || { echo "Usage: sync-log.sh end <log-path>" >&2; exit 1; }
@@ -1845,14 +1882,15 @@ case "\$sub" in
   start)  cmd_start  "\$@" ;;
   phase)  cmd_phase  "\$@" ;;
   record) cmd_record "\$@" ;;
+  meta)   cmd_meta   "\$@" ;;
   end)    cmd_end    "\$@" ;;
   prune)  cmd_prune  "\$@" ;;
   "")
-    echo "Usage: sync-log.sh {start|phase|record|end|prune} ..." >&2
+    echo "Usage: sync-log.sh {start|phase|record|meta|end|prune} ..." >&2
     exit 3
     ;;
   *)
-    echo "ERROR: unknown sync-log subcommand '\$sub' (expected: start | phase | record | end | prune)" >&2
+    echo "ERROR: unknown sync-log subcommand '\$sub' (expected: start | phase | record | meta | end | prune)" >&2
     exit 3
     ;;
 esac

@@ -65,6 +65,20 @@ LOG=$(bash {{APED_DIR}}/scripts/sync-log.sh start <provider>)
 
 Reuse `$LOG` across all subsequent ticket operations. If `sync_logs.enabled: false`, calls are silent no-ops; that's expected.
 
+### Record course-correction context (top-level meta)
+
+Right after `start`, record the human-readable context of this scope change as top-level meta keys (peer to `phases`/`totals`). The `meta` subcommand is the helper-blessed way to add structured top-level extensions; it rejects reserved keys (`sync_id`, `provider`, `started_at`, `ended_at`, `operator`, `directive_version`, `phases`, `totals`) so the audit trail's spine stays intact.
+
+```bash
+bash {{APED_DIR}}/scripts/sync-log.sh meta $LOG trigger '"<one-liner: why this change happened>"'
+bash {{APED_DIR}}/scripts/sync-log.sh meta $LOG scope '{"stories_descoped":["..."],"decisions_amended":["..."]}'
+# Optional, when the change absorbs an external PR:
+# bash {{APED_DIR}}/scripts/sync-log.sh meta $LOG source_pr '"https://github.com/owner/repo/pull/123"'
+# bash {{APED_DIR}}/scripts/sync-log.sh meta $LOG merged_at '"2026-04-29T09:46:44Z"'
+```
+
+Values must be valid JSON — strings need outer double-quotes, objects use the literal JSON form. Keys must be snake_case identifiers.
+
 ## Change Execution
 
 ### Minor change (new/removed feature)
