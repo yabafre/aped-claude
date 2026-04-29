@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.3] - 2026-04-29
 
-Documentation patch — brings `docs/` and `README.md` in line with the **4.1.2** schema-v2 hotfix. Engine surface is byte-identical to 4.1.2; users on 4.1.2 only gain accurate prose.
+Documentation patch over **4.1.2**, plus one self-heal regression fix and a literal-path sweep flagged by post-merge ultrareview on PR #7. Engine surface for users already on 4.1.2 is unchanged for 99% of the code path — only one edge case in `migrate-state.sh` self-heal changes behaviour.
 
-The 4.1.2 release notes were complete in `CHANGELOG.md` and the `aped-course` skill body, but the user-facing reference docs still carried 4.1.0 / 4.1.1 wording in three places: (a) `mark-story-done`'s "awk fallback lands status + completed_at" claim (false post-4.1.2 — it now hard-fails without yq), (b) the literal `docs/state-corrections.yaml` path in places where the actual default tracks `output_path`, and (c) TROUBLESHOOTING.md §11 didn't cover the silent-partial-success scenario that bit BonjourStalwart on 4.1.0 / 4.1.1.
+The 4.1.2 release notes were complete in `CHANGELOG.md` and the `aped-course` skill body, but the user-facing reference docs still carried 4.1.0 / 4.1.1 wording in three places: (a) `mark-story-done`'s "awk fallback lands status + completed_at" claim (false post-4.1.2 — it now hard-fails without yq), (b) the literal `docs/state-corrections.yaml` path in places where the actual default tracks `output_path`, and (c) TROUBLESHOOTING.md §11 didn't cover the silent-partial-success scenario that bit BonjourStalwart on 4.1.0 / 4.1.1. Plus a 4.1.2 self-heal regression: `expected_pointer` was hardcoded to the scaffold default instead of reading config.yaml, so users following the documented lock-step customization (`state.corrections_path` in config.yaml + matching `corrections_pointer` in state.yaml) had their pointer silently overwritten back to default whenever the target was empty.
+
+### Fixed
+
+- **`migrate-state.sh self_heal_corrections_pointer` honors `state.corrections_path` from config.yaml** — was previously hardcoded to `${output_path}/state-corrections.yaml` (the scaffold default). A user who customized `state.corrections_path` in config.yaml AND set `corrections_pointer` in state.yaml in lock-step (the documented customization path) had their pointer silently overwritten back to default whenever the target was empty/missing. Now self-heal calls `read_corrections_path()` (the same helper `migrate_v1_to_v2` uses) so config-driven customizations survive `aped-method --update`. Strict regression vs. pre-4.1.2 — state.yaml is in `preserveOnUpdate`, so customizations used to survive untouched. Regression test in `tests/sprint-scripts.test.js` covers the non-default config + empty-target case.
 
 ### Changed
 
@@ -19,6 +23,7 @@ The 4.1.2 release notes were complete in `CHANGELOG.md` and the `aped-course` sk
 - **`docs/aped-quickstart.md`** — `mark-story-done` paragraph now states explicitly that yq is hard-required since 4.1.2 and explains why the previous awk fallback was broken (it could only rewrite existing fields, not insert `completed_at`).
 - **`docs/aped-phases.md`** — schema-v2 corrections section clarifies that `corrections_pointer` tracks `output_path`. The 4.1.0 / 4.1.1 hardcoded literal is mentioned as historical context, with a pointer to `migrate-state.sh`'s 4.1.2 self-heal.
 - **`docs/TROUBLESHOOTING.md` §11** — extended with **Symptom B** describing the silent-partial-success scenario (sister file written, state.yaml stayed v1, retries duplicated entries, sister file accumulated multi-document YAML). The recovery path now points users at `aped-method --update` on 4.1.2 — the self-heal handles dedup, multi-doc heal-on-read, and idempotent re-runs without manual intervention.
+- **Stale `docs/state-corrections.yaml` literal sweep** — five spots that quoted the legacy scaffold default ("default `docs/state-corrections.yaml`") now correctly say the path tracks `output_path` and the default for the standard scaffold is `docs/aped/state-corrections.yaml`. Affected: `src/templates/skills/aped-course.md` v2 paragraph, `docs/aped-phases.md` (line ~252), `docs/aped-quickstart.md` (line ~182), `src/templates/config.js` state.yaml template comments (two spots), `src/templates/scripts.js` migrate-state.sh + validate-state.sh header comments. The CHANGELOG and the self-heal comment block intentionally name the legacy literal as historical context — left unchanged.
 
 ### Added
 

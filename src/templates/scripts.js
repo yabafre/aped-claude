@@ -1509,7 +1509,8 @@ case "\$schema_version" in
 esac
 
 # In v2, top-level \`corrections:\` is a hard error — the migration moves it
-# to docs/state-corrections.yaml and replaces it with a pointer. A residual
+# to the sister file pointed to by \`corrections_pointer\` (default
+# \`\${output_path}/state-corrections.yaml\`) and replaces it with a pointer. A residual
 # top-level \`corrections:\` after migration means manual editing or a botched
 # migration; either way the audit invariant ("one source of truth for
 # corrections") is broken. Surface it loudly.
@@ -2122,8 +2123,9 @@ esac
 # APED migrate-state — schema_version migration framework.
 #
 # 4.1.0 — first real migration: v1 → v2 splits the top-level \`corrections\`
-# block out into a sibling file (default \`docs/state-corrections.yaml\`,
-# overridable via \`state.corrections_path\` in config.yaml). The state.yaml
+# block out into a sibling file at the path read from \`state.corrections_path\`
+# in config.yaml (default \`\${o}/state-corrections.yaml\` — tracks the
+# project's output_path). The state.yaml
 # gains a \`corrections_pointer\` (path string) and \`corrections_count\`
 # (length cache for fast reads) at the top level; \`corrections:\` is removed.
 #
@@ -2305,19 +2307,27 @@ migrate_v1_to_v2() {
 # their next \`aped-method --update\`. Conservative: only retargets the
 # pointer when the pointed-to file is empty / missing — never relocates
 # user data. The user can move data manually via TROUBLESHOOTING.md §14.
+#
+# 4.1.3 fix: expected_pointer now comes from \`read_corrections_path\`
+# (which reads \`state.corrections_path\` from config.yaml, falling back to
+# \${o}/state-corrections.yaml). Previously it was hardcoded to the scaffold
+# default, which silently overwrote any user-customized pointer the user
+# had set in lock-step with config.yaml's state.corrections_path — breaking
+# the documented "edit BOTH this key and the pointer" customization path
+# whenever the target was empty/missing.
 self_heal_corrections_pointer() {
   command -v yq >/dev/null 2>&1 || return 0
   local current_pointer expected_pointer
   current_pointer=\$(yq eval '.corrections_pointer // ""' "\$STATE_FILE" 2>/dev/null || echo "")
   [[ -z "\$current_pointer" || "\$current_pointer" == "null" ]] && return 0
-  expected_pointer="${o}/state-corrections.yaml"
+  expected_pointer=\$(read_corrections_path)
   [[ "\$current_pointer" == "\$expected_pointer" ]] && return 0
   local current_abs="\$PROJECT_ROOT/\$current_pointer"
   if [[ -s "\$current_abs" ]]; then
     return 0
   fi
   yq eval -i ".corrections_pointer = \\"\$expected_pointer\\"" "\$STATE_FILE"
-  echo "Self-healed corrections_pointer: \$current_pointer → \$expected_pointer (no data at the previous location)." >&2
+  echo "Self-healed corrections_pointer: \$current_pointer → \$expected_pointer (no data at the previous location, expected path read from state.corrections_path in config.yaml)." >&2
 }
 self_heal_corrections_pointer
 

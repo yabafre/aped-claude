@@ -785,6 +785,36 @@ sprint:
     expect(after).toMatch(new RegExp(`corrections_pointer:\\s*"?${OUTPUT_DIR}/state-corrections\\.yaml`));
   });
 
+  it('respects state.corrections_path from config.yaml when self-healing (4.1.3 fix)', () => {
+    // 4.1.2 hardcoded expected_pointer to ${o}/state-corrections.yaml,
+    // which silently overwrote any user-customized pointer that was kept
+    // in lock-step with a custom state.corrections_path in config.yaml.
+    // 4.1.3 reads expected_pointer via read_corrections_path so the
+    // documented customization path survives `aped-method --update`.
+    installScript(sandbox, 'migrate-state.sh');
+    mkdirSync(join(sandbox, APED_DIR), { recursive: true });
+    // User customized config.yaml — corrections live elsewhere.
+    writeFileSync(join(sandbox, APED_DIR, 'config.yaml'),
+      `state:\n  corrections_path: "audit/corrections.yaml"\n`);
+    // state.yaml in lock-step (the documented customization shape).
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 2
+corrections_pointer: "audit/corrections.yaml"
+corrections_count: 0
+sprint:
+  stories: {}
+`);
+    // No file at the customized location — pre-4.1.3 self-heal would have
+    // silently rewritten the pointer to ${OUTPUT_DIR}/state-corrections.yaml.
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/migrate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+    // Pointer must be UNCHANGED — config.yaml is the source of truth.
+    expect(r.stderr).not.toMatch(/self-healed/i);
+    const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+    expect(after).toMatch(/corrections_pointer:\s*"audit\/corrections\.yaml"/);
+  });
+
   it('does NOT self-heal when user data lives at the (wrong) pointer location', () => {
     // If the user actually has corrections at the wrong path, the pointer
     // is stable from their POV — moving it would orphan their data. The
