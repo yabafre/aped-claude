@@ -53,8 +53,7 @@
   },
   "scripts": {
     "smoke": "node bin/aped-method.js --version && node bin/aped-method.js --help > /dev/null && node scripts/smoke-pack.js",
-    "check": "node --check bin/aped-method.js && node --check src/*.js && node --check src/templates/*.js && node --check src/templates/hooks/*.js && node --check src/templates/scripts/*.js && node --check scripts/generate-command-catalog.js && node --check scripts/smoke-pack.js",
-    "generate:catalog": "node scripts/generate-command-catalog.js",
+    "check": "node --check bin/aped-method.js && node --check src/*.js && node --check src/templates/*.js && node --check src/templates/hooks/*.js && node --check src/templates/scripts/*.js && node --check scripts/smoke-pack.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run check && npm run smoke && npm test"

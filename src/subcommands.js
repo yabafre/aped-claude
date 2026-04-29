@@ -233,7 +233,6 @@ function resolveCommandConfig(args) {
     ...(existing || {}),
     apedDir,
     outputDir: validateSafePath(args.output || args.outputDir, '--output') || existing?.outputDir || DEFAULTS.outputDir,
-    commandsDir: validateSafePath(args.commands || args.commandsDir, '--commands') || existing?.commandsDir || DEFAULTS.commandsDir,
     cliVersion: CLI_VERSION,
   };
 }

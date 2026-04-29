@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { deriveSkillNames } from './templates/symlinks.js';
@@ -6,7 +6,7 @@ import { inspectSkillSymlinks, summarizeSymlinkInspection } from './symlink-mana
 
 const STATE_LOCK_STALE_SECONDS = 300;     // sync-state.sh threshold
 const SPRINT_LOCK_STALE_SECONDS = 900;    // sprint-dispatch.sh threshold
-const SCOPE_CHANGE_STALE_SECONDS = 7200;  // /aped-course threshold (2h)
+const SCOPE_CHANGE_STALE_SECONDS = 7200;  // aped-course threshold (2h)
 
 export function inspectInstallation(config, cwd = process.cwd()) {
   const checks = [];
@@ -28,18 +28,6 @@ export function inspectInstallation(config, cwd = process.cwd()) {
       fix: exists ? null : `Run \`aped-method --update\` to restore ${item.path}.`,
     });
   }
-
-  const commandCount = countApedCommandFiles(join(cwd, config.commandsDir));
-  checks.push({
-    id: 'commands',
-    label: 'Slash commands',
-    required: true,
-    status: commandCount > 0 ? 'pass' : 'fail',
-    message: commandCount > 0
-      ? `${commandCount} APED command files found in ${config.commandsDir}`
-      : `No APED command files found in ${config.commandsDir}`,
-    fix: commandCount > 0 ? null : 'Run `aped-method --update` to restore slash commands.',
-  });
 
   const skillNames = deriveSkillNames(config);
   const skillCount = countInstalledSkills(cwd, config.apedDir, skillNames);
@@ -68,7 +56,7 @@ export function inspectInstallation(config, cwd = process.cwd()) {
   // Let symlink-manager auto-detect which tools are present rather than
   // forcing a fixed target list. A single-tool Claude Code install will
   // see zero expected symlinks and that's fine — skills are reachable via
-  // `.claude/commands/aped-*.md`.
+  // the per-tool skills directory the symlink layer points into.
   const symlinkResults = inspectSkillSymlinks(config, cwd);
   const symlinkSummary = summarizeSymlinkInspection(symlinkResults);
   const symlinkTotal = symlinkResults.length;
@@ -113,16 +101,6 @@ export function inspectInstallation(config, cwd = process.cwd()) {
     exitCode: checks.some((check) => check.required && check.status === 'fail') ? 1 : 0,
     symlinkResults,
   };
-}
-
-function countApedCommandFiles(dir) {
-  try {
-    const entries = lstatSync(dir);
-    if (!entries.isDirectory()) return 0;
-  } catch {
-    return 0;
-  }
-  return readdirSync(dir).filter((name) => /^aped-.*\.md$/.test(name)).length;
 }
 
 function countInstalledSkills(cwd, apedDir, skillNames) {
