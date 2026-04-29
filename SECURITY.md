@@ -54,7 +54,7 @@ For context on the existing threat model:
 - **CLI flag allowlist**: unknown `--flags` produce a warning but cannot set values.
 - **Guardrail hook**: bash hardened with `set -eu -o pipefail`; prompt content is passed to `jq` via stdin (never interpolated into a shell command).
 - **No dynamic `require`/`eval`**: the CLI does not execute user-supplied code.
-- **Scaffolder never deletes outside of `config.apedDir`, `config.outputDir`, `config.commandsDir`, and the whitelisted symlink targets** (`.claude/skills`, `.opencode/skills`, `.agents/skills`, `.codex/skills`).
+- **Scaffolder never deletes outside of `config.apedDir`, `config.outputDir`, and the whitelisted symlink targets** (`.claude/skills`, `.opencode/skills`, `.agents/skills`, `.codex/skills`).
 
 ## What the `safe-bash` hook does and does not do
 
