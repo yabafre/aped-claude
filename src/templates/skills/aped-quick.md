@@ -23,6 +23,39 @@ Use this for isolated fixes, small features, or refactors that don't warrant the
    - If found: ask user — "Resume spec `{slug}` or start a new one?"
    - If resume: load that spec and skip to Implementation
 
+## Out-of-Scope KB Scan
+
+Before any new quick-spec is drafted, check `{{APED_DIR}}/.out-of-scope/` for a persistent rejection that matches the user's title argument. The directory may not exist on pre-4.2 scaffolds — treat the missing directory as an empty KB and skip this section silently.
+
+1. **List entries.** `ls {{APED_DIR}}/.out-of-scope/*.md 2>/dev/null` excluding `README.md`. If empty (or directory missing), skip.
+
+2. **Tokenize the title argument** (the `<title>` passed to the skill). Lowercase, strip punctuation, split on whitespace, `-`, and `_`. Drop ≤2-character tokens and stop-words (`add`, `fix`, `update`, `the`, `a`, `an`, `to`, `for`, `with`).
+
+3. **Match entries.** For each entry file, tokenize its filename the same way (drop the `.md` extension; strip `-resolved-YYYY-MM-DD` suffix so old decisions still match). Match if any title token equals any filename token (exact word equality).
+
+4. **No match → continue silently** to Spec Isolation.
+
+5. **Match → surface to user.** Show the entry's frontmatter + `## Why this is out of scope` body, then present the menu:
+
+   ```
+   ⚠️ Out-of-scope KB match: {{APED_DIR}}/.out-of-scope/{matched-file}
+
+   {entry summary}
+
+   [K] Keep refusal — abort this quick-spec, the rejection still holds
+   [O] Override — append this request to "Prior requests", then continue drafting
+   [U] Update — the rejection is stale; rename to {concept}-resolved-{today}.md and continue
+   ```
+
+   ⏸ **HALT — wait for user choice per match.**
+
+6. **Behaviour by choice:**
+   - `[K]` → abort with: `"Concept '{concept}' was declared out of scope on {rejected_at} (reason: {one-line rationale}). Refusing to draft this quick-spec. To revisit, re-invoke and pick `[U]`."` Exit cleanly without creating any spec file.
+   - `[O]` → prepend `- {today} — quick-spec ({user_name}): {title}` to the entry's `## Prior requests` list. Continue to Spec Isolation.
+   - `[U]` → rename the file to `{concept}-resolved-{YYYY-MM-DD}.md` and append `## Resolved on {YYYY-MM-DD}\n\n{one-line note from user}`. Continue to Spec Isolation.
+
+7. **Multi-match.** Adjudicate per match, in order. Any `[K]` aborts the whole skill.
+
 ## Spec Isolation
 
 Each quick spec is an independent file: `{{OUTPUT_DIR}}/quick-specs/{date}-{slug}.md`
