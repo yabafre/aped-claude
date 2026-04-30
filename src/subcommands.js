@@ -32,6 +32,7 @@ import {
   verifyClaimsTemplates,
   sessionStartTemplates,
   visualCompanionTemplates,
+  worktreeScopeTemplates,
 } from './templates/optional-features.js';
 import {
   DEFAULTS,
@@ -85,6 +86,11 @@ export async function runSubcommand(command, args) {
 
   if (command === 'verify-claims') {
     await installFeature('verify-claims', verifyClaimsTemplates(config));
+    return;
+  }
+
+  if (command === 'worktree-scope') {
+    await installFeature('worktree-scope', worktreeScopeTemplates(config));
     return;
   }
 

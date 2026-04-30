@@ -47,6 +47,7 @@ const SUBCOMMANDS = new Set([
   'session-start',
   'visual-companion',
   'sync-logs',
+  'worktree-scope',
 ]);
 
 // Subcommands that take a second positional action (e.g. `sync-logs prune`).
