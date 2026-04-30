@@ -30,6 +30,8 @@ const KNOWN_SUFFIXES = [
   'grill',
   // 4.19.0 — issue triage state machine
   'triage',
+  // 5.4.0 — Tier 2 expansion
+  'pre-mortem', 'design-twice',
 ];
 
 function stem(word) {
