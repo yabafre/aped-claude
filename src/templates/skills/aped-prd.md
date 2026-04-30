@@ -343,3 +343,12 @@ From a restaurant inventory brief → PRD generates:
 - **Validation script fails**: Run `bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md` — fix reported issues one by one. In interactive mode, this happens automatically after Section 4 with one final remediation round.
 - **User wants the old autonomous behaviour (no menus)**: Tell them to invoke `aped-prd --headless`. This skips every A/P/C menu and produces the PRD straight-through, equivalent to the 3.7 behaviour.
 - **Model auto-picks `[C]` without showing the menu**: This is a bug. The skill MUST present the menu and HALT after every section in interactive mode. If you catch it auto-continuing, stop, redisplay the menu, wait.
+- **PRD already exists in this session and was reviewed**: Do NOT re-review the PRD automatically. If the user invokes `aped-prd` again, ask: "A PRD was already generated this session. Do you want to (1) edit the existing PRD, (2) start fresh, or (3) skip to arch?" (Pocock XS, 5.3.0)
+
+## Stop Conditions (Pocock XS, 5.3.0)
+
+The PRD generation ends when ANY of these fire:
+1. **User says "done" / "looks good" / "ship it"** — emit the file and stop.
+2. **4 consecutive [C]ontinue without user edits** — the PRD is converged; offer to finalize.
+3. **All sections validated by validate-prd.sh + oracle-prd.sh** — green oracle = done.
+4. **Token budget >30k consumed in this skill invocation** — warn the user that continued iteration risks context degradation; offer to save and `/clear`.

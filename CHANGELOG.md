@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`aped-review.md` Stage 1.5 body edits** — skill body now references the merge-findings script and the 3 adversarial sub-agents (Hannah/Eli/Aaron). Opt-in via `review.parallel_reviewers: true` in config.yaml. Failure semantics documented (1/3 fail = continue, 0/3 = skip with warning).
+- **Pocock XS: token visibility** — `aped-checkpoint.md` Step 1a surfaces session token usage and suggests `/clear` when >50% consumed.
+- **Pocock XS: no PRD re-review** — `aped-prd.md` asks user intent when invoked on an existing PRD in the same session.
+- **Pocock XS: PRD stop conditions** — 4 explicit stop conditions (user says done, 4 consecutive continues, oracle green, token budget >30k).
+
 ## [5.2.0] - 2026-04-30
 
 ### Added

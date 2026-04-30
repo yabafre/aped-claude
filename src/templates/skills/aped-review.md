@@ -225,6 +225,20 @@ Options:
 
 If Eva's subagent fails to return a structured verdict (transport error, malformed report), re-dispatch her once with sharper instructions. If the second attempt also fails, HALT and escalate to the user — the gate cannot pass on a missing verdict.
 
+#### Stage 1.5 — Adversarial Pass (opt-in, 4.18.0+)
+
+When `review.parallel_reviewers: true` is set in `config.yaml`, dispatch 3 additional adversarial sub-agents **in parallel** before Stage 2:
+
+- **Hannah** (Blind Hunter) — reviews diff WITHOUT the spec. Flags any production-code identifier not present in the diff context as a potential hallucination (the `point_events` class).
+- **Eli** (Edge Case Hunter) — walks every branching path and boundary condition. Method-driven, not attitude-driven.
+- **Aaron** (Acceptance Auditor) — verifies each test cites a verbatim AC line. Paraphrased tests = MAJOR finding.
+
+Each sub-agent outputs YAML findings. The merge script (`{{APED_DIR}}/scripts/aped-review/merge-findings.mjs`) deduplicates by `file:line:category`, assigns severity (BLOCKER > MAJOR > MINOR > NIT), and produces the merged report included in Step 7.
+
+If 1 of 3 fails: continue with the 2 that responded, note the missing reviewer in the summary. If 0 of 3 respond: skip Stage 1.5 entirely and proceed to Stage 2 with a warning.
+
+When `review.parallel_reviewers` is `false` or absent (default): skip this stage entirely.
+
 #### Stage 2 — Parallel dispatch (only after Eva PASS or `[O]verride`)
 
 Dispatch all remaining selected specialists — Marcus, Rex, and any conditional specialists from the file-surface map — in a **single message, in parallel**, via the `Agent` tool. **No** `team_name`, **no** `TeamCreate`, **no** `SendMessage`. Their findings return to the Lead as tool results; the Lead handles cross-cutting concerns in Step 6 (Merge Findings).
