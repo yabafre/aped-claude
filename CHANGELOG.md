@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.7.0] - 2026-04-30
+
 Worktree-scope advisory hook (Phase 2 §P4 from the roadmap, deferred from 4.5.0 — no engine work, isolated subcommand). Targets the parallel-sprint failure mode where exploration agents return main-checkout paths and Write/Edit lands changes on `main` instead of inside the worktree.
 
 ### Added
