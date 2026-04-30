@@ -36,6 +36,11 @@ const TRIGGER_WORDS = [
   'megathink',
   'mega-think',
   'think a lot',
+  // 4.20.0 — Superpowers #1042: harness auto-injects Write tool calls when
+  // skill body contains "Save plans to:" or similar directive phrases.
+  'save plans to:',
+  'save output to:',
+  'write results to:',
 ];
 
 // Exemptions (per-skill, full path-suffix match). None today.

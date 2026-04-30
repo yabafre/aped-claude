@@ -66,13 +66,14 @@ describe('MCP server — protocol surface', () => {
     expect(responses[0].result.serverInfo.name).toBe('aped-state');
   });
 
-  it('responds to tools/list with all 7 declared tools', async () => {
+  it('responds to tools/list with all 8 declared tools', async () => {
     sandbox = setupSandbox();
     const { responses } = await call(sandbox, [
       { jsonrpc: '2.0', id: 1, method: 'tools/list' },
     ]);
     const names = responses[0].result.tools.map((t) => t.name).sort();
     expect(names).toEqual([
+      'aped_context.load',
       'aped_state.advance',
       'aped_state.describe',
       'aped_state.get',
@@ -319,6 +320,29 @@ describe('MCP server — aped_state.lock/unlock (4.15.0)', () => {
     expect(responses[0].result.isError).toBe(true);
     const payload = JSON.parse(responses[0].result.content[0].text);
     expect(payload.error).toBe('TTL_TOO_LONG');
+  });
+});
+
+describe('MCP server — aped_context.load (4.20.0)', () => {
+  it('returns artefact bundle for a known phase', async () => {
+    sandbox = setupSandbox();
+    const { responses } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'aped_context.load', arguments: { phase: 'prd' } } },
+    ]);
+    expect(responses[0].result.isError).toBeFalsy();
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    expect(payload.phase).toBe('prd');
+    expect(payload.missing.length).toBeGreaterThan(0);
+  });
+
+  it('rejects UNKNOWN_PHASE for invalid phase', async () => {
+    sandbox = setupSandbox();
+    const { responses } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'aped_context.load', arguments: { phase: 'foobar' } } },
+    ]);
+    expect(responses[0].result.isError).toBe(true);
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    expect(payload.error).toBe('UNKNOWN_PHASE');
   });
 });
 
