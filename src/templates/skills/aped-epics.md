@@ -46,6 +46,12 @@ For the ✱ PRD:
 - If missing: HALT with this message:
   > "Epic decomposition requires a PRD. Every epic and story maps back to FRs/NFRs. Run `aped-prd` first, or provide the PRD file path."
 
+For Architecture (conditional ✱ — required when state declares it `done`):
+- Read `pipeline.phases.architecture.status` from `{{OUTPUT_DIR}}/state.yaml`. If the field is absent, treat architecture as deliberately skipped — continue without HALT.
+- If `done` AND no architecture file was found in the glob: HALT with this message:
+  > "state.yaml records `pipeline.phases.architecture.status: done`, but no architecture file was found in the discovery globs. Re-run `aped-arch` to regenerate it, or set `pipeline.phases.architecture.status: skipped` in state.yaml if architecture was deliberately skipped for this project."
+- If `done` AND architecture is found: continue. Architecture is loaded and informs story splitting in section 4.
+
 ### 3. Load + report
 
 - Load every discovered file completely (no offset/limit).

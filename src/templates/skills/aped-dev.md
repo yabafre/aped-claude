@@ -1,7 +1,7 @@
 ---
 name: aped-dev
 keep-coding-instructions: true
-description: 'Use when user says "start dev", "implement story", "aped dev", or invokes aped-dev.'
+description: 'Use when user says "start dev", "implement story", "aped dev", or invokes aped-dev. Not for hotfixes or single-file isolated changes — see aped-quick for those.'
 argument-hint: "[story-key]"
 disable-model-invocation: true
 license: MIT
@@ -170,6 +170,10 @@ The epic-context cache compiled below now has lessons as a 4th input source (see
 2. Read `{{APED_DIR}}/config.yaml` — extract config (worktree-local copy is fine; config rarely changes mid-sprint).
 3. Read state.yaml from the current checkout (worktree's local copy in worktree mode, main's in classic mode) — find the target story.
 
+### Fresh-read discipline
+
+Read every source-of-truth file fresh in this skill — story file, PRD, architecture, UX spec, lessons. Never trust a cached or compacted summary. If your context shows you a "summary of the PRD" instead of the file content, Read the file from disk. The TDD discipline below depends on the agent grounding tests in real ACs, real FR IDs, real architecture decisions — not on its memory of them.
+
 ### State.yaml authority
 
 **Each worktree owns its own copy of state.yaml on its feature branch.** aped-story writes it, aped-dev reads + writes it, aped-review reads + writes it — all locally. Worktrees never reach across to main's state.yaml at runtime.
@@ -198,7 +202,7 @@ Main's state.yaml is the **authoritative** copy. aped-lead writes there when it 
 
 If story has `[AI-Review]` items: address them BEFORE regular tasks.
 
-When `aped-review` has reported findings and handed control back to `aped-dev`, invoke `aped-receive-review` to process the feedback before touching code. The receive-review skill enforces the "no performative agreement, technical verification first" discipline (verify each item against the codebase, ask for clarification on any unclear item, push back on technically wrong feedback with evidence, run a YAGNI grep before "implementing properly" on possibly-unused features). Skipping this step typically produces partial fixes plus rework.
+When `aped-review` has reported findings and handed control back to `aped-dev`, invoke `aped-receive-review` to process the feedback before touching code. The `aped-receive-review` skill enforces the "no performative agreement, technical verification first" discipline (verify each item against the codebase, ask for clarification on any unclear item, push back on technically wrong feedback with evidence, run a YAGNI grep before "implementing properly" on possibly-unused features). Skipping this step typically produces partial fixes plus rework.
 
 ## State Update (start)
 
@@ -341,6 +345,8 @@ This is systematic — every frontend task gets a visual check at GREEN, not jus
 Read `{{APED_DIR}}/aped-dev/references/tdd-engine.md` for detailed rules.
 
 For each task (update TaskUpdate to `in_progress` when starting):
+
+**FR/NFR grounding.** Every test you write must trace back to a specific AC in the story file, which itself must trace back to a PRD FR or NFR ID. If a test doesn't cite an AC, it's drift — fix the story or skip the test. If an AC doesn't cite an FR/NFR ID, the story is malformed — surface to the user instead of guessing the requirement.
 
 ### RED
 Write failing tests first. Run: `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh`

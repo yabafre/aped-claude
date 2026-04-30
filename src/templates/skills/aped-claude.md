@@ -64,6 +64,7 @@ Full catalog: `{{APED_DIR}}/skills/SKILL-INDEX.md`.
 ### APED rules
 
 - **No auto-chain.** Each skill ends with "Run aped-X when ready." Wait for user.
+- **Gates are mandatory.** When a skill says "⏸ HALT" or "⏸ GATE", wait for explicit user confirmation regardless of harness auto-mode. Auto-mode never bypasses APED gates.
 - **Validate before persisting** to `{{OUTPUT_DIR}}/`.
 - **Story-driven dev.** No code without a story file. Use `aped-story` first.
 - **Frontend = visual verification.** Use `mcp__react-grab-mcp__get_element_context` at every GREEN.
