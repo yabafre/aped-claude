@@ -31,8 +31,8 @@ function installScript(root, scriptDef) {
   return dest;
 }
 
-function run(cmd, args) {
-  const r = spawnSync('bash', [cmd, ...args], { encoding: 'utf8' });
+function run(cmd, args, opts = {}) {
+  const r = spawnSync('bash', [cmd, ...args], { encoding: 'utf8', ...opts });
   return { code: r.status ?? -1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
 }
 
@@ -240,7 +240,7 @@ describe('oracle-dev.sh (4.16.0)', () => {
     const apedDir = join(sandbox, '.aped');
     mkdirSync(apedDir, { recursive: true });
     writeFileSync(story, '# Story\n- status: in-progress\n');
-    const r = run(script, [story, apedDir]);
+    const r = run(script, [story, apedDir], { cwd: sandbox });
     expect(r.code).toBe(1);
     expect(r.stdout).toMatch(/ERROR E033/);
   });
@@ -252,7 +252,7 @@ describe('oracle-dev.sh (4.16.0)', () => {
     mkdirSync(apedDir, { recursive: true });
     writeFileSync(join(apedDir, '.last-test-exit'), '1');
     writeFileSync(story, '# Story\n- status: dev-done\n');
-    const r = run(script, [story, apedDir]);
+    const r = run(script, [story, apedDir], { cwd: sandbox });
     expect(r.code).toBe(1);
     expect(r.stdout).toMatch(/ERROR E034/);
   });
@@ -264,7 +264,7 @@ describe('oracle-dev.sh (4.16.0)', () => {
     mkdirSync(apedDir, { recursive: true });
     writeFileSync(join(apedDir, '.last-test-exit'), '0');
     writeFileSync(story, '# Story\n- status: in-progress\n');
-    const r = run(script, [story, apedDir]);
+    const r = run(script, [story, apedDir], { cwd: sandbox });
     expect(r.code).toBe(0);
     expect(r.stdout).toMatch(/OK dev oracle/);
   });

@@ -3,6 +3,9 @@ name: aped-grill
 keep-coding-instructions: true
 description: 'Use when user says "grill me", "align on this", "interview me about", "get on the same page", "pin down the spec", "stress test the plan", or invokes aped-grill. Pocock-style relentless one-question-at-a-time alignment. Stops when (a) no new question for two turns, (b) token budget exceeds 25k, (c) user says stop. Emits grill-summary.md for downstream skills (aped-prd, aped-arch). Not for divergent ideation — see aped-brainstorm. Not for critique-method elicitation — see aped-elicit.'
 allowed-tools: "Read Edit Write Bash Grep Glob"
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 disable-model-invocation: true
 license: MIT
 metadata:

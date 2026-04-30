@@ -5,6 +5,9 @@ description: 'Use when user says "prfaq", "working backwards", "press release fi
 when_to_use: 'Use when user says "PRFAQ", "work backwards", "press release first". Optional upstream of aped-analyze.'
 argument-hint: "[--headless]"
 allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate WebSearch WebFetch
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 disable-model-invocation: true
 license: MIT
 metadata:

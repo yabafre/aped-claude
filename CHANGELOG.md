@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`allowed-paths` frontmatter on all 31 skills** — every `aped-*.md` now declares `allowed-paths.write` and `allowed-paths.read-only` arrays. BREAKING: `tests/allowed-paths-frontmatter-lint.test.js` enforces presence — skills without the field fail CI.
+- **`tests/allowed-paths-frontmatter-lint.test.js`** — lint that verifies every top-level skill has `allowed-paths` with `write` and `read-only` arrays (93 tests: 3 per skill × 31 skills).
+
+### Fixed
+
+- **oracle-dev.sh E036 test** — `git diff HEAD~1` was running in the repo cwd instead of the test sandbox. Fixed: tests now pass `{ cwd: sandbox }` to avoid environmental git state leaking into oracle checks.
+
 ## [4.20.0] - 2026-04-30
 
 ### Added

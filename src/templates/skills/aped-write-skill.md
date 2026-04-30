@@ -2,6 +2,9 @@
 name: aped-write-skill
 keep-coding-instructions: true
 description: 'Use when user says "write a skill", "create a skill", "new APED skill", "extend APED with my own skill", "make a custom skill", "add a custom slash command", "scaffold a skill", or invokes aped-write-skill. Meta-skill: walks the user through writing a Claude Code skill that follows APED conventions. Not for routing-time invocation discipline — see aped-claude for that.'
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 license: MIT
 metadata:
   author: yabafre

@@ -3,6 +3,9 @@ name: aped-arch
 keep-coding-instructions: true
 description: 'Use when user says "create architecture", "technical architecture", "solution design", or invokes aped-arch. Runs between PRD and Epics.'
 allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 disable-model-invocation: true
 license: MIT
 metadata:
