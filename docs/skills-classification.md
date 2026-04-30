@@ -33,7 +33,7 @@ A skill is **soft-dep** if it works on any project with default config and no up
 | `aped-sprint` | Reads `sprint.stories` from `state.yaml`, dispatches each into a `git worktree`. Without an epics phase output, there's nothing to dispatch. |
 | `aped-lead` | Coordinates across the worktrees produced by `aped-sprint`. Standalone invocation has no worktrees to lead. |
 
-### Soft-dep (18)
+### Soft-dep (19)
 
 | Skill | Notes |
 |-------|-------|
@@ -43,6 +43,7 @@ A skill is **soft-dep** if it works on any project with default config and no up
 | `aped-context` | Brownfield analysis — produces context, doesn't consume APED state. |
 | `aped-prd` | Requires a brief but HALTs gracefully with a clear message. |
 | `aped-arch` | Requires a PRD but HALTs gracefully. |
+| `aped-arch-audit` | Audit skill — produces a deepening-candidate report at `{{OUTPUT_DIR}}/architecture-audit.md` and HALTs; never mutates code. Read-only on artefacts. |
 | `aped-ux` | Requires a PRD but HALTs gracefully. |
 | `aped-dev` | Reads a story file but doesn't itself need ticket sync. |
 | `aped-debug` | Diagnostic loop — runs anywhere. |

@@ -5,7 +5,7 @@
 [![Node](https://img.shields.io/node/v/aped-method.svg?style=flat-square)](https://nodejs.org)
 [![License](https://img.shields.io/npm/l/aped-method.svg?style=flat-square)](./LICENSE)
 
-CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — **26 skills** invoked via the Skill tool or natural-language triggers, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, **parallel sprint** mode via `git worktree` with a Lead Dev coordinator, sprint **umbrella branch convention** so parallel sprints integrate via one reviewable PR per sprint, an **external ticket intake** for tickets that bypass the planning flow, a **post-ship router** (`aped-iterate`) that classifies new deltas into the right downstream skill, and **cross-tool skill distribution** via symlinks so OpenCode, Codex CLI, and any `agents.md` reader see the same skills as Claude Code.
+CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — **27 skills** invoked via the Skill tool or natural-language triggers, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, **parallel sprint** mode via `git worktree` with a Lead Dev coordinator, sprint **umbrella branch convention** so parallel sprints integrate via one reviewable PR per sprint, an **external ticket intake** for tickets that bypass the planning flow, a **post-ship router** (`aped-iterate`) that classifies new deltas into the right downstream skill, an **architecture audit** (`aped-arch-audit`) that surfaces deepening candidates in the existing codebase, and **cross-tool skill distribution** via symlinks so OpenCode, Codex CLI, and any `agents.md` reader see the same skills as Claude Code.
 
 > **Upgrading from 3.x?** The slash-command surface was retired in 4.0.0 — see [Migrating from 3.x](#migrating-from-3x) before running `--update`.
 
@@ -95,7 +95,7 @@ Each opt-in subcommand also accepts `--uninstall` to remove its installed bits.
 
 ## Skill catalog
 
-APED ships 26 skills. Invoke them by name via Claude Code's Skill tool, or — recommended — let the runtime route automatically by using a phrase that matches the skill's `description:` (e.g. "create the prd", "run an architecture review", "kick off dev"). The phases of the pipeline (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) plus the utility, ideation, and post-ship-routing skills are listed inline throughout this README; their full descriptions live in `src/templates/skills/aped-*.md` in this repo.
+APED ships 27 skills. Invoke them by name via Claude Code's Skill tool, or — recommended — let the runtime route automatically by using a phrase that matches the skill's `description:` (e.g. "create the prd", "run an architecture review", "kick off dev"). The phases of the pipeline (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) plus the utility, ideation, post-ship-routing, and architecture-audit skills are listed inline throughout this README; their full descriptions live in `src/templates/skills/aped-*.md` in this repo.
 
 ### Migrating from 3.x
 
