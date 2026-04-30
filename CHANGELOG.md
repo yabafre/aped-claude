@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`aped-method tdd-red-marker` opt-in PostToolUse advisory hook** (`src/templates/hooks/tdd-red-marker.js`, `src/templates/optional-features.js#tddRedMarkerTemplates`, `src/subcommands.js`, `src/index.js`). Pocock workshop discipline (L1742-1769): TDD requires watching the test fail before writing the implementation. The 4.8.0 `aped-dev` RED phase requires the agent to emit a literal `Confirmed RED: <test> failed at <file:line> — <reason>` token before any GREEN-phase Edit. This hook automates the witness check: PostToolUse on Write/Edit/MultiEdit; if the target is a non-test file (production code) AND the recent transcript shows a recent test-file edit AND no `Confirmed RED:` token between them, emit advisory via `additionalContext`. Test-path detection via 13 regex patterns (`.test.{ts,tsx,js,jsx}`, `.spec.{ts,tsx,js,jsx}`, `_test.{go,py}`, `test_*.py`, `.e2e.{ts,tsx}`, `.cy.{ts,tsx}`, `/__tests__/`, `/tests/`, `/spec/`, `/specs/`). Neutral files (markdown, json, yaml, toml, lock, .env, CHANGELOG, README, anything under `.aped/`) bypass the check entirely. Same install template pattern as `worktree-scope` (4.7.0) and `verify-claims` (4.0.0). 6-second timeout (Node cold-start + 200-line transcript tail + regex scan). Advisory only — never blocks. Pinned by `tests/tdd-red-marker-hook.test.js` (10 behavioural tests) and `tests/tdd-red-marker-install.test.js` (4 template-shape tests). Refs: Phase 2 H5 deferred → Phase 3 audit Pocock transcript Top 5 #1 + #2.
+
+### Changed
+
+- **README.md** — `## Maintenance & optional add-ons` and `## Operational commands` sections list the new `aped-method tdd-red-marker` subcommand. Three lines of doc + one line in each block.
+- **SECURITY.md supported version** — `4.9.x ✓ / < 4.9 ✗` → `4.10.x ✓ / < 4.10 ✗`. Users on 4.9 or earlier should upgrade.
+
 ## [4.9.0] - 2026-04-30
 
 Phase 3 audit residue MINOR. Five hallucination classes closed via deterministic scripts + skill-body discipline + lints. No engine changes, no opt-in hooks, no new top-level skills — pure-additive.
