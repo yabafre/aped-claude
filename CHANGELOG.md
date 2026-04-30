@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.8.0] - 2026-04-30
+
+Phase 3 Pocock workshop transcript absorption. Five surgical edits to existing skills + one new alignment skill. No engine work, no opt-in hooks — pure-additive MINOR. Bundled with the routing-improvements + audit-residue work that didn't fit the 4.7.6 patch surface.
+
 ### Added
 
 - **`aped-grill` skill — Pocock-style relentless one-question alignment** (`src/templates/skills/aped-grill.md`). Pins down a half-formed product idea, plan, or refactor by asking ONE concrete question per turn, each targeting an unstated decision the user hasn't made. Loads any prior PRD / arch / CONTEXT.md / pasted ticket as grounding; if none exist, surfaces "cold-start grill" explicitly. Stop conditions: (a) no new meaningful question for two consecutive turns, (b) token budget exceeds 25k since grill start (Pocock workshop ceiling — past this the model enters the dumb zone, L93-108 + L777-787), (c) user halt, (d) five consecutive `out-of-scope` tags = reframing detected. Emits `grill-summary.md` with `decided` / `deferred` / `out-of-scope` sections + `assumptions in play` + `suggested next skill` (one of `aped-prd` / `aped-arch` / `aped-brainstorm` / re-grill). `disable-model-invocation: true` — explicit user invocation only. Cross-link in `aped-prd.md` On Activation: when no upstream artefact exists, recommend `aped-grill` first. Skill count: 29 → 30. Ref: Phase 3 audit Pocock transcript Top 5 #5.
