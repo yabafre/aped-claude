@@ -66,13 +66,21 @@ describe('MCP server — protocol surface', () => {
     expect(responses[0].result.serverInfo.name).toBe('aped-state');
   });
 
-  it('responds to tools/list with the 3 declared tools', async () => {
+  it('responds to tools/list with all 7 declared tools', async () => {
     sandbox = setupSandbox();
     const { responses } = await call(sandbox, [
       { jsonrpc: '2.0', id: 1, method: 'tools/list' },
     ]);
     const names = responses[0].result.tools.map((t) => t.name).sort();
-    expect(names).toEqual(['aped_state.get', 'aped_state.update', 'aped_validate.phase']);
+    expect(names).toEqual([
+      'aped_state.advance',
+      'aped_state.describe',
+      'aped_state.get',
+      'aped_state.lock',
+      'aped_state.unlock',
+      'aped_state.update',
+      'aped_validate.phase',
+    ]);
   });
 
   it('returns method-not-found for unknown methods', async () => {
@@ -203,5 +211,129 @@ describe('MCP server — aped_validate.phase', () => {
     expect(responses[0].result.isError).toBe(true);
     const payload = JSON.parse(responses[0].result.content[0].text);
     expect(payload.error).toBe('NO_ORACLE');
+  });
+});
+
+describe('MCP server — aped_state.advance (4.15.0)', () => {
+  it('transitions not-started → in-progress', async () => {
+    sandbox = setupSandbox();
+    const { responses } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'aped_state.advance', arguments: { phase: 'prd', status: 'in-progress' } } },
+    ]);
+    expect(responses[0].result.isError).toBeFalsy();
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    expect(payload.ok).toBe(true);
+    expect(payload.transitioned.phase).toBe('prd');
+    expect(payload.transitioned.to).toBe('in-progress');
+    expect(payload.sha_before).toBeDefined();
+    expect(payload.sha_after).toBeDefined();
+  });
+
+  it('rejects INVALID_PHASE for unknown phase', async () => {
+    sandbox = setupSandbox();
+    const { responses } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'aped_state.advance', arguments: { phase: 'foobar', status: 'in-progress' } } },
+    ]);
+    expect(responses[0].result.isError).toBe(true);
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    expect(payload.error).toBe('INVALID_PHASE');
+  });
+
+  it('rejects INVALID_STATUS for unknown status', async () => {
+    sandbox = setupSandbox();
+    const { responses } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'aped_state.advance', arguments: { phase: 'prd', status: 'foobar' } } },
+    ]);
+    expect(responses[0].result.isError).toBe(true);
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    expect(payload.error).toBe('INVALID_STATUS');
+  });
+
+  it('rejects ILLEGAL_TRANSITION for complete → in-progress', async () => {
+    sandbox = setupSandbox();
+    // First advance to in-progress, then complete, then try in-progress again
+    await call(sandbox, [
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'aped_state.advance', arguments: { phase: 'prd', status: 'in-progress' } } },
+    ]);
+    await call(sandbox, [
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'aped_state.advance', arguments: { phase: 'prd', status: 'complete' } } },
+    ]);
+    const { responses } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'aped_state.advance', arguments: { phase: 'prd', status: 'in-progress' } } },
+    ]);
+    expect(responses[0].result.isError).toBe(true);
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    expect(payload.error).toBe('ILLEGAL_TRANSITION');
+  });
+
+  it('records completed_subphase when provided', async () => {
+    sandbox = setupSandbox();
+    await call(sandbox, [
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'aped_state.advance', arguments: { phase: 'arch', status: 'in-progress', completed_subphase: 'self-review' } } },
+    ]);
+    const { responses } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'aped_state.get', arguments: { path: 'pipeline.phases.arch.completed_subphase' } } },
+    ]);
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    expect(payload.value).toBe('self-review');
+  });
+});
+
+describe('MCP server — aped_state.lock/unlock (4.15.0)', () => {
+  it('lock + unlock round-trip succeeds', async () => {
+    sandbox = setupSandbox();
+    const { responses: lockResp } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'aped_state.lock', arguments: { scope: 'test' } } },
+    ]);
+    expect(lockResp[0].result.isError).toBeFalsy();
+    const lockPayload = JSON.parse(lockResp[0].result.content[0].text);
+    expect(lockPayload.token).toBeDefined();
+    expect(lockPayload.scope).toBe('test');
+
+    const { responses: unlockResp } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'aped_state.unlock', arguments: { token: lockPayload.token } } },
+    ]);
+    const unlockPayload = JSON.parse(unlockResp[0].result.content[0].text);
+    expect(unlockPayload.ok).toBe(true);
+    expect(unlockPayload.released).toBe(true);
+  });
+
+  it('unlock with wrong token returns LOCK_NOT_OWNED', async () => {
+    sandbox = setupSandbox();
+    await call(sandbox, [
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'aped_state.lock', arguments: { scope: 'test' } } },
+    ]);
+    const { responses } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'aped_state.unlock', arguments: { token: 'wrong-token-value' } } },
+    ]);
+    expect(responses[0].result.isError).toBe(true);
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    expect(payload.error).toBe('LOCK_NOT_OWNED');
+  });
+
+  it('rejects TTL_TOO_LONG when ttl exceeds 5 minutes', async () => {
+    sandbox = setupSandbox();
+    const { responses } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'aped_state.lock', arguments: { ttl_ms: 600000 } } },
+    ]);
+    expect(responses[0].result.isError).toBe(true);
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    expect(payload.error).toBe('TTL_TOO_LONG');
+  });
+});
+
+describe('MCP server — aped_state.describe (4.15.0)', () => {
+  it('returns schema including phases, statuses, and transitions', async () => {
+    sandbox = setupSandbox();
+    const { responses } = await call(sandbox, [
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'aped_state.describe', arguments: {} } },
+    ]);
+    expect(responses[0].result.isError).toBeFalsy();
+    const payload = JSON.parse(responses[0].result.content[0].text);
+    expect(payload.phases).toContain('prd');
+    expect(payload.phases).toContain('dev');
+    expect(payload.statuses).toContain('in-progress');
+    expect(payload.top_level_keys).toContain('pipeline');
+    expect(payload.legal_transitions.length).toBeGreaterThan(3);
   });
 });
