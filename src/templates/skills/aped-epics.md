@@ -132,12 +132,30 @@ For each epic, list the stories with:
 - **Title** — what the story achieves (user-facing outcome)
 - **Story key** — `{epic#}-{story#}-{slug}` (slug from title, lowercase, hyphens, max 30 chars)
 - **Summary** — 1-2 sentences of scope
-- **FRs covered** — which FR numbers this story addresses
+- **FRs covered** — list explicit FR IDs from the PRD (e.g. `FR-1, FR-3, FR-7`), never vague descriptions like "auth-related FRs". Every listed ID must exist in the loaded PRD; surface drift to the user instead of inventing one.
 - **Acceptance Criteria** — high-level Given/When/Then (will be refined in aped-story)
 - **Estimated complexity** — S / M / L
 - **Depends on** — comma-separated list of story keys this one blocks on, or `none`. Required for parallel sprint (`aped-sprint`).
 
 Pick dependencies conservatively: if story B *needs* an artefact produced by story A (contract, schema, shared util), list A. If B only shares files with A but could technically be rebased after, no dep — parallel sprint wins. "Pure foundation" stories (1-1 auth scaffold, 1-1 schema base) usually have `depends_on: none` and unlock a fan-out.
+
+### Running FR coverage matrix
+
+After completing each epic's story list (not only at the end of all epics), update a running FR-coverage matrix and surface it to the user before moving to the next epic. The matrix has three columns:
+
+| FR ID | Covered by | Status |
+|-------|------------|--------|
+| FR-1  | 1-1-init, 1-2-schema | ✓ covered |
+| FR-2  | (none)               | ✗ uncovered |
+| FR-3  | 1-1-init, 2-1-flow, 2-2-export, 3-1-bulk | ⚠ multi-cover (4) |
+
+Surface the matrix at three trigger points:
+
+1. **End of every epic's story list** — the running matrix shows which FRs are now covered, which are still uncovered, and which are multi-covered.
+2. **Immediately when an FR is covered by ≥3 stories** — likely an over-fragmented requirement; flag for user review (split? merge? rename?).
+3. **Immediately when ≥30% of FRs remain uncovered after 50% of estimated stories have been drafted** — sequencing risk; likely a missed epic. Pause the listing and surface to the user.
+
+The end-of-skill `## FR Coverage Map` is the **final** coverage report; this running matrix is what the user sees during the design loop. Surfacing coverage early prevents the "Story 14 is the only place FR-7 lands" surprise that is painful to fix late in the pipeline.
 
 Do NOT create the detailed story files here. The user will run `aped-story` to create each one individually before implementing it.
 
