@@ -49,6 +49,7 @@ const SUBCOMMANDS = new Set([
   'sync-logs',
   'worktree-scope',
   'tdd-red-marker',
+  'enable-mcp',
 ]);
 
 // Subcommands that take a second positional action (e.g. `sync-logs prune`).
@@ -114,6 +115,11 @@ SUBCOMMANDS
                           hook (warns when production-code Write/Edit follows a
                           test-file Write/Edit without a "Confirmed RED:" token
                           in the recent transcript). Pass --uninstall to remove.
+  enable-mcp              Install the opt-in aped-state MCP companion server
+                          (typed atomic ops on state.yaml: get / update /
+                          validate.phase). Registers under .claude/settings
+                          .local.json mcpServers. Eliminates the state.yaml
+                          hallucination class. Requires yq.
   sync-logs prune         One-shot retention sweep over docs/sync-logs/. Reads the
                           \`sync_logs.retention\` block in .aped/config.yaml. Default
                           is dry-run; pass --apply to actually delete. Optional

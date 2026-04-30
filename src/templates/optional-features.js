@@ -200,6 +200,34 @@ export function worktreeScopeTemplates(c) {
   ];
 }
 
+// MCP companion (opt-in via `aped-method enable-mcp`). Ships the
+// aped-state MCP server + registers it under .claude/settings.local.json
+// `mcpServers` so Claude Code launches it on session start.
+//
+// See src/templates/mcp/aped-state-server.mjs for the server itself.
+export function mcpStateTemplates(c) {
+  const a = c.apedDir;
+  return [
+    {
+      path: `${a}/mcp/aped-state-server.mjs`,
+      executable: true,
+      content: substitute(loadTemplate('mcp/aped-state-server.mjs'), c),
+    },
+    {
+      path: '.claude/settings.local.json',
+      content: stringifySettings({
+        mcpServers: {
+          'aped-state': {
+            command: 'node',
+            args: [`\${CLAUDE_PROJECT_DIR}/${a}/mcp/aped-state-server.mjs`],
+            env: { APED_DIR: a },
+          },
+        },
+      }),
+    },
+  ];
+}
+
 export function tddRedMarkerTemplates(c) {
   const a = c.apedDir;
   return [

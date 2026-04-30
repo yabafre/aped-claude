@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`aped-method enable-mcp` opt-in MCP companion server** (`src/templates/mcp/aped-state-server.mjs`, `src/templates/optional-features.js#mcpStateTemplates`, `src/subcommands.js`, `src/index.js`). Exposes typed atomic ops on `state.yaml` to Claude Code over the MCP stdio protocol (vanilla Node implementation, no SDK dependency — protocol surface is `initialize` + `tools/list` + `tools/call` only). Three tools shipped:
+  - **`aped_state.get(path?)`** — surgical read of a state.yaml subtree by dot-path. Returns `{ value, sha, schema_version }` where `sha` is a 16-char content hash the caller can pass back as `expect_sha`. Replaces 5-7 round-trip Read tool calls per skill Setup with a single typed call.
+  - **`aped_state.update(path, value, expect_sha?)`** — atomic mutation. Acquires the MCP lock (mkdir-as-mutex at `<apedDir>/.mcp.lock`, 30s TTL with stale-lock reaping), validates the top-level key against the canonical schema allowlist (`schema_version`, `pipeline`, `sprint`, `corrections_pointer`, `corrections_count`, `lead`, `mcp` — `pipline.phases…` typo would fail-fast with `SCHEMA_REJECT` instead of silently creating a new top-level YAML key), writes via `yq` subprocess, returns `{ ok, sha_before, sha_after, path, value }`. Optional `expect_sha` provides optimistic concurrency: mismatch fails with `CONFLICT` instead of overwriting.
+  - **`aped_validate.phase(name)`** — wraps the 4.12.0 oracle scripts (`oracle-prd.sh` / `oracle-arch.sh` / `oracle-epics.sh`) in a typed call. Returns `{ ok, phase, oracle, violations: [{code, message}, …], summary }` parsed from `ERROR <code>: <reason>` stdout lines.
+  - **Storage**: state.yaml at `<projectRoot>/<output_path>/state.yaml` (per `config.yaml`). YAML manipulation via `yq` subprocess (already a hard-required APED dep — re-using keeps the dep surface unchanged).
+  - **Failure modes** (all return MCP errors with structured codes — never crash the server): `NO_YQ`, `NO_STATE`, `BAD_INPUT`, `SCHEMA_REJECT`, `CONFLICT`, `LOCK_CONTENTION`, `NO_ORACLE`.
+  - **NOT shipped** (deliberately deferred to v4.14.0+): `aped_state.advance` (composed phase transition), `aped_state.lock`/`unlock` (explicit multi-step ops), `aped_context.load(phase)` (typed bundle replacing 5-7 Reads), `aped_ticket` adapter. Each warrants its own focused minor.
+  - Pinned by `tests/mcp-state-server.test.js` (14 tests covering protocol surface, get/update/validate semantics, schema-reject, expect_sha CONFLICT) + `tests/mcp-state-install.test.js` (5 tests for template shape, apedDir substitution, allowlist presence, protocol version lock).
+- **`aped-arch.md` Self-review** — Oracle Pass step now mentions `aped_validate.phase(phase: "arch")` as the typed equivalent for MCP-enabled installs.
+
+### Changed
+
+- **`package.json` `files` array** — adds `src/templates/mcp/*.mjs` so the MCP server ships in the npm tarball.
+- **`package.json` `check` script** — `node --check` extended to `src/templates/mcp/*.mjs`.
+- **README** — `Maintenance & optional add-ons` and `Operational commands` sections document `aped-method enable-mcp`.
+- **SECURITY.md supported version** — `4.12.x ✓ / < 4.12 ✗` → `4.13.x ✓ / < 4.13 ✗`.
+
 ## [4.12.1] - 2026-04-30
 
 User-driven patch. session-start hook was silent — users couldn't tell whether it fired. Now emits a user-visible banner via `systemMessage` per CC hooks spec.

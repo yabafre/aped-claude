@@ -25,6 +25,7 @@
     "src/templates/hooks/*.sh",
     "src/templates/providers/*.js",
     "src/templates/scripts/*.js",
+    "src/templates/mcp/*.mjs",
     "src/templates/skills/*.md",
     "src/templates/skills/aped-skills/*.md",
     "src/templates/visual-companion/*",
@@ -57,7 +58,7 @@
   },
   "scripts": {
     "smoke": "node bin/aped-method.js --version && node bin/aped-method.js --help > /dev/null && node scripts/smoke-pack.js",
-    "check": "node --check bin/aped-method.js && node --check src/*.js && node --check src/templates/*.js && node --check src/templates/hooks/*.js && node --check src/templates/providers/*.js && node --check src/templates/scripts/*.js && node --check scripts/smoke-pack.js",
+    "check": "node --check bin/aped-method.js && node --check src/*.js && node --check src/templates/*.js && node --check src/templates/hooks/*.js && node --check src/templates/providers/*.js && node --check src/templates/scripts/*.js && node --check src/templates/mcp/*.mjs && node --check scripts/smoke-pack.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run check && npm run smoke && npm test"

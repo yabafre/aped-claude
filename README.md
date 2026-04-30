@@ -84,6 +84,7 @@ aped-method post-edit-typescript  # install the optional TS quality hook
 aped-method verify-claims         # install the verification-gate advisory hook
 aped-method worktree-scope        # install the worktree-scope advisory hook
 aped-method tdd-red-marker        # install the TDD RED-witness advisory hook
+aped-method enable-mcp            # install aped-state MCP server (typed state.yaml ops)
 aped-method session-start         # install the SessionStart skill-index hook
 aped-method visual-companion      # install the brainstorm browser companion
 aped-method sync-logs prune       # one-shot retention sweep (4.1.0+; default
@@ -123,6 +124,7 @@ The CLI also includes a few maintenance subcommands for installed APED projects:
 - `aped-method verify-claims` — install the verification-gate PostToolUse advisory hook (scans Bash output for forbidden completion phrases without evidence)
 - `aped-method worktree-scope` — install the worktree-scope PreToolUse advisory hook (warns when Write/Edit/MultiEdit targets resolve outside the active worktree root in parallel-sprint mode; advisory only — never blocks)
 - `aped-method tdd-red-marker` — install the TDD RED-witness PostToolUse advisory hook (warns when production-code Write/Edit/MultiEdit follows a recent test-file edit but no `Confirmed RED:` token appeared in the transcript; Pocock workshop discipline; advisory only — never blocks)
+- `aped-method enable-mcp` — install the **aped-state MCP companion server** (4.13.0+; opt-in). Exposes typed atomic ops on `state.yaml` to Claude Code: `aped_state.get(path)` for surgical reads, `aped_state.update(path, value, expect_sha?)` for atomic mutations with optimistic-concurrency, `aped_validate.phase(name)` for the canonical oracle gate. Top-level key allowlist rejects schema typos. Eliminates the entire state.yaml hallucination class. Requires `yq`.
 - `aped-method session-start` — install the SessionStart hook that injects `aped/skills/SKILL-INDEX.md` as `additionalContext` at session boot
 - `aped-method visual-companion` — install the bash + python3 HTTP server (default port 3737) that powers `aped-brainstorm`'s browser-based mockup/diagram rendering
 
