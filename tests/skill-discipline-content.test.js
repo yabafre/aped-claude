@@ -88,3 +88,61 @@ describe('aped-claude auto-mode gate (4.3.0 — P6)', () => {
     expect(content).toMatch(/never bypasses APED gates/);
   });
 });
+
+// 4.5.0 — H6 running FR coverage matrix surfaced per epic, not only at end.
+describe('aped-epics running FR coverage matrix (4.5.0 — H6)', () => {
+  const content = readSkill('aped-epics.md');
+
+  it('declares a Running FR coverage matrix subsection inside Story Listing', () => {
+    const idxStoryListing = content.indexOf('### Story Listing');
+    const idxRunningMatrix = content.indexOf('### Running FR coverage matrix');
+    const idxDiscussion = content.indexOf('## Discussion with User');
+    expect(idxStoryListing).toBeGreaterThan(0);
+    expect(idxRunningMatrix, 'Running matrix subsection present').toBeGreaterThan(idxStoryListing);
+    expect(idxDiscussion, 'and located before Discussion with User').toBeGreaterThan(idxRunningMatrix);
+  });
+
+  it('declares the three trigger points for the running matrix', () => {
+    const section = content.slice(content.indexOf('### Running FR coverage matrix'));
+    expect(section).toMatch(/[Ee]nd of every epic/);
+    // Multi-cover trigger ≥3 stories (the heuristic the audit recommends)
+    expect(section).toMatch(/≥\s?3 stories/);
+    // Sequencing-risk trigger ≥30% uncovered after 50% drafted
+    expect(section).toMatch(/30%.*uncovered/);
+    expect(section).toMatch(/50%.*drafted/);
+  });
+
+  it('FRs covered bullet requires explicit FR IDs (no vague descriptions)', () => {
+    const m = content.match(/\*\*FRs covered\*\*[^\n]+/);
+    expect(m, 'FRs covered bullet present').not.toBeNull();
+    expect(m[0]).toMatch(/explicit FR IDs/);
+    expect(m[0]).toMatch(/FR-1, FR-3, FR-7/); // example pattern
+  });
+});
+
+// 4.5.0 — H8 Doc Freshness Audit in aped-context.
+describe('aped-context Doc Freshness Audit (4.5.0 — H8)', () => {
+  const content = readSkill('aped-context.md');
+
+  it('declares a Phase 5 Doc Freshness Audit section', () => {
+    expect(content).toMatch(/## Phase 5: Doc Freshness Audit/);
+  });
+
+  it('classifies docs into fresh / stale / unknown', () => {
+    const section = content.slice(content.indexOf('## Phase 5: Doc Freshness Audit'));
+    expect(section).toMatch(/`fresh`/);
+    expect(section).toMatch(/`stale`/);
+    expect(section).toMatch(/`unknown`/);
+    expect(section).toMatch(/30 days/);
+  });
+
+  it('Self-review checklist gains a doc-freshness gate', () => {
+    expect(content).toMatch(/Doc freshness classified/);
+  });
+
+  it('declares the downstream-skill behaviour on stale docs', () => {
+    const section = content.slice(content.indexOf('## Phase 5: Doc Freshness Audit'));
+    expect(section).toMatch(/MUST NOT treat this doc as source-of-truth/);
+    expect(section).toMatch(/refresh|historical context|override/);
+  });
+});
