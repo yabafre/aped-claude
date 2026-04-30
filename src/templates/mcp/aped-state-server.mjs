@@ -37,7 +37,7 @@
 // that MCP servers must not become Turing-complete code-eval endpoints.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, statSync, rmdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, rmdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
@@ -147,6 +147,25 @@ class ToolError extends Error {
   }
 }
 
+// ── Schema allowlist (extracted from update handler for describe access) ───
+const TOP_LEVEL_KEYS = new Set([
+  'schema_version', 'project_name', 'pipeline', 'sprint',
+  'corrections_pointer', 'corrections_count', 'lead', 'mcp',
+]);
+
+// ── State machine constants (4.15.0) ──────────────────────────────────────
+const PHASES = ['none', 'brainstorm', 'prd', 'arch', 'epics', 'stories', 'dev', 'review', 'ship', 'retro'];
+const STATUSES = ['not-started', 'in-progress', 'complete', 'blocked'];
+const LEGAL_TRANSITIONS = new Set([
+  'not-started→in-progress',
+  'in-progress→complete',
+  'in-progress→blocked',
+  'blocked→in-progress',
+  'complete→complete',
+  'not-started→not-started',
+  'blocked→blocked',
+]);
+
 // ── Tool implementations ───────────────────────────────────────────────────
 const TOOLS = {
   'aped_state.get': {
@@ -221,13 +240,6 @@ const TOOLS = {
         throw new ToolError(`state.yaml not found at ${STATE_FILE}.`, 'NO_STATE');
       }
 
-      // Top-level key allowlist — rejects mutations on unknown roots so
-      // typos like `pipline.phases...` (missing 'e') fail fast instead of
-      // silently creating new top-level keys in YAML.
-      const TOP_LEVEL_KEYS = new Set([
-        'schema_version', 'project_name', 'pipeline', 'sprint',
-        'corrections_pointer', 'corrections_count', 'lead', 'mcp',
-      ]);
       const top = path.split('.')[0];
       if (!TOP_LEVEL_KEYS.has(top)) {
         throw new ToolError(
@@ -330,6 +342,165 @@ const TOOLS = {
         violations,
         // Pass through OK summary line for human consumption.
         summary: stdout.split('\n').find((l) => l.startsWith('OK ')) || null,
+      };
+    },
+  },
+  'aped_state.advance': {
+    description:
+      'Composed phase transition. Updates pipeline.current_phase + pipeline.phases.<phase>.status ' +
+      'atomically under one lock. Validates the transition against the canonical state machine.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        phase: {
+          type: 'string',
+          enum: PHASES,
+          description: 'Pipeline phase to transition.',
+        },
+        status: {
+          type: 'string',
+          enum: STATUSES,
+          description: 'Target status for the phase.',
+        },
+        completed_subphase: {
+          type: 'string',
+          description: 'Optional: mark a subphase as completed (e.g. "self-review").',
+        },
+        expect_sha: {
+          type: 'string',
+          description: 'Optional: sha from a prior get. Fails with CONFLICT if state.yaml changed.',
+        },
+      },
+      required: ['phase', 'status'],
+    },
+    handler: ({ phase, status, completed_subphase, expect_sha }) => {
+      if (!PHASES.includes(phase)) {
+        throw new ToolError(`Unknown phase '${phase}'. Legal: ${PHASES.join(', ')}`, 'INVALID_PHASE');
+      }
+      if (!STATUSES.includes(status)) {
+        throw new ToolError(`Unknown status '${status}'. Legal: ${STATUSES.join(', ')}`, 'INVALID_STATUS');
+      }
+      if (!yqAvailable()) throw new ToolError('yq not installed.', 'NO_YQ');
+      if (!existsSync(STATE_FILE)) throw new ToolError('state.yaml not found.', 'NO_STATE');
+
+      const rawStatus = yqRead(`pipeline.phases.${phase}.status`);
+      const currentStatus = (!rawStatus || rawStatus === 'null') ? 'not-started' : rawStatus;
+      const transKey = `${currentStatus}→${status}`;
+      if (!LEGAL_TRANSITIONS.has(transKey)) {
+        throw new ToolError(
+          `Illegal transition: ${phase} ${currentStatus} → ${status}. ` +
+          `Legal from '${currentStatus}': ${[...LEGAL_TRANSITIONS].filter(t => t.startsWith(currentStatus + '→')).map(t => t.split('→')[1]).join(', ') || 'none'}`,
+          'ILLEGAL_TRANSITION',
+        );
+      }
+
+      const lock = tryLock();
+      if (!lock.ok) throw new ToolError('Lock held by another process.', 'LOCK_CONTENTION', lock);
+      try {
+        const shaBefore = fileSha();
+        if (expect_sha && expect_sha !== shaBefore) {
+          throw new ToolError(`expect_sha mismatch (expected ${expect_sha}, got ${shaBefore})`, 'CONFLICT');
+        }
+        yqWrite('pipeline.current_phase', phase);
+        yqWrite(`pipeline.phases.${phase}.status`, status);
+        if (completed_subphase) {
+          yqWrite(`pipeline.phases.${phase}.completed_subphase`, completed_subphase);
+        }
+        return {
+          ok: true,
+          sha_before: shaBefore,
+          sha_after: fileSha(),
+          transitioned: { phase, from: currentStatus, to: status },
+        };
+      } finally {
+        unlock();
+      }
+    },
+  },
+
+  'aped_state.lock': {
+    description:
+      'Acquire an explicit cross-call mutex on state.yaml. Returns a token the caller ' +
+      'must pass to aped_state.unlock. Use for multi-step operations (e.g. aped-ship ' +
+      'Integration Check) that need exclusive access across multiple tool calls.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scope: { type: 'string', description: 'Label for observability (e.g. "ship-pr").' },
+        ttl_ms: { type: 'number', description: 'Lock TTL in ms (default 30000, max 300000).' },
+      },
+      required: [],
+    },
+    handler: ({ scope = 'default', ttl_ms = LOCK_TTL_MS }) => {
+      if (ttl_ms > 300_000) {
+        throw new ToolError('TTL exceeds 5 minutes (300000ms).', 'TTL_TOO_LONG');
+      }
+      const lock = tryLock(scope, ttl_ms);
+      if (!lock.ok) {
+        throw new ToolError('Lock held by another process.', 'LOCK_CONTENTION', lock);
+      }
+      const token = createHash('sha256')
+        .update(`${process.pid}-${Date.now()}-${Math.random()}`)
+        .digest('hex')
+        .slice(0, 16);
+      try {
+        writeFileSync(join(LOCK_DIR, 'owner.json'), JSON.stringify({ token, scope, pid: process.pid }));
+      } catch {
+        unlock();
+        throw new ToolError('Failed to write lock owner.', 'INTERNAL');
+      }
+      return { token, scope, expires_at: Date.now() + ttl_ms };
+    },
+  },
+
+  'aped_state.unlock': {
+    description:
+      'Release a lock acquired via aped_state.lock. Requires the token from the lock response.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        token: { type: 'string', description: 'Token from the aped_state.lock response.' },
+      },
+      required: ['token'],
+    },
+    handler: ({ token }) => {
+      if (!token) throw new ToolError('Token is required.', 'BAD_INPUT');
+      if (!existsSync(LOCK_DIR)) return { ok: true, released: false };
+      const ownerFile = join(LOCK_DIR, 'owner.json');
+      if (existsSync(ownerFile)) {
+        try {
+          const owner = JSON.parse(readFileSync(ownerFile, 'utf-8'));
+          if (owner.token !== token) {
+            throw new ToolError(
+              `Token mismatch — lock owned by another caller (scope: ${owner.scope}).`,
+              'LOCK_NOT_OWNED',
+            );
+          }
+        } catch (e) {
+          if (e instanceof ToolError) throw e;
+        }
+      }
+      unlock();
+      return { ok: true, released: true };
+    },
+  },
+
+  'aped_state.describe': {
+    description:
+      'Returns the canonical state.yaml schema: top-level keys, pipeline phases, ' +
+      'legal status values, and the transition table. Use this to introspect what ' +
+      'aped_state.advance accepts before calling it.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    handler: () => {
+      return {
+        schema_version: existsSync(STATE_FILE) ? parseSchemaVersion() : null,
+        top_level_keys: [...TOP_LEVEL_KEYS],
+        phases: PHASES,
+        statuses: STATUSES,
+        legal_transitions: [...LEGAL_TRANSITIONS].map((t) => {
+          const [from, to] = t.split('→');
+          return { from, to };
+        }),
       };
     },
   },
@@ -481,4 +652,4 @@ if (isMain) {
 
 // Test surface — exported so tests/mcp-state-server.test.js can dispatch
 // requests directly without spawning a subprocess.
-export { dispatch, TOOLS, ToolError };
+export { dispatch, TOOLS, ToolError, PHASES, STATUSES, LEGAL_TRANSITIONS };

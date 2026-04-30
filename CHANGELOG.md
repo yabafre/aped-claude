@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`aped_state.advance(phase, status)` MCP tool** — composed phase transition. Updates `pipeline.current_phase` + `pipeline.phases.<phase>.status` atomically under one lock. Validates against the canonical state machine (10 phases × 4 statuses × 7 legal transitions). Failure codes: `INVALID_PHASE`, `INVALID_STATUS`, `ILLEGAL_TRANSITION`, `CONFLICT`, `LOCK_CONTENTION`. Closes the "model invents YAML shape" hallucination class.
+- **`aped_state.lock(scope, ttl_ms?)` / `aped_state.unlock(token)` MCP tools** — explicit cross-call mutex with token-based ownership. Lock writes `owner.json` sidecar inside `.mcp.lock/`; unlock requires the matching token. `TTL_TOO_LONG` rejected above 5 min. Closes the implicit-lock race in `aped-ship` Integration Check.
+- **`aped_state.describe()` MCP tool** — returns canonical schema introspection: `top_level_keys[]`, `phases[]`, `statuses[]`, `legal_transitions[]`. Enables callers to validate transitions before calling `advance`.
+- **`TOP_LEVEL_KEYS` extracted to module scope** — previously inlined in the `update` handler; now shared between `update`, `advance`, and `describe` for single-source-of-truth enforcement.
+
+### Changed
+
+- MCP tool count: 3 → 7 (`aped_state.get`, `update`, `advance`, `lock`, `unlock`, `describe`, `aped_validate.phase`).
+- State machine constants (`PHASES`, `STATUSES`, `LEGAL_TRANSITIONS`) exported for test access.
+
 ## [4.14.0] - 2026-04-30
 
 ### Added
