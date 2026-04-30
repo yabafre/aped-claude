@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.9.0] - 2026-04-30
+
+Phase 3 audit residue MINOR. Five hallucination classes closed via deterministic scripts + skill-body discipline + lints. No engine changes, no opt-in hooks, no new top-level skills — pure-additive.
+
 ### Added
 
 - **`scripts/detect-package-runner.sh` — deterministic package runner detection** (`src/templates/scripts.js`). Replaces four "or equivalent" hallucination sites in `aped-ship.md` (typecheck command) and `aped-dev.md` (monorepo workspace name + dev server). Decision tree is pure: `bun.lockb` → bun, `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, `package-lock.json` or no lockfile → npm. Caller pattern: `PKG=$(bash {{APED_DIR}}/scripts/detect-package-runner.sh) && "$PKG" run typecheck`. Exit code 2 with stderr `ERROR: no package.json …` when called outside a JS project. Pinned by `tests/detect-package-runner-script.test.js` (10 tests covering manifest shape, all 4 lockfile paths, precedence when multiple lockfiles co-exist, default-to-cwd behaviour, skill-body-no-longer-says-equivalent regression check). Refs: Phase 3 audit H18.
