@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Worktree-scope advisory hook (Phase 2 §P4 from the roadmap, deferred from 4.5.0 — no engine work, isolated subcommand). Targets the parallel-sprint failure mode where exploration agents return main-checkout paths and Write/Edit lands changes on `main` instead of inside the worktree.
+
+### Added
+
+- **`aped-method worktree-scope` opt-in PreToolUse advisory hook** (`src/templates/hooks/worktree-scope.js`, `src/templates/optional-features.js#worktreeScopeTemplates`, `src/subcommands.js`, `src/index.js#SUBCOMMANDS`). The hook fires on `Write` / `Edit` / `MultiEdit` only when the project has an active APED worktree marker (`<apedDir>/WORKTREE`). On match, it resolves both the target path and the worktree root via `realpathSync` (catches macOS `/var → /private/var` and any in-worktree symlink that escapes), and emits an advisory via `additionalContext` if the target lands outside. Advisory only — never blocks the tool call. Five-second timeout (Node cold-start + 2 realpaths is well under). Same install pattern as `safe-bash` / `verify-claims` / `post-edit-typescript`. README "Maintenance & optional add-ons" + Quickstart code block + the `SUBCOMMANDS` Set in `src/index.js` updated. Pinned by `tests/worktree-scope-hook.test.js` (7 behavioural tests covering tool-name filter, marker-absent skip, in-worktree allow, symlink-escape advisory, absolute-path-escape advisory, missing-input safety, new-file Write resolution) and `tests/worktree-scope-install.test.js` (4 template-shape tests). Refs: Phase 2 audit P4 (Superpowers issue #1040).
+
 ## [4.6.0] - 2026-04-30
 
 First Tier 2 expansion drop — two horizontal/meta skills land. Subsequent minors will add `aped-grill-with-docs`, `aped-method reconfigure`, `aped-method extract-context`, `aped-pre-commit`. Skill count: 27 → 29.
