@@ -33,7 +33,7 @@ A skill is **soft-dep** if it works on any project with default config and no up
 | `aped-sprint` | Reads `sprint.stories` from `state.yaml`, dispatches each into a `git worktree`. Without an epics phase output, there's nothing to dispatch. |
 | `aped-lead` | Coordinates across the worktrees produced by `aped-sprint`. Standalone invocation has no worktrees to lead. |
 
-### Soft-dep (17)
+### Soft-dep (18)
 
 | Skill | Notes |
 |-------|-------|
@@ -54,6 +54,7 @@ A skill is **soft-dep** if it works on any project with default config and no up
 | `aped-checkpoint` | Human-in-the-loop review — runs anywhere. |
 | `aped-claude` | Syncs CLAUDE.md — only needs `project_name` / `user_name`. |
 | `aped-elicit` | Deep critique toolkit — horizontal, runs on any artefact. |
+| `aped-iterate` | Post-ship router — classifies a delta and recommends the right downstream skill. Read-only; HALTs and redirects to `aped-course` if a worktree is in-flight. |
 
 ## Reading hard-dep setup pointers
 
