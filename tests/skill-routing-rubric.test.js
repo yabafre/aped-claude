@@ -42,6 +42,10 @@ const ROUTING_RUBRIC = [
   { phrase: 'brainstorm', expectedSkill: 'aped-brainstorm' },
   { phrase: 'status', expectedSkill: 'aped-status' },
   { phrase: 'review', expectedSkill: 'aped-review' },
+  { phrase: 'triage', expectedSkill: 'aped-triage' },
+  { phrase: 'draft requirements', expectedSkill: 'aped-prd' },
+  { phrase: 'system design', expectedSkill: 'aped-arch' },
+  { phrase: 'small change', expectedSkill: 'aped-quick' },
 ];
 
 describe('NL routing rubric (4.14.0)', () => {

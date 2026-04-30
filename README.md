@@ -414,6 +414,10 @@ These are installed explicitly when you want them:
 - `aped-method verify-claims` adds a `PostToolUse` Bash advisory hook that scans tool output for the 9 forbidden completion phrases (`should work`, `looks good`, `Done!`, `Perfect!`, etc.) when no evidence pattern (test output, exit 0, `✓`, `PASS`) is found within `verify_claims.evidence_window` lines. Never blocks; advisory only. Configurable via `verify_claims.enabled` in `config.yaml`.
 - `aped-method session-start` adds a `SessionStart` hook (matchers `startup|clear|compact`) that reads `aped/skills/SKILL-INDEX.md` and emits its content as `additionalContext`. The skill index is generated deterministically at scaffold time. Disable via `skill_invocation_discipline.enabled: false` in `config.yaml`.
 - `aped-method visual-companion` ships a bash + python3 HTTP server (`aped/visual-companion/start-server.sh`) that serves `frame-template.html` with the CSS classes (`.options`, `.cards`, `.mockup`, `.mock-*`) used by `aped-brainstorm` for browser-based mockup/diagram rendering. Port from `config.yaml visual_companion.port` (default 3737). Localhost-only. No auto-launch in default scaffold.
+- `aped-method worktree-scope` adds a `PreToolUse` advisory hook that warns when `Write`/`Edit`/`MultiEdit` targets resolve outside the active worktree root in parallel-sprint mode. Advisory only — never blocks.
+- `aped-method tdd-red-marker` adds a `PostToolUse` advisory hook that warns when production-code edits follow a test-file edit without a `Confirmed RED:` token in the transcript. Pocock workshop discipline. Advisory only.
+- `aped-method enable-mcp` installs the **aped-state MCP companion server** (4.13.0+). Typed atomic ops on `state.yaml`: `aped_state.get`, `update`, `advance`, `lock`/`unlock`, `describe`, `aped_context.load`, `aped_validate.phase`. Plus `aped-ticket` provider-routed adapter (GitHub/Linear/Jira/GitLab).
+- `aped-method allowed-paths-scope` adds a `PreToolUse` advisory hook (5.1.0+) that reads the active skill's `allowed-paths` frontmatter and warns when Write/Edit targets a file outside scope.
 
 ## Install / Update / Fresh
 
