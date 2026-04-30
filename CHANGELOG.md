@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.5.0] - 2026-04-30
+
 Continuation of the Phase 2 hallucination-hardening pass. Two surgical content adds in existing skills (no engine work, no new opt-in features). Skill count unchanged (27).
 
 ### Changed
