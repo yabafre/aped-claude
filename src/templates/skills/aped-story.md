@@ -75,6 +75,28 @@ This persona is the canonical reader of every story you produce. It is the testa
 
 Every Red Flag in the previous section maps back to "the junior would misread this." When in doubt about whether a detail is necessary, ask: **would the junior produce the right code from this without it?** If no, write it.
 
+## Step 0: Quote current symbols (read before designing)
+
+For any task that modifies existing code, **read the file(s) being modified first** and **quote the current state** of every symbol you intend to change. Drop the quoted block into the story's Dev Notes verbatim — function signature, type definition, exported constant, current return shape, current error path. Pocock superpowers issue #1234 (lessons absorbed by Jesse but not by APED until 4.11.0): "the most common plan-vs-reality mismatch is the writer's mental model of the code differing from the actual code at write time." The verbatim quote is the only mechanism that catches this *before* the dev agent burns three RED cycles.
+
+Example block in Dev Notes:
+
+```markdown
+### Existing code at write time
+
+`src/auth/jwt.ts:45-58` (current):
+```ts
+export function signToken(payload: Payload): string {
+  // current implementation — see git@<sha> for canonical version
+  ...
+}
+```
+
+This story modifies the return shape from `string` to `{ token: string; expiresAt: number }`.
+```
+
+If the file does not exist yet (greenfield story), say so explicitly: `### Existing code: none — this is a new file.` Do not skip Step 0 silently — silent skip is the bug pattern this section closes.
+
 ## File structure design (upfront)
 
 Before defining tasks, map out which files this story will create or modify and what each one is responsible for. **This is where decomposition decisions get locked in** — a story with eight tasks but no file map produces eight tasks that each end up touching three files apiece, and the dev agent loses track of what belongs where.

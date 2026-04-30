@@ -360,6 +360,20 @@ For each task (update TaskUpdate to `in_progress` when starting):
 
 **FR/NFR grounding.** Every test you write must trace back to a specific AC in the story file, which itself must trace back to a PRD FR or NFR ID. If a test doesn't cite an AC, it's drift — fix the story or skip the test. If an AC doesn't cite an FR/NFR ID, the story is malformed — surface to the user instead of guessing the requirement.
 
+**Verbatim spec-quote rule** (superpowers issue #1233, Phase 3 absorption). Above each test you write AND above each non-trivial code block you add for an AC, paste the **literal AC text** as a comment. Format:
+
+```ts
+// AC-3 (verbatim from story 1-2-jwt:42):
+//   Given a valid JWT, when validateToken() is called, then it returns
+//   { ok: true, payload }; given an expired JWT, it returns
+//   { ok: false, reason: "expired" }.
+test("AC-3 — expired JWT returns ok:false reason:expired", () => {
+  ...
+});
+```
+
+The comment costs 3 lines and prevents the most common drift class: paraphrasing the AC during translation, then writing a test that exercises the *paraphrase* rather than the AC. If the AC cannot be quoted verbatim because it's vague — that's a story bug, not a TDD bug; surface it to the user via the `aped-story --refine` flow rather than inventing your own clearer wording.
+
 ### RED
 Write failing tests first. Run: `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh`
 

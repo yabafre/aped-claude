@@ -199,9 +199,18 @@ Only once the quota is hit AND the user calls time:
 
 1. **Cluster** — group similar ideas (you do this, not the user — they're tired)
 2. **Rank** — for each cluster, pick the 1-2 strongest by a simple criterion the user chooses (novelty, feasibility, impact)
-3. **Present** — show the user the top 5-10 ideas across clusters with a 1-line rationale each
+3. **Ground each survivor before recommending it.** Pocock workshop convergence trap (superpowers issue #1266 — recommendations flip when followed up because the first pass was vibing). Per-survivor table:
 
-⏸ **GATE: Ask the user which ideas survive. Don't over-filter — the user decides.**
+   | Field | Required content |
+   |---|---|
+   | **Assumptions** | What about the world / user / tech must be true for this to work? |
+   | **Failure modes** | One sentence each on the top 2 ways this idea breaks under stress |
+   | **Disqualifiers** | Conditions that would cause you to retract this from the survivor list (regulatory blocker, missing skill on the team, etc.) |
+   | **Evidence basis** | Anchor in: (a) existing internal artefact (cite path), (b) external precedent (cite link), or (c) reasoning from first principles (one-line sketch). "Strong intuition" is NOT a basis. |
+
+4. **Present** — show the user the top 5-10 ideas across clusters with the grounding table above each rationale.
+
+⏸ **GATE: Ask the user which ideas survive. Don't over-filter — the user decides.** If the user picks an idea whose `Evidence basis` was "first principles", flag it as a candidate for `aped-grill` before downstream PRD/arch work — alignment grilling pre-empts the flip.
 
 ## Phase 5: Output
 
@@ -218,7 +227,23 @@ Total ideas: {N}
 
 ## Top Survivors
 1. {idea} — {1-line rationale}
+   - Assumptions: ...
+   - Failure modes: ...
+   - Disqualifiers: ...
+   - Evidence basis: ...
 2. ...
+
+## Assumptions in play
+- {assumption a downstream skill must verify} — based on: {source}
+- ...
+
+## Unknowns surfaced (deferred — needs human / data / external answer)
+- {open question} — recommended owner: {who/what answers this}
+- ...
+
+## Out of scope (declared during brainstorm)
+- {item} — reason: {one-line rationale}
+- ...
 
 ## Raw Ideas (archived)
 ### Batch 1 — {technique}
@@ -229,11 +254,13 @@ Total ideas: {N}
 
 Present the file path to the user.
 
+> **Why explicit `Assumptions in play` + `Unknowns surfaced` blocks**: superpowers issue #1098 — brainstorming sessions historically dropped the unstated decisions a downstream PRD/arch agent had to re-discover. APED requires both blocks so `aped-prd` and `aped-arch` open the brainstorm output and immediately see the implicit-vs-explicit boundary; the agents downstream **must not** treat an absent block as "no assumptions" — they verify by reading.
+
 ### Spec self-review
 
 After writing the spec/session-output document, look at it with fresh eyes — this is an inline checklist you run yourself, not a subagent dispatch. Fix any issues inline; no need to re-review.
 
-1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
+1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them. Bare deferrals like "later" / "when X comes up" / "someone will pick this up" without a concrete successor (a follow-up ticket ID, an `aped-grill` handoff, or an explicit `## Out of scope` entry) are placeholders too — superpowers issue #1294 (drift through unowned deferrals). Every deferral must name **who or what** answers it; if you can't, surface as an `Unknown` in Phase 5.
 2. **Internal consistency:** Do any sections contradict each other? Does the architecture sketch match the feature descriptions in the survivors?
 3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition? If multiple independent subsystems, flag for split before handing off to `aped-prd`.
 4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
