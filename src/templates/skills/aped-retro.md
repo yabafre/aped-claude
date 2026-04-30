@@ -182,7 +182,7 @@ If ANY trigger fires:
 
 Before closing, check epic {N} is truly production-ready:
 
-- **Testing:** All tests passing? Coverage sufficient?
+- **Testing:** All tests passing? Coverage sufficient? **Verify, don't assume** — `cat .aped/.last-test-exit` should return `0`. If absent or stale (>1 day for a retro), run `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh` before asserting "all passing".
 - **Deployment:** Shipped to production, or staged?
 - **Acceptance:** Stakeholders signed off?
 - **Technical health:** Codebase stable, or fragile?

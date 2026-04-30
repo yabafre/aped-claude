@@ -27,7 +27,7 @@ Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
 
 ## Setup
 
-1. Read `{{OUTPUT_DIR}}/state.yaml` — pipeline + sprint state (active_epic, parallel_limit, review_limit, stories with their `status`, `worktree`, `depends_on`, `ticket`)
+1. Read `{{OUTPUT_DIR}}/state.yaml` — pipeline + sprint state (active_epic, parallel_limit, review_limit, stories with their `status`, `worktree`, `depends_on`, `ticket`). **If state.yaml is absent**, the project is pre-pipeline (greenfield, never ran `aped-prd`/`aped-epics`). Surface "no state.yaml — pipeline not started yet" and stop here; do NOT invent a phase or fabricate a dashboard from git alone.
 2. Read `{{APED_DIR}}/aped-status/references/status-format.md` for display conventions
 3. Probe optional tooling once: `command -v workmux >/dev/null` — if available, surface a "Live agents: `workmux dashboard`" hint in the header so the user knows where the fuller TUI view is.
 
@@ -74,7 +74,7 @@ For each story with `status in {in-progress, review-queued, review}` AND a non-n
 Gather this by:
 - `git -C {worktree} log -1 --format='%ar — %s'` for last commit
 - `git -C {worktree} status --porcelain | wc -l` for dirty count
-- If a `package.json` with a `test` script is present and the last test log is fresh (< 10 min old), report cached test status; otherwise mark `tests: unknown` (don't re-run tests from aped-status)
+- Read **`<worktree>/.aped/.last-test-exit`** (canonical path; written by `{{APED_DIR}}/aped-dev/scripts/run-tests.sh` after every run). If absent or older than 10 min: mark `tests: unknown` (do not re-run from aped-status). If present and fresh: parse the file's first line as `<exit-code>` and report `tests: ✓ passing` for `0`, `tests: ✗ failing` for any non-zero. Never invent a different cache file (legacy paths like `coverage/lcov.info` or `tap-output.txt` are not the source of truth — `.aped/.last-test-exit` is).
 - Ticket status via `gh`/`glab`/linear as per `ticket_system`
 
 For stories in `review`, also show:

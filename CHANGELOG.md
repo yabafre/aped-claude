@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`scripts/detect-package-runner.sh` — deterministic package runner detection** (`src/templates/scripts.js`). Replaces four "or equivalent" hallucination sites in `aped-ship.md` (typecheck command) and `aped-dev.md` (monorepo workspace name + dev server). Decision tree is pure: `bun.lockb` → bun, `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, `package-lock.json` or no lockfile → npm. Caller pattern: `PKG=$(bash {{APED_DIR}}/scripts/detect-package-runner.sh) && "$PKG" run typecheck`. Exit code 2 with stderr `ERROR: no package.json …` when called outside a JS project. Pinned by `tests/detect-package-runner-script.test.js` (10 tests covering manifest shape, all 4 lockfile paths, precedence when multiple lockfiles co-exist, default-to-cwd behaviour, skill-body-no-longer-says-equivalent regression check). Refs: Phase 3 audit H18.
+- **Anti-Claude-Code-trigger-word lint** (`tests/skill-no-cc-trigger-words.test.js`). Generalised from superpowers issue #1283 (the systematic-debugging skill body literally contained "Ultrathink this" — silently picked up by Claude Code's keyword scanner on every invocation). APED is clean today (0 hits across all 30 skills); this lint locks the absence so future skill additions cannot silently re-introduce the footgun. `TRIGGER_WORDS` covers `ultrathink`, `ultra-think`, `think hard/harder/deeply`, `megathink`, `mega-think`, `think a lot`. Add to the list when Anthropic ships new keywords.
+- **`tests/last-test-exit-discipline.test.js`** — locks the 5-skill standardisation on `.aped/.last-test-exit` as the canonical test-pass evidence file. Closes the H21 hallucination class (each skill picks a different cache file at runtime, all of them imaginary).
+- **`tests/skill-existence-assertion.test.js`** — locks the explicit "if state.yaml is absent" / "if .aped/.last-test-exit is absent" fallback branches in 4 skills. Closes the H11 implicit-state-assumption class.
+
+### Changed
+
+- **`aped-status.md` Step 1** — replace "the last test log is fresh (< 10 min old)" prose (pre-4.9.0 hallucinated cache path) with explicit `<worktree>/.aped/.last-test-exit` canonical read. State.yaml read now has explicit "if absent → no state.yaml — pipeline not started yet" halt; do NOT invent a phase or fabricate a dashboard.
+- **`aped-qa.md` Test Coverage Report** — `run-tests.sh` invocation now followed by explicit `.aped/.last-test-exit` exit-code check. *"Do NOT report 'QA complete' based on a 'looks like it passed' reading of stdout."* The canonical evidence is the cache file.
+- **`aped-quick.md` Self-Review checklist** — every gate now requires fresh evidence pasted in this message (Iron Law from `aped-review.md` applied to the quick path). `[ ] Tests pass` upgraded to `cat .aped/.last-test-exit` returned `0` AND test files touched.
+- **`aped-retro.md` Phase 6 Readiness** — "All tests passing? Coverage sufficient?" now followed by "Verify, don't assume — `cat .aped/.last-test-exit` should return `0`". If absent or stale (>1 day for a retro), run tests before asserting.
+- **`aped-debug.md` Discovery** — `.aped/.last-test-exit` is no longer "if captured" but "canonical exit-code cache". Added explicit fallback: if absent, run `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh` once before continuing — debugging from a missing test signal is debugging in the dark.
+- **`aped-ship.md` § 3 typecheck** — uses `PKG=$(bash {{APED_DIR}}/scripts/detect-package-runner.sh)` instead of `pnpm typecheck`. Comment about the 4 pre-4.9.0 "or equivalent" hallucinations preserved as a discipline anchor.
+- **`aped-dev.md`** — two "or equivalent" sites (line 303 monorepo `packages/contract`, line 343 dev server) replaced with deterministic detection. The `packages/contract` line points to reading `package.json` `workspaces` glob / `turbo.json` / `pnpm-workspace.yaml`; the dev-server line uses `detect-package-runner.sh`.
+- **`aped-zoom-out.md`** — explicit "Missing artefacts are signal, not error" paragraph. State.yaml absent = pre-pipeline; `lessons.md` absent = no logged decisions. Each output bullet must cite the source it drew from; bullets backed by no source are forbidden.
+- **SECURITY.md supported version** — `4.8.x ✓ / < 4.8 ✗` → `4.9.x ✓ / < 4.9 ✗`.
+
 ## [4.8.0] - 2026-04-30
 
 Phase 3 Pocock workshop transcript absorption. Five surgical edits to existing skills + one new alignment skill. No engine work, no opt-in hooks — pure-additive MINOR. Bundled with the routing-improvements + audit-residue work that didn't fit the 4.7.6 patch surface.

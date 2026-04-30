@@ -300,7 +300,7 @@ Spawn 3 team members (in parallel, same message):
 - Goes FIRST (others wait for the contract)
 - Reads the story, relevant FRs from PRD, architecture.md for conventions
 - Writes the contract: types, endpoints/procedures, validation schemas, error codes
-- Commits to the shared `packages/contract` (or equivalent)
+- Commits to the shared `packages/contract` (or whatever the project's monorepo declares — read `package.json` `workspaces` glob or `turbo.json`/`pnpm-workspace.yaml` for the canonical name)
 - Posts contract summary in team: "Contract ready at {path}"
 
 **backend-dev** — **Amelia**, Senior Backend Engineer — "Tests first, always."
@@ -340,7 +340,7 @@ Detect if this is a frontend story:
 - Check if `{{OUTPUT_DIR}}/ux/` exists
 
 **If frontend story:**
-1. Ensure the dev server is running (`npm run dev` or equivalent)
+1. Ensure the dev server is running. Detect the runner deterministically: `PKG=$(bash {{APED_DIR}}/scripts/detect-package-runner.sh)` then `"$PKG" run dev`. Never assume `npm` — projects on bun/pnpm/yarn fail the script silently if you guess the wrong runner.
 2. Before writing any component, use `mcp__react-grab-mcp__get_element_context` to inspect the **root layout** — understand the existing component tree, props, and styles as baseline
 3. After each GREEN pass on a UI task, use React Grab to inspect the implemented component:
    - Verify it renders correctly in the component tree

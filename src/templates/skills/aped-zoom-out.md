@@ -15,6 +15,8 @@ Stop the current task. Look at the broader project context. Ask out loud: "Are w
 
 Read recent state (`{{OUTPUT_DIR}}/state.yaml`), recent decisions (top of `{{OUTPUT_DIR}}/lessons.md`, recent commits via `git log --oneline -20`), and the original goal (PRD, brief, ticket, or user's first message in this session). Compare what is being implemented now to that original goal. If they have drifted, surface the drift to the user *before* writing more code.
 
+**Missing artefacts are signal, not error.** If `state.yaml` is absent, the project is pre-pipeline — say so and zoom out from `lessons.md` + git log + first user message only. If `lessons.md` is absent, say "no logged decisions" rather than inventing one. The four bullets below should always cite the source they drew from; bullets backed by *no* source are forbidden.
+
 This skill produces no artefact. Its only output is the agent's re-orientation message to the user — a 4-bullet summary:
 - **Where we started:** original goal, in one sentence.
 - **Where we are:** what got done, in one sentence.
