@@ -1,5 +1,6 @@
 ---
 name: aped-prfaq
+keep-coding-instructions: true
 description: 'Use when user says "prfaq", "working backwards", "press release first", "stress-test the concept", or invokes aped-prfaq. Optional upstream tooling — can run before aped-analyze.'
 when_to_use: 'Use when user says "PRFAQ", "work backwards", "press release first". Optional upstream of aped-analyze.'
 argument-hint: "[--headless]"

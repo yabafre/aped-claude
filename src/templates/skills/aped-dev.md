@@ -1,5 +1,6 @@
 ---
 name: aped-dev
+keep-coding-instructions: true
 description: 'Use when user says "start dev", "implement story", "aped dev", or invokes aped-dev.'
 argument-hint: "[story-key]"
 disable-model-invocation: true

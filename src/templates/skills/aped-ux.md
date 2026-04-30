@@ -1,5 +1,6 @@
 ---
 name: aped-ux
+keep-coding-instructions: true
 description: 'Use when user says "design UX", "UX spec", "aped ux", or invokes aped-ux. Runs between PRD and Epics.'
 license: MIT
 compatibility: 'Requires Node.js 18+ and npm for Vite+React preview scaffold'

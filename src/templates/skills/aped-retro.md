@@ -1,5 +1,6 @@
 ---
 name: aped-retro
+keep-coding-instructions: true
 description: 'Use when user says "retro", "retrospective", "epic done — what did we learn", "aped retro", or invokes aped-retro. Runs after the last story of an epic ships.'
 when_to_use: 'Use when user says "retro", "retrospective", "review the epic".'
 argument-hint: "[epic-number]"

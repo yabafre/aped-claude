@@ -1,5 +1,6 @@
 ---
 name: aped-checkpoint
+keep-coding-instructions: true
 description: 'Use when user says "checkpoint", "review changes", "walk me through this", or invokes aped-check.'
 allowed-tools: "Read Grep Glob Bash"
 license: MIT
