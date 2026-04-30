@@ -8,8 +8,8 @@ Security patches are issued for the latest `4.x` minor release only.
 
 | Version  | Supported          |
 | -------- | ------------------ |
-| 4.19.x   | :white_check_mark: |
-| < 4.19   | :x:                |
+| 4.20.x   | :white_check_mark: |
+| < 4.20   | :x:                |
 
 Users on 4.14 or earlier should upgrade to 4.15 before reporting an issue. Earlier lines do not receive new security patches.
 

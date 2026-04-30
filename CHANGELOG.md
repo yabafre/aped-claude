@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.20.0] - 2026-04-30
+
 ### Added
 
 - **`aped_context.load(phase)` MCP tool** — returns the artefact bundle for a pipeline phase (file paths, sizes, existence). Replaces 5-7 round-trip Read calls in every skill's Setup block. Phase-to-artefact mapping covers all 9 pipeline phases.
