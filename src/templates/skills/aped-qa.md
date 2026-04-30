@@ -13,11 +13,22 @@ metadata:
 
 Generate comprehensive end-to-end and integration tests for completed stories or epics. Complements the unit tests written during aped-dev TDD.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract config
-2. Read `{{OUTPUT_DIR}}/state.yaml` — find completed stories/epics
-3. Read `{{APED_DIR}}/aped-qa/references/test-patterns.md` for framework selection and test templates
+1. Read `{{OUTPUT_DIR}}/state.yaml` — find completed stories/epics
+2. Read `{{APED_DIR}}/aped-qa/references/test-patterns.md` for framework selection and test templates
 
 ## Input Discovery
 

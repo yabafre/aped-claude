@@ -14,6 +14,18 @@ metadata:
 
 Create architecture decisions through step-by-step discovery so that all downstream agents (dev, review, story) implement consistently. This is a **partnership** — you bring structured thinking, the user brings domain expertise and product vision.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - EVERY decision must have a rationale — no "just because" choices
@@ -87,8 +99,7 @@ Loaded artefacts inform every phase of this skill:
 
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract config
-2. Read `{{OUTPUT_DIR}}/state.yaml` — check pipeline state
+1. Read `{{OUTPUT_DIR}}/state.yaml` — check pipeline state
    - If `pipeline.phases.architecture.status` is `done`: ask user — redo or skip?
    - If user skips: stop here
    - If `pipeline.phases.architecture.status` is `in-progress` and `current_subphase` is set: announce resume point ("Resuming Arch at `{current_subphase}` — `{N}` subphase(s) already completed.") and skip ahead to that subphase's gate.

@@ -14,6 +14,18 @@ metadata:
 
 # APED PRFAQ — Working Backwards Challenge
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - NEVER let a vague claim pass — every sentence must survive "so what?"
@@ -38,14 +50,13 @@ User walks out with a battle-hardened concept = win. User walks out with the hon
 
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract `user_name`, `communication_language`, `document_output_language`
-2. Check for existing PRFAQ: `{{OUTPUT_DIR}}/prfaq.md`
+1. Check for existing PRFAQ: `{{OUTPUT_DIR}}/prfaq.md`
    - If exists: read its frontmatter `stage` field, offer to resume from the next stage
-3. Ensure output directory exists:
+2. Ensure output directory exists:
    ```bash
    mkdir -p {{OUTPUT_DIR}}
    ```
-4. **Mode detection** — parse `--headless` / `-H` flag:
+3. **Mode detection** — parse `--headless` / `-H` flag:
    - `--headless`: autonomous first-draft from the provided context. User input schema: customer (specific persona), problem (concrete), stakes (why it matters), solution (concept). Missing/vague → return error with specific guidance.
    - Default: full interactive coaching (the gauntlet).
 

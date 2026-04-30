@@ -12,6 +12,18 @@ metadata:
 
 # APED Dev Sprint — TDD Story Implementation
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - NEVER mark a task `[x]` without passing every gate condition
@@ -167,8 +179,7 @@ The epic-context cache compiled below now has lessons as a 4th input source (see
 
    In worktree mode, skip "Story Selection" and skip any git branch creation — the worktree already has the right branch.
 
-2. Read `{{APED_DIR}}/config.yaml` — extract config (worktree-local copy is fine; config rarely changes mid-sprint).
-3. Read state.yaml from the current checkout (worktree's local copy in worktree mode, main's in classic mode) — find the target story.
+2. Read state.yaml from the current checkout (worktree's local copy in worktree mode, main's in classic mode) — find the target story.
 
 ### Fresh-read discipline
 

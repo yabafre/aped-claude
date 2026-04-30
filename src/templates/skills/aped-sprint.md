@@ -11,6 +11,18 @@ metadata:
 
 # APED Sprint — Parallel Story Dispatch
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - Only run from the **main project root**. If `{{APED_DIR}}/WORKTREE` exists in the current dir, HALT (you're inside a worktree, not the Lead).
@@ -27,12 +39,11 @@ metadata:
 ## Setup
 
 1. Verify you are in the main project root: `ls {{APED_DIR}}/WORKTREE` must fail. If it exists, tell the user "You're inside a worktree. Switch to the main project to dispatch."
-2. Read `{{APED_DIR}}/config.yaml` — extract `ticket_system`, `git_provider`, paths.
-3. **Validate state integrity:** run `bash {{APED_DIR}}/scripts/validate-state.sh`. Exit code 0 = proceed; non-zero = HALT and show the user the reported error (missing file, bad YAML, or invalid status value). Do NOT attempt to repair state.yaml automatically — tell the user to inspect and fix, or restore from `{{APED_DIR}}/state.yaml.backup` if present.
-4. Read `{{OUTPUT_DIR}}/state.yaml` — must have `current_phase: "sprint"` and `sprint.stories` populated by `aped-epics`.
-5. Read `{{OUTPUT_DIR}}/epics.md` — for the DAG and story metadata.
-6. If `sprint.active_epic` is `null`: ask the user which epic to start. Write it to state.yaml.
-7. **Detect workmux + multiplexer** (preferred path):
+2. **Validate state integrity:** run `bash {{APED_DIR}}/scripts/validate-state.sh`. Exit code 0 = proceed; non-zero = HALT and show the user the reported error (missing file, bad YAML, or invalid status value). Do NOT attempt to repair state.yaml automatically — tell the user to inspect and fix, or restore from `{{APED_DIR}}/state.yaml.backup` if present.
+3. Read `{{OUTPUT_DIR}}/state.yaml` — must have `current_phase: "sprint"` and `sprint.stories` populated by `aped-epics`.
+4. Read `{{OUTPUT_DIR}}/epics.md` — for the DAG and story metadata.
+5. If `sprint.active_epic` is `null`: ask the user which epic to start. Write it to state.yaml.
+6. **Detect workmux + multiplexer** (preferred path):
    - `command -v workmux >/dev/null` → workmux binary present.
    - `command -v tmux >/dev/null || command -v wezterm >/dev/null` → a multiplexer exists.
    - **Apply the WezTerm PATH fix automatically** — workmux shells out to the `wezterm` CLI. If `command -v wezterm` fails but `$WEZTERM_EXECUTABLE_DIR` is set, run `export PATH="$WEZTERM_EXECUTABLE_DIR:$PATH"` in the skill's shell **before any workmux invocation**, and tell the user once: "Add `[[ -n \"\$WEZTERM_EXECUTABLE_DIR\" ]] && export PATH=\"\$WEZTERM_EXECUTABLE_DIR:\$PATH\"` to your `~/.zshrc` so workmux finds the CLI in every new shell." Don't just mention it — export it here so dispatch works in this session.

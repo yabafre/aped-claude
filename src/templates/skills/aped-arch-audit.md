@@ -15,6 +15,18 @@ metadata:
 
 Audit an existing codebase for **deepening opportunities** — places where shallow modules (interface nearly as complex as the implementation) could be merged into deep ones for higher leverage and locality. Translation of Matt Pocock's `improve-codebase-architecture` skill into APED voice; vocabulary inherits from Pocock's LANGUAGE / DEEPENING / INTERFACE-DESIGN, sections inlined here as a single skill body (multi-doc decomposition is Phase 2 work).
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - This skill **identifies** candidates and **grills** the user on the most promising ones. It never edits code, never opens a PR, never invokes `aped-dev`.

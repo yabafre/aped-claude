@@ -13,6 +13,18 @@ metadata:
 
 Create a single, implementation-ready story file with all the context needed for `aped-dev`.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - Create ONE story at a time — the next one to implement
@@ -210,9 +222,8 @@ Loaded artefacts inform story-file content:
 
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract config including `ticket_system`
-2. Read `{{OUTPUT_DIR}}/state.yaml` — find sprint stories
-3. Epics already loaded in Input Discovery — confirm story list is available
+1. Read `{{OUTPUT_DIR}}/state.yaml` — find sprint stories
+2. Epics already loaded in Input Discovery — confirm story list is available
 
 ## Story Selection
 

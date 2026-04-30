@@ -15,6 +15,18 @@ The end-of-sprint counterpart to `aped-sprint`. The umbrella branch (`sprint/epi
 
 `aped-ship` does NOT merge stories. Per-story merges into the umbrella are owned by `aped-lead` (au-fil-de-l'eau, see aped-lead.md). If a story isn't merged into the umbrella by ship time, that's a workflow gap the user fixes (re-run aped-lead, or merge manually) — not something aped-ship works around.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - Only run from the **main project root** on the **base branch** (default `main`; configurable via `base_branch` in `{{APED_DIR}}/config.yaml`). Refuse if `{{APED_DIR}}/WORKTREE` exists in CWD, or if current branch != base.
@@ -33,7 +45,7 @@ The end-of-sprint counterpart to `aped-sprint`. The umbrella branch (`sprint/epi
 2. Verify branch: `git symbolic-ref --short HEAD` must return the base branch (read `base_branch` from `{{APED_DIR}}/config.yaml`; default `main`).
 3. Verify clean tree: `git status --porcelain` must be empty. If not, HALT and tell the user to commit/stash first.
 4. **Validate state integrity:** run `bash {{APED_DIR}}/scripts/validate-state.sh`. Non-zero → HALT with the reported error. The umbrella PR is the single thing that lands in prod for this sprint — it must not be opened from a state file of unknown structure.
-5. Read `{{OUTPUT_DIR}}/state.yaml`, `{{APED_DIR}}/config.yaml`.
+5. Read `{{OUTPUT_DIR}}/state.yaml`.
 6. **Load the umbrella branch:**
    ```bash
    UMBRELLA=$(yq '.sprint.umbrella_branch' {{OUTPUT_DIR}}/state.yaml)

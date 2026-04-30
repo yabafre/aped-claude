@@ -13,11 +13,22 @@ metadata:
 
 Use on existing codebases to generate `project-context.md`. Other APED skills (`aped-analyze`, `aped-prd`, `aped-ux`, `aped-arch`, etc.) discover this file automatically at entry and bias their behaviour accordingly. You can run this skill before, after, or instead of `aped-analyze` — they are no longer mutually exclusive. Hybrid projects (a new feature in a legacy system) benefit from running both.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract config
-2. Confirm there is existing code to analyse (if the directory is empty / freshly initialised, tell the user this skill produces no useful output — they should run `aped-analyze` instead)
-3. Read `{{APED_DIR}}/aped-context/references/analysis-checklist.md` for the full analysis checklist
+1. Confirm there is existing code to analyse (if the directory is empty / freshly initialised, tell the user this skill produces no useful output — they should run `aped-analyze` instead)
+2. Read `{{APED_DIR}}/aped-context/references/analysis-checklist.md` for the full analysis checklist
 
 ## Codebase Analysis
 

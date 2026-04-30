@@ -13,13 +13,24 @@ metadata:
 
 Use this for isolated fixes, small features, or refactors that don't warrant the full A→P→E→D→R pipeline.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 > **Setup pointer.** Integrates with `ticket_system` in `{{APED_DIR}}/config.yaml` to label the hotfix on the source ticket so the team sees the bypass. With `ticket_system: none`, the skill writes its quick-spec under `{{OUTPUT_DIR}}/quick-specs/` only. Hard-dep matrix: `docs/skills-classification.md`.
 
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract config
-2. Read `{{OUTPUT_DIR}}/state.yaml` — note current phase for context
-3. Scan `{{OUTPUT_DIR}}/quick-specs/` for any specs with `**Status:** in-progress`
+1. Read `{{OUTPUT_DIR}}/state.yaml` — note current phase for context
+2. Scan `{{OUTPUT_DIR}}/quick-specs/` for any specs with `**Status:** in-progress`
    - If found: ask user — "Resume spec `{slug}` or start a new one?"
    - If resume: load that spec and skip to Implementation
 

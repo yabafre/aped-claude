@@ -13,6 +13,18 @@ metadata:
 
 Bridge an external ticket (one that was NOT planned via `aped-epics`) into the project's story flow. The skill fetches the ticket, analyses the codebase context, drafts a project-conformant story, persists it under the right placement, and optionally posts a comment back on the source ticket.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - This skill is for **tickets that have no entry in `epics.md` / `state.yaml` yet**. For stories already planned in the sprint, use `aped-story`.
@@ -26,8 +38,7 @@ Bridge an external ticket (one that was NOT planned via `aped-epics`) into the p
 
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract:
-   - `ticket_system`
+1. From `{{APED_DIR}}/config.yaml` (already loaded at activation), resolve the skill-specific keys:
    - `from_ticket.story_placement.mode` (default: `ask`) — one of `bucket` | `auto_match` | `ask`
    - `from_ticket.story_placement.bucket_epic` (default: `external-tickets`)
    - `from_ticket.ticket_comment.enabled` (default: `false`)
