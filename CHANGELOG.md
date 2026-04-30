@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`aped-ticket` MCP server** (`src/templates/mcp/aped-ticket-server.mjs`) — provider-routed ticket adapter. 4 tools: `aped_ticket.create_issue`, `get_status`, `list_open`, `link_pr`. Provider routing via `config.yaml` `ticket_system` (github/linear/jira/gitlab/none). GitHub provider fully implemented via `gh` CLI; Linear/Jira/GitLab stubs with `PROVIDER_ERROR` for v4.18.0+. Failure codes: `TICKETS_DISABLED`, `UNKNOWN_PROVIDER`, `MISSING_AUTH`, `PROVIDER_ERROR`. Closes H4 "wrong-backend invention".
+
 ## [4.16.0] - 2026-04-30
 
 ### Added
