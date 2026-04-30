@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.4.0] - 2026-04-30
+
 ### Added
 
 - **`aped-pre-mortem` skill** — structured pre-mortem before implementation. Assumes the project HAS ALREADY FAILED, works backwards through 5 failure categories (technical/scope/integration/process/user), ranks by likelihood × impact, produces mitigation table + pre-mortem report.
