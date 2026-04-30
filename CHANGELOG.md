@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+First Tier 2 expansion drop — two horizontal/meta skills land. Subsequent minors will add `aped-grill-with-docs`, `aped-method reconfigure`, `aped-method extract-context`, `aped-pre-commit`. Skill count: 27 → 29.
+
+### Added
+
+- **`aped-zoom-out` skill — step back from current task to verify alignment with original goal** (`src/templates/skills/aped-zoom-out.md`). Tiny horizontal skill (Pocock `zoom-out` style, ~20 lines body) that produces no artefact — just a 4-bullet re-orientation message: where we started, where we are, drift if any, recommendation. Reads recent state.yaml + top of lessons.md + last 20 commits + the original goal source (PRD / brief / ticket / first user message). Use when implementation has been deep in details too long and the original framing is fading. `disable-model-invocation: true` — explicit user invocation only. Adapted from Matt Pocock's `zoom-out` skill (MIT). Skill count: 27 → 28.
+- **`aped-write-skill` skill — meta-skill for writing APED-style Claude Code skills** (`src/templates/skills/aped-write-skill.md`). Walks the user through scope discovery (what / when / what-not / single-file-vs-multi-doc / rigid-vs-flexible), frontmatter drafting with all APED lint requirements baked in, body sections in order, multi-doc decomposition rules, a Self-review checklist, and output paths (project-local `.aped/skills/aped-X.md` or user-global `~/.claude/skills/aped-X.md`). Single-file medium-length skill (~190 lines body). The Self-review checklist enforces the same invariants APED's CI lint tests check on every commit — description quoting (`tests/skill-frontmatter-lint.test.js`), fully-qualified `aped-X` cross-references (`tests/skill-cross-ref-lint.test.js`), explicit slash after `{{APED_DIR}}` (`tests/scaffold-references.test.js`). Adapted from Matt Pocock's `write-a-skill` skill (MIT). Skill count: 28 → 29.
+
+### Changed
+
+- **README skill counter** updated from `27 skills` to `29 skills` at the two anchored locations (intro paragraph + skill-list section), per the pre-merge checklist invariant in `CLAUDE.md`.
+- **`tests/skill-cross-ref-lint.test.js` KNOWN_SUFFIXES** extended with `zoom-out` and `write-skill` so future skill bodies that mention them via the bare form (e.g. `the zoom-out skill`) get flagged at lint time.
+
 ## [4.5.0] - 2026-04-30
 
 Continuation of the Phase 2 hallucination-hardening pass. Two surgical content adds in existing skills (no engine work, no new opt-in features). Skill count unchanged (27).
