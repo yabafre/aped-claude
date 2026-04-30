@@ -184,7 +184,7 @@ Generate the PRD using `{{APED_DIR}}/templates/prd.md` as structure. **One secti
 ### Section 2: Scope & Journeys
 - Success Criteria: User / Business / Technical / Measurable Outcomes
 - Product Scope: MVP — Growth — Vision phases
-- **Out of Scope:** explicit list of capabilities considered and decided NOT to do, one-line why each. Required — prevents scope creep in epics/arch downstream.
+- **Out of Scope:** explicit list of capabilities considered and decided NOT to do, one-line why each. Required — prevents scope creep in epics/arch downstream. Decisions expected to recur across PRDs (reused product strategy, recurring partner asks) can be promoted to `{{APED_DIR}}/.out-of-scope/<concept>.md` for cross-PRD persistence — see that directory's `README.md` for the format.
 - User Journeys: key end-to-end workflows
 
 ⏸ Interactive: present + A/P/C menu. Headless: continue.

@@ -107,6 +107,39 @@ bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG ticket_fetch complete '{"calls"
 bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total 1
 ```
 
+## Out-of-Scope KB Scan
+
+Before drafting, check the project's persistent rejection memory at `{{APED_DIR}}/.out-of-scope/`. The directory may not exist on pre-4.2 scaffolds — treat the missing directory as an empty KB and skip this section silently.
+
+1. **List entries.** `ls {{APED_DIR}}/.out-of-scope/*.md 2>/dev/null` excluding `README.md`. If no entries (or directory missing), skip the rest of this section.
+
+2. **Tokenize the ticket title.** Lowercase, strip punctuation, split on whitespace, `-`, and `_`. Each word becomes a token. Drop tokens of ≤2 characters and common stop-words (`add`, `fix`, `update`, `the`, `a`, `an`, `to`, `for`, `with`).
+
+3. **Match entries.** For each entry file, tokenize its filename the same way (drop the `.md` extension first; resolved files end with `-resolved-YYYY-MM-DD` — strip that suffix before tokenizing so old decisions still match). An entry matches if any title token equals any filename token (exact word equality, no substring or fuzzy matching).
+
+4. **No match → continue silently** to Codebase & Project Context Compilation.
+
+5. **One or more matches → surface to user.** For each match, show the entry's frontmatter (`concept`, `rejected_at`, `decided_by`) plus its `## Why this is out of scope` paragraph (~10 lines), then present the menu:
+
+   ```
+   ⚠️ Out-of-scope KB match: {{APED_DIR}}/.out-of-scope/{matched-file}
+
+   {entry summary}
+
+   [K] Keep refusal — abort this intake, the rejection still holds
+   [O] Override — append this ticket to the entry's "Prior requests" list, then continue
+   [U] Update — the rejection is stale; rename the entry to {concept}-resolved-{today}.md and continue
+   ```
+
+   ⏸ **HALT — wait for user choice per match.**
+
+6. **Behaviour by choice:**
+   - `[K]` → abort the skill with: `"Concept '{concept}' was declared out of scope on {rejected_at} (reason: {one-line rationale from the entry}). Refusing to ingest ticket {ticket-id}. To revisit, re-invoke and pick `[U]` on the same match."` Update the sync log: `bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG oos_refused complete '{"concept":"<concept>"}'`. Exit cleanly.
+   - `[O]` → prepend `- {today} — {ticket-id} ({source-url}): {one-line ticket framing}` to the entry's `## Prior requests` list (most recent at top, after the section header). Commit nothing yet (the story write later will batch this with the story file commit on the feature branch). Continue to Codebase Compilation.
+   - `[U]` → rename the file to `{concept}-resolved-{YYYY-MM-DD}.md` (today's date, ISO). Append a final section to the entry's body: `## Resolved on {YYYY-MM-DD}\n\n{one-line user-supplied note}` (ask the user for the note; default is `"Resolved while drafting from {ticket-id}"`). Continue to Codebase Compilation.
+
+7. **Multi-match adjudication.** If multiple entries match the same title, present each in order; the user adjudicates each independently. If any single match resolves to `[K]`, abort the whole intake.
+
 ## Codebase & Project Context Compilation
 
 Before drafting the story, gather context — same spirit as `aped-story` but starting from the ticket, not from a planned epic:
