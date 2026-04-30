@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0] - 2026-04-30
+
 ### Added
 
 - **`allowed-paths-scope.js` PreToolUse advisory hook** — reads the active skill's `allowed-paths` frontmatter and emits advisory when Write/Edit targets a file outside scope. Opt-in via `aped-method allowed-paths-scope`. The runtime that makes v5.0.0's frontmatter contract actionable.
