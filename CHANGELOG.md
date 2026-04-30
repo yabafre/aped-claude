@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.19.0] - 2026-04-30
+
 ### Added
 
 - **`aped-triage` skill** — issue triage state machine: intake → classify → route → close/defer. 6-step pipeline with scope check against current sprint/epic, evidence-based classification (REGRESSION/BUG/FEATURE/QUESTION/DUPLICATE), deterministic routing table, `.out-of-scope/` knowledge base for deferred items. Closes the "mismanaged out-of-scope queue" hallucination class.
