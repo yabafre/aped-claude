@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.14.0] - 2026-04-30
+
 ### Added
 
 - **`scripts/cut-release.sh`** — single-shot release preparation script. Validates preconditions (clean tree, on main, in sync with origin), checks pre-merge checklist (CHANGELOG/README/SECURITY/skills), bumps version, rewrites CHANGELOG `[Unreleased]` → `[X.Y.Z] - DATE`, prints diff, then lists 5 manual steps for the user to execute. Per `feedback_review_before_push`: the script PREPARES, the user APPROVES.
