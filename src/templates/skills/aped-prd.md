@@ -276,11 +276,17 @@ When the reviewer returns:
 
 ## Validation
 
+Run **both** validators — `validate-prd.sh` is the legacy human-readable reporter; `oracle-prd.sh` (4.12.0+) is the C-compiler-convention deterministic verifier whose `ERROR <code>: <reason>` output any grep pipeline can parse.
+
 ```bash
+# Legacy human-readable reporter (kept for backwards compat).
 bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md
+
+# Deterministic oracle (canonical 4.12.0+ pre-merge gate).
+bash {{APED_DIR}}/aped-prd/scripts/oracle-prd.sh {{OUTPUT_DIR}}/prd.md
 ```
 
-In interactive mode, run this AFTER all sections accepted. If it fails, surface the errors and offer one final A/P/C round on the failing area.
+In interactive mode, run this AFTER all sections accepted. If `oracle-prd.sh` exits non-zero, surface the `ERROR Eddd: ...` lines verbatim to the user and offer one final A/P/C round on the failing area. Do **not** ship the PRD until oracle-prd exits 0 — every error code (E001 file-not-found, E002 missing-section, E003 FR-count, E004 non-hyphenated FR, E006 anti-pattern word, E007 NFR-no-threshold) maps to a deterministic fix.
 
 ## Output & State
 

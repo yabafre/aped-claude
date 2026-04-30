@@ -212,9 +212,17 @@ Every FR from PRD mapped to exactly one epic. No orphans, no phantoms.
 
 ## Validation
 
+Run **both** validators — `validate-coverage.sh` for the legacy human-readable report, `oracle-epics.sh` (4.12.0+) for the C-compiler-convention deterministic verifier (E020 FR coverage, E021 every epic has ≥1 story).
+
 ```bash
+# Legacy human-readable reporter (kept for backwards compat).
 bash {{APED_DIR}}/aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md
+
+# Deterministic oracle (canonical 4.12.0+ pre-merge gate).
+bash {{APED_DIR}}/aped-epics/scripts/oracle-epics.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md
 ```
+
+If `oracle-epics.sh` exits non-zero, surface the `ERROR Eddd: ...` lines verbatim and HALT. Do not ship the epics list with E020 (uncovered FR) or E021 (empty epic) violations — both block aped-story / aped-dev downstream.
 
 ### Spec self-review
 
