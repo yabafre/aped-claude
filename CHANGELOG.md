@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.13.0] - 2026-04-30
+
+Phase 3 audit code-execution-with-mcp R1 absorption (agent #1). Eliminates the entire state.yaml hallucination class via a typed atomic-ops MCP server. Opt-in — pure-markdown APED stays unchanged.
+
 ### Added
 
 - **`aped-method enable-mcp` opt-in MCP companion server** (`src/templates/mcp/aped-state-server.mjs`, `src/templates/optional-features.js#mcpStateTemplates`, `src/subcommands.js`, `src/index.js`). Exposes typed atomic ops on `state.yaml` to Claude Code over the MCP stdio protocol (vanilla Node implementation, no SDK dependency — protocol surface is `initialize` + `tools/list` + `tools/call` only). Three tools shipped:
