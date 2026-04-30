@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { issueTrackerSection } from './providers/issue-tracker.js';
+import { gitProviderSection } from './providers/git-provider.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -17,6 +19,8 @@ function loadCSV(name) {
 
 export function references(c) {
   const a = c.apedDir;
+  const ts = c.ticketSystem ?? 'none';
+  const gp = c.gitProvider ?? 'github';
   return [
     {
       path: `${a}/aped-analyze/references/research-prompts.md`,
@@ -68,7 +72,7 @@ export function references(c) {
     },
     {
       path: `${a}/aped-dev/references/ticket-git-workflow.md`,
-      content: TICKET_GIT_WORKFLOW,
+      content: buildTicketGitWorkflow(ts, gp),
     },
   ];
 }
@@ -1116,140 +1120,19 @@ describe("{Endpoint/Service}", () => {
 - **No assertions**: Every test must assert something. \`expect(true).toBe(true)\` is not a test.
 `;
 
-const TICKET_GIT_WORKFLOW = `# Ticket System & Git Provider Integration
+// Ticket-git-workflow assembly. Header + footer are config-agnostic; only
+// the configured provider's section is concatenated in. Adding a new
+// ticket_system or git_provider = drop a block in providers/*.js, no
+// changes here.
+const TICKET_GIT_HEADER = `# Ticket System & Git Provider Integration
 
 Read \`ticket_system\` and \`git_provider\` from config.yaml to adapt all instructions below.
 
 ---
 
-## Ticket System Sync Rules
+## Ticket System Sync Rules`;
 
-### If ticket_system = "none"
-Skip all ticket references. Use plain commit messages without ticket IDs.
-
-### If ticket_system = "linear"
-
-**BEFORE starting a story:**
-1. Find the corresponding Linear issue
-2. Move issue status to **In Progress**
-3. Use the **Linear-suggested git branch name** (from Linear UI: "Copy git branch name")
-4. Add a comment on the issue: what you're about to implement
-
-**DURING development:**
-- Reference the Linear issue ID in EVERY commit message
-- Use **Linear magic words** for auto-linking:
-  - \`Part of TEAM-XX\` — links without closing (use in intermediate commits)
-  - \`Fixes TEAM-XX\` — links and auto-closes issue on merge
-- Commit format: \`type(TEAM-XX): description\\n\\nPart of TEAM-XX\`
-
-**AFTER completing:**
-1. Create PR with issue ID: \`gh pr create --title "feat(TEAM-XX): Story X.Y - Description" --body "Fixes TEAM-XX"\`
-2. Move issue to **In Review**
-3. After merge: move to **Done**
-4. Update state.yaml to match
-
-### If ticket_system = "jira"
-
-**BEFORE:** Find JIRA issue (PROJ-XX), move to In Progress, use branch: \`feature/PROJ-XX-description\`
-
-**DURING:**
-- Reference JIRA issue ID in every commit: \`type(PROJ-XX): description\`
-- JIRA smart commits: \`PROJ-XX #in-progress\`, \`PROJ-XX #done\`
-
-**AFTER:**
-- PR title: \`feat(PROJ-XX): Story X.Y - Description\`
-- JIRA auto-links PRs via issue ID in branch name or commit
-
-### If ticket_system = "github-issues"
-
-**BEFORE:** Find GitHub issue #XX, assign yourself
-
-**DURING:**
-- Reference in commits: \`type(#XX): description\`
-- Use \`Closes #XX\` or \`Fixes #XX\` in final commit/PR body
-
-**AFTER:**
-- \`gh pr create --title "feat: Story X.Y" --body "Closes #XX"\`
-- Issue auto-closes when PR merges
-
-### If ticket_system = "gitlab-issues"
-
-**BEFORE:** Find GitLab issue #XX, assign yourself
-
-**DURING:**
-- Reference: \`type(#XX): description\`
-- Use \`Closes #XX\` in commit/MR body
-
-**AFTER:**
-- \`glab mr create --title "feat: Story X.Y" --description "Closes #XX"\`
-- Issue auto-closes when MR merges
-
----
-
-## Git Provider Workflow
-
-### If git_provider = "github"
-
-**Branch strategy:**
-\`\`\`
-main (production)
-  └── develop (integration, if configured)
-        └── feature/{ticket-id}-description
-\`\`\`
-
-**Commands:**
-\`\`\`bash
-# Start story
-git checkout main  # or develop if exists
-git pull
-git checkout -b feature/{ticket-id}-description
-
-# During dev
-git add <specific-files>  # NEVER git add . or git add -A
-git commit -m "type({ticket-id}): description"
-
-# Complete
-git push -u origin feature/{ticket-id}-description
-gh pr create --base main --title "type({ticket-id}): Story X.Y - Title" --body "Fixes {ticket-id}"
-
-# After merge
-git checkout main && git pull
-git branch -d feature/{ticket-id}-description
-\`\`\`
-
-### If git_provider = "gitlab"
-
-**Commands:**
-\`\`\`bash
-# Start
-git checkout main && git pull
-git checkout -b feature/{ticket-id}-description
-
-# Complete
-git push -u origin feature/{ticket-id}-description
-glab mr create --base main --title "type({ticket-id}): Story X.Y" --description "Closes {ticket-id}"
-
-# After merge
-git checkout main && git pull
-git branch -d feature/{ticket-id}-description
-\`\`\`
-
-### If git_provider = "bitbucket"
-
-**Commands:**
-\`\`\`bash
-# Start
-git checkout main && git pull
-git checkout -b feature/{ticket-id}-description
-
-# Complete
-git push -u origin feature/{ticket-id}-description
-# Create PR via Bitbucket web UI or API
-\`\`\`
-
----
-
-## Commit Message Format
+const TICKET_GIT_FOOTER = `## Commit Message Format
 
 \`\`\`
 type({ticket-id}): short description
@@ -1302,5 +1185,18 @@ Local state.yaml and ticket system MUST agree:
 4. ALWAYS update ticket status: In Progress → In Review → Done
 5. ALWAYS stage specific files — never \`git add .\` or \`git add -A\`
 6. ALWAYS use ticket system's suggested branch name when available
-7. NEVER commit secrets (.env, API keys, settings.local.json)
-`;
+7. NEVER commit secrets (.env, API keys, settings.local.json)`;
+
+export function buildTicketGitWorkflow(ts, gp) {
+  return (
+    [
+      TICKET_GIT_HEADER,
+      issueTrackerSection(ts),
+      '---',
+      '## Git Provider Workflow',
+      gitProviderSection(gp),
+      '---',
+      TICKET_GIT_FOOTER,
+    ].join('\n\n') + '\n'
+  );
+}
