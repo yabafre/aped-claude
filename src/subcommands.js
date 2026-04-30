@@ -34,6 +34,7 @@ import {
   visualCompanionTemplates,
   worktreeScopeTemplates,
   tddRedMarkerTemplates,
+  mcpStateTemplates,
 } from './templates/optional-features.js';
 import {
   DEFAULTS,
@@ -97,6 +98,11 @@ export async function runSubcommand(command, args) {
 
   if (command === 'tdd-red-marker') {
     await installFeature('tdd-red-marker', tddRedMarkerTemplates(config));
+    return;
+  }
+
+  if (command === 'enable-mcp') {
+    await installFeature('enable-mcp', mcpStateTemplates(config));
     return;
   }
 
