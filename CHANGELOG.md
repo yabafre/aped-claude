@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.13.1] - 2026-04-30
+
 ### Fixed
 
 - **session-start.sh banner crash on 0-skill scaffolds** — `grep -cE … || echo 0` under `set -euo pipefail` produced `"0\n0"` when SKILL-INDEX.md had zero matching lines, crashing the integer comparison. Replaced with `{ grep -E … || true; } | wc -l | tr -d ' '` per §5.1 discipline.
