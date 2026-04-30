@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.0] - 2026-04-30
+
 ### Added
 
 - **`aped-review.md` Stage 1.5 body edits** — skill body now references the merge-findings script and the 3 adversarial sub-agents (Hannah/Eli/Aaron). Opt-in via `review.parallel_reviewers: true` in config.yaml. Failure semantics documented (1/3 fail = continue, 0/3 = skip with warning).
