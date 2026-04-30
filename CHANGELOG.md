@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.16.0] - 2026-04-30
+
 ### Added
 
 - **`oracle-dev.sh`** (E030-E036) — TDD discipline oracle for dev phase. Checks: last-test-exit cache presence (E033), non-zero exit with dev-done status (E034), TDD inversion (E036 — src touched without tests).
