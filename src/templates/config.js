@@ -342,6 +342,10 @@ corrections: []
 
 ### Vision (Phase 3)
 
+## Out of Scope
+
+<!-- Capabilities explicitly excluded from this PRD. Prevents scope creep in epics/arch downstream. List the things you considered and decided NOT to do, and one-line why. -->
+
 ## User Journeys
 
 ## Domain Requirements

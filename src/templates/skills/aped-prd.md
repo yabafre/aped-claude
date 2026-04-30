@@ -139,7 +139,7 @@ Before presenting any PRD section to the user, walk this checklist. Each `[ ]` m
 - [ ] **FR format** — every FR matches `FR#: [Actor] can [capability]`. No FR-less section.
 - [ ] **FR IDs** — sequential (no accidental gaps), unique, none reused.
 - [ ] **NFRs measurable** — every NFR has a threshold (`< 200ms p95`, `99.9% uptime`); no bare "fast", "scalable", "secure".
-- [ ] **Required sections present** — Goals, Non-goals, FRs, NFRs, Success Metrics.
+- [ ] **Required sections present** — Goals, Non-goals (or Out of Scope), FRs, NFRs, Success Metrics.
 - [ ] **Ambiguity scan** — `should`, `might`, `could` only appear with explicit justification. Otherwise rephrase as a concrete claim or remove.
 - [ ] **Spec-reviewer dispatched** — reviewer returned Approved (or [O]verride recorded).
 
@@ -184,6 +184,7 @@ Generate the PRD using `{{APED_DIR}}/templates/prd.md` as structure. **One secti
 ### Section 2: Scope & Journeys
 - Success Criteria: User / Business / Technical / Measurable Outcomes
 - Product Scope: MVP — Growth — Vision phases
+- **Out of Scope:** explicit list of capabilities considered and decided NOT to do, one-line why each. Required — prevents scope creep in epics/arch downstream.
 - User Journeys: key end-to-end workflows
 
 ⏸ Interactive: present + A/P/C menu. Headless: continue.
