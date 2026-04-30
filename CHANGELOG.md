@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **session-start.sh banner crash on 0-skill scaffolds** — `grep -cE … || echo 0` under `set -euo pipefail` produced `"0\n0"` when SKILL-INDEX.md had zero matching lines, crashing the integer comparison. Replaced with `{ grep -E … || true; } | wc -l | tr -d ' '` per §5.1 discipline.
+- **validate-coverage.sh silent PASS on canonical hyphenated PRDs** — `grep -oE 'FR[0-9]+'` at 4 sites (validate-prd.sh lines 150/168, validate-coverage.sh lines 216/217) did not match the `FR-N` canonical form standardised in 4.7.6. PRDs using `FR-1` through `FR-N` got zero FR matches → silent PASS. Fixed to `FR-?[0-9]+` with normalization to `FR-N` for consistent comparison. Also hardened `grep -c .` arithmetic at lines 233/234.
+
 ## [4.13.0] - 2026-04-30
 
 Phase 3 audit code-execution-with-mcp R1 absorption (agent #1). Eliminates the entire state.yaml hallucination class via a typed atomic-ops MCP server. Opt-in — pure-markdown APED stays unchanged.
