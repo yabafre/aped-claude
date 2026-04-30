@@ -28,6 +28,8 @@ const KNOWN_SUFFIXES = [
   'write-skill', 'zoom-out',
   // 4.8.0 — Pocock surgical absorption (alignment grilling)
   'grill',
+  // 4.19.0 — issue triage state machine
+  'triage',
 ];
 
 function stem(word) {
