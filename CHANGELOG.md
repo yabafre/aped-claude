@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-04-30
+
 ### Added
 
 - **`allowed-paths` frontmatter on all 31 skills** — every `aped-*.md` now declares `allowed-paths.write` and `allowed-paths.read-only` arrays. BREAKING: `tests/allowed-paths-frontmatter-lint.test.js` enforces presence — skills without the field fail CI.
