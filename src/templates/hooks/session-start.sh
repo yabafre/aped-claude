@@ -13,8 +13,7 @@
 # Git-for-Windows bash to execute this script. On macOS / Linux this
 # script runs directly via the shebang.
 
-set -u
-set -o pipefail
+set -euo pipefail
 
 # Locate the project root. Claude Code sets CLAUDE_PROJECT_DIR for hooks;
 # fall back to git toplevel, then to PWD.

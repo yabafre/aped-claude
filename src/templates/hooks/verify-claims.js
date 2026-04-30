@@ -15,6 +15,12 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 
+// Advisory contract: never crash, never block on internal failure. Any
+// uncaught error in the hook itself exits 0 silently so the user's Bash
+// invocation is not affected by hook bugs.
+process.on('uncaughtException', () => process.exit(0));
+process.on('unhandledRejection', () => process.exit(0));
+
 // Forbidden completion-claim phrases. Each entry is paired with a regex that
 // asserts word-boundary or exact-form matching where the phrase is short
 // enough to false-positive inside other words (e.g. "Done!" inside "doneness"
