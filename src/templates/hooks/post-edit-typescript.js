@@ -7,6 +7,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+// Advisory contract: never crash, never block on internal failure. Any
+// uncaught error in the hook itself exits 0 silently so the user's edit
+// is not affected by hook bugs.
+process.on('uncaughtException', () => process.exit(0));
+process.on('unhandledRejection', () => process.exit(0));
+
 let input = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (chunk) => { input += chunk; });

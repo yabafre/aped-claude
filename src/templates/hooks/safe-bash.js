@@ -3,6 +3,13 @@
 // PreToolUse hook on Bash invocations. Pattern matching is a best-effort
 // UX safety net, NOT a security boundary: crafted commands bypass it
 // trivially (var-indirection, command substitution, etc). See SECURITY.md.
+//
+// Advisory contract: never crash, never block on internal failure. Any
+// uncaught error in the hook itself exits 0 silently so the user's Bash
+// invocation is not affected by hook bugs.
+process.on('uncaughtException', () => process.exit(0));
+process.on('unhandledRejection', () => process.exit(0));
+
 const rules = [
   { decision: 'deny', label: 'dangerous root delete', pattern: /\brm\s+(-[A-Za-z]*[rRfF][A-Za-z]*\s+)+(\/|\/\s|\/\*|\$HOME|~\/?)/i },
   { decision: 'deny', label: 'curl pipe shell', pattern: /curl\b[^\n|]*\|\s*(bash|sh|zsh)\b/i },
