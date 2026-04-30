@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`aped-pre-mortem` skill** — structured pre-mortem before implementation. Assumes the project HAS ALREADY FAILED, works backwards through 5 failure categories (technical/scope/integration/process/user), ranks by likelihood × impact, produces mitigation table + pre-mortem report.
+- **`aped-design-twice` skill** — dual design exploration. Forces two structurally different designs for the same requirement before committing. Trade-off matrix on 5 dimensions. Prevents premature lock-in.
+- **Skill count**: 31 → 33. README updated.
+
 ## [5.3.0] - 2026-04-30
 
 ### Added
