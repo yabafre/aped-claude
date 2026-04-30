@@ -46,149 +46,32 @@ Inject and maintain APED working rules in the project's `CLAUDE.md`. Smart merge
 
 ## APED Block Template
 
-The block to inject (between `<!-- APED:START -->` and `<!-- APED:END -->`) contains:
+The block to inject (between `<!-- APED:START -->` and `<!-- APED:END -->`) is a compact trigger-rule (≤300 tokens). Substitute `{{...}}` placeholders at injection time. Render this entire block only if `aped/config.yaml` has `skill_invocation_discipline.enabled: true` (default `true`); when disabled, drop the **Skill invocation** subsection but keep the rest.
 
-### Section 1: Project Header
-- Project name from config
-- One-line description: "Uses the APED Method — disciplined user-driven dev pipeline"
-- Pipeline diagram: `Analyze → PRD → UX → Architecture → Epics → Story → Dev → Review`
+## APED Method — disciplined user-driven pipeline
 
-### Section 2: Working Rules
+Pipeline: **Analyze → PRD → UX → Architecture → Epics → Story → Dev → Review**.
 
-**1. Plan Mode Default**
-- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
-- If something goes sideways, STOP and re-plan immediately
-- Use plan mode for verification steps, not just building
-- Write detailed specs upfront to reduce ambiguity
+### Skill invocation
 
-**2. Subagent Strategy**
-- Use subagents liberally to keep main context window clean
-- Offload research, exploration, and parallel analysis to subagents
-- For complex problems, throw more compute at it via subagents
-- One task per subagent for focused execution
+If there's **even a 1% chance** an APED skill applies, invoke it via the Skill tool. Use natural-language phrases ("create the prd", "review this branch", "kick off dev") — the runtime routes by the skill's `description:`. Do not paraphrase what you think the skill would say.
 
-**3. Self-Improvement Loop**
-- After ANY correction from the user: update `{{OUTPUT_DIR}}/lessons.md` with the pattern
-- Write rules for yourself that prevent the same mistake
-- Review lessons at session start
+User instructions in CLAUDE.md or `aped/config.yaml` override skill defaults. Record overrides; don't bake them into new skills.
 
-**4. Verification Before Done**
-- Never mark a task complete without proving it works
-- Run tests, check logs, demonstrate correctness
-- Ask: "Would a staff engineer approve this?"
+Full catalog: `{{APED_DIR}}/skills/SKILL-INDEX.md`.
 
-**5. Demand Elegance (Balanced)**
-- For non-trivial changes: pause and ask "is there a more elegant way?"
-- If a fix feels hacky: implement the elegant solution
-- Skip for simple, obvious fixes — don't over-engineer
+### APED rules
 
-**6. Autonomous Bug Fixing**
-- When given a bug report: just fix it. Don't ask for hand-holding
-- Point at logs, errors, failing tests — then resolve them
+- **No auto-chain.** Each skill ends with "Run aped-X when ready." Wait for user.
+- **Validate before persisting** to `{{OUTPUT_DIR}}/`.
+- **Story-driven dev.** No code without a story file. Use `aped-story` first.
+- **Frontend = visual verification.** Use `mcp__react-grab-mcp__get_element_context` at every GREEN.
 
-### Section 3: APED-Specific Rules
+### State
 
-**7. Never Auto-Chain Phases** — Each APED skill ends with "Run aped-X when ready". STOP. Wait for user.
-
-**8. Validate Before Persisting** — Never write artifacts to `{{OUTPUT_DIR}}/` until the user has explicitly validated.
-
-**9. Story-Driven Dev** — Never code without a story file. Use `aped-story` first. Use the epic context cache.
-
-**10. Frontend = Visual Verification** — Detect frontend stories. Use `mcp__react-grab-mcp__get_element_context` at every GREEN pass.
-
-### Section 4: Task Management
-1. **Plan First** — TaskCreate with checkable items
-2. **Verify Plan** — Check in with user before implementation
-3. **Track Progress** — TaskUpdate as you complete items
-4. **Document Results** — Update story file's Dev Agent Record
-5. **Capture Lessons** — Update `{{OUTPUT_DIR}}/lessons.md` after corrections
-
-### Section 5: Core Principles
-- **Simplicity First** — minimal code impact
-- **No Laziness** — root causes, no temporary fixes
-- **User Controls Pace** — collaborative, not automated
-- **Quality > Speed** — validation gates exist for a reason
-
-### Section 6: Project State
-- Engine: `{{APED_DIR}}/` (immutable after install)
-- Artifacts: `{{OUTPUT_DIR}}/` (evolves during project)
-- State machine: `{{OUTPUT_DIR}}/state.yaml`
-- Lessons: `{{OUTPUT_DIR}}/lessons.md`
+- Engine: `{{APED_DIR}}/` (immutable) · Artifacts: `{{OUTPUT_DIR}}/` (evolves)
+- State: `{{OUTPUT_DIR}}/state.yaml` · Lessons: `{{OUTPUT_DIR}}/lessons.md`
 - Project: {{project_name}} ({{user_name}}, {{communication_language}})
-
-### Section 7: Skill Invocation Discipline
-
-Render this section only if `aped/config.yaml` has `skill_invocation_discipline.enabled: true` (default `true`). When disabled, omit Section 7 entirely and renumber Section 8 to Section 7.
-
-> *(Lifted verbatim from Superpowers' `using-superpowers` Iron Law — Meincke et al. 2025 research shows imperative authority language drives compliance from 33% to 72%. Do not weaken with qualifiers.)*
-
-#### The 1% rule
-
-**If you think there is even a 1% chance an APED skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.**
-
-**IF AN APED SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.**
-
-This is not negotiable. This is not optional. You cannot rationalize your way out of this.
-
-Invoke relevant or requested skills BEFORE any response or action — including clarifying questions and codebase exploration. Even a 1% chance a skill might apply means you should invoke it to check. If an invoked skill turns out to be wrong for the situation, you don't need to use it.
-
-#### Red Flags — these thoughts mean STOP, you're rationalizing
-
-| Thought | Reality |
-|---------|---------|
-| "This is just a simple question" | Questions are tasks. Check for skills. |
-| "I need more context first" | Skill check comes BEFORE clarifying questions. |
-| "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
-| "I can check git/files quickly" | Files lack conversation context. Check for skills. |
-| "Let me gather information first" | Skills tell you HOW to gather information. |
-| "This doesn't need a formal skill" | If a skill exists, use it. |
-| "I remember this skill" | Skills evolve. Read the current version. |
-| "This doesn't count as a task" | Action = task. Check for skills. |
-| "The skill is overkill" | Simple things become complex. Use it. |
-| "I'll just do this one thing first" | Check BEFORE doing anything. |
-| "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
-| "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
-
-#### Instruction priority
-
-APED skills override default system-prompt behavior, but **user instructions always take precedence**:
-
-1. **User's explicit instructions** (CLAUDE.md, `aped/config.yaml`, direct requests) — highest priority.
-2. **APED skills** (`aped-*` slash commands and their templates) — override default system behavior where they conflict.
-3. **Default system prompt** — lowest priority.
-
-If CLAUDE.md, `aped/config.yaml`, or a direct user request says "skip the TDD gate for this hotfix" and `aped-dev` says "always RED first", **follow the user's instructions**. The user is in control. Record the override and the reason; don't bake it into a new skill.
-
-#### Skill priority order
-
-When multiple skills could apply, use this order:
-
-1. **Process skills first** (`aped-brainstorm`, `aped-debug`, `aped-receive-review`, `aped-review`) — these determine HOW to approach the task.
-2. **Implementation skills second** (`aped-dev`, `aped-story`, `aped-epics`, `aped-arch`) — these guide execution.
-
-#### Skill types
-
-**Rigid** (`aped-dev`, `aped-debug`, `aped-review`, `aped-receive-review`): follow exactly. Don't adapt away the discipline. The Iron Laws are not stylistic preferences.
-
-**Flexible** (`aped-brainstorm`, `aped-arch`): adapt principles to context. The skill itself tells you which.
-
-#### Skill invocation (post-4.0.0)
-
-APED skills are reached via the Skill tool, by name. There is no slash-command surface — the legacy `/aped-X` shells were retired in 4.0.0. Use natural-language phrases that match a skill's `description:` triggers ("create the prd", "review this branch", "kick off dev") and the runtime will route to the right skill. If you still need to name a skill explicitly, use the bare name (e.g. `aped-prd`, not `/aped-prd`).
-
-### Section 8: Skill cheat sheet
-
-| Pipeline | Utility |
-|----------|---------|
-| aped-analyze | aped-status |
-| aped-prd | aped-course |
-| aped-ux | aped-context |
-| aped-arch | aped-qa |
-| aped-epics | aped-quick |
-| aped-story | aped-check |
-| aped-dev | aped-claude |
-| aped-review | aped-debug |
-| aped-receive-review | |
 
 ## Lessons File
 
