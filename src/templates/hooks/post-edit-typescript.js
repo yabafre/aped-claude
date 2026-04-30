@@ -3,7 +3,7 @@
 // `aped-method post-edit-typescript`. Runs prettier --write and eslint --fix
 // on .ts/.tsx/.mts/.cts files inside the project only, and only when those
 // binaries are already resolvable locally — never installs, never blocks.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -28,9 +28,19 @@ process.stdin.on('end', () => {
   if (!filePath) process.exit(0);
 
   const absolutePath = filePath.startsWith('/') ? filePath : resolve(projectDir, filePath);
-  if (!absolutePath.startsWith(projectDir)) process.exit(0);
   if (!/\.(ts|tsx|mts|cts)$/.test(absolutePath)) process.exit(0);
   if (!existsSync(absolutePath) || absolutePath.includes('/node_modules/')) process.exit(0);
+
+  // Resolve symlinks before the sandbox check — string-prefix on raw paths
+  // misses macOS /var → /private/var and any symlink in projectDir pointing
+  // outside the project.
+  let realFile;
+  let realProject;
+  try {
+    realFile = realpathSync(absolutePath);
+    realProject = realpathSync(projectDir);
+  } catch { process.exit(0); }
+  if (!realFile.startsWith(realProject + '/')) process.exit(0);
 
   const actions = [];
   const prettier = resolveBin(projectDir, 'prettier');
