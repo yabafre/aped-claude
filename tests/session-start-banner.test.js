@@ -159,6 +159,17 @@ describe('session-start.sh banner (4.12.1)', () => {
     expect(() => JSON.parse(r.stdout)).not.toThrow();
   });
 
+  it('banner shows 0 skills when SKILL-INDEX.md has no aped-* entries (grep -c discipline)', () => {
+    installHook(sandbox);
+    const indexPath = join(sandbox, APED_DIR, 'skills', 'SKILL-INDEX.md');
+    writeFileSync(indexPath, '# APED Skill Index\n\n<!-- AUTO-GENERATED -->\n\n');
+    writeConfig(sandbox, { aped_version: '4.13.1', ticket_system: 'none', git_provider: 'github' });
+    const r = runHook(sandbox);
+    expect(r.code).toBe(0);
+    const payload = JSON.parse(r.stdout);
+    expect(payload.systemMessage).toMatch(/0 skills indexed/);
+  });
+
   it('escapes special characters (quotes, backslashes, newlines) in banner', () => {
     installHook(sandbox);
     // Inject an awkward provider name to test escaping. The yaml_get

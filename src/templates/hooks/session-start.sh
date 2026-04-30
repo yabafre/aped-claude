@@ -55,7 +55,7 @@ fi
 # `- aped-<name> — <description>` line per skill (see
 # scripts.js#buildSkillIndex). Count those lines; defensively cap to 999
 # in case the index format ever changes shape.
-SKILL_COUNT=$(grep -cE '^-[[:space:]]+aped-' "$INDEX_FILE" 2>/dev/null || echo 0)
+SKILL_COUNT=$({ grep -E '^-[[:space:]]+aped-' "$INDEX_FILE" 2>/dev/null || true; } | wc -l | tr -d ' ')
 if [[ "$SKILL_COUNT" -gt 999 ]]; then
   SKILL_COUNT=999
 fi

@@ -146,8 +146,8 @@ for section in "\${REQUIRED_SECTIONS[@]}"; do
   fi
 done
 
-# Check FR format — accepts: FR1:, - FR1:, **FR1:**, * FR1:, etc.
-FR_LINES=$(grep -E '(^|[-*>[:space:]])\\*{0,2}FR[0-9]+\\*{0,2}\\s*:' "$FILE" 2>/dev/null || true)
+# Check FR format — accepts both legacy FR1: and canonical FR-1: forms
+FR_LINES=$(grep -E '(^|[-*>[:space:]])\\*{0,2}FR-?[0-9]+\\*{0,2}\\s*:' "$FILE" 2>/dev/null || true)
 FR_COUNT=0
 if [[ -n "$FR_LINES" ]]; then
   FR_COUNT=$(echo "$FR_LINES" | wc -l | tr -d ' ')
@@ -165,7 +165,7 @@ fi
 ANTI_PATTERNS=("easy" "intuitive" "fast" "responsive" "simple" "multiple" "several" "various")
 
 for pattern in "\${ANTI_PATTERNS[@]}"; do
-  MATCHES=$(grep -inE 'FR[0-9]+.*:.*\\b\${pattern}\\b' "$FILE" 2>/dev/null || true)
+  MATCHES=$(grep -inE 'FR-?[0-9]+.*:.*\\b\${pattern}\\b' "$FILE" 2>/dev/null || true)
   if [[ -n "$MATCHES" ]]; then
     ISSUES+=("ANTI-PATTERN '$pattern' found in FR: $MATCHES")
   fi
@@ -212,9 +212,10 @@ if [[ ! -f "$PRD_FILE" ]]; then
   exit 1
 fi
 
-# Extract FR numbers
-PRD_FRS=$(grep -oE 'FR[0-9]+' "$PRD_FILE" | sort -u || true)
-EPIC_FRS=$(grep -oE 'FR[0-9]+' "$EPICS_FILE" | sort -u || true)
+# Extract FR numbers — match both legacy FR1 and canonical FR-1 forms,
+# then normalize to canonical FR-N for consistent comparison.
+PRD_FRS=$(grep -oE 'FR-?[0-9]+' "$PRD_FILE" | sed 's/^FR\\([0-9]\\)/FR-\\1/' | sort -u || true)
+EPIC_FRS=$(grep -oE 'FR-?[0-9]+' "$EPICS_FILE" | sed 's/^FR\\([0-9]\\)/FR-\\1/' | sort -u || true)
 
 if [[ -z "$PRD_FRS" ]]; then
   echo "WARNING: No FRs found in PRD file"
@@ -230,8 +231,10 @@ for fr in $PRD_FRS; do
   fi
 done
 
-PRD_COUNT=$(echo "$PRD_FRS" | grep -c . || echo 0)
-EPIC_COUNT=$(echo "$EPIC_FRS" | grep -c . || echo 0)
+PRD_COUNT=$(echo "$PRD_FRS" | { grep -c . 2>/dev/null || true; })
+[[ "$PRD_COUNT" =~ ^[0-9]+$ ]] || PRD_COUNT=0
+EPIC_COUNT=$(echo "$EPIC_FRS" | { grep -c . 2>/dev/null || true; })
+[[ "$EPIC_COUNT" =~ ^[0-9]+$ ]] || EPIC_COUNT=0
 
 if [[ \${#MISSING[@]} -gt 0 ]]; then
   echo "COVERAGE VALIDATION FAILED"
