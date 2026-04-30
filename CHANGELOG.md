@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.0] - 2026-04-30
+
 ### Added
 
 - **oracle-dev.sh E030/E031/E032** — the 3 heavy anti-hallucination checks: E030 RED witness missing (checks dev-log.ndjson for `Confirmed RED` per new test file), E031 WARN paraphrased AC (no `verbatim from` comment above test blocks), E032 WARN hallucinated identifier (new symbols in src/ not found in story file).
