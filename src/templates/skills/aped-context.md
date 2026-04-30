@@ -51,6 +51,29 @@ Scan the project root:
 - Identify security advisories (if available)
 - Note lock file type (package-lock, yarn.lock, pnpm-lock, etc.)
 
+## Phase 5: Doc Freshness Audit
+
+For every documentation file discovered in the project root or `docs/` (e.g. `README.md`, `requirements.md`, `architecture.md`, `prd.md`, `design.md`, ADRs), classify by freshness against the code it describes:
+
+```bash
+# For each candidate doc:
+doc_mtime=$(git log -1 --format=%cI -- "$doc" 2>/dev/null)
+# For each top-level src/app directory the doc references (or all of src/ if generic):
+code_mtime=$(git log -1 --format=%cI -- "$module" 2>/dev/null)
+# If doc_mtime predates code_mtime by >30 days → stale
+```
+
+Three classifications:
+- **`fresh`** — doc was last touched after the most-recent commit on the modules it references, OR within 30 days of the latest code change.
+- **`stale`** — doc predates the latest code change by >30 days. The codebase has likely drifted past what the doc describes; downstream skills MUST NOT treat this doc as source-of-truth without explicit user override.
+- **`unknown`** — git history cannot resolve (file untracked, repo shallow, doc references nothing in `src/`).
+
+Surface the classification in the discovery report and in `project-context.md`'s `## Notes for Development` section. Stale docs get an explicit warning line:
+
+> ⚠ `docs/requirements.md` is **stale** (last edited 2025-09-12; latest commit on `src/auth/` is 2026-03-17). Treat as historical context, not authoritative spec. Re-run `aped-prd` if a fresh requirement is needed.
+
+When a downstream skill (`aped-analyze`, `aped-prd`, `aped-arch`) tries to load a doc marked `stale` from `project-context.md`, it must ask the user whether to (a) refresh the doc first, (b) use it as historical context only, or (c) override and treat as authoritative. Refs: Pocock workshop L2167 ("a month later, … the actual code has changed so much from the original PRD that it's almost unrecognizable").
+
 ## Self-review (run before user gate)
 
 Before presenting the project context to the user, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
@@ -60,6 +83,7 @@ Before presenting the project context to the user, walk this checklist. Each `[ 
 - [ ] **Conventions concrete** — named patterns and concrete examples, not "follow standard practices".
 - [ ] **Integration points enumerated** — every external system the project talks to (APIs, databases, queues) appears with its role.
 - [ ] **No bare "see the codebase"** — if a convention exists, name it; if it doesn't, say so explicitly.
+- [ ] **Doc freshness classified** — every documentation file under root or `docs/` is tagged `fresh` / `stale` / `unknown` based on its mtime versus the modules it describes. Stale docs carry an explicit warning in `project-context.md`.
 
 ## Output
 
