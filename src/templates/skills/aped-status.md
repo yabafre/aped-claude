@@ -17,7 +17,7 @@ Live dashboard for the pipeline and parallel sprint. Read-only — never writes,
 
 1. Read `{{APED_DIR}}/config.yaml` — extract `communication_language`, `ticket_system`, `git_provider`
 2. Read `{{OUTPUT_DIR}}/state.yaml` — pipeline + sprint state (active_epic, parallel_limit, review_limit, stories with their `status`, `worktree`, `depends_on`, `ticket`)
-3. Read `{{APED_DIR}}aped-status/references/status-format.md` for display conventions
+3. Read `{{APED_DIR}}/aped-status/references/status-format.md` for display conventions
 4. Probe optional tooling once: `command -v workmux >/dev/null` — if available, surface a "Live agents: `workmux dashboard`" hint in the header so the user knows where the fuller TUI view is.
 
 ## 1. Pipeline Overview

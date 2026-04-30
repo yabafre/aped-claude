@@ -110,11 +110,11 @@ Loaded artefacts inform every subsequent section:
 
 ## Domain & Project Type Detection
 
-1. Read `{{APED_DIR}}aped-prd/references/domain-complexity.csv`
+1. Read `{{APED_DIR}}/aped-prd/references/domain-complexity.csv`
    - Match brief content against `signals` column
    - If match found: note `complexity`, `key_concerns`, `special_sections`
    - High-complexity domains (healthcare, fintech, govtech, etc.) — mandatory Domain Requirements section
-2. Read `{{APED_DIR}}aped-prd/references/project-types.csv`
+2. Read `{{APED_DIR}}/aped-prd/references/project-types.csv`
    - Match against `detection_signals`
    - Note `required_sections`, `skip_sections`, `key_questions`
 
@@ -200,7 +200,7 @@ Generate the PRD using `{{APED_DIR}}/templates/prd.md` as structure. **One secti
 - Functional Requirements (target 10-80 FRs)
   - Format: `FR#: [Actor] can [capability] [context/constraint]`
   - Group by capability area
-  - Read `{{APED_DIR}}aped-prd/references/fr-rules.md` — validate quality
+  - Read `{{APED_DIR}}/aped-prd/references/fr-rules.md` — validate quality
 - Non-Functional Requirements (relevant categories only)
   - Format: `The system shall [metric] [condition] [measurement method]`
 
@@ -266,7 +266,7 @@ When the reviewer returns:
 ## Validation
 
 ```bash
-bash {{APED_DIR}}aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md
+bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md
 ```
 
 In interactive mode, run this AFTER all sections accepted. If it fails, surface the errors and offer one final A/P/C round on the failing area.
@@ -320,6 +320,6 @@ From a restaurant inventory brief → PRD generates:
 
 - **FR count too low (<10)**: Brief may lack detail — re-read brief, extract implicit capabilities. The Section 4 menu's `[A]` Advanced elicit (Socratic / What If) is good for surfacing missing capabilities.
 - **Anti-pattern words detected**: Replace "easy" with step count, "fast" with time threshold. Use `[A]` Advanced elicit with the Feynman method to find vague language.
-- **Validation script fails**: Run `bash {{APED_DIR}}aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md` — fix reported issues one by one. In interactive mode, this happens automatically after Section 4 with one final remediation round.
+- **Validation script fails**: Run `bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md` — fix reported issues one by one. In interactive mode, this happens automatically after Section 4 with one final remediation round.
 - **User wants the old autonomous behaviour (no menus)**: Tell them to invoke `aped-prd --headless`. This skips every A/P/C menu and produces the PRD straight-through, equivalent to the 3.7 behaviour.
 - **Model auto-picks `[C]` without showing the menu**: This is a bug. The skill MUST present the menu and HALT after every section in interactive mode. If you catch it auto-continuing, stop, redisplay the menu, wait.

@@ -338,15 +338,15 @@ This is systematic — every frontend task gets a visual check at GREEN, not jus
 
 ## TDD Implementation
 
-Read `{{APED_DIR}}aped-dev/references/tdd-engine.md` for detailed rules.
+Read `{{APED_DIR}}/aped-dev/references/tdd-engine.md` for detailed rules.
 
 For each task (update TaskUpdate to `in_progress` when starting):
 
 ### RED
-Write failing tests first. Run: `bash {{APED_DIR}}aped-dev/scripts/run-tests.sh`
+Write failing tests first. Run: `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh`
 
 ### GREEN
-Write minimal code to pass. Run: `bash {{APED_DIR}}aped-dev/scripts/run-tests.sh`
+Write minimal code to pass. Run: `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh`
 **Frontend tasks:** after tests pass, use React Grab to verify the component renders correctly in the layout.
 
 ### REFACTOR
@@ -376,7 +376,7 @@ In classic (non-parallel) mode, just HALT inline — the user is here.
 
 ## Git & Ticket Workflow
 
-Read `{{APED_DIR}}aped-dev/references/ticket-git-workflow.md` for full integration guide.
+Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md` for full integration guide.
 
 Read `ticket_system` and `git_provider` from `{{APED_DIR}}/config.yaml`.
 

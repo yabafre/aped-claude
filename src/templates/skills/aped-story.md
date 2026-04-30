@@ -278,7 +278,7 @@ Use template `{{APED_DIR}}/templates/story.md`. Fill every section:
 
 ### Ticket Integration
 If `ticket_system` is not `none`:
-- Read `{{APED_DIR}}aped-dev/references/ticket-git-workflow.md`
+- Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md`
 - Add `**Ticket:** {{ticket_id}}`
 - Add `**Branch:** feature/{{ticket_id}}-{{story-slug}}`
 - Add commit prefix in Dev Notes

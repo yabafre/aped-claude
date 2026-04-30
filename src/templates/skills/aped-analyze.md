@@ -161,7 +161,7 @@ TaskCreate: "Synthesize into product brief"
 TaskCreate: "Validate brief with user"
 ```
 
-Read `{{APED_DIR}}aped-analyze/references/research-prompts.md` for detailed agent prompts.
+Read `{{APED_DIR}}/aped-analyze/references/research-prompts.md` for detailed agent prompts.
 
 Launch **3 Agent tool calls in a single message** (parallel execution) with `run_in_background: true`.
 
@@ -284,7 +284,7 @@ When the reviewer returns:
 ## Phase 5: Validation
 
 ```bash
-bash {{APED_DIR}}aped-analyze/scripts/validate-brief.sh {{OUTPUT_DIR}}/product-brief.md
+bash {{APED_DIR}}/aped-analyze/scripts/validate-brief.sh {{OUTPUT_DIR}}/product-brief.md
 ```
 
 If validation fails: fix missing sections and re-validate.

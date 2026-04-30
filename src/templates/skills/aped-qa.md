@@ -17,7 +17,63 @@ Generate comprehensive end-to-end and integration tests for completed stories or
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config
 2. Read `{{OUTPUT_DIR}}/state.yaml` — find completed stories/epics
-3. Read `{{APED_DIR}}aped-qa/references/test-patterns.md` for framework selection and test templates
+3. Read `{{APED_DIR}}/aped-qa/references/test-patterns.md` for framework selection and test templates
+
+## Input Discovery
+
+Before any work, discover and load the artefacts QA must verify against. Generated tests have to ground in real Acceptance Criteria; without grounding, the agent invents ACs and the wrong framework.
+
+### 1. Glob discovery
+
+Search these locations in order:
+- `{{OUTPUT_DIR}}/**`
+- `{{APED_DIR}}/**`
+- `docs/**` (project root)
+
+Look for these artefacts (✱ = required):
+- Completed story files — `{{OUTPUT_DIR}}/stories/*.md` ✱ (at least one with status `done` / `review-done` in `state.yaml`, or one explicitly named via `[story-key]` argument)
+- PRD — `*prd*.md` or `prd.md`
+- Architecture — `*architecture*.md` or `architecture.md`
+- UX Spec — `ux/*.md` (sharded) or `*ux*.md`
+- Epic Context Cache — `{{OUTPUT_DIR}}/epic-{N}-context.md` (where N = epic number)
+- Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter entries with `Scope: aped-qa` or `Scope: all`)
+
+### 2. Required-input validation (hard-stop)
+
+For ✱ Completed story files:
+- If at least one `*.md` exists under `{{OUTPUT_DIR}}/stories/` (or one was named via `[story-key]` argument): continue
+- If none: HALT with this message:
+  > "No completed story file found. QA requires at least one story whose ACs it can ground tests in. Run `aped-story` then `aped-dev` first, or pass an explicit `[story-key]` if the file lives elsewhere."
+
+### 3. Framework detection (hard-stop)
+
+Detect the project's test framework before generating any tests. Tests grounded in the wrong framework produce noise.
+
+Search for, in order:
+- `package.json` `dependencies` / `devDependencies` for one of: `playwright`, `cypress`, `puppeteer`, `vitest`, `jest`, `mocha`, `supertest`
+- `pyproject.toml` / `requirements*.txt` for: `pytest`, `httpx`
+- `go.mod` for `testing` (Go test) and HTTP testing libs
+- `Cargo.toml` for `reqwest`, `tokio-test`
+- A `playwright.config.*` / `cypress.config.*` / `vitest.config.*` / `jest.config.*` file at the project root
+
+If zero matches: HALT and ask the user which framework to scaffold against — do not guess.
+
+### 4. Load + report
+
+Print a discovery report listing what was loaded:
+
+> Discovery report:
+> - Stories: {N} files {✓ loaded — ACs extracted | (none)}
+> - PRD: {N} files {✓ loaded — user-journey context | (none)}
+> - Architecture: {N} files {✓ loaded — integration-point context | (none)}
+> - UX Spec: {N} files {✓ loaded | (none)}
+> - Lessons: {✓ loaded | (none)}
+> - **Framework detected:** {playwright|cypress|vitest|pytest|...} (from {package.json|pyproject.toml|...})
+>
+> [C] Continue with these inputs
+> [Other] Add a file path / paste content — I'll load it and redisplay
+
+⏸ **HALT — wait for `[C]` or additional inputs.**
 
 ## Scope Selection
 
@@ -84,7 +140,7 @@ Read project config to auto-detect:
 - **Go**: Go test + httptest for API
 - **Rust**: reqwest for API tests
 
-Use `bash {{APED_DIR}}aped-dev/scripts/run-tests.sh` to verify tests pass.
+Use `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh` to verify tests pass.
 
 ## Test Coverage Report
 

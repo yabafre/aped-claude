@@ -137,7 +137,7 @@ bash {{APED_DIR}}/scripts/log.sh dispatch_started \\
 
 ## Pre-dispatch ticket validation (read-only, if ticket_system != none)
 
-Read `{{APED_DIR}}aped-dev/references/ticket-git-workflow.md` for provider syntax.
+Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md` for provider syntax.
 
 **Read-only check** for each story to dispatch — no mutations yet:
 1. Fetch the ticket — verify it exists and is in a state that allows being picked up (no one else actively assigned, status is in the "ready" lane).
