@@ -8,7 +8,7 @@ const OUTPUT_DIR = 'aped-output';
 describe('mcpStateTemplates (4.13.0 install template)', () => {
   it('produces the MCP server file and a settings.local.json patch', () => {
     const tpls = mcpStateTemplates({ apedDir: APED_DIR, outputDir: OUTPUT_DIR });
-    expect(tpls).toHaveLength(2);
+    expect(tpls).toHaveLength(3);
 
     const server = tpls.find((t) => t.path === `${APED_DIR}/mcp/aped-state-server.mjs`);
     expect(server).toBeDefined();
@@ -51,13 +51,13 @@ describe('mcpStateTemplates (4.13.0 install template)', () => {
 
   it('top-level key allowlist includes the canonical state.yaml roots', () => {
     const tpls = mcpStateTemplates({ apedDir: APED_DIR, outputDir: OUTPUT_DIR });
-    const server = tpls.find((t) => t.path === `${APED_DIR}/mcp/aped-state-server.mjs`);
-    // We assert the allowlist as text — the runtime test
-    // (mcp-state-server.test.js) checks the SCHEMA_REJECT semantics.
-    expect(server.content).toMatch(/'schema_version'/);
-    expect(server.content).toMatch(/'pipeline'/);
-    expect(server.content).toMatch(/'sprint'/);
-    expect(server.content).toMatch(/'corrections_pointer'/);
+    // v5.2.0: constants moved to state-schema.mjs (single source of truth).
+    const schema = tpls.find((t) => t.path === `${APED_DIR}/mcp/state-schema.mjs`);
+    expect(schema, 'state-schema.mjs template must exist').toBeDefined();
+    expect(schema.content).toMatch(/'schema_version'/);
+    expect(schema.content).toMatch(/'pipeline'/);
+    expect(schema.content).toMatch(/'sprint'/);
+    expect(schema.content).toMatch(/'corrections_pointer'/);
   });
 
   it('protocol version locked to spec-compatible value', () => {

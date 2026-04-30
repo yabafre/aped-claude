@@ -209,6 +209,11 @@ export function mcpStateTemplates(c) {
   const a = c.apedDir;
   return [
     {
+      path: `${a}/mcp/state-schema.mjs`,
+      executable: false,
+      content: substitute(loadTemplate('mcp/state-schema.mjs'), c),
+    },
+    {
       path: `${a}/mcp/aped-state-server.mjs`,
       executable: true,
       content: substitute(loadTemplate('mcp/aped-state-server.mjs'), c),
