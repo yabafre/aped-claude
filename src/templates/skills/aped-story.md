@@ -289,6 +289,7 @@ Before presenting the story file to the user, walk this checklist. Each `[ ]` mu
 - [ ] **Exact file paths** — every Execution task references a real file path (not "the auth module"). Persona check: the junior should not have to guess.
 - [ ] **Test commands** — every task with verifiable behaviour has an exact test command and expected output (not "run the tests").
 - [ ] **Given/When/Then ACs** — every Acceptance Criterion follows the Given/When/Then form. No bare "make it work" lines.
+- [ ] **AC behavioural discipline** — Acceptance Criteria describe user-visible behaviour or interface contracts, not implementation paths. No file paths, no line numbers, no internal helper names in ACs. ("The system rejects expired tokens" — yes. "The validateToken function in src/auth/jwt.ts:42 throws TokenExpiredError" — no.) File paths and code blocks belong in Tasks, not ACs.
 - [ ] **Dependencies done** — every entry in `depends_on:` is a story whose status is `done` in `state.yaml`.
 - [ ] **Reader persona check** — re-read the story top-to-bottom asking "would the junior produce the right code from this?" If any answer is "probably not", fix.
 - [ ] **Task granularity contract** — every Execution task has all five must-haves (exact path, full code, exact test command, expected output, literal commit step) and is estimated 2–5 min for the junior persona. Split anything bigger; rewrite anything that matches a Forbidden pattern from the contract.
