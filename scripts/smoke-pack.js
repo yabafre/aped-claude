@@ -47,6 +47,7 @@ try {
     'src/templates/skills/aped-skills/testing-skills-with-subagents.md',
     'src/templates/visual-companion/start-server.sh',
     'src/templates/visual-companion/frame-template.html',
+    'src/templates/hooks/session-start.sh',
   ];
   const missingInTarball = requiredInTarball.filter((p) => !existsSync(join(extractDir, p)));
   if (missingInTarball.length) {

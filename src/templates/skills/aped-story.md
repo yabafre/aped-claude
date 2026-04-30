@@ -339,7 +339,7 @@ In solo mode, skip steps 1–3 and tell the user: "Story file ready. Run `aped-d
 
 User runs `aped-story`:
 1. Next pending story: 1-2-inventory-crud
-2. Reads FR2, FR3 from PRD + inventory screen from UX spec
+2. Reads FR-2, FR-3 from PRD + inventory screen from UX spec
 3. Presents draft: "CRUD for inventory items — 4 ACs, 6 tasks"
 4. User: "Add an AC for duplicate item names"
 5. Updates draft, user validates

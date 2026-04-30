@@ -143,7 +143,16 @@ cache_age() {
   [[ -f "$CACHE_FILE" ]] || { echo 999999; return; }
   local now mtime
   now=$(date +%s)
-  mtime=$(stat -c %Y "$CACHE_FILE" 2>/dev/null || stat -f %m "$CACHE_FILE" 2>/dev/null || echo "$now")
+  # Both `stat -c %Y` (GNU) and `stat -f %m` (BSD/macOS) are tried. If both
+  # fail (extremely rare — locked-down container without a real `stat`), force
+  # cache-stale by emitting 999999 instead of `now`. Defaulting to `now` makes
+  # the cache look fresh forever and silently swallows a real environment bug.
+  mtime=$(stat -c %Y "$CACHE_FILE" 2>/dev/null || stat -f %m "$CACHE_FILE" 2>/dev/null || echo "")
+  if [[ -z "$mtime" ]]; then
+    echo "⚠ stat unavailable on this host — forcing ticket-cache refresh." >&2
+    echo 999999
+    return
+  fi
   echo $((now - mtime))
 }
 

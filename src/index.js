@@ -106,6 +106,9 @@ SUBCOMMANDS
                           Pass --uninstall to remove the hook entry from settings.
   visual-companion        Install the opt-in visual companion server used by the
                           aped-brainstorm skill. Pass --uninstall to remove it.
+  worktree-scope          Install the opt-in worktree-scope PreToolUse advisory
+                          hook (warns when Write/Edit targets escape the worktree
+                          root). Pass --uninstall to remove it.
   sync-logs prune         One-shot retention sweep over docs/sync-logs/. Reads the
                           \`sync_logs.retention\` block in .aped/config.yaml. Default
                           is dry-run; pass --apply to actually delete. Optional

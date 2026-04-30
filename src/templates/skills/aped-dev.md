@@ -1,7 +1,7 @@
 ---
 name: aped-dev
 keep-coding-instructions: true
-description: 'Use when user says "start dev", "implement story", "aped dev", or invokes aped-dev. Not for hotfixes or single-file isolated changes — see aped-quick for those.'
+description: 'Use when user says "start dev", "implement story", "aped dev", "TDD", "TDD cycle", "red green refactor", "failing test first", "generate unit tests", or invokes aped-dev. Not for hotfixes or single-file isolated changes — see aped-quick for those. Not for E2E tests — see aped-qa for that.'
 argument-hint: "[story-key]"
 disable-model-invocation: true
 license: MIT
