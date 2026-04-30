@@ -1,7 +1,7 @@
 ---
 name: aped-from-ticket
 keep-coding-instructions: true
-description: 'Use when user says "from ticket", "pickup ticket", "ingest ticket", references an external ticket ID, "aped from-ticket", or invokes aped-from-ticket.'
+description: 'Use when user says "from ticket", "pickup ticket", "pickup from Linear", "pickup from Jira", "work on this ticket", "start the GitHub issue", "ingest ticket", references an external ticket ID, "aped from-ticket", or invokes aped-from-ticket.'
 argument-hint: "<ticket-id-or-url>"
 license: MIT
 metadata:
@@ -313,10 +313,10 @@ Configured: `ticket_system: linear`, defaults otherwise (placement=ask, comment=
 
 1. Provider check: Linear MCP available — OK.
 2. Fetch LIN-1234: title "Login redirect loops on /admin", body, labels, 3 comments.
-3. Context: PRD has FR8 (auth flows) — flag overlap. No matching story in `epics.md`.
+3. Context: PRD has FR-8 (auth flows) — flag overlap. No matching story in `epics.md`.
 4. Placement (mode=ask): present "match Epic 2: Auth & sessions" or "bucket: external-tickets". User picks bucket.
 5. Story key: `ext-lin-1234-fix-login-redirect-loop`.
-6. Draft story shown — user adjusts AC2.
+6. Draft story shown — user adjusts AC-2.
 7. ⏸ User validates → file written, state.yaml updated (story registered, NOT added to active sprint).
 8. Handoff prompt → user picks `[P]` → story key appended to sprint ordering.
 9. Console: "Story `ext-lin-1234-fix-login-redirect-loop` ready and queued in sprint. Run `aped-dev` when ready."

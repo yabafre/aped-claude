@@ -322,10 +322,10 @@ Tell the user: "PRD is ready. Next options:"
 ## Example
 
 From a restaurant inventory brief → PRD generates:
-- FR1: Manager can add inventory items with name, quantity, and unit
-- FR2: Manager can set low-stock thresholds per item
-- FR3: System can send alerts when stock falls below threshold
-- NFR: The system shall respond to inventory queries within 200ms at p95
+- FR-1: Manager can add inventory items with name, quantity, and unit
+- FR-2: Manager can set low-stock thresholds per item
+- FR-3: System can send alerts when stock falls below threshold
+- NFR-1: The system shall respond to inventory queries within 200ms at p95
 
 ## Common Issues
 

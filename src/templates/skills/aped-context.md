@@ -67,17 +67,26 @@ Scan the project root:
 For every documentation file discovered in the project root or `docs/` (e.g. `README.md`, `requirements.md`, `architecture.md`, `prd.md`, `design.md`, ADRs), classify by freshness against the code it describes:
 
 ```bash
-# For each candidate doc:
-doc_mtime=$(git log -1 --format=%cI -- "$doc" 2>/dev/null)
-# For each top-level src/app directory the doc references (or all of src/ if generic):
-code_mtime=$(git log -1 --format=%cI -- "$module" 2>/dev/null)
-# If doc_mtime predates code_mtime by >30 days → stale
+# Detect shallow checkouts up-front — `git log` against a depth-1 clone returns
+# only the latest commit and silently makes every doc look fresh. Mark every doc
+# `unknown` instead of inviting that false-positive.
+if [[ "$(git rev-parse --is-shallow-repository 2>/dev/null)" == "true" ]]; then
+  echo "⚠ shallow git history — marking every doc as unknown (re-run after \`git fetch --unshallow\` for accurate freshness)."
+  classification=unknown
+else
+  # For each candidate doc:
+  doc_mtime=$(git log -1 --format=%cI -- "$doc" 2>/dev/null)
+  # For each top-level src/app directory the doc references (or all of src/ if generic):
+  code_mtime=$(git log -1 --format=%cI -- "$module" 2>/dev/null)
+  # If either is empty (no git history for this path) → unknown, never fresh.
+  # If doc_mtime predates code_mtime by >30 days → stale
+fi
 ```
 
 Three classifications:
 - **`fresh`** — doc was last touched after the most-recent commit on the modules it references, OR within 30 days of the latest code change.
 - **`stale`** — doc predates the latest code change by >30 days. The codebase has likely drifted past what the doc describes; downstream skills MUST NOT treat this doc as source-of-truth without explicit user override.
-- **`unknown`** — git history cannot resolve (file untracked, repo shallow, doc references nothing in `src/`).
+- **`unknown`** — git history cannot resolve (file untracked, repo shallow, doc references nothing in `src/`). Treat as `stale` for routing purposes — never `fresh`.
 
 Surface the classification in the discovery report and in `project-context.md`'s `## Notes for Development` section. Stale docs get an explicit warning line:
 

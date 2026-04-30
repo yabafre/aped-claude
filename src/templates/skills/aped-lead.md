@@ -67,14 +67,22 @@ Each check-in carries an `agent_status` field (added in the Tier 3 absorption) t
 Read it like (substitute `$key` for the story key you are processing):
 
 ```bash
-agent_status=$(jq -r --arg k "$kind" '
+agent_status_raw=$(jq -r --arg k "$kind" '
     select(.kind == $k and .status == "pending")
     | (.agent_status // "DONE")        # legacy entries lack the field; default to DONE
-  ' "{{APED_DIR}}/checkins/$key.jsonl" 2>/dev/null | tail -1)
-[[ -z "$agent_status" || "$agent_status" == "null" ]] && agent_status=DONE
+  ' "{{APED_DIR}}/checkins/$key.jsonl" 2>/tmp/aped-jq-err.$$ | tail -1)
+jq_exit=$?
+if (( jq_exit != 0 )); then
+  echo "⚠ jq parse failed for {{APED_DIR}}/checkins/$key.jsonl (exit $jq_exit) — refusing to auto-approve. Reason: $(cat /tmp/aped-jq-err.$$ 2>/dev/null)" >&2
+  agent_status=NEEDS_CONTEXT   # never silently default to DONE on a parse failure
+else
+  agent_status="$agent_status_raw"
+  [[ -z "$agent_status" || "$agent_status" == "null" ]] && agent_status=DONE
+fi
+rm -f /tmp/aped-jq-err.$$
 ```
 
-The `// "DONE"` jq fallback covers entries posted before the Tier 3 upgrade (no `agent_status` key). The post-jq guard covers the case where the file has no matching pending entry yet (jq prints empty) AND the rare case where jq emits the literal string `"null"` from a record where the field is present but JSON-null.
+The `// "DONE"` jq fallback covers entries posted before the Tier 3 upgrade (no `agent_status` key). The post-jq guard covers the case where the file has no matching pending entry yet (jq prints empty) AND the rare case where jq emits the literal string `"null"` from a record where the field is present but JSON-null. **A jq exit-code failure** (corrupted JSONL, missing file, ENOSPC) is a different class — never silently default to `DONE` on a parse failure; surface as `NEEDS_CONTEXT` so the user adjudicates.
 
 **No-jq fallback** — if the host lacks `jq` (rare but possible on locked-down CI), `checkin.sh` already implements a node-based reader for its own flow, but this skill's read snippet does not. On a no-jq host, replace the snippet above with:
 

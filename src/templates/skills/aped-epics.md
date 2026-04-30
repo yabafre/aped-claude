@@ -400,12 +400,12 @@ One issue per story. Format:
 As a {role}, I want {capability}, so that {benefit}.
 
 ## Acceptance Criteria
-- [ ] AC1: Given ... When ... Then ...
-- [ ] AC2: ...
+- [ ] AC-1: Given ... When ... Then ...
+- [ ] AC-2: ...
 
 ## Covered FRs
-- FR1: {FR title from PRD}
-- FR2: ...
+- FR-1: {FR title from PRD}
+- FR-2: ...
 
 ## UX References (if UX exists)
 - Screen: {screen name} (from screen-inventory.md)
@@ -542,7 +542,7 @@ pipeline:
       completed_at: "<ISO 8601 now>"
       epic_count: <int>
       story_count: <int>
-      fr_coverage: "<M>/<N> [optional descope note]"   # e.g. "76/77 (FR63 descoped M2)"
+      fr_coverage: "<M>/<N> [optional descope note]"   # e.g. "76/77 (FR-63 descoped M2)"
       ticket_sync: "synced"   # synced | skipped | failed
       synced_at: "<ISO 8601 now>"
 ```
@@ -554,15 +554,15 @@ Re-syncs append to `modified_tickets` (never overwrite); other fields are replac
 ## Example
 
 PRD with 25 FRs → 3 epics:
-- Epic 1: "Users can manage inventory" (FR1-FR8)
+- Epic 1: "Users can manage inventory" (FR-1 to FR-8)
   - 1-1-project-setup (S) — scaffold, deps, CI
   - 1-2-inventory-crud (M) — create/read/update/delete items
   - 1-3-search-filter (M) — search and filter inventory
   - 1-4-bulk-import (L) — CSV bulk import
-- Epic 2: "Managers can monitor stock levels" (FR9-FR16, 3 stories)
-- Epic 3: "System sends automated alerts" (FR17-FR25, 3 stories)
+- Epic 2: "Managers can monitor stock levels" (FR-9 to FR-16, 3 stories)
+- Epic 3: "System sends automated alerts" (FR-17 to FR-25, 3 stories)
 
-FR Coverage: FR1→1-1, FR2→1-2, FR3→1-2, ... (all mapped)
+FR Coverage: FR-1→1-1, FR-2→1-2, FR-3→1-2, ... (all mapped)
 
 ## Common Issues
 

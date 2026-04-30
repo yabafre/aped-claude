@@ -1,7 +1,7 @@
 ---
 name: aped-zoom-out
 keep-coding-instructions: true
-description: 'Use when user says "zoom out", "step back", "take a step back", "broader view", "wider context", "lost the thread", or invokes aped-zoom-out. Horizontal — invokable at any phase. Not for sprint progress dashboards (see aped-status) or for diff walks (see aped-checkpoint).'
+description: 'Use when user says "zoom out", "step back", "take a step back", "broader view", "wider context", "lost the thread", "are we still solving the right problem", or invokes aped-zoom-out. Horizontal — invokable at any phase. Not for sprint progress dashboards (see aped-status) or for diff walks (see aped-checkpoint).'
 disable-model-invocation: true
 license: MIT
 metadata:

@@ -196,7 +196,7 @@ After applying changes, verify:
 
 User says "We need to add OAuth — the client changed requirements":
 1. Impact: minor change — add FRs to PRD, create new stories
-2. Update PRD: add FR26-FR28 for OAuth
+2. Update PRD: add FR-26 to FR-28 for OAuth
 3. Re-validate PRD
 4. Add stories to Epic 1 for OAuth support
 5. Re-validate coverage
