@@ -24,6 +24,8 @@ const KNOWN_SUFFIXES = [
   'context', 'course', 'debug', 'dev', 'elicit', 'epics', 'from-ticket',
   'iterate', 'lead', 'prd', 'prfaq', 'qa', 'quick', 'receive-review',
   'retro', 'review', 'ship', 'sprint', 'status', 'story', 'ux',
+  // 4.6.0 — Tier 2 expansion
+  'write-skill', 'zoom-out',
 ];
 
 function stem(word) {
