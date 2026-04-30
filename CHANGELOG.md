@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`aped-brainstorm` Phase 4 Convergence — per-survivor grounding table mandatory before recommending** (`src/templates/skills/aped-brainstorm.md`). Pocock workshop convergence trap (superpowers issue #1266 — recommendations flip when followed up because the first pass was vibing). Each surviving idea now requires a 4-row table: Assumptions / Failure modes / Disqualifiers / Evidence basis. "Strong intuition" is explicitly NOT a valid evidence basis. Survivors whose evidence basis is "first principles" auto-flag for `aped-grill` before downstream PRD/arch handoff.
+- **`aped-brainstorm` Phase 5 Output — Assumptions / Unknowns / Out-of-scope blocks mandatory** (`src/templates/skills/aped-brainstorm.md`). Superpowers issue #1098 (brainstorm sessions historically dropped the unstated decisions a downstream PRD/arch agent had to re-discover). The output template now requires three named blocks: `## Assumptions in play` (with sources), `## Unknowns surfaced` (with recommended owner), `## Out of scope (declared during brainstorm)`. Each Top Survivor entry echoes the 4-row grounding table from Phase 4. Downstream `aped-prd` / `aped-arch` MUST NOT treat an absent block as "no assumptions" — they verify by reading.
+- **`aped-brainstorm` Placeholder scan — bare deferrals without successors flagged** (`src/templates/skills/aped-brainstorm.md`). Superpowers issue #1294 (drift through unowned deferrals). Phrases like "later" / "when X comes up" / "someone will pick this up" are placeholders unless paired with a concrete successor (follow-up ticket ID, `aped-grill` handoff, or explicit `## Out of scope` entry).
+- **`aped-story` — new `## Step 0: Quote current symbols` section before `## File structure design`** (`src/templates/skills/aped-story.md`). Superpowers issue #1234 (lessons absorbed by Jesse 2026-04 but not by APED until 4.11.0): "the most common plan-vs-reality mismatch is the writer's mental model of the code differing from the actual code at write time." For any task that modifies existing code, the story Dev Notes must include a verbatim quoted block of the current symbol(s) being changed (function signature, type definition, exported constant, current return shape, current error path). Greenfield stories must explicitly state `### Existing code: none — this is a new file.` Silent skip is the bug pattern this section closes.
+- **`aped-dev` — new "Verbatim spec-quote rule" in TDD section** (`src/templates/skills/aped-dev.md`). Superpowers issue #1233. Above each test AND each non-trivial code block for an AC, paste the literal AC text as a comment (3 lines) with the format `// AC-N (verbatim from story X-Y-key:lineN): <full text>`. Vague ACs that resist verbatim quoting are story bugs — surface via `aped-story --refine`, never invent your own clearer wording.
+- **SECURITY.md supported version** — `4.10.x ✓ / < 4.10 ✗` → `4.11.x ✓ / < 4.11 ✗`. Users on 4.10 or earlier should upgrade.
+
+### Added
+
+- **`tests/superpowers-tier7-absorption.test.js`** — locks the four 4.11.0 skill-body disciplines: aped-brainstorm Phase 4 grounding table + first-principles → aped-grill escalation; aped-brainstorm Phase 5 Assumptions/Unknowns/Out-of-scope blocks; aped-brainstorm successor enforcement on placeholder scan; aped-story Step 0 ordering + greenfield no-silent-skip; aped-dev verbatim spec-quote rule. Each assertion uses semantic-anchor regex (not exact-string) so future copy-edits don't break gratuitously.
+
 ## [4.10.0] - 2026-04-30
 
 Phase 3 Pocock workshop absorption — H5 deferred → shipped. Opt-in PostToolUse advisory hook that automates the `Confirmed RED:` witness check from 4.8.0. No engine changes, additive only — existing installs unaffected unless the user opts in via `aped-method tdd-red-marker`.
