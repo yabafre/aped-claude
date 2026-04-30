@@ -22,6 +22,8 @@ Bridge an external ticket (one that was NOT planned via `aped-epics`) into the p
 - **Do not auto-chain into dev.** After the story is written, ask the user how to proceed — do not silently run `aped-dev`.
 - **Do not modify the ticket without permission.** Comment-back is opt-in via config.
 
+> **Setup pointer.** Requires `ticket_system != 'none'` in `{{APED_DIR}}/config.yaml` — refuses to run otherwise. Run `npx aped-method` to configure a provider. Hard-dep matrix: `docs/skills-classification.md`.
+
 ## Setup
 
 1. Read `{{APED_DIR}}/config.yaml` — extract:

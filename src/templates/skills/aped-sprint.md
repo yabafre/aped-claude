@@ -22,6 +22,8 @@ metadata:
 - NEVER post the `story-ready` check-in from this skill. That is `aped-story`'s responsibility once the file is committed on the feature branch.
 - NEVER flip `sprint.stories.{key}.status` to `in-progress` from this skill. Record the worktree path only; status changes are owned by `aped-story` (→ `ready-for-dev`) and `aped-dev` (→ `in-progress`).
 
+> **Setup pointer.** Operates on the parallel-sprint machinery — requires `state.yaml.sprint.stories` populated by `aped-epics` and reads `git_provider` from `{{APED_DIR}}/config.yaml` for worktree branch routing. Without an epics phase output, there's nothing to dispatch. Hard-dep matrix: `docs/skills-classification.md`.
+
 ## Setup
 
 1. Verify you are in the main project root: `ls {{APED_DIR}}/WORKTREE` must fail. If it exists, tell the user "You're inside a worktree. Switch to the main project to dispatch."

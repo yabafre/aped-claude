@@ -13,6 +13,8 @@ metadata:
 
 Use this for isolated fixes, small features, or refactors that don't warrant the full A→P→E→D→R pipeline.
 
+> **Setup pointer.** Integrates with `ticket_system` in `{{APED_DIR}}/config.yaml` to label the hotfix on the source ticket so the team sees the bypass. With `ticket_system: none`, the skill writes its quick-spec under `{{OUTPUT_DIR}}/quick-specs/` only. Hard-dep matrix: `docs/skills-classification.md`.
+
 ## Setup
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config

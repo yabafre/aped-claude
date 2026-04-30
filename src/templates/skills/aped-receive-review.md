@@ -26,6 +26,8 @@ Code review reception requires technical evaluation, not emotional performance. 
 
 **NO PERFORMATIVE AGREEMENT — TECHNICAL VERIFICATION FIRST.** "You're absolutely right!" / "Great point!" / "Let me implement that now" before checking the codebase is the failure mode this skill exists to prevent. The reviewer wants their finding addressed, not their ego stroked. Verify the claim, restate the technical requirement, then either acknowledge factually ("Fixed in `src/auth/jwt.ts:42`") or push back with evidence (the command you ran + its output).
 
+> **Setup pointer.** Integrates with `ticket_system` in `{{APED_DIR}}/config.yaml` to read PR / ticket review comments and post the response trail. With `ticket_system: none`, the skill consumes review feedback pasted into the conversation by the user instead. Hard-dep matrix: `docs/skills-classification.md`.
+
 ### Red Flags
 
 These responses mean you are about to capitulate or rubber-stamp. If you catch yourself drafting any of them, **stop and run the Response Pattern below**.
