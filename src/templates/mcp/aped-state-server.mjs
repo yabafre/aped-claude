@@ -291,26 +291,28 @@ const TOOLS = {
 
   'aped_validate.phase': {
     description:
-      'Run the canonical oracle for a phase. Wraps oracle-{phase}.sh (4.12.0+) in a ' +
+      'Run the canonical oracle for a phase. Wraps oracle-{phase}.sh in a ' +
       'typed MCP call. Returns { ok, violations[] } where each violation is the ' +
-      'parsed `ERROR <code>: <reason>` line. Currently supported phases: prd, arch, epics.',
+      'parsed `ERROR <code>: <reason>` line. Supported: prd, arch, epics (4.12.0), dev, qa, state (4.16.0).',
     inputSchema: {
       type: 'object',
       properties: {
         phase: {
           type: 'string',
-          enum: ['prd', 'arch', 'epics'],
+          enum: ['prd', 'arch', 'epics', 'dev', 'qa', 'state'],
           description: 'Phase to validate. Maps to <apedDir>/aped-{phase}/scripts/oracle-{phase}.sh.',
         },
       },
       required: ['phase'],
     },
     handler: ({ phase }) => {
-      if (!['prd', 'arch', 'epics'].includes(phase)) {
-        throw new ToolError(`unsupported phase: ${phase}`, 'BAD_INPUT');
+      const SUPPORTED = ['prd', 'arch', 'epics', 'dev', 'qa', 'state'];
+      if (!SUPPORTED.includes(phase)) {
+        throw new ToolError(`unsupported phase: ${phase}. Supported: ${SUPPORTED.join(', ')}`, 'BAD_INPUT');
       }
 
-      const oracle = join(PROJECT_ROOT, APED_DIR, `aped-${phase}`, 'scripts', `oracle-${phase}.sh`);
+      const oracleDir = phase === 'state' ? 'aped-state' : `aped-${phase}`;
+      const oracle = join(PROJECT_ROOT, APED_DIR, oracleDir, 'scripts', `oracle-${phase}.sh`);
       if (!existsSync(oracle)) {
         throw new ToolError(`oracle script missing at ${oracle}. Re-scaffold with aped-method to install it.`, 'NO_ORACLE');
       }
@@ -318,11 +320,16 @@ const TOOLS = {
       const prdFile = join(PROJECT_ROOT, OUTPUT_DIR, 'prd.md');
       const archFile = join(PROJECT_ROOT, OUTPUT_DIR, 'architecture.md');
       const epicsFile = join(PROJECT_ROOT, OUTPUT_DIR, 'epics.md');
+      const storyFile = join(PROJECT_ROOT, OUTPUT_DIR, 'story.md');
+      const apedDirAbs = join(PROJECT_ROOT, APED_DIR);
 
       let args;
       if (phase === 'prd') args = [oracle, prdFile];
       else if (phase === 'arch') args = [oracle, archFile, prdFile];
-      else args = [oracle, epicsFile, prdFile];
+      else if (phase === 'epics') args = [oracle, epicsFile, prdFile];
+      else if (phase === 'dev') args = [oracle, storyFile, apedDirAbs];
+      else if (phase === 'qa') args = [oracle, 'default-key', apedDirAbs];
+      else args = [oracle, apedDirAbs];
 
       const r = spawnSync('bash', args, { encoding: 'utf-8' });
       const stdout = r.stdout || '';

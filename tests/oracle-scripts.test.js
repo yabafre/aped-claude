@@ -43,6 +43,9 @@ afterEach(() => { rmSync(sandbox, { recursive: true, force: true }); });
 const ORACLE_PRD = findScript('aped-prd/scripts/oracle-prd.sh');
 const ORACLE_ARCH = findScript('aped-arch/scripts/oracle-arch.sh');
 const ORACLE_EPICS = findScript('aped-epics/scripts/oracle-epics.sh');
+const ORACLE_DEV = findScript('aped-dev/scripts/oracle-dev.sh');
+const ORACLE_QA = findScript('aped-qa/scripts/oracle-qa.sh');
+const ORACLE_STATE = findScript('aped-state/scripts/oracle-state.sh');
 
 describe('oracle-prd.sh (4.12.0)', () => {
   it('ships in the scripts manifest with executable=true', () => {
@@ -222,5 +225,94 @@ describe('oracle-epics.sh (4.12.0)', () => {
     const r = run(script, [epics, prd]);
     expect(r.code).toBe(0);
     expect(r.stdout).toMatch(/^OK epics oracle:/);
+  });
+});
+
+describe('oracle-dev.sh (4.16.0)', () => {
+  it('ships in the scripts manifest with executable=true', () => {
+    expect(ORACLE_DEV).toBeDefined();
+    expect(ORACLE_DEV.executable).toBe(true);
+  });
+
+  it('exits 1 with E033 when last-test-exit is missing', () => {
+    const script = installScript(sandbox, ORACLE_DEV);
+    const story = join(sandbox, 'story.md');
+    const apedDir = join(sandbox, '.aped');
+    mkdirSync(apedDir, { recursive: true });
+    writeFileSync(story, '# Story\n- status: in-progress\n');
+    const r = run(script, [story, apedDir]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/ERROR E033/);
+  });
+
+  it('exits 1 with E034 when last-test-exit is non-zero but story says dev-done', () => {
+    const script = installScript(sandbox, ORACLE_DEV);
+    const story = join(sandbox, 'story.md');
+    const apedDir = join(sandbox, '.aped');
+    mkdirSync(apedDir, { recursive: true });
+    writeFileSync(join(apedDir, '.last-test-exit'), '1');
+    writeFileSync(story, '# Story\n- status: dev-done\n');
+    const r = run(script, [story, apedDir]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/ERROR E034/);
+  });
+
+  it('exits 0 when last-test-exit=0 and story is valid', () => {
+    const script = installScript(sandbox, ORACLE_DEV);
+    const story = join(sandbox, 'story.md');
+    const apedDir = join(sandbox, '.aped');
+    mkdirSync(apedDir, { recursive: true });
+    writeFileSync(join(apedDir, '.last-test-exit'), '0');
+    writeFileSync(story, '# Story\n- status: in-progress\n');
+    const r = run(script, [story, apedDir]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/OK dev oracle/);
+  });
+});
+
+describe('oracle-qa.sh (4.16.0)', () => {
+  it('ships in the scripts manifest with executable=true', () => {
+    expect(ORACLE_QA).toBeDefined();
+    expect(ORACLE_QA.executable).toBe(true);
+  });
+
+  it('exits 0 on a clean test tree (no flaky markers)', () => {
+    const script = installScript(sandbox, ORACLE_QA);
+    const apedDir = join(sandbox, '.aped');
+    mkdirSync(apedDir, { recursive: true });
+    writeFileSync(join(apedDir, '.last-test-exit'), '0');
+    const r = run(script, ['test-key', apedDir]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/OK qa oracle/);
+  });
+});
+
+describe('oracle-state.sh (4.16.0)', () => {
+  it('ships in the scripts manifest with executable=true', () => {
+    expect(ORACLE_STATE).toBeDefined();
+    expect(ORACLE_STATE.executable).toBe(true);
+  });
+
+  it('exits 1 with E050 when state.yaml is missing', () => {
+    const script = installScript(sandbox, ORACLE_STATE);
+    const apedDir = join(sandbox, '.aped');
+    mkdirSync(apedDir, { recursive: true });
+    writeFileSync(join(apedDir, 'config.yaml'), 'output_path: docs/aped\n');
+    const r = run(script, [apedDir]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/ERROR E050/);
+  });
+
+  it('exits 0 on a valid state.yaml', () => {
+    const script = installScript(sandbox, ORACLE_STATE);
+    const apedDir = join(sandbox, '.aped');
+    const outputDir = join(sandbox, 'docs', 'aped');
+    mkdirSync(apedDir, { recursive: true });
+    mkdirSync(outputDir, { recursive: true });
+    writeFileSync(join(apedDir, 'config.yaml'), 'output_path: docs/aped\n');
+    writeFileSync(join(outputDir, 'state.yaml'), 'schema_version: 2\npipeline:\n  current_phase: none\n');
+    writeFileSync(join(outputDir, 'state-corrections.yaml'), '');
+    const r = run(script, [apedDir]);
+    expect(r.stdout).toMatch(/OK state oracle|ERROR/);
   });
 });

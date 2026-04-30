@@ -541,6 +541,189 @@ fi
 exit "$ECODE"
 `,
     },
+    // ── Oracle scripts (4.16.0) — dev, qa, state ──────────────────────────
+    {
+      path: `${a}/aped-dev/scripts/oracle-dev.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# Oracle for Dev phase. Deterministic verification of TDD discipline
+# before downstream review.
+#
+# Usage: oracle-dev.sh <story-file> <apedDir>
+# Exit:  0 = clean, 1+ = violations (printed as ERROR <code>: <reason>)
+set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+  echo "Usage: $0 <story-file> <apedDir>"
+  exit 1
+fi
+
+STORY_FILE="$1"
+APED_DIR="$2"
+ECODE=0
+
+if [[ ! -f "$STORY_FILE" ]]; then
+  echo "ERROR E030: story file not found at $STORY_FILE"
+  exit 1
+fi
+
+# E033 — last-test-exit cache must exist
+if [[ ! -f "$APED_DIR/.last-test-exit" ]]; then
+  echo "ERROR E033: last-test-exit cache missing at $APED_DIR/.last-test-exit"
+  ECODE=1
+fi
+
+# E034 — if last-test-exit is non-zero but story says dev-done, flag it
+if [[ -f "$APED_DIR/.last-test-exit" ]]; then
+  LAST_EXIT=$(cat "$APED_DIR/.last-test-exit" 2>/dev/null || echo "unknown")
+  if [[ "$LAST_EXIT" != "0" ]]; then
+    DONE_STATUS=$({ grep -E '^-\\s*status:\\s*(dev-done|done|complete)' "$STORY_FILE" 2>/dev/null || true; } | wc -l | tr -d ' ')
+    if [[ "$DONE_STATUS" -gt 0 ]]; then
+      echo "ERROR E034: last-test-exit=$LAST_EXIT but story status is dev-done"
+      ECODE=1
+    fi
+  fi
+fi
+
+# E036 — TDD inversion: src files touched but no test files touched
+if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
+  SRC_TOUCHED=$({ git diff --name-only HEAD~1 -- 'src/**' 'lib/**' 'app/**' 2>/dev/null || true; } | wc -l | tr -d ' ')
+  TEST_TOUCHED=$({ git diff --name-only HEAD~1 -- 'tests/**' 'test/**' '**/*.test.*' '**/*.spec.*' 2>/dev/null || true; } | wc -l | tr -d ' ')
+  if [[ "$SRC_TOUCHED" -gt 0 && "$TEST_TOUCHED" -eq 0 ]]; then
+    echo "ERROR E036: $SRC_TOUCHED source files touched but 0 test files — TDD inversion"
+    ECODE=1
+  fi
+fi
+
+if [[ "$ECODE" -eq 0 ]]; then
+  echo "OK dev oracle: all checks passed"
+fi
+exit "$ECODE"
+`,
+    },
+    {
+      path: `${a}/aped-qa/scripts/oracle-qa.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# Oracle for QA phase. Deterministic verification of test quality markers.
+#
+# Usage: oracle-qa.sh <story-or-epic-key> <apedDir>
+# Exit:  0 = clean, 1+ = violations
+set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+  echo "Usage: $0 <story-or-epic-key> <apedDir>"
+  exit 1
+fi
+
+KEY="$1"
+APED_DIR="$2"
+ECODE=0
+
+# E042 — flaky test markers (.skip, .only, .todo, @pytest.mark.skip/flaky)
+FLAKY_HITS=$({ grep -rnE '\\.(skip|only|todo)\\(' tests/ test/ 2>/dev/null || true; } | { grep -v 'node_modules' || true; } | wc -l | tr -d ' ')
+if [[ "$FLAKY_HITS" -gt 0 ]]; then
+  echo "ERROR E042: $FLAKY_HITS flaky marker(s) found (.skip/.only/.todo) in test tree"
+  ECODE=1
+fi
+
+# E044 WARN — last-test-exit is stale (>24h)
+if [[ -f "$APED_DIR/.last-test-exit" ]]; then
+  if command -v stat >/dev/null 2>&1; then
+    # macOS vs Linux stat
+    if stat -f %m "$APED_DIR/.last-test-exit" >/dev/null 2>&1; then
+      MTIME=$(stat -f %m "$APED_DIR/.last-test-exit")
+    else
+      MTIME=$(stat -c %Y "$APED_DIR/.last-test-exit" 2>/dev/null || echo 0)
+    fi
+    NOW=$(date +%s)
+    AGE=$(( NOW - MTIME ))
+    if [[ "$AGE" -gt 86400 ]]; then
+      echo "WARN E044: last-test-exit is stale ($(( AGE / 3600 ))h old, threshold 24h)"
+    fi
+  fi
+fi
+
+if [[ "$ECODE" -eq 0 ]]; then
+  echo "OK qa oracle: all checks passed for key $KEY"
+fi
+exit "$ECODE"
+`,
+    },
+    {
+      path: `${a}/aped-state/scripts/oracle-state.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# Oracle for state.yaml. Deterministic shape verification.
+#
+# Usage: oracle-state.sh <apedDir>
+# Exit:  0 = clean, 1+ = violations
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <apedDir>"
+  exit 1
+fi
+
+APED_DIR="$1"
+CONFIG_FILE="$APED_DIR/config.yaml"
+ECODE=0
+
+# Resolve output_path from config
+OUTPUT_PATH="docs/aped"
+if [[ -f "$CONFIG_FILE" ]]; then
+  CUSTOM=$({ grep -E '^output_path:' "$CONFIG_FILE" 2>/dev/null || true; } | sed 's/^output_path:[[:space:]]*//' | sed "s/['\\"[:space:]]//g")
+  [[ -n "$CUSTOM" ]] && OUTPUT_PATH="$CUSTOM"
+fi
+STATE_FILE="$OUTPUT_PATH/state.yaml"
+
+if [[ ! -f "$STATE_FILE" ]]; then
+  echo "ERROR E050: state.yaml not found at $STATE_FILE"
+  exit 1
+fi
+
+# E050 — unknown top-level keys
+if command -v yq >/dev/null 2>&1; then
+  KNOWN="schema_version project_name pipeline sprint corrections_pointer corrections_count lead mcp"
+  ACTUAL_KEYS=$(yq eval 'keys | .[]' "$STATE_FILE" 2>/dev/null || true)
+  for k in $ACTUAL_KEYS; do
+    FOUND=0
+    for known in $KNOWN; do
+      [[ "$k" == "$known" ]] && FOUND=1 && break
+    done
+    if [[ "$FOUND" -eq 0 ]]; then
+      echo "ERROR E050: unknown top-level key '$k' in state.yaml (allowed: $KNOWN)"
+      ECODE=1
+    fi
+  done
+fi
+
+# E053 — corrections_pointer broken
+if command -v yq >/dev/null 2>&1; then
+  POINTER=$(yq eval '.corrections_pointer // ""' "$STATE_FILE" 2>/dev/null || true)
+  if [[ -n "$POINTER" && "$POINTER" != "null" && ! -f "$POINTER" ]]; then
+    echo "ERROR E053: corrections_pointer=$POINTER but file does not exist"
+    ECODE=1
+  fi
+fi
+
+# E055 — lead.worktree set but WORKTREE marker missing
+if command -v yq >/dev/null 2>&1; then
+  WORKTREE_VAL=$(yq eval '.lead.worktree // ""' "$STATE_FILE" 2>/dev/null || true)
+  if [[ -n "$WORKTREE_VAL" && "$WORKTREE_VAL" != "null" && "$WORKTREE_VAL" != "false" ]]; then
+    if [[ ! -f "$APED_DIR/WORKTREE" ]]; then
+      echo "ERROR E055: lead.worktree is set but $APED_DIR/WORKTREE marker is missing"
+      ECODE=1
+    fi
+  fi
+fi
+
+if [[ "$ECODE" -eq 0 ]]; then
+  echo "OK state oracle: all checks passed"
+fi
+exit "$ECODE"
+`,
+    },
     {
       path: `${a}/aped-dev/scripts/run-tests.sh`,
       executable: true,
