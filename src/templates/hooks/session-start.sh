@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
 # APED SessionStart hook (opt-in via `aped-method session-start`).
 #
-# Reads {{APED_DIR}}/skills/SKILL-INDEX.md and emits it as Claude Code
-# `SessionStart` `additionalContext`, so the agent sees an APED skill
-# inventory at the start of every session/clear/compact event.
+# Two outputs per fire:
+#   1. `additionalContext` — the SKILL-INDEX.md content, injected into
+#      Claude's context window so the agent sees an APED skill inventory
+#      at the start of every session/clear/compact event.
+#   2. `systemMessage` — a one-line user-visible banner ("✓ APED v4.X.Y
+#      loaded · N skills · tickets: <provider> · git: <provider>") so the
+#      user gets a confirmation that the hook actually fired.
 #
-# Silent (exit 0, no stdout) when the index is missing — keeps a partial
-# install or pre-scaffold state harmless.
+# Pre-4.12.1 the hook was silent on the user side — only the agent saw
+# the SKILL-INDEX. Users couldn't tell whether the hook was firing or
+# whether their session-start install was broken. systemMessage closes
+# that loop.
+#
+# Silent on errors: if SKILL-INDEX.md is missing, exit 0 with no output;
+# a partial install / pre-scaffold state must NOT crash session start.
 #
 # Cross-platform note: design mirrors superpowers' polyglot wrapper
 # pattern. On Windows, the matching `run-hook.cmd` (if installed) calls
@@ -27,6 +36,7 @@ fi
 # also work without re-editing the script.
 APED_DIR="{{APED_DIR}}"
 INDEX_FILE="${PROJECT_ROOT}/${APED_DIR}/skills/SKILL-INDEX.md"
+CONFIG_FILE="${PROJECT_ROOT}/${APED_DIR}/config.yaml"
 
 if [[ ! -f "$INDEX_FILE" ]]; then
   # Index not generated (e.g. partial install) — emit nothing, exit clean.
@@ -37,6 +47,53 @@ CONTENT=$(cat "$INDEX_FILE" 2>/dev/null || true)
 
 if [[ -z "$CONTENT" ]]; then
   exit 0
+fi
+
+# Build the user-visible banner.
+#
+# Skill count — from the SKILL-INDEX.md body. The generator emits one
+# `- aped-<name> — <description>` line per skill (see
+# scripts.js#buildSkillIndex). Count those lines; defensively cap to 999
+# in case the index format ever changes shape.
+SKILL_COUNT=$(grep -cE '^-[[:space:]]+aped-' "$INDEX_FILE" 2>/dev/null || echo 0)
+if [[ "$SKILL_COUNT" -gt 999 ]]; then
+  SKILL_COUNT=999
+fi
+
+# Tiny YAML reader. Reads `key: value` from config.yaml — values can be
+# bare, single-quoted, or double-quoted. Returns empty string when the
+# key is absent or the file doesn't exist. Pure bash, no yq dependency
+# (yq is hard-required for sync-state.sh / migrate-state.sh elsewhere
+# but a missing-yq host should still see a useful banner).
+yaml_get() {
+  local key="$1"
+  local file="$2"
+  [[ -f "$file" ]] || { echo ""; return; }
+  local raw
+  raw=$(grep -E "^${key}:" "$file" 2>/dev/null | head -1 | sed -E "s/^${key}:[[:space:]]*//" || true)
+  # Strip surrounding quotes if present.
+  raw="${raw#\"}"; raw="${raw%\"}"
+  raw="${raw#\'}"; raw="${raw%\'}"
+  # Strip trailing comments and whitespace.
+  raw=$(printf '%s' "$raw" | sed -E "s/[[:space:]]+#.*$//" | sed -E 's/[[:space:]]+$//')
+  echo "$raw"
+}
+
+APED_VERSION=$(yaml_get "aped_version" "$CONFIG_FILE")
+TICKET_SYSTEM=$(yaml_get "ticket_system" "$CONFIG_FILE")
+GIT_PROVIDER=$(yaml_get "git_provider" "$CONFIG_FILE")
+
+# Compose banner. Falls back gracefully when fields are missing.
+BANNER="✓ APED"
+if [[ -n "$APED_VERSION" ]]; then
+  BANNER="${BANNER} v${APED_VERSION}"
+fi
+BANNER="${BANNER} ready · ${SKILL_COUNT} skills indexed"
+if [[ -n "$TICKET_SYSTEM" ]]; then
+  BANNER="${BANNER} · tickets: ${TICKET_SYSTEM}"
+fi
+if [[ -n "$GIT_PROVIDER" ]]; then
+  BANNER="${BANNER} · git: ${GIT_PROVIDER}"
 fi
 
 # Escape for JSON embedding. Bash parameter substitution is faster than
@@ -53,10 +110,15 @@ escape_for_json() {
 }
 
 ESCAPED=$(escape_for_json "$CONTENT")
+ESCAPED_BANNER=$(escape_for_json "$BANNER")
 
-# Emit Claude Code SessionStart hook envelope.
+# Emit Claude Code SessionStart hook envelope. `systemMessage` is shown
+# to the user; `hookSpecificOutput.additionalContext` is added to
+# Claude's context. Both are documented as user-and-agent-visible
+# respectively in the Claude Code hooks spec.
+#
 # Uses printf rather than heredoc to avoid bash 5.3+ heredoc hangs on
 # some hosts (cf. obra/superpowers#571).
-printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$ESCAPED"
+printf '{"systemMessage":"%s","hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$ESCAPED_BANNER" "$ESCAPED"
 
 exit 0

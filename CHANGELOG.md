@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`aped-method session-start` hook was silent on the user side** (`src/templates/hooks/session-start.sh`). Pre-4.12.1 the hook only emitted `hookSpecificOutput.additionalContext` (the SKILL-INDEX content, agent-side); the user couldn't tell whether the hook actually fired. Per CC docs ([code.claude.com/docs/en/hooks](https://code.claude.com/docs/en/hooks)), the `systemMessage` JSON field is shown to the user. The hook now emits both: `additionalContext` (unchanged — full SKILL-INDEX.md to Claude's context) **and** `systemMessage` (a one-line user-visible banner: `✓ APED v<X.Y.Z> ready · N skills indexed · tickets: <provider> · git: <provider>`). Skill count is parsed from `^- aped-` lines in `SKILL-INDEX.md`. Version + ticket / git providers are read from `<apedDir>/config.yaml` via a tiny pure-bash YAML reader (no yq dependency, since yq is not always available at session-start time). Gracefully degrades when fields are missing: empty version slot, "tickets" / "git" segments dropped if absent. Pinned by `tests/session-start-banner.test.js` (9 tests covering banner format, version slot, skill count, provider segments, missing-config fallback, JSON well-formedness, escape safety).
+
 ## [4.12.0] - 2026-04-30
 
 Phase 3 audit C-compiler R1 absorption (agent #3). Three deterministic phase verifiers ship with the C-compiler `ERROR <code>: <reason>` convention. Skills cite the oracle in their Self-review / Validation section as canonical pre-merge gate; legacy `validate-*.sh` kept for backwards compat.
