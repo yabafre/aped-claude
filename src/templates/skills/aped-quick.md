@@ -1,7 +1,7 @@
 ---
 name: aped-quick
 keep-coding-instructions: true
-description: 'Use when user says "quick fix", "quick feature", "hotfix", "aped quick", or invokes aped-quick. Bypasses the full A→P→E→D→R pipeline — use only for isolated fixes.'
+description: 'Use when user says "quick fix", "quick feature", "hotfix", "small change", "just fix this", "aped quick", or invokes aped-quick. Bypasses the full A→P→E→D→R pipeline — use only for isolated fixes.'
 allowed-paths:
   write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
   read-only: ["src/**", "tests/**", "package.json"]

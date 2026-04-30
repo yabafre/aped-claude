@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`allowed-paths-scope.js` PreToolUse advisory hook** — reads the active skill's `allowed-paths` frontmatter and emits advisory when Write/Edit targets a file outside scope. Opt-in via `aped-method allowed-paths-scope`. The runtime that makes v5.0.0's frontmatter contract actionable.
+- **Routing rubric extended** — 4 new trigger phrases: "triage" → aped-triage, "draft requirements" → aped-prd, "system design" → aped-arch, "small change" → aped-quick.
+
+### Fixed
+
+- **H8: 3 underspecified skill descriptions** — `aped-prd.md` (+draft requirements, product requirement, write the prd), `aped-arch.md` (+system design, design the architecture), `aped-quick.md` (+small change, just fix this).
+- **README "Optional hooks" section** — added missing entries for `worktree-scope`, `tdd-red-marker`, `enable-mcp`, `allowed-paths-scope` (were documented in Operational commands but absent from the hooks section).
+
 ## [5.0.0] - 2026-04-30
 
 ### Added

@@ -1,7 +1,7 @@
 ---
 name: aped-prd
 keep-coding-instructions: true
-description: 'Use when user says "create PRD", "generate PRD", "aped prd", or invokes aped-prd. Headless mode available via --headless.'
+description: 'Use when user says "create PRD", "generate PRD", "draft requirements", "product requirement", "write the prd", "aped prd", or invokes aped-prd. Headless mode available via --headless.'
 allowed-paths:
   write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
   read-only: ["src/**", "tests/**", "package.json"]
