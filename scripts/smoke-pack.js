@@ -38,6 +38,23 @@ try {
   // 2. Extract to a tmp dir. `--strip-components=1` peels the "package/" prefix.
   run('tar', ['-xzf', join(packDir, tgz), '-C', extractDir, '--strip-components=1']);
 
+  // 2.5 Assert tarball contains files load-bearing for opt-in features. Catches
+  //     non-recursive globs in package.json `files` (e.g. `skills/*.md` not
+  //     covering `skills/aped-skills/*.md`, or visual-companion/ omitted).
+  const requiredInTarball = [
+    'src/templates/skills/aped-skills/anthropic-best-practices.md',
+    'src/templates/skills/aped-skills/persuasion-principles.md',
+    'src/templates/skills/aped-skills/testing-skills-with-subagents.md',
+    'src/templates/visual-companion/start-server.sh',
+    'src/templates/visual-companion/frame-template.html',
+  ];
+  const missingInTarball = requiredInTarball.filter((p) => !existsSync(join(extractDir, p)));
+  if (missingInTarball.length) {
+    console.error('[smoke:pack] tarball missing required files:');
+    missingInTarball.forEach((m) => console.error('  - ' + m));
+    process.exit(1);
+  }
+
   // 3. Point node_modules at the project's own — `npm install` on the
   //    extracted tree would work too but adds a network round-trip for no
   //    extra signal. A symlink gives runtime resolution identical to a
