@@ -200,6 +200,39 @@ export function worktreeScopeTemplates(c) {
   ];
 }
 
+export function tddRedMarkerTemplates(c) {
+  const a = c.apedDir;
+  return [
+    {
+      path: `${a}/hooks/tdd-red-marker.js`,
+      executable: true,
+      content: substitute(loadTemplate('hooks/tdd-red-marker.js'), c),
+    },
+    {
+      path: '.claude/settings.local.json',
+      content: stringifySettings({
+        hooks: {
+          PostToolUse: [
+            {
+              matcher: 'Write|Edit|MultiEdit',
+              hooks: [
+                {
+                  type: 'command',
+                  command: `\${CLAUDE_PROJECT_DIR}/${a}/hooks/tdd-red-marker.js`,
+                  // 6 s — Node cold-start + transcript tail (200 lines, a
+                  // few KB on average) + regex scan. Stays advisory; on
+                  // timeout no warning is emitted, never blocks.
+                  timeout: 6,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    },
+  ];
+}
+
 export function typeScriptQualityTemplates(c) {
   const a = c.apedDir;
   return [

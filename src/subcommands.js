@@ -33,6 +33,7 @@ import {
   sessionStartTemplates,
   visualCompanionTemplates,
   worktreeScopeTemplates,
+  tddRedMarkerTemplates,
 } from './templates/optional-features.js';
 import {
   DEFAULTS,
@@ -91,6 +92,11 @@ export async function runSubcommand(command, args) {
 
   if (command === 'worktree-scope') {
     await installFeature('worktree-scope', worktreeScopeTemplates(config));
+    return;
+  }
+
+  if (command === 'tdd-red-marker') {
+    await installFeature('tdd-red-marker', tddRedMarkerTemplates(config));
     return;
   }
 

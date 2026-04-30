@@ -48,6 +48,7 @@ const SUBCOMMANDS = new Set([
   'visual-companion',
   'sync-logs',
   'worktree-scope',
+  'tdd-red-marker',
 ]);
 
 // Subcommands that take a second positional action (e.g. `sync-logs prune`).
@@ -109,6 +110,10 @@ SUBCOMMANDS
   worktree-scope          Install the opt-in worktree-scope PreToolUse advisory
                           hook (warns when Write/Edit targets escape the worktree
                           root). Pass --uninstall to remove it.
+  tdd-red-marker          Install the opt-in TDD RED-witness PostToolUse advisory
+                          hook (warns when production-code Write/Edit follows a
+                          test-file Write/Edit without a "Confirmed RED:" token
+                          in the recent transcript). Pass --uninstall to remove.
   sync-logs prune         One-shot retention sweep over docs/sync-logs/. Reads the
                           \`sync_logs.retention\` block in .aped/config.yaml. Default
                           is dry-run; pass --apply to actually delete. Optional
