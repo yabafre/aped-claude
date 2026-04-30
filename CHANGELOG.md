@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Scaffolder engine accepts skill *directories* alongside single-file skills** (`src/templates/skills.js`). Skills can now ship as either the legacy `src/templates/skills/aped-X.md` (single file) or the new `src/templates/skills/aped-X/SKILL.md` plus optional companions (`process.md`, `references/rules.md`, nested subdirectories). Both layouts emit identical scaffold output paths under `<apedDir>/aped-X/` — single-file skills produce one `SKILL.md`, directory skills produce `SKILL.md` plus every companion at the same relative path. `{{APED_DIR}}`, `{{OUTPUT_DIR}}`, `{{CLI_VERSION}}` substitution applies to every file in the directory, not just `SKILL.md`. The non-routable `aped-skills/` bucket continues to be excluded. A duplicate-name check throws if a skill is defined as both a file and a directory simultaneously. New helpers `listSkillEntries(dir)` and `skillsFromDir(c, dir)` are exported for fixture-based tests. This is the foundation for Phase 2 §S1: heavy skill refactors (`aped-review` 620L, `aped-epics` 542L, `aped-arch` 493L, `aped-dev` 482L, `aped-ux` 460L) will move to the directory layout in subsequent minor releases without changing the public scaffold output. Pinned by `tests/skill-directory-layout.test.js` (10 contract tests covering both layouts, nested companions, bucket exclusion, duplicate guard, and substitution propagation). Backwards-compatible — every existing single-file skill continues to scaffold byte-for-byte identical output.
+
 ## [4.3.0] - 2026-04-30
 
 Hallucination-hardening pass (Phase 2 §H1-H10 / P1 / P6 from `docs/implementation-artifacts/phase-2-roadmap-2026-04-30.md`). All changes are surgical inserts in skill bodies plus three new lint / content tests; no engine refactor, no scaffold-output structural change. Skill count unchanged (27).
