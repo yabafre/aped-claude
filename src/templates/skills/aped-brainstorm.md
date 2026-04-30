@@ -5,6 +5,9 @@ description: 'Use when user says "brainstorm", "ideate", "generate ideas", "dive
 when_to_use: 'Use when user says "brainstorm", "help me ideate", "explore ideas". Runs before aped-analyze when the idea is still fuzzy.'
 argument-hint: "[topic]"
 allowed-tools: Read Write Edit Glob Grep Bash TaskCreate TaskUpdate
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 license: MIT
 metadata:
   author: yabafre

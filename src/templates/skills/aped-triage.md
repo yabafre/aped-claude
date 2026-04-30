@@ -3,6 +3,9 @@ name: aped-triage
 keep-coding-instructions: true
 description: 'Use when user says "triage this issue", "classify this bug", "is this in scope", "out of scope", "should we fix this now", "prioritize", "triage", or invokes aped-triage. Issue triage state machine: intake → classify → route → close/defer. Maintains .out-of-scope/ knowledge base for deferred items. Emits triage-decision.md for downstream skills.'
 allowed-tools: "Read Edit Write Bash Grep Glob"
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 ---
 
 # aped-triage — Issue Triage State Machine

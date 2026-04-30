@@ -5,6 +5,9 @@ description: 'Use when user says "retro", "retrospective", "epic done — what d
 when_to_use: 'Use when user says "retro", "retrospective", "review the epic".'
 argument-hint: "[epic-number]"
 allowed-tools: Read Write Edit Glob Grep Bash Agent TaskCreate TaskUpdate
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 disable-model-invocation: true
 license: MIT
 metadata:

@@ -3,6 +3,9 @@ name: aped-context
 keep-coding-instructions: true
 description: 'Use when user says "document codebase", "project context", "existing project", "aped context", or invokes aped-context. Runs alongside aped-analyze — both can apply on hybrid projects (new feature in legacy system).'
 allowed-tools: "Read Grep Glob Bash"
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 license: MIT
 metadata:
   author: yabafre

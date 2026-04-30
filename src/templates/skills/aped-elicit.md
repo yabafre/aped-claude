@@ -5,6 +5,9 @@ description: 'Use when user says "elicit", "critique this", "stress-test", "deep
 when_to_use: 'Use when user says "critique this", "stress-test", "deeper review", "socratic", "pre-mortem", "red team".'
 argument-hint: "[method-name | target-file]"
 allowed-tools: Read Write Edit Glob Grep Bash TaskCreate TaskUpdate
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 license: MIT
 metadata:
   author: yabafre

@@ -2,6 +2,9 @@
 name: aped-course
 keep-coding-instructions: true
 description: 'Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes aped-course.'
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 argument-hint: "[description of the change]"
 disable-model-invocation: true
 license: MIT

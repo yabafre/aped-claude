@@ -2,6 +2,9 @@
 name: aped-qa
 keep-coding-instructions: true
 description: 'Use when user says "generate tests" (E2E or integration), "E2E tests", "integration tests", "aped qa", or invokes aped-qa. Not for unit tests written during TDD RED — those are owned by aped-dev.'
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 argument-hint: "[story-key]"
 license: MIT
 metadata:

@@ -3,6 +3,9 @@ name: aped-checkpoint
 keep-coding-instructions: true
 description: 'Use when user says "checkpoint", "review changes", "walk me through this", "show me the diff", "walk the diff", "what just happened", "summarize the changes", or invokes aped-checkpoint. Not for sprint progress dashboards — see aped-status for that.'
 allowed-tools: "Read Grep Glob Bash"
+allowed-paths:
+  write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
+  read-only: ["src/**", "tests/**", "package.json"]
 license: MIT
 metadata:
   author: yabafre
