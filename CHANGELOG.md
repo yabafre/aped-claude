@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`oracle-dev.sh`** (E030-E036) — TDD discipline oracle for dev phase. Checks: last-test-exit cache presence (E033), non-zero exit with dev-done status (E034), TDD inversion (E036 — src touched without tests).
+- **`oracle-qa.sh`** (E042-E044) — test quality oracle. Checks: flaky markers `.skip/.only/.todo` in test tree (E042), stale last-test-exit >24h (E044 WARN).
+- **`oracle-state.sh`** (E050-E055) — state.yaml shape oracle. Checks: unknown top-level keys vs canonical allowlist (E050), broken corrections_pointer (E053), lead.worktree set but marker missing (E055).
+- **`aped_validate.phase` extended** — MCP tool now supports 6 phases: prd, arch, epics (4.12.0) + dev, qa, state (4.16.0).
+
 ## [4.15.0] - 2026-04-30
 
 ### Added
