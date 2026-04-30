@@ -1,5 +1,6 @@
 ---
 name: aped-prd
+keep-coding-instructions: true
 description: 'Use when user says "create PRD", "generate PRD", "aped prd", or invokes aped-prd. Headless mode available via --headless.'
 argument-hint: "[--headless]"
 license: MIT

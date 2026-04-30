@@ -1,5 +1,6 @@
 ---
 name: aped-course
+keep-coding-instructions: true
 description: 'Use when user says "correct course", "change scope", "pivot", "aped correct", or invokes aped-course.'
 argument-hint: "[description of the change]"
 disable-model-invocation: true

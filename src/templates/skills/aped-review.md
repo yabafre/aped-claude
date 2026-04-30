@@ -1,5 +1,6 @@
 ---
 name: aped-review
+keep-coding-instructions: true
 description: 'Use when user says "review code", "run review", "aped review", or invokes aped-review.'
 argument-hint: "[story-key]"
 disable-model-invocation: true

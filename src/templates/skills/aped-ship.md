@@ -1,5 +1,6 @@
 ---
 name: aped-ship
+keep-coding-instructions: true
 description: 'Use when user says "ship", "sprint pr", "pre-push", "aped ship", or invokes aped-ship. Only runs from the main project on the base branch — never from inside a worktree. HALTs before push.'
 disable-model-invocation: true
 license: MIT

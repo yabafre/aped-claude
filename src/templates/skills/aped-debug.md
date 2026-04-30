@@ -1,5 +1,6 @@
 ---
 name: aped-debug
+keep-coding-instructions: true
 description: 'Use when user says "debug", "troubleshoot", "why is X failing", "find the root cause", "aped debug", or invokes aped-debug. Also invoked from aped-dev on persistent test red (≥3 failed attempts) and from aped-review on findings that need root-cause investigation.'
 allowed-tools: Read Edit Bash Grep Glob Agent
 license: MIT

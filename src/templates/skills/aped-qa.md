@@ -1,5 +1,6 @@
 ---
 name: aped-qa
+keep-coding-instructions: true
 description: 'Use when user says "generate tests", "E2E tests", "integration tests", "aped qa", or invokes aped-qa.'
 argument-hint: "[story-key]"
 license: MIT

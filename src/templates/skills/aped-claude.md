@@ -1,5 +1,6 @@
 ---
 name: aped-claude
+keep-coding-instructions: true
 description: 'Use when user says "update CLAUDE.md", "sync claude rules", "aped claude", or invokes aped-claude. Merges — never overwrites user customizations.'
 license: MIT
 metadata:

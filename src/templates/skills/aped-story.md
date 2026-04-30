@@ -1,5 +1,6 @@
 ---
 name: aped-story
+keep-coding-instructions: true
 description: 'Use when user says "create story", "prepare next story", "aped story", or invokes aped-story.'
 argument-hint: "[story-key]"
 license: MIT

@@ -1,5 +1,6 @@
 ---
 name: aped-from-ticket
+keep-coding-instructions: true
 description: 'Use when user says "from ticket", "pickup ticket", "ingest ticket", references an external ticket ID, "aped from-ticket", or invokes aped-from-ticket.'
 argument-hint: "<ticket-id-or-url>"
 license: MIT

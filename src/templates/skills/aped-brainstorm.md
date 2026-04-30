@@ -1,5 +1,6 @@
 ---
 name: aped-brainstorm
+keep-coding-instructions: true
 description: 'Use when user says "brainstorm", "ideate", "generate ideas", "divergent thinking", or invokes aped-brainstorm. Horizontal — invokable at any phase.'
 when_to_use: 'Use when user says "brainstorm", "help me ideate", "explore ideas". Runs before aped-analyze when the idea is still fuzzy.'
 argument-hint: "[topic]"
