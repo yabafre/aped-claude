@@ -191,7 +191,7 @@ Each agent has a persona — include it in the prompt to keep them in character.
 - Open-source tools and frameworks relevant
 - Use WebSearch for current data
 
-Once all 3 agents return, update task: `TaskUpdate: "Parallel research" → completed`
+Once every parallel research agent (Mary, Derek, Tom) returns, update task: `TaskUpdate: "Parallel research" → completed`
 
 ## Phase 3: Research Review
 
@@ -218,7 +218,7 @@ mkdir -p {{OUTPUT_DIR}}
 
 1. Fuse discovery answers + research results into a product brief
 2. Use template from `{{APED_DIR}}/templates/product-brief.md`
-3. Fill all 5 sections: Executive Summary, Core Vision, Target Users, Success Metrics, MVP Scope
+3. Fill every section: Executive Summary, Core Vision, Target Users, Success Metrics, MVP Scope
 4. Write output to `{{OUTPUT_DIR}}/product-brief.md`
 
 ### Spec self-review
@@ -289,7 +289,7 @@ bash {{APED_DIR}}aped-analyze/scripts/validate-brief.sh {{OUTPUT_DIR}}/product-b
 
 If validation fails: fix missing sections and re-validate.
 
-**Present the completed brief to the user.** Summarize the 5 sections and ask:
+**Present the completed brief to the user.** Summarize every section of the brief and ask:
 - "Does this accurately capture your project?"
 - "Anything to add, remove, or change?"
 
