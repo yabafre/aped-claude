@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Phase 0 hardening pass — six pre-requisite audits informed by external research (Pocock workshop + skills repo, Anthropic engineering articles on code-execution-with-mcp / building-c-compiler / managed-agents, Superpowers 136 issues). All six are PATCH-level: no new skills, hooks, or CLI subcommands; no breaking changes; engine surface unchanged for opt-in features.
+Spans two passes informed by the same external research (Pocock workshop + skills repo, Anthropic engineering articles on code-execution-with-mcp / building-c-compiler / managed-agents, Superpowers 136 issues): the Phase 0 hardening (six PATCH-level audits, no new skills/hooks/subcommands) and the first Phase 1 feature (MINOR — out-of-scope knowledge base). Combined, this section describes the full delta when the next release ships.
+
+### Added
+
+- **Out-of-scope knowledge base** (`.aped/.out-of-scope/<concept>.md`). New persistent rejection memory: each entry captures one scope decision the team should not re-litigate next sprint — frontmatter (`concept`, `rejected_at`, `decided_by`) + `## Why this is out of scope` rationale + append-only `## Prior requests` list. The directory ships empty (only a `README.md` explaining the format) on every fresh `npx aped-method` install. Three skills now consult the KB during discovery: `aped-from-ticket` scans after fetching the ticket and before drafting; `aped-quick` scans after Setup, using the title argument as input; `aped-prd` Section 2 (Out of Scope) gains a one-line cross-reference noting that durable per-PRD decisions can be promoted to the cross-PRD KB. Match heuristic is exact word equality on filename tokens (lowercase, strip punctuation, drop ≤2-character tokens and stop-words like `add`/`fix`/`update`/`the`); resolved entries' `-resolved-YYYY-MM-DD` suffix is stripped before tokenising so old decisions still match. On match, the user picks `[K]` Keep refusal (abort), `[O]` Override (prepend a dated prior-request line, continue), or `[U]` Update (rename to `<concept>-resolved-<today>.md` with a closing note, continue). Multi-match adjudicates per-entry; any single `[K]` aborts the whole intake. Pre-4.2 scaffolds without the directory are treated as empty KB and skipped silently — backwards-compatible. Tests in `tests/out-of-scope-kb.test.js` lock the scaffold contract (4 cases). Refs: Pocock skills `triage/OUT-OF-SCOPE.md` + `.out-of-scope/` working examples.
 
 ### Fixed
 
