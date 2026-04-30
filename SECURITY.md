@@ -8,10 +8,10 @@ Security patches are issued for the latest `4.x` minor release only.
 
 | Version  | Supported          |
 | -------- | ------------------ |
-| 4.5.x    | :white_check_mark: |
-| < 4.5    | :x:                |
+| 4.6.x    | :white_check_mark: |
+| < 4.6    | :x:                |
 
-Users on 4.4 or earlier should upgrade to 4.5 before reporting an issue. Earlier lines do not receive new security patches.
+Users on 4.5 or earlier should upgrade to 4.6 before reporting an issue. Earlier lines do not receive new security patches.
 
 ## Reporting a Vulnerability
 

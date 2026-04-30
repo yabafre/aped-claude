@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.6.0] - 2026-04-30
+
 First Tier 2 expansion drop — two horizontal/meta skills land. Subsequent minors will add `aped-grill-with-docs`, `aped-method reconfigure`, `aped-method extract-context`, `aped-pre-commit`. Skill count: 27 → 29.
 
 ### Added
