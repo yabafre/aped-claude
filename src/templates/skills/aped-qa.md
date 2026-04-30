@@ -151,7 +151,7 @@ Read project config to auto-detect:
 - **Go**: Go test + httptest for API
 - **Rust**: reqwest for API tests
 
-Use `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh` to verify tests pass.
+Use `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh` to verify tests pass. After the run, **read `.aped/.last-test-exit`** — exit `0` means pass, anything else fails the QA gate. Do NOT report "QA complete" based on a "looks like it passed" reading of stdout; the canonical evidence is `.aped/.last-test-exit`.
 
 ## Test Coverage Report
 

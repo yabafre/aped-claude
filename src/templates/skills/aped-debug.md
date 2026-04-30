@@ -80,7 +80,7 @@ User invokes `aped-debug` directly with a failure description. Phase 1 starts fr
 
 Before Phase 1, gather just enough state to anchor the loop.
 
-1. **Failing artefacts.** Recent test output (`.aped/.last-test-exit`, the most recent failing run's stdout / stderr if captured), the most recent merge or commit, the working-tree diff.
+1. **Failing artefacts.** Recent test output: `cat .aped/.last-test-exit` (canonical exit-code cache, written by `run-tests.sh`); the most recent failing run's stdout / stderr if captured. **If `.aped/.last-test-exit` is absent**, run `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh` once before continuing — debugging from a missing test signal is debugging in the dark. Then the most recent merge or commit, the working-tree diff.
 2. **Caller context.** If invoked from `aped-dev`, the story file. If invoked from `aped-review`, the review finding. If standalone, the user's description.
 3. **Sprint state.** Read `{{OUTPUT_DIR}}/state.yaml` to know whether a sprint is active (informs whether `aped-arch-audit` or `aped-retro` is the right Phase 6 handoff candidate).
 

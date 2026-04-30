@@ -121,15 +121,16 @@ Filter: test files often have `console.log` for intentional diagnostics; tag tho
 The umbrella has been collecting story merges; run typecheck against its tip. Either:
 
 ```bash
-git checkout "$UMBRELLA"        # safe: working tree was verified clean at Setup
-pnpm typecheck                  # or the project-detected equivalent
-git checkout "$BASE_BRANCH"     # always return to base
+PKG=$(bash {{APED_DIR}}/scripts/detect-package-runner.sh)   # bun|pnpm|yarn|npm — deterministic
+git checkout "$UMBRELLA"                                    # safe: working tree verified clean at Setup
+"$PKG" run typecheck                                        # uses the project's actual runner
+git checkout "$BASE_BRANCH"                                 # always return to base
 ```
 
 Detect project type from root `package.json` and workspaces:
-- If root `package.json` has `scripts.typecheck` → `pnpm typecheck` (or npm/yarn equivalent).
+- If root `package.json` has `scripts.typecheck` → `$PKG run typecheck`. **Never invent the runner** — `detect-package-runner.sh` is the single source of truth (the four "or equivalent" hallucinations from pre-4.9.0 are exactly this footgun).
 - Else, detect a TS monorepo (look for `turbo.json` with typecheck task, or workspaces with `tsc`).
-- Else, if `tsconfig.json` exists at root → `pnpm exec tsc --noEmit`.
+- Else, if `tsconfig.json` exists at root → `"$PKG" exec tsc --noEmit`.
 - Else, skip (not a TS project).
 
 Capture errors. Group by file.

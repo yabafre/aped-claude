@@ -117,11 +117,12 @@ Run tests: `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh`
 
 ## Self-Review (30 seconds)
 
-Quick checklist — no full adversarial review:
-- [ ] Tests pass
-- [ ] No security issues introduced
-- [ ] No regressions in existing tests
-- [ ] AC from quick spec satisfied
+Quick checklist — no full adversarial review. Each `[x]` requires fresh evidence pasted in this message (Iron Law from `aped-review.md` applied to the quick path):
+
+- [ ] **Tests pass** — `cat .aped/.last-test-exit` returned `0` AND the most recent run shown above this message included the test files you touched. If `.aped/.last-test-exit` is absent or stale (>10 min), re-run via `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh` and paste output before checking.
+- [ ] No security issues introduced — quick scan of the diff for hardcoded secrets / SQL string-concat / un-validated user input / shell command injection. If any present, halt and treat as a real story (run `aped-dev` instead).
+- [ ] No regressions in existing tests — same `.aped/.last-test-exit == 0` check; if the test count *dropped* from the prior run, that's a regression-by-deletion.
+- [ ] AC from quick spec satisfied — paste the AC text and the file:line where each is implemented.
 
 ## Git & Ticket Workflow
 
