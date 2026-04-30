@@ -111,7 +111,7 @@ Two stories of the same epic should NOT both create the same file from scratch (
 
 ## Epic Design
 
-Read `{{APED_DIR}}aped-epics/references/epic-rules.md` for design principles.
+Read `{{APED_DIR}}/aped-epics/references/epic-rules.md` for design principles.
 
 ### Core Rules
 
@@ -178,7 +178,7 @@ Every FR from PRD mapped to exactly one epic. No orphans, no phantoms.
 ## Validation
 
 ```bash
-bash {{APED_DIR}}aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md
+bash {{APED_DIR}}/aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md
 ```
 
 ### Spec self-review
@@ -269,7 +269,7 @@ Before presenting the epics breakdown to the user, walk this checklist. Each `[ 
 
 Read `ticket_system` from config. If `none`: skip this phase entirely and write `ticket_sync: skipped` under `phases.epics` in state.yaml.
 
-Read `{{APED_DIR}}aped-dev/references/ticket-git-workflow.md` for provider-specific syntax.
+Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md` for provider-specific syntax.
 
 ### Step 0: Open the sync log
 

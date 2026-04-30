@@ -21,7 +21,7 @@ Use when requirements change, priorities shift, or the current approach needs re
 3. **Stuck-lock detection.** If `scope_change_active: true` is already set in `state.yaml` when this skill starts, a previous `aped-course` session crashed before clearing it — every subsequent scope-change attempt would then refuse to proceed. Check how old the flag is: compute `now - stat_mtime({{OUTPUT_DIR}}/state.yaml)`. If the mtime is > 2 hours (7200s), auto-clear the stale flag with `bash {{APED_DIR}}/scripts/sync-state.sh` (command: `set-scope-change false`) and warn the user: "Stale scope_change_active cleared from a previous crashed aped-course run (state.yaml was last touched {X}h ago). Verify no partial PRD/architecture/UX edits were left behind before starting the new scope change." If the mtime is < 2h, HALT and tell the user another scope-change session may still be active — they can either wait for it, or manually reset via `bash {{APED_DIR}}/scripts/sync-state.sh` + the `set-scope-change false` stdin command.
 4. Read `{{OUTPUT_DIR}}/state.yaml` — understand current pipeline state
 5. Read existing artifacts: brief, PRD, epics, stories
-6. Read `{{APED_DIR}}aped-course/references/scope-change-guide.md` for impact matrix and process
+6. Read `{{APED_DIR}}/aped-course/references/scope-change-guide.md` for impact matrix and process
 
 ## Active-Worktree Check (parallel sprint awareness)
 
@@ -84,9 +84,9 @@ Values must be valid JSON — strings need outer double-quotes, objects use the 
 
 ### Minor change (new/removed feature)
 1. Update PRD: add/remove FRs, update scope
-2. Re-run validation: `bash {{APED_DIR}}aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md`
+2. Re-run validation: `bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md`
 3. Update epics: add/archive affected stories
-4. Re-run coverage: `bash {{APED_DIR}}aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md`
+4. Re-run coverage: `bash {{APED_DIR}}/aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md`
 5. Update `{{OUTPUT_DIR}}/state.yaml`: mark affected stories as `backlog`
 
 After modifying ticket fields (titles, descriptions, labels, ACs):

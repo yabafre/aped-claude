@@ -364,7 +364,7 @@ If Marcus finds even one of these, he raises it as a finding with the exact gate
 
 **git-auditor** — **Rex**, Code Archaeologist — "Every commit tells a story."
 - `subagent_type: "general-purpose"`
-- Runs `bash {{APED_DIR}}aped-review/scripts/git-audit.sh`
+- Runs `bash {{APED_DIR}}/aped-review/scripts/git-audit.sh`
 - Reports out-of-scope changes and missing expected changes
 
 ### Conditional Specialists (by file surface)

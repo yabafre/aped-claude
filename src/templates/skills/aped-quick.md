@@ -98,7 +98,7 @@ Same TDD cycle as aped-dev but compressed:
 2. **GREEN** — Minimal implementation to pass
 3. **REFACTOR** — Clean up while green
 
-Run tests: `bash {{APED_DIR}}aped-dev/scripts/run-tests.sh`
+Run tests: `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh`
 
 ## Self-Review (30 seconds)
 
@@ -111,7 +111,7 @@ Quick checklist — no full adversarial review:
 ## Git & Ticket Workflow
 
 Read `ticket_system` and `git_provider` from config.
-Read `{{APED_DIR}}aped-dev/references/ticket-git-workflow.md` for full guide.
+Read `{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md` for full guide.
 
 1. **Branch**: create `fix/{ticket-id}-{slug}` or `feature/{ticket-id}-{slug}`
 2. **Commits**: `type({ticket-id}): description` — include magic words per ticket provider

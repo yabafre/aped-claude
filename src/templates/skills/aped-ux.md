@@ -96,7 +96,7 @@ Loaded artefacts inform every phase of this skill:
 2. Read `{{OUTPUT_DIR}}/state.yaml` — check pipeline state
    - If `pipeline.phases.ux.status` is `done`: ask user — redo or skip?
    - If user skips: stop here (user will invoke next phase manually)
-3. Read `{{APED_DIR}}aped-ux/references/ux-patterns.md` for design patterns catalog
+3. Read `{{APED_DIR}}/aped-ux/references/ux-patterns.md` for design patterns catalog
 
 ## Task Tracking
 
@@ -173,7 +173,7 @@ Create `src/data/mock.ts` — **real content from PRD**, not lorem ipsum:
 
 ### N1: Layout + Navigation
 
-Read PRD user journeys and screen inventory (from `{{APED_DIR}}aped-ux/references/ux-patterns.md`).
+Read PRD user journeys and screen inventory (from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`).
 
 1. **Map screens** from PRD user journeys:
    - Each journey → concrete screens
@@ -189,7 +189,7 @@ Read PRD user journeys and screen inventory (from `{{APED_DIR}}aped-ux/reference
    - `src/App.tsx` — router config
    - `src/pages/{ScreenSlug}.tsx` — one page per screen (initially placeholder)
 
-4. **Navigation** — read rules P9 (Navigation) from `{{APED_DIR}}aped-ux/references/ux-patterns.md`:
+4. **Navigation** — read rules P9 (Navigation) from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`:
    - Sidebar or top nav matching design inspiration
    - Active state indicators on current route
    - Mobile: bottom nav ≤5 items (icon + label) or hamburger/drawer
@@ -222,7 +222,7 @@ For each screen, in priority order (core journey first):
 
 ### F1: Interaction States
 
-Read rules P7 (Animation) and P8 (Forms & Feedback) from `{{APED_DIR}}aped-ux/references/ux-patterns.md`.
+Read rules P7 (Animation) and P8 (Forms & Feedback) from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`.
 
 For each screen, add:
 
@@ -236,7 +236,7 @@ For each screen, add:
 
 ### F2: Responsive + Dark Mode
 
-Read rules P5 (Layout) and P6 (Typography & Color) from `{{APED_DIR}}aped-ux/references/ux-patterns.md`.
+Read rules P5 (Layout) and P6 (Typography & Color) from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`.
 
 1. **Responsive** — test and fix at 3 breakpoints:
    - Mobile (375px): single column, hamburger nav, touch targets ≥44px, safe areas
@@ -253,7 +253,7 @@ Read rules P5 (Layout) and P6 (Typography & Color) from `{{APED_DIR}}aped-ux/ref
 
 ### F3: Accessibility Pass
 
-Read rules P1 (Accessibility) and P2 (Touch) from `{{APED_DIR}}aped-ux/references/ux-patterns.md`.
+Read rules P1 (Accessibility) and P2 (Touch) from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`.
 
 - Contrast: 4.5:1 normal text, 3:1 large text (test with browser devtools)
 - Focus rings: 2-4px, visible on all interactive elements
@@ -267,7 +267,7 @@ Read rules P1 (Accessibility) and P2 (Touch) from `{{APED_DIR}}aped-ux/reference
 
 ### F4: Pre-Delivery Checklist
 
-Read the full Pre-Delivery Checklist from `{{APED_DIR}}aped-ux/references/ux-patterns.md`.
+Read the full Pre-Delivery Checklist from `{{APED_DIR}}/aped-ux/references/ux-patterns.md`.
 
 Run through ALL checks before presenting to user:
 
@@ -418,7 +418,7 @@ The preview app (`{{OUTPUT_DIR}}/ux-preview/`) IS the source of truth for downst
 ## Validation
 
 ```bash
-bash {{APED_DIR}}aped-ux/scripts/validate-ux.sh {{OUTPUT_DIR}}/ux
+bash {{APED_DIR}}/aped-ux/scripts/validate-ux.sh {{OUTPUT_DIR}}/ux
 ```
 
 If validation fails: fix missing files or content and re-validate.

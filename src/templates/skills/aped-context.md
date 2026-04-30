@@ -17,7 +17,7 @@ Use on existing codebases to generate `project-context.md`. Other APED skills (`
 
 1. Read `{{APED_DIR}}/config.yaml` — extract config
 2. Confirm there is existing code to analyse (if the directory is empty / freshly initialised, tell the user this skill produces no useful output — they should run `aped-analyze` instead)
-3. Read `{{APED_DIR}}aped-context/references/analysis-checklist.md` for the full analysis checklist
+3. Read `{{APED_DIR}}/aped-context/references/analysis-checklist.md` for the full analysis checklist
 
 ## Codebase Analysis
 
