@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **All top-level APED skills now open with an `## On Activation` block** (`src/templates/skills/aped-*.md`). Injected before the first `## ` section in 27 skills (skipped: `aped-checkpoint`, `aped-zoom-out`, which are stateless micro-utilities). The block reads `{{APED_DIR}}/config.yaml` upfront and resolves `{user_name}` / `{communication_language}` / `{document_output_language}` / `{ticket_system}` / `{git_provider}`, with `✅ YOU MUST` contracts on speak/write language and a HALT if config is missing. Mirrors the BMAD activation pattern. Closes the failure mode where the agent began Phase 1 of a skill (Discovery, Setup, etc.) before having loaded config — speaking English while `communication_language: fr`, ignoring `ticket_system`, etc. Duplicated `Read \`{{APED_DIR}}/config.yaml\` — extract …` steps inside `## Setup` were removed and following list items renumbered. Skill-specific keys (e.g. `from_ticket.story_placement.mode`, `base_branch`) remain documented in their original sections.
+
 ## [4.7.0] - 2026-04-30
 
 Worktree-scope advisory hook (Phase 2 §P4 from the roadmap, deferred from 4.5.0 — no engine work, isolated subcommand). Targets the parallel-sprint failure mode where exploration agents return main-checkout paths and Write/Edit lands changes on `main` instead of inside the worktree.

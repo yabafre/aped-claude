@@ -13,12 +13,23 @@ metadata:
 
 Live dashboard for the pipeline and parallel sprint. Read-only — never writes, never changes status.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract `communication_language`, `ticket_system`, `git_provider`
-2. Read `{{OUTPUT_DIR}}/state.yaml` — pipeline + sprint state (active_epic, parallel_limit, review_limit, stories with their `status`, `worktree`, `depends_on`, `ticket`)
-3. Read `{{APED_DIR}}/aped-status/references/status-format.md` for display conventions
-4. Probe optional tooling once: `command -v workmux >/dev/null` — if available, surface a "Live agents: `workmux dashboard`" hint in the header so the user knows where the fuller TUI view is.
+1. Read `{{OUTPUT_DIR}}/state.yaml` — pipeline + sprint state (active_epic, parallel_limit, review_limit, stories with their `status`, `worktree`, `depends_on`, `ticket`)
+2. Read `{{APED_DIR}}/aped-status/references/status-format.md` for display conventions
+3. Probe optional tooling once: `command -v workmux >/dev/null` — if available, surface a "Live agents: `workmux dashboard`" hint in the header so the user knows where the fuller TUI view is.
 
 ## 1. Pipeline Overview
 

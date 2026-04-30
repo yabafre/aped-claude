@@ -10,6 +10,18 @@ metadata:
 
 # APED Analyze — Parallel Research to Product Brief
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - NEVER skip Discovery — research quality depends on clear, detailed inputs
@@ -87,8 +99,7 @@ Loaded artefacts inform every subsequent phase of this skill:
 
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract `user_name`, `communication_language`, `ticket_system`, `git_provider`
-2. Read `{{OUTPUT_DIR}}/state.yaml` — check `pipeline.phases.analyze`
+1. Read `{{OUTPUT_DIR}}/state.yaml` — check `pipeline.phases.analyze`
    - If status is `done`: ask user — redo analysis or skip to next phase?
    - If user skips: stop here (user will invoke next phase manually)
 

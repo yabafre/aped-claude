@@ -13,6 +13,18 @@ metadata:
 
 # APED Elicit — Deep Critique Toolkit
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - NEVER apply changes without explicit user consent (y/n per method)
@@ -34,12 +46,11 @@ The value of elicitation is revealing what was implicit: unstated assumptions, m
 
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract `user_name`, `communication_language`
-2. Determine the **target**:
+1. Determine the **target**:
    - If user passed a file path: read that file, work on its current top-level content OR ask which section
    - If user passed a method name (e.g., `pre-mortem`): skip selection, apply directly to the conversation's most recent substantive content
    - If neither: ask "What do you want to put through elicitation?" — a file, a recent decision, a draft section
-3. Confirm the target before proceeding:
+2. Confirm the target before proceeding:
    > "Target: {file/section/decision}. Content being critiqued: {1-line summary}. Correct?"
 
 ⏸ **GATE: User confirms the target.**

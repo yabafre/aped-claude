@@ -15,6 +15,18 @@ metadata:
 
 Routes a post-ship delta ("we shipped X, now we realise we need Y") to the correct downstream skill. Classifies the delta into Patch / Plan / Design level via a short interview, recommends the right APED tool with rationale, then hands off — never implements the change itself.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - This is a **router skill**, not an implementation skill. The output is a recommendation + a handoff message. Never carry the work past the routing step.

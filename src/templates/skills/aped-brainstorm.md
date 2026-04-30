@@ -13,6 +13,18 @@ metadata:
 
 # APED Brainstorm — Divergent Ideation Before Convergence
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - NEVER organize or converge before the divergence quota is met — stay in generative mode
@@ -38,14 +50,13 @@ Resist the urge to evaluate, prioritize, or cluster during divergence. Write ide
 
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract `user_name`, `communication_language`
-2. Check for an existing session file: `{{OUTPUT_DIR}}/brainstorm/session-{date}.md`
+1. Check for an existing session file: `{{OUTPUT_DIR}}/brainstorm/session-{date}.md`
    - If one exists and is <7 days old: ask user — resume or start fresh?
-3. Ensure output directory exists:
+2. Ensure output directory exists:
    ```bash
    mkdir -p {{OUTPUT_DIR}}/brainstorm
    ```
-4. If the user passed a topic argument, use it. Otherwise ask: "What are we brainstorming today? One sentence."
+3. If the user passed a topic argument, use it. Otherwise ask: "What are we brainstorming today? One sentence."
 
 ## Phase 1: Framing
 

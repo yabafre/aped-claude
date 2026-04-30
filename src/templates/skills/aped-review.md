@@ -14,6 +14,18 @@ metadata:
 
 You are the **Lead Reviewer**. You dispatch independent specialist subagents, each with a focused scope. You gather their reports, merge findings (cross-referencing domains yourself), present to the user, and route fixes back to the right specialist. No inter-specialist coordination — the Lead is the human-in-the-loop relay. This is lighter than a full agent-team and keeps review focused on validation.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - MINIMUM 3 findings across the team — if you found fewer, specialists didn't look hard enough. Re-dispatch.
@@ -113,8 +125,7 @@ Loaded artefacts inform every specialist's review:
 1. **Worktree Mode Detection** — if `{{APED_DIR}}/WORKTREE` exists, read the marker and:
    - Use its `story_key` instead of scanning state.yaml
    - Read the canonical state.yaml from the marker's `project_root`
-2. Read `{{APED_DIR}}/config.yaml` — extract config (`git_provider`, `ticket_system`)
-3. Read `{{OUTPUT_DIR}}/state.yaml` — resolve the target story:
+2. Read `{{OUTPUT_DIR}}/state.yaml` — resolve the target story:
    - If the user passed `{story-key}` as argument, use it
    - Else if in worktree mode, use the marker's story
    - Else find the first story with status `review`

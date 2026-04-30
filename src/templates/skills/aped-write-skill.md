@@ -12,6 +12,18 @@ metadata:
 
 Walk the user through writing a new Claude Code skill that follows APED conventions: description-routed invocation, fresh-read discipline, FR/NFR grounding, explicit ⏸ gates, no auto-chain, optional sub-agent dispatch.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - The skill produces a single drop-in artefact. Do NOT modify the upstream APED package itself — that's a contribution PR, not a custom skill.
@@ -20,9 +32,8 @@ Walk the user through writing a new Claude Code skill that follows APED conventi
 
 ## Setup
 
-1. Read `{{APED_DIR}}/config.yaml` — extract `project_name`, `user_name`.
-2. Read 2-3 existing APED skill bodies (`{{APED_DIR}}/aped-checkpoint/SKILL.md`, `{{APED_DIR}}/aped-iterate/SKILL.md`, `{{APED_DIR}}/aped-debug/SKILL.md`) — APED voice and structure.
-3. Read `{{APED_DIR}}/skills/SKILL-INDEX.md` — confirm the slug you pick is not already taken.
+1. Read 2-3 existing APED skill bodies (`{{APED_DIR}}/aped-checkpoint/SKILL.md`, `{{APED_DIR}}/aped-iterate/SKILL.md`, `{{APED_DIR}}/aped-debug/SKILL.md`) — APED voice and structure.
+2. Read `{{APED_DIR}}/skills/SKILL-INDEX.md` — confirm the slug you pick is not already taken.
 
 ## Step 1: Scope Discovery
 

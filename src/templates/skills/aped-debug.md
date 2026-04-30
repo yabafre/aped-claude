@@ -13,6 +13,18 @@ metadata:
 
 A six-phase discipline for hard bugs and performance regressions. Skip phases only when the cost is explicitly justified to the user. Translation of Pocock's `diagnose/SKILL.md` into APED voice; preserves APED's load-bearing additions (the 3-failed-fixes rule, the Invocation contexts contract, Defense-in-depth, Condition-based waiting) by folding them into the matching phases.
 
+## On Activation
+
+Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
+- `{user_name}` — for greeting and direct address
+- `{communication_language}` — for ALL conversation with the user
+- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
+- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
+
+✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST write artefact content in `{document_output_language}`.
+✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+
 ## Critical Rules
 
 - The feedback loop is the primary artefact. **Build it before anything else.** Without a fast deterministic pass/fail signal, debugging is staring-at-code.
