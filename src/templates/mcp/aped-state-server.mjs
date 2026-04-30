@@ -147,37 +147,16 @@ class ToolError extends Error {
   }
 }
 
-// ── Schema allowlist (extracted from update handler for describe access) ───
-const TOP_LEVEL_KEYS = new Set([
-  'schema_version', 'project_name', 'pipeline', 'sprint',
-  'corrections_pointer', 'corrections_count', 'lead', 'mcp',
-]);
-
-// ── Phase → artefact mapping (4.20.0) ─────────────────────────────────────
-const PHASE_ARTEFACTS = {
-  brainstorm: ['brainstorm.md'],
-  prd: ['project-context.md', 'prd.md'],
-  arch: ['prd.md', 'project-context.md', 'architecture.md'],
-  epics: ['prd.md', 'architecture.md', 'epics.md'],
-  stories: ['prd.md', 'architecture.md', 'epics.md'],
-  dev: ['story.md', 'prd.md', 'architecture.md'],
-  review: ['prd.md', 'architecture.md', 'story.md'],
-  ship: ['prd.md', 'epics.md'],
-  retro: ['prd.md', 'epics.md'],
-};
-
-// ── State machine constants (4.15.0) ──────────────────────────────────────
-const PHASES = ['none', 'brainstorm', 'prd', 'arch', 'epics', 'stories', 'dev', 'review', 'ship', 'retro'];
-const STATUSES = ['not-started', 'in-progress', 'complete', 'blocked'];
-const LEGAL_TRANSITIONS = new Set([
-  'not-started→in-progress',
-  'in-progress→complete',
-  'in-progress→blocked',
-  'blocked→in-progress',
-  'complete→complete',
-  'not-started→not-started',
-  'blocked→blocked',
-]);
+// ── Schema constants (5.2.0: single source of truth in state-schema.mjs) ──
+import {
+  TOP_LEVEL_KEYS as _TOP_LEVEL_KEYS_ARR,
+  PHASES,
+  STATUSES,
+  LEGAL_TRANSITIONS as _LEGAL_TRANSITIONS_ARR,
+  PHASE_ARTEFACTS,
+} from './state-schema.mjs';
+const TOP_LEVEL_KEYS = new Set(_TOP_LEVEL_KEYS_ARR);
+const LEGAL_TRANSITIONS = new Set(_LEGAL_TRANSITIONS_ARR);
 
 // ── Tool implementations ───────────────────────────────────────────────────
 const TOOLS = {

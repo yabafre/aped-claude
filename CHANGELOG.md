@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **oracle-dev.sh E030/E031/E032** — the 3 heavy anti-hallucination checks: E030 RED witness missing (checks dev-log.ndjson for `Confirmed RED` per new test file), E031 WARN paraphrased AC (no `verbatim from` comment above test blocks), E032 WARN hallucinated identifier (new symbols in src/ not found in story file).
+- **`state-schema.mjs`** — single source of truth for state.yaml schema constants (TOP_LEVEL_KEYS, PHASES, STATUSES, LEGAL_TRANSITIONS, PHASE_ARTEFACTS). H2 fix: eliminates the drift between MCP allowlist and validate-state.sh. Both now import from one file.
+
+### Changed
+
+- **`aped-state-server.mjs`** — constants extracted to `state-schema.mjs` import. No runtime behavior change.
+- **`mcpStateTemplates`** now produces 3 files (was 2): `state-schema.mjs`, `aped-state-server.mjs`, `settings.local.json`.
+
 ## [5.1.0] - 2026-04-30
 
 ### Added
