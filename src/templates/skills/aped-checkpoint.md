@@ -27,8 +27,22 @@ Analyze what has changed since the last checkpoint (or since session start):
 
 1. **Git diff**: Run `git diff --stat` and `git diff --stat HEAD~N` to see files changed
 2. **Recent commits**: Run `git log --oneline -10` for commit history
-3. **State changes**: Read `{{OUTPUT_DIR}}/state.yaml` — what phase/story moved?
+3. **State changes**: Read `{{OUTPUT_DIR}}/state.yaml` — what phase/story moved? **If state.yaml is absent** (greenfield mid-flight), report "no state.yaml — pre-pipeline checkpoint" and continue with git-only inputs; do not invent a phase.
 4. **New artifacts**: Check for new files in `{{OUTPUT_DIR}}/` (specs, stories, reports)
+
+## Step 1b: Drift triggers — read your own last 5 turns
+
+Before summarising, scan the recent assistant turns above this invocation for **any** of these drift triggers. Each one is a halt-and-re-anchor signal, not an "interesting observation". Pocock's discipline (workshop L1180-1198, L1338-1347): correction happens inline, not by clearing — quote the trigger, name what should have happened, ask the user to confirm before continuing.
+
+| Trigger | What it looks like | Re-anchor to |
+|---|---|---|
+| **Wrong artefact location** | New file landed under a path the story / arch did not declare (e.g. `src/services/foo.ts` when story said `src/api/foo/handler.ts`) | Story File List + Architecture component map |
+| **Horizontal slice** | Implementation mentions only one layer (db / api / ui) when the story is a vertical slice (db + api + ui together) | Story AC list — does each AC require all three layers? |
+| **Wrong-backend invocation** | A `gh issue create`, `linear issues create`, `glab issue create`, `jira create` ran without first reading `ticket_system` from `config.yaml` | `{{APED_DIR}}/config.yaml` `ticket_system` value |
+| **Test-pass without RED witness** | Last test run reported "passing" but the assistant did not emit a `Confirmed RED:` token before the GREEN cycle | `aped-dev` § RED — was a witness emitted? |
+| **Schema/identifier invention** | A migration / table name / enum value appears in the diff that does not match the literal text of any PRD / story | PRD + story — does the identifier appear verbatim? |
+
+If any single trigger fires, **HALT before producing the summary**, surface the trigger to the user with file:line evidence, and ask: "Re-anchor to {source}?". The summary that follows must reflect the re-anchored decision, not the drifted state.
 
 ## Step 2: Concern-Ordered Summary
 

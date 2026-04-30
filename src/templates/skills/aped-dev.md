@@ -46,6 +46,7 @@ Phrases that mean you are about to ship code without TDD discipline. If you catc
 | "The existing code has no tests so it's fine" | The deficit is the bug. Add tests for what you touch. |
 | "I'll just add a `// TODO: test this`" | TODO is a banned placeholder, not a plan. |
 | "I already manually tested it" | Manual testing is not regression coverage. |
+| "Tests pass on first run" | First-run pass means no RED was witnessed — likely tests-after dressed up as TDD. Re-read the test, intentionally break the implementation it covers, and re-run; you must see it go RED before you trust GREEN. |
 
 ### Rationalizations
 
@@ -361,6 +362,14 @@ For each task (update TaskUpdate to `in_progress` when starting):
 
 ### RED
 Write failing tests first. Run: `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh`
+
+**Witness the failure.** After the test run, your next assistant message MUST contain a single line of the form:
+
+> `Confirmed RED: <test-name> failed at <file:line> — <reason>`
+
+Where `<reason>` is the actual error from the test runner (assertion message, stack frame, missing-module hint), not a paraphrase. Skip this token only when you are continuing GREEN on a test that was already RED in a prior cycle of the same session. Pocock's discipline (workshop L1742-1769): "It tends to try to cheat at the tests because it's sort of doing it in layers" — the witness token is what makes cheating mechanically harder.
+
+**Schema-identifier grounding.** Before writing ANY migration / table name / column name / enum value / API path, grep the upstream story file and PRD for that exact identifier (case-sensitive). If the literal name does not appear verbatim in either source, **HALT and ask the user — never invent**. Inventing identifiers is the canonical hallucination mode (Pocock workshop L1858-1866 — agent invented `point_events` table never mentioned in any PRD/story).
 
 ### GREEN
 Write minimal code to pass. Run: `bash {{APED_DIR}}/aped-dev/scripts/run-tests.sh`
