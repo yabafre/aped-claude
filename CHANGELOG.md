@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.18.0] - 2026-04-30
+
 ### Added
 
 - **`aped-review` Stage 1.5 merge-findings script** (`src/templates/scripts/aped-review/merge-findings.mjs`) — takes YAML findings from parallel sub-agent reviewers (Hannah/Eli/Aaron), deduplicates by `file:line:category`, assigns severity (BLOCKER > MAJOR > MINOR > NIT), produces a merged report. Pure Node, no runtime deps.
