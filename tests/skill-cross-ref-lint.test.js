@@ -26,6 +26,8 @@ const KNOWN_SUFFIXES = [
   'retro', 'review', 'ship', 'sprint', 'status', 'story', 'ux',
   // 4.6.0 — Tier 2 expansion
   'write-skill', 'zoom-out',
+  // 4.8.0 — Pocock surgical absorption (alignment grilling)
+  'grill',
 ];
 
 function stem(word) {

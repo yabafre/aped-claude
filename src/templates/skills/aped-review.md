@@ -121,6 +121,8 @@ Loaded artefacts inform every specialist's review:
 ## Step 1: Setup
 
 > **Fresh-read discipline.** Read every artefact fresh in this skill — story file, PRD, architecture, UX spec, ticket comments, any prior review report. Never trust a cached or compacted summary; reviewing against a stale summary produces stale findings. If your context shows you a "summary of the PRD" instead of the file content, Read the file from disk.
+>
+> **Fresh-context hard stop.** If you are running in the same Claude session that just implemented this story (i.e. the implementation transcript is above this skill invocation), abort immediately and surface to the user: "Reviewer must run fresh — prior implementation context will bias the review. Run `/clear` then re-invoke `aped-review` for this story." Pocock's discipline (workshop L1697-1722): a reviewer running in the dumb zone (post-100k tokens, post-compaction) reviews dumber than the agent that wrote the code. APED's H7 fresh-read discipline catches summary-vs-file drift, but only a clean session catches reasoning-vs-fresh-eyes drift.
 
 1. **Worktree Mode Detection** — if `{{APED_DIR}}/WORKTREE` exists, read the marker and:
    - Use its `story_key` instead of scanning state.yaml
