@@ -25,6 +25,8 @@
     "src/templates/providers/*.js",
     "src/templates/scripts/*.js",
     "src/templates/skills/*.md",
+    "src/templates/skills/aped-skills/*.md",
+    "src/templates/visual-companion/*",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
