@@ -54,7 +54,7 @@ Do NOT auto-generate a missing PRD.
 ### 3. Load + report
 
 - Load every discovered file completely (no offset/limit).
-- For the UX spec folder, load all 4 files (design-spec, screen-inventory, components, flows).
+- For the UX spec folder, load every file (design-spec, screen-inventory, components, flows).
 - Brownfield/greenfield is detected via `project-context.md` presence.
 
 Present a discovery report (adapt to `communication_language`):

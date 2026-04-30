@@ -35,7 +35,7 @@ Look for these artefacts (✱ = required):
 - Product Brief — `*brief*.md` or `product-brief.md`
 - Project Context — `*context*.md` or `project-context.md`
 
-For the UX spec folder, load all 4 files (`design-spec.md`, `screen-inventory.md`, `components.md`, `flows.md`).
+For the UX spec folder, load every file (`design-spec.md`, `screen-inventory.md`, `components.md`, `flows.md`).
 
 ### 2. Required-input validation (hard-stop)
 

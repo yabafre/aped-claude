@@ -14,7 +14,7 @@ metadata:
 
 ## Critical Rules
 
-- NEVER mark a task `[x]` without passing all 5 gate conditions
+- NEVER mark a task `[x]` without passing every gate condition
 - ALWAYS write the failing test FIRST — no implementation without a RED test
 - Take your time — quality is more important than speed
 - Do not skip validation steps or test runs
