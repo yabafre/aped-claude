@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-04-30
+
 Hallucination-hardening pass (Phase 2 §H1-H10 / P1 / P6 from `docs/implementation-artifacts/phase-2-roadmap-2026-04-30.md`). All changes are surgical inserts in skill bodies plus three new lint / content tests; no engine refactor, no scaffold-output structural change. Skill count unchanged (27).
 
 ### Changed
