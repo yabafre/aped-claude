@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.12.0] - 2026-04-30
+
+Phase 3 audit C-compiler R1 absorption (agent #3). Three deterministic phase verifiers ship with the C-compiler `ERROR <code>: <reason>` convention. Skills cite the oracle in their Self-review / Validation section as canonical pre-merge gate; legacy `validate-*.sh` kept for backwards compat.
+
 ### Added
 
 - **Oracle scripts (3 of 6)** — C-compiler-convention deterministic phase verifiers (`src/templates/scripts.js`). Each script wraps or extends an existing `validate-*.sh` and produces output as `ERROR <code>: <reason>` per line so any grep pipeline can find violations without natural-language parsing. The article (anthropic.com/engineering/building-a-c-compiler) explains the convention: *"if there are errors, Claude should write ERROR and put the reason on the same line so grep will find it."* Skills cite the oracle in their Self-review / Validation section as the canonical pre-merge check; legacy `validate-*.sh` kept for backwards compatibility.
