@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Spans two passes informed by the same external research (Pocock workshop + skills repo, Anthropic engineering articles on code-execution-with-mcp / building-c-compiler / managed-agents, Superpowers 136 issues): the Phase 0 hardening (six PATCH-level audits, no new skills/hooks/subcommands) and the first Phase 1 feature (MINOR — out-of-scope knowledge base). Combined, this section describes the full delta when the next release ships.
+## [4.2.0] - 2026-04-30
+
+Combines Phase 0 hardening (six PATCH-level audits — APED block token shrink, `keep-coding-instructions` flag on every skill, removal of count anchors, PRD `## Out of Scope` template requirement, hard/soft dep classification with explicit setup pointers, hook crash safety) with Phase 1 feature additions (`aped-arch-audit` skill for codebase deepening candidates, `aped-iterate` post-ship router, `.aped/.out-of-scope/` knowledge base consulted by intake skills, `aped-debug` restructured around Pocock's 6-phase feedback-loop diagnosis model, `ticket-git-workflow.md` reference doc reduced to render only the configured providers). All informed by the same external research: Matt Pocock's workshop + skills repo, Anthropic engineering posts on code-execution-with-mcp / building-c-compiler / managed-agents, and Superpowers issues. Skill count: 25 → 27.
 
 ### Added
 
