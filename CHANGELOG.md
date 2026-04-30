@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.15.0] - 2026-04-30
+
 ### Added
 
 - **`aped_state.advance(phase, status)` MCP tool** — composed phase transition. Updates `pipeline.current_phase` + `pipeline.phases.<phase>.status` atomically under one lock. Validates against the canonical state machine (10 phases × 4 statuses × 7 legal transitions). Failure codes: `INVALID_PHASE`, `INVALID_STATUS`, `ILLEGAL_TRANSITION`, `CONFLICT`, `LOCK_CONTENTION`. Closes the "model invents YAML shape" hallucination class.
