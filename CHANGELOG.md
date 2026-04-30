@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.1] - 2026-04-30
+
+PATCH release covering four critical bugs verified by the Phase 2 audit (8-agent research, 2026-04-30) on shipped 4.1.3 / 4.2.0. All fixes are pure bug fixes with regression tests; no API change, no skill addition, no engine refactor. Skill count unchanged (27).
+
 ### Fixed
 
 - **`{{APED_DIR}}aped-X/...` substitution resolved to non-existent paths** (`src/templates/skills/aped-{analyze,context,course,dev,epics,prd,qa,quick,review,sprint,status,story,ux}.md`). The substitute helper in `skills.js` concatenates the `{{APED_DIR}}` placeholder with the project's `apedDir` config value (default `.aped`, no trailing slash); skill bodies that wrote `{{APED_DIR}}aped-X/...` (no leading slash) expanded to `.apedaped-X/...` — every Read of those references silently failed in the agent. Fixed by switching all skill bodies to the explicit `{{APED_DIR}}/aped-X/...` form (~25 lines across 13 skills). The new `tests/scaffold-references.test.js` walks every `.aped/...` reference in scaffolded SKILL.md files and asserts each path exists in the scaffolder universe; `.apedaped-` is hard-banned. Surfaced by Phase 2 audit (8-agent research, 2026-04-30).
