@@ -231,10 +231,8 @@ for fr in $PRD_FRS; do
   fi
 done
 
-PRD_COUNT=$(echo "$PRD_FRS" | { grep -c . 2>/dev/null || true; })
-[[ "$PRD_COUNT" =~ ^[0-9]+$ ]] || PRD_COUNT=0
-EPIC_COUNT=$(echo "$EPIC_FRS" | { grep -c . 2>/dev/null || true; })
-[[ "$EPIC_COUNT" =~ ^[0-9]+$ ]] || EPIC_COUNT=0
+PRD_COUNT=$(echo "$PRD_FRS" | { grep . 2>/dev/null || true; } | wc -l | tr -d ' ')
+EPIC_COUNT=$(echo "$EPIC_FRS" | { grep . 2>/dev/null || true; } | wc -l | tr -d ' ')
 
 if [[ \${#MISSING[@]} -gt 0 ]]; then
   echo "COVERAGE VALIDATION FAILED"
@@ -327,7 +325,7 @@ if [[ -n "$NON_HYPHEN_FR" ]]; then
 fi
 
 # FR count
-FR_COUNT=$(grep -cE '(^|[^[:alnum:]_-])FR-[0-9]+:' "$FILE" 2>/dev/null || echo 0)
+FR_COUNT=$({ grep -E '(^|[^[:alnum:]_-])FR-[0-9]+:' "$FILE" 2>/dev/null || true; } | wc -l | tr -d ' ')
 if [[ "$FR_COUNT" -lt 10 ]]; then
   echo "ERROR E003: FR count too low: $FR_COUNT (min 10)"
   ECODE=1
@@ -767,7 +765,7 @@ fi
 
 # Check screen-inventory.md has content
 if [[ -f "$UX_DIR/screen-inventory.md" ]]; then
-  SCREEN_COUNT=$(grep -cE '^\\|.*\\|.*\\|' "$UX_DIR/screen-inventory.md" 2>/dev/null || echo 0)
+  SCREEN_COUNT=$({ grep -E '^\\|.*\\|.*\\|' "$UX_DIR/screen-inventory.md" 2>/dev/null || true; } | wc -l | tr -d ' ')
   if [[ "$SCREEN_COUNT" -lt 3 ]]; then
     ISSUES+=("LOW SCREEN COUNT: Found $SCREEN_COUNT screens (expected at least 3)")
   fi
@@ -775,7 +773,7 @@ fi
 
 # Check components.md has component entries
 if [[ -f "$UX_DIR/components.md" ]]; then
-  COMP_COUNT=$(grep -cE '^#{2,3} ' "$UX_DIR/components.md" 2>/dev/null || echo 0)
+  COMP_COUNT=$({ grep -E '^#{2,3} ' "$UX_DIR/components.md" 2>/dev/null || true; } | wc -l | tr -d ' ')
   if [[ "$COMP_COUNT" -lt 3 ]]; then
     ISSUES+=("LOW COMPONENT COUNT: Found $COMP_COUNT components (expected at least 3)")
   fi
@@ -2618,7 +2616,7 @@ migrate_v1_to_v2() {
     rm -f "\$corrections_tmp" 2>/dev/null || true
     return 1
   fi
-  if [[ \$(grep -c '^---' "\$corrections_tmp") -gt 0 ]]; then
+  if [[ $({ grep '^---' "\$corrections_tmp" 2>/dev/null || true; } | wc -l | tr -d ' ') -gt 0 ]]; then
     echo "ERROR: produced corrections file is multi-document YAML (\$corrections_tmp). This indicates a yq merge bug — please open an issue. State.yaml not yet mutated. Backup at \$backup." >&2
     rm -f "\$corrections_tmp" 2>/dev/null || true
     return 1
@@ -2921,7 +2919,7 @@ check_dev_done() {
   if [[ -f "\$STORY_FILE" ]]; then
     if grep -qE '^[[:space:]]*- \\[ \\]' "\$STORY_FILE"; then
       local unchecked
-      unchecked=\$(grep -cE '^[[:space:]]*- \\[ \\]' "\$STORY_FILE")
+      unchecked=$({ grep -E '^[[:space:]]*- \\[ \\]' "\$STORY_FILE" 2>/dev/null || true; } | wc -l | tr -d ' ')
       fail "\$unchecked tasks still unchecked in story"
     fi
     if grep -qi 'HALT' "\$STORY_FILE"; then

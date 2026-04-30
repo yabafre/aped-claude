@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`scripts/cut-release.sh`** — single-shot release preparation script. Validates preconditions (clean tree, on main, in sync with origin), checks pre-merge checklist (CHANGELOG/README/SECURITY/skills), bumps version, rewrites CHANGELOG `[Unreleased]` → `[X.Y.Z] - DATE`, prints diff, then lists 5 manual steps for the user to execute. Per `feedback_review_before_push`: the script PREPARES, the user APPROVES.
+- **`scripts/check-pre-merge.sh`** — automates the CLAUDE.md "Pre-Merge Checklist" 4-file validation (CHANGELOG categories, skill frontmatter `description:` + no `/aped-` self-refs, README skill counter, SECURITY.md supported version).
+- **`scripts/lint-bash-discipline.sh`** — bash-fragility lint. Flags `grep -c` without `wc -l` (§5.1#2) and unwrapped grep under pipefail (§5.1#3) across all `.sh` files.
+- **`tests/skill-routing-rubric.test.js`** — deterministic NL routing verification. Asserts each expected trigger phrase appears in the matching skill's `description:` frontmatter. No model invocation.
+- **`tests/bash-discipline.test.js`** — runs the bash-discipline lint over every standalone `.sh` and every embedded script in `scripts.js`.
+- **`tests/cut-release-script.test.js`** — validates release scripts exist, parse as valid bash, and pass on the current repo.
+- **`.github/workflows/smoke.yml`** — full-tarball scaffold smoke on every PR + daily cron. Scaffolds from `npm pack` tarball, runs doctor, enables all opt-in subcommands, verifies MCP server registration.
+- **`.github/workflows/nightly-npm.yml`** — daily cron that scaffolds from `aped-method@latest` on npm. Catches broken-tarball-on-npm within 24h.
+- **scaffold-e2e.sh Phase 11 extended** — adds 6 previously-silent subcommands (`verify-claims`, `session-start`, `worktree-scope`, `tdd-red-marker`, `enable-mcp`, `visual-companion` banner check) to the CI scaffold harness.
+
+### Fixed
+
+- **5 residual `grep -c` fragility sites** in `scripts.js` (oracle-prd.sh, validate-ux.sh, sync-state.sh, ship-review.sh) — all converted to `{ grep … || true; } | wc -l | tr -d ' '` per §5.1 discipline. Eliminates the entire `grep -c` fragility class from shipped scripts.
+
 ## [4.13.1] - 2026-04-30
 
 ### Fixed

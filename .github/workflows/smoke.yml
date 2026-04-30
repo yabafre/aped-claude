@@ -1,0 +1,67 @@
+name: Smoke (full tarball)
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  tarball-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build tarball
+        run: npm pack --pack-destination /tmp/pack
+
+      - name: Scaffold from tarball
+        run: |
+          mkdir -p /tmp/proj && cd /tmp/proj && git init -q
+          npx --yes /tmp/pack/aped-method-*.tgz --yes --project=smoke --tickets=none --git=github
+
+      - name: Doctor must exit 0
+        run: cd /tmp/proj && npx --yes /tmp/pack/aped-method-*.tgz doctor
+
+      - name: Enable every opt-in subcommand
+        run: |
+          cd /tmp/proj
+          TARBALL=$(ls /tmp/pack/aped-method-*.tgz)
+          for sub in statusline safe-bash post-edit-typescript verify-claims \
+                     session-start worktree-scope tdd-red-marker enable-mcp; do
+            echo "--- $sub ---"
+            npx --yes "$TARBALL" "$sub" --yes 2>&1 || true
+          done
+
+      - name: Verify core files exist
+        run: |
+          cd /tmp/proj
+          test -f .aped/config.yaml
+          test -f docs/aped/state.yaml
+          test -f .aped/hooks/guardrail.sh
+          test -f .aped/hooks/session-start.sh
+          test -f .aped/hooks/safe-bash.js
+          test -f .aped/hooks/tdd-red-marker.js
+          test -f .claude/settings.local.json
+          echo "All core files present ✓"
+
+      - name: settings.local.json valid and has MCP
+        run: |
+          cd /tmp/proj
+          node -e '
+            const s = JSON.parse(require("fs").readFileSync(".claude/settings.local.json","utf-8"));
+            if (!s.mcpServers || !s.mcpServers["aped-state"]) {
+              console.error("mcpServers.aped-state missing");
+              process.exit(1);
+            }
+            console.log("MCP server registered ✓");
+          '

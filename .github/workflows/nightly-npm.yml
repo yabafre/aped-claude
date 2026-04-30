@@ -1,0 +1,30 @@
+name: Smoke (npm latest)
+
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  npm-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Scaffold from npm latest
+        run: |
+          mkdir /tmp/p && cd /tmp/p && git init -q
+          npx --yes aped-method@latest --yes --project=nightly --tickets=none --git=github
+
+      - name: Doctor must exit 0
+        run: cd /tmp/p && npx --yes aped-method@latest doctor
+
+      - name: Core files present
+        run: |
+          cd /tmp/p
+          test -f docs/aped/state.yaml
+          test -f .aped/config.yaml
+          test -f .aped/hooks/guardrail.sh
+          echo "Core files present ✓"

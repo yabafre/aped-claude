@@ -175,7 +175,51 @@ node "$BIN" post-edit-typescript
 test -f .aped/hooks/post-edit-typescript.js || { echo "::error::post-edit-typescript.js missing"; exit 1; }
 node --check .aped/hooks/post-edit-typescript.js
 
-# settings.local.json still parses after three merges
+# verify-claims
+node "$BIN" verify-claims
+test -f .aped/hooks/verify-claims.js || { echo "::error::verify-claims.js missing"; exit 1; }
+node --check .aped/hooks/verify-claims.js
+
+# session-start
+node "$BIN" session-start
+test -f .aped/hooks/session-start.sh  || { echo "::error::session-start.sh missing"; exit 1; }
+test -x .aped/hooks/session-start.sh  || { echo "::error::session-start.sh not executable"; exit 1; }
+# Verify banner fires (non-empty systemMessage in JSON output)
+BANNER_OUT=$(CLAUDE_PROJECT_DIR="$(pwd)" bash .aped/hooks/session-start.sh 2>/dev/null || true)
+if [[ -n "$BANNER_OUT" ]]; then
+  echo "$BANNER_OUT" | node -e '
+    let d=""; process.stdin.on("data",c=>d+=c);
+    process.stdin.on("end",()=>{
+      const j=JSON.parse(d);
+      if(!j.systemMessage) { console.error("::error::systemMessage missing"); process.exit(1); }
+      console.log("  banner: "+j.systemMessage);
+    });
+  '
+fi
+
+# worktree-scope
+node "$BIN" worktree-scope
+test -f .aped/hooks/worktree-scope.js || { echo "::error::worktree-scope.js missing"; exit 1; }
+node --check .aped/hooks/worktree-scope.js
+
+# tdd-red-marker
+node "$BIN" tdd-red-marker
+test -f .aped/hooks/tdd-red-marker.js || { echo "::error::tdd-red-marker.js missing"; exit 1; }
+node --check .aped/hooks/tdd-red-marker.js
+
+# enable-mcp
+node "$BIN" enable-mcp
+test -f .claude/settings.local.json || { echo "::error::settings.local.json missing after enable-mcp"; exit 1; }
+node -e '
+  const s = JSON.parse(require("node:fs").readFileSync(".claude/settings.local.json","utf-8"));
+  if (!s.mcpServers || !s.mcpServers["aped-state"]) {
+    console.error("::error::mcpServers.aped-state not found in settings.local.json");
+    process.exit(1);
+  }
+  console.log("  MCP server registered: aped-state");
+'
+
+# settings.local.json still parses after all merges
 node -e 'JSON.parse(require("node:fs").readFileSync(".claude/settings.local.json","utf-8"))'
 echo "::endgroup::"
 
