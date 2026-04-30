@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.11.0] - 2026-04-30
+
+Phase 3 superpowers Tier 7 absorption (issues #1098, #1233, #1234, #1266, #1294 — closed by Jesse 2026-04 in superpowers, now in APED). Pure skill-body discipline + lints. No engine, no hooks.
+
 ### Changed
 
 - **`aped-brainstorm` Phase 4 Convergence — per-survivor grounding table mandatory before recommending** (`src/templates/skills/aped-brainstorm.md`). Pocock workshop convergence trap (superpowers issue #1266 — recommendations flip when followed up because the first pass was vibing). Each surviving idea now requires a 4-row table: Assumptions / Failure modes / Disqualifiers / Evidence basis. "Strong intuition" is explicitly NOT a valid evidence basis. Survivors whose evidence basis is "first principles" auto-flag for `aped-grill` before downstream PRD/arch handoff.
