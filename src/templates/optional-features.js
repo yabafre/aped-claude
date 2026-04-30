@@ -167,6 +167,39 @@ export function visualCompanionTemplates(c) {
   ];
 }
 
+export function worktreeScopeTemplates(c) {
+  const a = c.apedDir;
+  return [
+    {
+      path: `${a}/hooks/worktree-scope.js`,
+      executable: true,
+      content: substitute(loadTemplate('hooks/worktree-scope.js'), c),
+    },
+    {
+      path: '.claude/settings.local.json',
+      content: stringifySettings({
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: 'Write|Edit|MultiEdit',
+              hooks: [
+                {
+                  type: 'command',
+                  command: `\${CLAUDE_PROJECT_DIR}/${a}/hooks/worktree-scope.js`,
+                  // 5 s — Node cold-start + 2 realpath syscalls + a couple
+                  // existsSync probes. Stays advisory; timeout = no warning,
+                  // never blocks the tool call.
+                  timeout: 5,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    },
+  ];
+}
+
 export function typeScriptQualityTemplates(c) {
   const a = c.apedDir;
   return [
