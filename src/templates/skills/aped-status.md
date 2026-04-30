@@ -1,7 +1,7 @@
 ---
 name: aped-status
 keep-coding-instructions: true
-description: 'Use when user says "sprint status", "show progress", "aped status", or invokes aped-status.'
+description: 'Use when user says "sprint status", "show progress", "aped status", or invokes aped-status. Not for walking through a diff or summarising recent changes — see aped-checkpoint for that.'
 allowed-tools: "Read Grep Glob Bash"
 license: MIT
 metadata:

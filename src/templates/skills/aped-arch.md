@@ -264,9 +264,9 @@ Work through each category collaboratively. For each, present options with trade
 
 For each category:
 1. Present 2-3 options with pros/cons
-2. Make a recommendation with rationale
+2. Make a recommendation with rationale **citing the specific PRD FR/NFR IDs the choice satisfies** (e.g. "Postgres recommended — satisfies NFR-3 (ACID), NFR-7 (relational analytics), FR-12 (audit log integrity)"). Decisions without FR/NFR citations are vibes, not architecture; surface that gap to the user instead of inventing one.
 3. User decides
-4. **Record the decision in place** — append it to its `### {Category}` subsection inside `## Phase 2 — Technology Decisions` of `architecture.md` immediately, before moving on. Do not buffer.
+4. **Record the decision in place** — append it to its `### {Category}` subsection inside `## Phase 2 — Technology Decisions` of `architecture.md` immediately, before moving on. Do not buffer. The recorded decision MUST include the cited FR/NFR IDs.
 5. Bump `last_updated` in the frontmatter (no subphase advance until the full Phase 2 gate clears).
 
 ⏸ **GATE: User validates all technology decisions.**

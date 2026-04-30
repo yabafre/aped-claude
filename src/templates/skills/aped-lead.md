@@ -247,7 +247,7 @@ Before processing check-ins, scan `sprint.stories` for any story with `ticket_sy
 
 Offer the user: **Retry now** / **Skip** / **Drill down on {key}**.
 
-On retry, replay the same 3 mutations the sprint skill would have done (assign + status transition + comment). On success, clear the two fields by setting them to `null`:
+On retry, replay the same 3 mutations `aped-sprint` would have done (assign + status transition + comment). On success, clear the two fields by setting them to `null`:
 ```bash
 bash {{APED_DIR}}/scripts/sync-state.sh <<< "set-story-field {key} ticket_sync_status null"
 bash {{APED_DIR}}/scripts/sync-state.sh <<< "set-story-field {key} ticket_sync_error null"

@@ -23,6 +23,10 @@ Use this for isolated fixes, small features, or refactors that don't warrant the
    - If found: ask user — "Resume spec `{slug}` or start a new one?"
    - If resume: load that spec and skip to Implementation
 
+### Fresh-read discipline
+
+Read every source-of-truth file fresh in this skill — `config.yaml`, `state.yaml`, the resumed quick-spec if any, and any PRD / story / architecture file the title argument touches. Never trust a cached or compacted summary; cached summaries drop the scope-boundary text and FR/NFR IDs the quick spec must respect. If your context shows you a "summary of the PRD" instead of the file content, Read the file from disk.
+
 ## Out-of-Scope KB Scan
 
 Before any new quick-spec is drafted, check `{{APED_DIR}}/.out-of-scope/` for a persistent rejection that matches the user's title argument. The directory may not exist on pre-4.2 scaffolds — treat the missing directory as an empty KB and skip this section silently.

@@ -1,7 +1,7 @@
 ---
 name: aped-checkpoint
 keep-coding-instructions: true
-description: 'Use when user says "checkpoint", "review changes", "walk me through this", or invokes aped-check.'
+description: 'Use when user says "checkpoint", "review changes", "walk me through this", or invokes aped-checkpoint. Not for sprint progress dashboards — see aped-status for that.'
 allowed-tools: "Read Grep Glob Bash"
 license: MIT
 metadata:

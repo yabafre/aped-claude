@@ -108,6 +108,8 @@ Loaded artefacts inform every specialist's review:
 
 ## Step 1: Setup
 
+> **Fresh-read discipline.** Read every artefact fresh in this skill — story file, PRD, architecture, UX spec, ticket comments, any prior review report. Never trust a cached or compacted summary; reviewing against a stale summary produces stale findings. If your context shows you a "summary of the PRD" instead of the file content, Read the file from disk.
+
 1. **Worktree Mode Detection** — if `{{APED_DIR}}/WORKTREE` exists, read the marker and:
    - Use its `story_key` instead of scanning state.yaml
    - Read the canonical state.yaml from the marker's `project_root`
