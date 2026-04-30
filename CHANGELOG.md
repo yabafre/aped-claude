@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Oracle scripts (3 of 6)** — C-compiler-convention deterministic phase verifiers (`src/templates/scripts.js`). Each script wraps or extends an existing `validate-*.sh` and produces output as `ERROR <code>: <reason>` per line so any grep pipeline can find violations without natural-language parsing. The article (anthropic.com/engineering/building-a-c-compiler) explains the convention: *"if there are errors, Claude should write ERROR and put the reason on the same line so grep will find it."* Skills cite the oracle in their Self-review / Validation section as the canonical pre-merge check; legacy `validate-*.sh` kept for backwards compatibility.
+  - **`oracle-prd.sh`** at `<apedDir>/aped-prd/scripts/oracle-prd.sh`. Verifies E001 file-exists, E002 required sections present, E003 FR count 10-80, E004 hyphenated FR form (4.7.6 normalisation lock), E006 no anti-pattern words in FR text, E007 NFR has measurable threshold (number + unit).
+  - **`oracle-arch.sh`** at `<apedDir>/aped-arch/scripts/oracle-arch.sh`. NEW (no legacy predecessor). Verifies E010 every PRD FR is referenced in arch, E011 component has Owner field, E012 component has Tech stack field, E013 ADR template fields filled.
+  - **`oracle-epics.sh`** at `<apedDir>/aped-epics/scripts/oracle-epics.sh`. Wraps validate-coverage.sh. Verifies E020 every PRD FR covered by ≥1 epic, E021 every epic has ≥1 story.
+- **`tests/oracle-scripts.test.js`** — 15 tests across the 3 oracles: manifest shape, exit-code-on-missing-file, error-code-per-failure-mode, OK-on-clean-input.
+
+### Changed
+
+- **`aped-prd.md` Validation section** — runs `oracle-prd.sh` alongside the legacy `validate-prd.sh`. Lists all 6 error codes (E001-E007) and their fixes. Do not ship the PRD until `oracle-prd.sh` exits 0.
+- **`aped-arch.md` Self-review checklist** — new `[ ] Oracle pass` step running `oracle-arch.sh`. Surface any `ERROR Eddd:` line verbatim to the user and HALT.
+- **`aped-epics.md` Validation section** — runs `oracle-epics.sh` alongside `validate-coverage.sh`. Both E020 (uncovered FR) and E021 (empty epic) block downstream aped-story / aped-dev.
+- **SECURITY.md supported version** — `4.11.x ✓ / < 4.11 ✗` → `4.12.x ✓ / < 4.12 ✗`. Users on 4.11 or earlier should upgrade.
+
 ## [4.11.0] - 2026-04-30
 
 Phase 3 superpowers Tier 7 absorption (issues #1098, #1233, #1234, #1266, #1294 — closed by Jesse 2026-04 in superpowers, now in APED). Pure skill-body discipline + lints. No engine, no hooks.

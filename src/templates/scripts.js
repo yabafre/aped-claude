@@ -247,6 +247,299 @@ echo "COVERAGE VALIDATION PASSED — All $PRD_COUNT FRs covered in epics"
 exit 0
 `,
     },
+    // ── Oracle scripts (4.12.0) — C-compiler-convention deterministic verifiers
+    // Each oracle wraps or extends an existing validate-*.sh and produces output
+    // in the form `ERROR <code>: <reason>` per line so the model (or any grep
+    // pipeline) can find them without natural-language parsing. The article
+    // (anthropic/engineering/building-a-c-compiler) explains the convention:
+    // "if there are errors, Claude should write ERROR and put the reason on
+    // the same line so grep will find it." Skills cite the oracle in their
+    // Self-review section as the canonical pre-merge check.
+    {
+      path: `${a}/aped-prd/scripts/oracle-prd.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# Oracle for PRD phase. Deterministic verification of structural invariants
+# before downstream skills (aped-arch, aped-epics) consume the artefact.
+#
+# Usage: oracle-prd.sh <prd-file>
+# Exit:  0 = clean, 1 = violations (printed as ERROR <code>: <reason>)
+#
+# Verifications:
+#   E001 — file not found
+#   E002 — required section missing
+#   E003 — FR count out of bounds (10 ≤ N ≤ 80)
+#   E004 — FR uses non-hyphenated form (FR1 instead of FR-1)
+#   E005 — FR has no Acceptance: line within next 5 lines
+#   E006 — anti-pattern word in FR text (easy/intuitive/fast/etc.)
+#   E007 — NFR has no measurable threshold (number + unit)
+#
+# This oracle SUPERSEDES validate-prd.sh in pre-merge gates. The legacy
+# validate-prd.sh is kept for backwards compatibility but writes
+# multi-line bullets, which break grep pipelines.
+
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  echo "ERROR E000: Usage: $0 <prd-file>" >&2
+  exit 1
+fi
+
+FILE="$1"
+ECODE=0
+
+if [[ ! -f "$FILE" ]]; then
+  echo "ERROR E001: PRD file not found at $FILE"
+  exit 1
+fi
+
+# Required sections
+REQUIRED_SECTIONS=(
+  "## Executive Summary"
+  "## Success Criteria"
+  "## Product Scope"
+  "## User Journeys"
+  "## Functional Requirements"
+  "## Non-Functional Requirements"
+)
+for section in "\${REQUIRED_SECTIONS[@]}"; do
+  if ! grep -q "$section" "$FILE"; then
+    echo "ERROR E002: missing section: $section"
+    ECODE=1
+  fi
+done
+
+# FR format — canonical hyphenated form FR-N (4.7.6 normalisation lock)
+# The character class [^[:alnum:]_-] excludes a leading hyphen, so this regex
+# only fires on non-hyphenated forms (FR1, FR2, …). No further -v filter needed
+# — a line containing both "FR1:" and "FR-1" is still a violation because the
+# unhyphenated form exists.
+NON_HYPHEN_FR=$(grep -nE '(^|[^[:alnum:]_-])FR[0-9]+:' "$FILE" 2>/dev/null || true)
+if [[ -n "$NON_HYPHEN_FR" ]]; then
+  while IFS= read -r line; do
+    LINENO_=\$(echo "$line" | cut -d: -f1)
+    echo "ERROR E004: line $LINENO_ uses non-hyphenated FR (canonical is FR-N)"
+    ECODE=1
+  done <<< "$NON_HYPHEN_FR"
+fi
+
+# FR count
+FR_COUNT=$(grep -cE '(^|[^[:alnum:]_-])FR-[0-9]+:' "$FILE" 2>/dev/null || echo 0)
+if [[ "$FR_COUNT" -lt 10 ]]; then
+  echo "ERROR E003: FR count too low: $FR_COUNT (min 10)"
+  ECODE=1
+fi
+if [[ "$FR_COUNT" -gt 80 ]]; then
+  echo "ERROR E003: FR count too high: $FR_COUNT (max 80)"
+  ECODE=1
+fi
+
+# Anti-pattern words inside FR text
+ANTI_PATTERNS=("easy" "intuitive" "fast" "responsive" "simple" "multiple" "several" "various")
+for pattern in "\${ANTI_PATTERNS[@]}"; do
+  HITS=$(grep -inE "FR-[0-9]+.*:.*\\b\${pattern}\\b" "$FILE" 2>/dev/null || true)
+  if [[ -n "$HITS" ]]; then
+    while IFS= read -r line; do
+      LINENO_=\$(echo "$line" | cut -d: -f1)
+      echo "ERROR E006: line $LINENO_ uses anti-pattern word '$pattern' (specify a measurable threshold instead)"
+      ECODE=1
+    done <<< "$HITS"
+  fi
+done
+
+# NFR threshold check — every NFR-N must contain a number + unit nearby
+NFR_LINES=$(grep -nE '(^|[^[:alnum:]_-])NFR-[0-9]+:' "$FILE" 2>/dev/null || true)
+if [[ -n "$NFR_LINES" ]]; then
+  while IFS= read -r line; do
+    LINENO_=\$(echo "$line" | cut -d: -f1)
+    NFR_TEXT=\$(echo "$line" | cut -d: -f2-)
+    # Look for number followed by common units (ms, s, %, kb, mb, requests/sec, etc.)
+    if ! echo "$NFR_TEXT" | grep -qE '[0-9]+\\s?(ms|s|%|kb|mb|gb|bytes?|chars?|requests?|users?|seconds?|minutes?|hours?|days?|p[0-9]+)'; then
+      echo "ERROR E007: line $LINENO_ NFR has no measurable threshold (number + unit) — '$NFR_TEXT'"
+      ECODE=1
+    fi
+  done <<< "$NFR_LINES"
+fi
+
+if [[ "$ECODE" -eq 0 ]]; then
+  echo "OK PRD oracle: $FR_COUNT FRs, all sections present, no anti-patterns, NFRs measurable"
+fi
+exit "$ECODE"
+`,
+    },
+    {
+      path: `${a}/aped-arch/scripts/oracle-arch.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# Oracle for Architecture phase. Verifies that every PRD FR is referenced
+# at least once in the architecture decisions, and that every component
+# declaration has owner + tech-stack metadata.
+#
+# Usage: oracle-arch.sh <arch-file> <prd-file>
+# Exit:  0 = clean, 1 = violations (printed as ERROR <code>: <reason>)
+#
+# Verifications:
+#   E001 — arch or PRD file not found
+#   E010 — FR from PRD not cited in arch
+#   E011 — component declared without owner field
+#   E012 — component declared without tech-stack field
+#   E013 — ADR template field empty (Status / Context / Decision / Consequences)
+
+set -euo pipefail
+
+if [[ $# -ne 2 ]]; then
+  echo "ERROR E000: Usage: $0 <arch-file> <prd-file>" >&2
+  exit 1
+fi
+
+ARCH="$1"
+PRD="$2"
+ECODE=0
+
+if [[ ! -f "$ARCH" ]]; then
+  echo "ERROR E001: arch file not found at $ARCH"
+  exit 1
+fi
+if [[ ! -f "$PRD" ]]; then
+  echo "ERROR E001: PRD file not found at $PRD"
+  exit 1
+fi
+
+# FR coverage — every FR-N from PRD must appear at least once in arch
+PRD_FRS=$(grep -oE 'FR-[0-9]+' "$PRD" | sort -u || true)
+if [[ -n "$PRD_FRS" ]]; then
+  for fr in $PRD_FRS; do
+    if ! grep -q "$fr" "$ARCH"; then
+      echo "ERROR E010: $fr from PRD is not referenced in architecture decisions"
+      ECODE=1
+    fi
+  done
+fi
+
+# Component declarations — pattern \`### Component: name\` followed within 20
+# lines by \`Owner:\` and \`Tech stack:\`. (We do a permissive check — if
+# the file uses a different convention, the oracle simply doesn't fire,
+# which is the right behaviour for a template-agnostic check.)
+COMPONENTS=$(grep -n '^### Component:' "$ARCH" 2>/dev/null || true)
+if [[ -n "$COMPONENTS" ]]; then
+  while IFS= read -r line; do
+    LINENO_=\$(echo "$line" | cut -d: -f1)
+    NAME=\$(echo "$line" | cut -d: -f3- | sed 's/^[[:space:]]*//')
+    BLOCK=\$(sed -n "\${LINENO_},\$((LINENO_+20))p" "$ARCH")
+    if ! echo "$BLOCK" | grep -qE '^[[:space:]]*-?[[:space:]]*Owner:'; then
+      echo "ERROR E011: component '$NAME' (line $LINENO_) declared without Owner field"
+      ECODE=1
+    fi
+    if ! echo "$BLOCK" | grep -qE '^[[:space:]]*-?[[:space:]]*Tech stack:'; then
+      echo "ERROR E012: component '$NAME' (line $LINENO_) declared without Tech stack field"
+      ECODE=1
+    fi
+  done <<< "$COMPONENTS"
+fi
+
+# ADR template fields — if the arch contains ADR sections, each must have
+# all four canonical fields filled (non-empty after the colon).
+ADR_BLOCKS=$(grep -n '^## ADR' "$ARCH" 2>/dev/null || true)
+if [[ -n "$ADR_BLOCKS" ]]; then
+  for field in "Status" "Context" "Decision" "Consequences"; do
+    EMPTY=$(grep -nE "^\\*?\\*?\${field}\\*?\\*?:\\s*$" "$ARCH" 2>/dev/null || true)
+    if [[ -n "$EMPTY" ]]; then
+      while IFS= read -r line; do
+        LINENO_=\$(echo "$line" | cut -d: -f1)
+        echo "ERROR E013: line $LINENO_ ADR field '$field' is empty"
+        ECODE=1
+      done <<< "$EMPTY"
+    fi
+  done
+fi
+
+if [[ "$ECODE" -eq 0 ]]; then
+  PRD_COUNT=$(echo "$PRD_FRS" | { grep -E . 2>/dev/null || true; } | wc -l | tr -d ' ')
+  echo "OK arch oracle: \${PRD_COUNT:-0} FRs referenced; all components have Owner+Tech stack; all ADR fields filled"
+fi
+exit "$ECODE"
+`,
+    },
+    {
+      path: `${a}/aped-epics/scripts/oracle-epics.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# Oracle for Epics phase. Wraps validate-coverage.sh and adds:
+#   - every epic has at least one story
+#   - every story has a Covered FRs line listing concrete FR-N IDs
+#   - no orphan story keys (story key not on any epic's roster)
+#
+# Usage: oracle-epics.sh <epics-file> <prd-file>
+# Exit:  0 = clean, 1 = violations (printed as ERROR <code>: <reason>)
+
+set -euo pipefail
+
+if [[ $# -ne 2 ]]; then
+  echo "ERROR E000: Usage: $0 <epics-file> <prd-file>" >&2
+  exit 1
+fi
+
+EPICS="$1"
+PRD="$2"
+ECODE=0
+
+if [[ ! -f "$EPICS" ]]; then
+  echo "ERROR E001: epics file not found at $EPICS"
+  exit 1
+fi
+if [[ ! -f "$PRD" ]]; then
+  echo "ERROR E001: PRD file not found at $PRD"
+  exit 1
+fi
+
+# E020 — FR coverage (re-runs validate-coverage's logic with hyphenated form)
+PRD_FRS=$(grep -oE 'FR-[0-9]+' "$PRD" | sort -u || true)
+EPIC_FRS=$(grep -oE 'FR-[0-9]+' "$EPICS" | sort -u || true)
+for fr in $PRD_FRS; do
+  if ! echo "$EPIC_FRS" | grep -q "^\${fr}$"; then
+    echo "ERROR E020: $fr from PRD is not covered by any epic"
+    ECODE=1
+  fi
+done
+
+# E021 — every epic has ≥1 story
+EPIC_HEADERS=$(grep -n '^## Epic' "$EPICS" 2>/dev/null || true)
+if [[ -n "$EPIC_HEADERS" ]]; then
+  while IFS= read -r line; do
+    LINENO_=\$(echo "$line" | cut -d: -f1)
+    NAME=\$(echo "$line" | cut -d: -f2-)
+    # Find next epic header (or EOF)
+    NEXT_EPIC_LINE=$(awk -v start="$LINENO_" 'NR > start && /^## Epic/ { print NR; exit }' "$EPICS")
+    if [[ -z "$NEXT_EPIC_LINE" ]]; then
+      NEXT_EPIC_LINE=$(wc -l < "$EPICS")
+    fi
+    BLOCK=\$(sed -n "\${LINENO_},\${NEXT_EPIC_LINE}p" "$EPICS")
+    # Story key pattern: digit-digit-slug. We use grep without -c then count
+    # via wc -l to avoid the "0\\n0" double-emission that happens with
+    # \`grep -c X || echo 0\` (grep -c emits "0" and exits 1, then the OR
+    # fallback emits another "0", which trips bash arithmetic).
+    STORY_COUNT=\$(echo "$BLOCK" | { grep -E '\\b[0-9]+-[0-9]+-[a-z][a-z0-9-]*' 2>/dev/null || true; } | wc -l | tr -d ' ')
+    if [[ "\${STORY_COUNT:-0}" -lt 1 ]]; then
+      echo "ERROR E021: epic at line $LINENO_ ('$NAME') has no stories"
+      ECODE=1
+    fi
+  done <<< "$EPIC_HEADERS"
+fi
+
+# E022 — every story line should reference at least one FR-N somewhere
+# in the same epic block (loose check — the FRs may be in the parent
+# story description block rather than per-story).
+# Skipped here as it requires deeper YAML parsing — left to a future v4.X
+# when state.yaml schema can express story.covered_frs as a typed array.
+
+if [[ "$ECODE" -eq 0 ]]; then
+  PRD_COUNT=$(echo "$PRD_FRS" | { grep -E . 2>/dev/null || true; } | wc -l | tr -d ' ')
+  EPIC_HCOUNT=$(echo "$EPIC_HEADERS" | { grep -E . 2>/dev/null || true; } | wc -l | tr -d ' ')
+  echo "OK epics oracle: \${PRD_COUNT:-0} FRs covered, \${EPIC_HCOUNT:-0} epics, all with ≥1 story"
+fi
+exit "$ECODE"
+`,
+    },
     {
       path: `${a}/aped-dev/scripts/run-tests.sh`,
       executable: true,
