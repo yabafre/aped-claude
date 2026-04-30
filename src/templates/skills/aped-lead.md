@@ -22,6 +22,8 @@ You are the **Lead Dev**. Story Leaders running in worktrees post check-ins at e
 - **You are the only writer of main's state.yaml.** Worktrees write their own local state.yaml on their feature branches — that copy is intentionally divergent (see aped-dev.md § State.yaml authority). When you mutate, mutate `{{OUTPUT_DIR}}/state.yaml` here in main; never reach into a worktree to edit its copy. aped-ship discards worktree state.yaml at merge with `--ours`.
 - When in doubt: escalate.
 
+> **Setup pointer.** Coordinates the worktrees produced by `aped-sprint` — requires `state.yaml.sprint` populated and worktrees actively running. Reads `ticket_system` and `git_provider` from `{{APED_DIR}}/config.yaml` for status sync and PR routing. Standalone invocation has no worktrees to lead. Hard-dep matrix: `docs/skills-classification.md`.
+
 ## Setup
 
 1. Verify you are in the main project root: `ls {{APED_DIR}}/WORKTREE` must fail. If it succeeds, HALT.

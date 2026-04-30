@@ -25,6 +25,8 @@ The end-of-sprint counterpart to `aped-sprint`. The umbrella branch (`sprint/epi
 - NEVER mutate the umbrella content here (no extra commits, no auto-fixes). The umbrella reflects aped-lead's merges; aped-ship is read-only on it apart from the push.
 - Support `--plan-only`: if the user passes the flag, run Setup → Integration Check → Composite Review → Findings Report, then **STOP before the GATE**. Do not push, do not print `gh pr create` as a recommendation, do not archive inboxes. Show what *would* be done. Useful for pre-flight inspection on a sensitive sprint.
 
+> **Setup pointer.** Reads `git_provider` and `ticket_system` from `{{APED_DIR}}/config.yaml`. Opens the umbrella PR via `git_provider` (github / gitlab / bitbucket) and closes the matching tickets via `ticket_system` when configured. With both `none`, prints the manual commands and exits without push. Hard-dep matrix: `docs/skills-classification.md`.
+
 ## Setup
 
 1. Verify you are in the main project root: `ls {{APED_DIR}}/WORKTREE` must fail.

@@ -26,6 +26,8 @@ Create a single, implementation-ready story file with all the context needed for
 
 **NO STORY WITHOUT EXACT FILE PATHS, FULL CODE BLOCKS, EXACT TEST COMMANDS.** The persona reading this story is the enthusiastic junior with poor taste (see `## Reader persona`). If the story leaves room for interpretation, that junior will pick the wrong path. Verbosity in the story is cheaper by an order of magnitude than ambiguity in the implementation.
 
+> **Setup pointer.** Integrates with `ticket_system` in `{{APED_DIR}}/config.yaml` — fetches the ticket as source of truth before drafting and syncs refined ACs back via comment. With `ticket_system: none`, story is internal-markdown only. Run `npx aped-method` to (re)configure. Hard-dep matrix: `docs/skills-classification.md`.
+
 ### Red Flags
 
 Phrases that mean you are writing a story the junior will misread. If you catch yourself thinking any of these, stop.

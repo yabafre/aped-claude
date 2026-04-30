@@ -17,6 +17,8 @@ metadata:
 - This skill creates the PLAN, not the story files — `aped-story` creates one story file at a time
 - Quality is more important than speed — do not skip coverage validation
 
+> **Setup pointer.** Integrates with `ticket_system` in `{{APED_DIR}}/config.yaml` — writes tickets to the configured tracker (linear / jira / github-issues / gitlab-issues). With `ticket_system: none`, emits the internal markdown plan only. Run `npx aped-method` to (re)configure. Hard-dep matrix: `docs/skills-classification.md`.
+
 ## Input Discovery
 
 Before any work, discover and load all upstream APED artefacts. Epics are derived from PRD requirements; UX and architecture, when present, refine story splitting.
