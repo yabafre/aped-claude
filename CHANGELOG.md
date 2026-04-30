@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`aped_context.load(phase)` MCP tool** — returns the artefact bundle for a pipeline phase (file paths, sizes, existence). Replaces 5-7 round-trip Read calls in every skill's Setup block. Phase-to-artefact mapping covers all 9 pipeline phases.
+- **Superpowers Red Flags in `aped-dev.md`** — #1096 capability substitution ("I'll create a helper" → write a migration), #989 frozen-codebase ("Let me check" → run `git log -1` freshness probe first).
+- **Superpowers #1042 trigger-word lint extended** — `skill-no-cc-trigger-words.test.js` now flags "save plans to:", "save output to:", "write results to:" (harness auto-injects Write tool calls when skill body contains these directives).
+
+### Changed
+
+- MCP tool count: 7 → 8 (`aped_context.load` added). Phase-artefact mapping exported for test access.
+
 ## [4.19.0] - 2026-04-30
 
 ### Added

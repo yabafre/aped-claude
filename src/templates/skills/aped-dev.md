@@ -47,6 +47,8 @@ Phrases that mean you are about to ship code without TDD discipline. If you catc
 | "I'll just add a `// TODO: test this`" | TODO is a banned placeholder, not a plan. |
 | "I already manually tested it" | Manual testing is not regression coverage. |
 | "Tests pass on first run" | First-run pass means no RED was witnessed — likely tests-after dressed up as TDD. Re-read the test, intentionally break the implementation it covers, and re-run; you must see it go RED before you trust GREEN. |
+| "I'll create a helper to handle this" | Capability substitution (#1096): absorbing target-system responsibility into a helper instead of forcing structure into schema/state/policy. If the spec says "the database enforces X", write a migration — don't wrap it in a helper that reimplements the constraint. |
+| "Let me check the codebase first" | Frozen-codebase risk (#989): if you haven't run `git pull` or `git log -1` since session start, your mental model of the codebase may be stale. Run a freshness probe before any file read. |
 
 ### Rationalizations
 

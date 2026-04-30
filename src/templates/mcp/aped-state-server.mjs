@@ -153,6 +153,19 @@ const TOP_LEVEL_KEYS = new Set([
   'corrections_pointer', 'corrections_count', 'lead', 'mcp',
 ]);
 
+// ── Phase → artefact mapping (4.20.0) ─────────────────────────────────────
+const PHASE_ARTEFACTS = {
+  brainstorm: ['brainstorm.md'],
+  prd: ['project-context.md', 'prd.md'],
+  arch: ['prd.md', 'project-context.md', 'architecture.md'],
+  epics: ['prd.md', 'architecture.md', 'epics.md'],
+  stories: ['prd.md', 'architecture.md', 'epics.md'],
+  dev: ['story.md', 'prd.md', 'architecture.md'],
+  review: ['prd.md', 'architecture.md', 'story.md'],
+  ship: ['prd.md', 'epics.md'],
+  retro: ['prd.md', 'epics.md'],
+};
+
 // ── State machine constants (4.15.0) ──────────────────────────────────────
 const PHASES = ['none', 'brainstorm', 'prd', 'arch', 'epics', 'stories', 'dev', 'review', 'ship', 'retro'];
 const STATUSES = ['not-started', 'in-progress', 'complete', 'blocked'];
@@ -352,6 +365,41 @@ const TOOLS = {
       };
     },
   },
+  'aped_context.load': {
+    description:
+      'Load the artefact bundle for a pipeline phase. Returns file paths, sizes, and ' +
+      'existence status. Replaces 5-7 round-trip Read calls in skill Setup blocks.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        phase: {
+          type: 'string',
+          enum: Object.keys(PHASE_ARTEFACTS),
+          description: 'Pipeline phase whose artefacts to load.',
+        },
+      },
+      required: ['phase'],
+    },
+    handler: ({ phase }) => {
+      if (!PHASE_ARTEFACTS[phase]) {
+        throw new ToolError(`Unknown phase '${phase}'.`, 'UNKNOWN_PHASE');
+      }
+      const names = PHASE_ARTEFACTS[phase];
+      const artefacts = [];
+      const missing = [];
+      for (const name of names) {
+        const fullPath = join(PROJECT_ROOT, OUTPUT_DIR, name);
+        if (existsSync(fullPath)) {
+          const stat = statSync(fullPath);
+          artefacts.push({ path: join(OUTPUT_DIR, name), size_bytes: stat.size, exists: true });
+        } else {
+          missing.push({ path: join(OUTPUT_DIR, name), exists: false });
+        }
+      }
+      return { phase, artefacts, missing };
+    },
+  },
+
   'aped_state.advance': {
     description:
       'Composed phase transition. Updates pipeline.current_phase + pipeline.phases.<phase>.status ' +
@@ -659,4 +707,4 @@ if (isMain) {
 
 // Test surface — exported so tests/mcp-state-server.test.js can dispatch
 // requests directly without spawning a subprocess.
-export { dispatch, TOOLS, ToolError, PHASES, STATUSES, LEGAL_TRANSITIONS };
+export { dispatch, TOOLS, ToolError, PHASES, STATUSES, LEGAL_TRANSITIONS, PHASE_ARTEFACTS };
