@@ -1,3 +1,12 @@
+---
+step: 7
+reads: 
+  - "{{APED_DIR}}/skills/aped-skills/checklist-ux.md"
+writes: 
+  - "state.yaml#pipeline.phases.ux"
+mutates_state: true
+---
+
 # Step 7: Write UX Spec, Validate, Update State, Completion Gate
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

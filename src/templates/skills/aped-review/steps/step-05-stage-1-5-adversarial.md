@@ -1,3 +1,17 @@
+---
+step: 5
+reads:
+  - "config.yaml#review.parallel_reviewers"
+  - "src/**"
+  - "tests/**"
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+writes:
+  - "subagent/hannah"
+  - "subagent/eli"
+  - "subagent/aaron"
+mutates_state: false
+---
+
 # Step 5: Stage 1.5 — Adversarial Pass (opt-in)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

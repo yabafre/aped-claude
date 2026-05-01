@@ -1,3 +1,11 @@
+---
+step: 12
+reads:
+  - "{{APED_DIR}}/skills/aped-skills/checklist-review.md"
+writes: []
+mutates_state: false
+---
+
 # Step 12: Check-in & Completion Gate
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

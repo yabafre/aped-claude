@@ -1,3 +1,10 @@
+---
+step: 8
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 8: Verification Gate + Self-Review (run BEFORE presenting the report)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

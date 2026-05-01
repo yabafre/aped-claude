@@ -1,3 +1,10 @@
+---
+step: 3
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 3: Phase 2 — Technique Selection
 
 ## YOUR TASK

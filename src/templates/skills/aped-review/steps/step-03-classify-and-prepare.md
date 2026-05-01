@@ -1,3 +1,13 @@
+---
+step: 3
+reads:
+  - "git/diff"
+  - "ticket/{provider}"
+  - "state.yaml#sprint.review_limit"
+writes: []
+mutates_state: false
+---
+
 # Step 3: Story Classification, Capacity Check, Ticket Refresh
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

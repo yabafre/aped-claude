@@ -1,3 +1,14 @@
+---
+step: 1
+reads:
+  - "{{APED_DIR}}/WORKTREE"
+  - "git/HEAD"
+  - "state.yaml#sprint.stories"
+writes:
+  - "tasks"
+mutates_state: false
+---
+
 # Step 1: Initialization, Fresh-Context Check, Mode Detection
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

@@ -1,3 +1,16 @@
+---
+step: 6
+reads: 
+  - "src/**"
+  - "tests/**"
+  - "git/diff"
+writes: 
+  - "src/**"
+  - "tests/**"
+  - "git/commits"
+mutates_state: false
+---
+
 # Step 6: Phase 4 — Instrument (one variable at a time)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

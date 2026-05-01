@@ -1,3 +1,12 @@
+---
+step: 7
+reads:
+  - "subagent/findings"
+  - "{{APED_DIR}}/scripts/merge-findings.mjs"
+writes: []
+mutates_state: false
+---
+
 # Step 7: Merge Findings
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

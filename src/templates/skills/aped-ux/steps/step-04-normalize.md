@@ -1,3 +1,10 @@
+---
+step: 4
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 4: N — Normalize (Layout + Screens with Real Content)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

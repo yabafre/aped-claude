@@ -1,3 +1,13 @@
+---
+step: 4
+reads: []
+writes: 
+  - "subagent/mary"
+  - "subagent/derek"
+  - "subagent/tom"
+mutates_state: false
+---
+
 # Step 4: Phase 2 — Parallel Research (Mary / Derek / Tom)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

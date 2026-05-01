@@ -1,3 +1,11 @@
+---
+step: 6
+reads: []
+writes: 
+  - "subagent/spec-reviewer"
+mutates_state: false
+---
+
 # Step 6: Coverage Validation, Self-Review, Spec-Reviewer Dispatch
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

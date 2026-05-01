@@ -1,3 +1,10 @@
+---
+step: 4
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 4: Section 3 (Domain — conditional) + Section 4 (FRs + NFRs)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

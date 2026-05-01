@@ -1,3 +1,12 @@
+---
+step: 6
+reads:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+writes:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+mutates_state: false
+---
+
 # Step 6: Self-Review (run before user gate)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

@@ -1,3 +1,16 @@
+---
+step: 10
+reads:
+  - "src/**"
+  - "tests/**"
+writes:
+  - "src/**"
+  - "tests/**"
+  - "git/commits"
+  - "{{APED_DIR}}/.last-test-exit"
+mutates_state: false
+---
+
 # Step 10: Apply Fixes & Re-Verify
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

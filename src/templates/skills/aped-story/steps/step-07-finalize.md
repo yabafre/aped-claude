@@ -1,3 +1,15 @@
+---
+step: 7
+reads:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+writes:
+  - "git/commits"
+  - "ticket/{provider}"
+  - "{{APED_DIR}}/checkins/{story-key}.json"
+  - "state.yaml#sprint.stories[story-key].status"
+mutates_state: true
+---
+
 # Step 7: Finalize (commit, ticket sync, check-in)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

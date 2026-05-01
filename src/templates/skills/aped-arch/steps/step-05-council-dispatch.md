@@ -1,3 +1,18 @@
+---
+step: 5
+reads:
+  - "{{APED_DIR}}/templates/adr.md"
+writes:
+  - "subagent/winston"
+  - "subagent/lena"
+  - "subagent/raj"
+  - "subagent/nina"
+  - "subagent/maya"
+  - "{{OUTPUT_DIR}}/architecture.md"
+  - "{{OUTPUT_DIR}}/adr/*.md"
+mutates_state: false
+---
+
 # Step 5: Phase 2b — Architecture Council (major decisions only)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
@@ -63,6 +78,8 @@ After validation, append a new `### {Decision name}` subsection of `## Phase 2b 
 - Consensus / disagreement areas.
 - Final pick + rationale.
 - Minority view (kept as future-pivot signal).
+
+**Also write an ADR** at `{{OUTPUT_DIR}}/adr/000N-{slug}.md` using `{{APED_DIR}}/templates/adr.md` — every Council-dispatched decision passes Pocock's 3 criteria by definition (Council is reserved for hard-to-reverse, surprising, trade-off-laden choices). The ADR captures the verdict in a stable artefact independent of `architecture.md`'s rolling structure.
 
 Bump `last_updated`. Do **NOT** advance `current_subphase` until *all* major decisions have been dispatched; only then push `council-dispatches` to `completed_subphases` and advance to `implementation-patterns`. Mirror in `state.yaml`.
 

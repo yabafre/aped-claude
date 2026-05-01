@@ -1,3 +1,12 @@
+---
+step: 5
+reads:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+  - "git/diff"
+writes: []
+mutates_state: false
+---
+
 # Step 5: Frontend Detection & Visual Dev Loop
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

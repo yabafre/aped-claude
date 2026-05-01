@@ -1,3 +1,16 @@
+---
+step: 8
+reads:
+  - "{{APED_DIR}}/skills/aped-skills/checklist-dev.md"
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+writes:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+  - "ticket/{provider}"
+  - "{{APED_DIR}}/checkins/{story-key}.json"
+  - "state.yaml#sprint.stories[story-key].status"
+mutates_state: true
+---
+
 # Step 8: Completion (story update, state, ticket, check-in)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

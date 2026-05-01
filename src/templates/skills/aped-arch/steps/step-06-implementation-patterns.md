@@ -1,3 +1,10 @@
+---
+step: 6
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 6: Phase 3 — Implementation Patterns
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

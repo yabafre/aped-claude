@@ -1,3 +1,13 @@
+---
+step: 7
+reads:
+  - "{{APED_DIR}}/.last-test-exit"
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+  - "git/diff"
+writes: []
+mutates_state: false
+---
+
 # Step 7: Verification Gate (run before Completion)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

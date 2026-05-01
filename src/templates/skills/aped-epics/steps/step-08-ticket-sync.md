@@ -1,3 +1,10 @@
+---
+step: 8
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 8: Ticket System Setup (with sync-log auditability)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

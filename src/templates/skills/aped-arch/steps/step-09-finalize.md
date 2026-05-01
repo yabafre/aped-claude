@@ -1,3 +1,12 @@
+---
+step: 9
+reads: []
+writes:
+  - "{{OUTPUT_DIR}}/architecture.md"
+  - "state.yaml#pipeline.phases.architecture"
+mutates_state: true
+---
+
 # Step 9: Finalisation (state structured fields, NOT regeneration)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

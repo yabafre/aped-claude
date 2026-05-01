@@ -1,3 +1,16 @@
+---
+step: 11
+reads:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+writes:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+  - "ticket/{provider}"
+  - "pr/{provider}"
+  - "{{APED_DIR}}/checkins/{story-key}.json"
+  - "state.yaml#sprint.stories[story-key].status"
+mutates_state: true
+---
+
 # Step 11: Finalize — Update Remote, Write Review Record into Story File, Update State
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

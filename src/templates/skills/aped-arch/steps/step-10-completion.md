@@ -1,3 +1,12 @@
+---
+step: 10
+reads: 
+  - "{{APED_DIR}}/skills/aped-skills/checklist-arch.md"
+writes: 
+  - "state.yaml#pipeline.phases.arch"
+mutates_state: true
+---
+
 # Step 10: Completion Gate
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

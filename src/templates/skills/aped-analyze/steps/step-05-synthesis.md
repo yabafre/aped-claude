@@ -1,3 +1,11 @@
+---
+step: 5
+reads: 
+  - "subagent/findings"
+writes: []
+mutates_state: false
+---
+
 # Step 5: Phase 3 — Research Review + Phase 4 — Synthesis
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

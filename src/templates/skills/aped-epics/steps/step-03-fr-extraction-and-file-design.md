@@ -1,3 +1,10 @@
+---
+step: 3
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 3: FR Extraction + Epic-level File Structure Design
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

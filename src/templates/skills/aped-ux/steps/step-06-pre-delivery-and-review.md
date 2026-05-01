@@ -1,3 +1,10 @@
+---
+step: 6
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 6: F4 Pre-Delivery Checklist + F5 User Review + Self-Review + Spec-Reviewer
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

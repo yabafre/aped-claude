@@ -1,3 +1,16 @@
+---
+step: 4
+reads:
+  - "{{OUTPUT_DIR}}/epic-{N}-context.md"
+  - "{{OUTPUT_DIR}}/prd.md"
+  - "{{OUTPUT_DIR}}/architecture.md"
+  - "{{OUTPUT_DIR}}/ux/**"
+  - "{{OUTPUT_DIR}}/project-context.md"
+writes:
+  - "{{OUTPUT_DIR}}/epic-{N}-context.md"
+mutates_state: false
+---
+
 # Step 4: Epic Context Cache + Story Context Gathering
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

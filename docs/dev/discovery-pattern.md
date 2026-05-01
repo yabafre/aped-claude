@@ -7,6 +7,45 @@
 
 > **v6.0.0 layout note.** Since v6.0.0, every skill is a directory (`aped-X/SKILL.md` + optional `workflow.md` + `steps/step-NN-*.md`). For phase skills with full BMAD decomposition, the discovery pattern lives in `aped-X/steps/step-NN-input-discovery.md` (typically step 02). For skills that ship `SKILL.md` only, it remains the first runtime section of `SKILL.md` as documented below. Either way, the pattern is identical — only the file location differs.
 
+## Step I/O contract frontmatter (v6.0.0+)
+
+Every step file under `aped-X/steps/` carries a typed frontmatter that declares what it reads and writes. Inspired by [Anthropic's "code execution with MCP"](https://www.anthropic.com/engineering/code-execution-with-mcp) (typed tools as first-class citizens). Schema:
+
+```yaml
+---
+step: <int>           # 1-based step number, must match step-NN-* in filename
+reads:                # paths/handles consumed
+  - "<path>"
+writes:               # paths/handles produced
+  - "<path>"
+mutates_state: <bool> # whether state.yaml is rewritten
+---
+```
+
+**Path syntax** — entries must start with one of:
+
+| Prefix | Meaning |
+|---|---|
+| `{{OUTPUT_DIR}}/...` | File path under `docs/aped/` (the user's output dir). |
+| `{{APED_DIR}}/...` | File path under `.aped/` (the engine dir). |
+| `state.yaml#path.to.key` | YAML dot-path inside `state.yaml`. |
+| `config.yaml#key` | Top-level key inside `config.yaml`. |
+| `git/HEAD`, `git/branches/<pat>`, `git/commits`, `git/diff`, `git/log` | Git operations. |
+| `tasks` | TaskCreate dispatch. |
+| `subagent/<name>` | Agent dispatch (e.g. `subagent/eva`, `subagent/spec-reviewer`). |
+| `mcp/<server>.<tool>` | MCP tool call (e.g. `mcp/aped-state.advance`). |
+| `ticket/{provider}` | Provider-routed ticket fetch/write. |
+| `pr/{provider}` | PR creation/comment. |
+| `src/**`, `tests/**`, `docs/**` | Project-tree globs. |
+
+The `tests/step-io-contract-lint.test.js` file enforces this on every step file (frontmatter present, schema valid, paths use a known prefix). Adding a new step file without the frontmatter, or with an invalid prefix, fails the lint.
+
+**Why typed contracts?** Three payoffs:
+
+1. **Documentation** — readers can quickly see what each step touches without skimming 200 lines of prose.
+2. **Cross-step audit** — future tooling can verify step N's outputs match step N+1's inputs (e.g. step-05 declares `writes: state.yaml#pipeline.phases.X` → step-06 must declare `reads: state.yaml#pipeline.phases.X`).
+3. **MCP-server target** — once contracts are typed and stable, an MCP server can expose `step.execute(name, inputs)` directly, replacing the prose-loaded execution today (see Anthropic's [managed agents](https://www.anthropic.com/engineering/managed-agents) thesis: "be opinionated about interfaces, unopinionated about implementations").
+
 > **Typed alternative (v4.20.0+):** Skills can call the `aped_context.load(phase)` MCP tool instead of the manual Read chain described below. The MCP tool performs the same glob-discover-load sequence and returns typed results. The manual pattern remains the reference for understanding the logic and for skills that cannot use MCP tools.
 
 ## Why this pattern exists

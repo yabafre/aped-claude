@@ -5,7 +5,7 @@ tags: [aped, workflow, phases, reference]
 
 # APED — Phases
 
-Detail of every phase in the pipeline: **command**, **persona(s) involved**, **expected input**, **produced output**, **validation gate**. APED ships **33 skills** as of v6.0.0. Since v6.0.0, every phase skill is a directory (`aped-X/SKILL.md` + `workflow.md` + `steps/step-NN-*.md`) — Claude only loads the slice relevant to the active step.
+Detail of every phase in the pipeline: **command**, **persona(s) involved**, **expected input**, **produced output**, **validation gate**. APED ships **34 skills** as of v6.0.0. Since v6.0.0, every phase skill is a directory (`aped-X/SKILL.md` + `workflow.md` + `steps/step-NN-*.md`) — Claude only loads the slice relevant to the active step.
 
 > 🔗 Overview: [APED — Workflow](.aped-workflow.md) · Personas: [APED — Personas & Teams](.aped-personas.md)
 
@@ -397,7 +397,7 @@ All oracles exit 0 (pass) / 1 (findings, non-blocking) / 2 (structural failure, 
 
 ### Skill count
 
-APED ships **33 skills** as of v6.0.0 (up from 25 in v3.12.0). v6.0.0 keeps the count steady — the change is structural (BMAD directory layout), not additive.
+APED ships **34 skills** as of v6.0.0 (up from 25 in v3.12.0). v6.0.0 keeps the existing 33 unchanged structurally and adds one new — `aped-glossary` — bringing the count to 34.
 
 ---
 

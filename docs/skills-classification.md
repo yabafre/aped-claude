@@ -35,7 +35,7 @@ A skill is **soft-dep** if it works on any project with default config and no up
 | `aped-sprint` | Reads `sprint.stories` from `state.yaml`, dispatches each into a `git worktree`. Without an epics phase output, there's nothing to dispatch. |
 | `aped-lead` | Coordinates across the worktrees produced by `aped-sprint`. Standalone invocation has no worktrees to lead. |
 
-### Soft-dep (25)
+### Soft-dep (26)
 
 | Skill | Notes |
 |-------|-------|
@@ -64,6 +64,7 @@ A skill is **soft-dep** if it works on any project with default config and no up
 | `aped-iterate` | Post-ship router — classifies a delta and recommends the right downstream skill. Read-only; HALTs and redirects to `aped-course` if a worktree is in-flight. |
 | `aped-write-skill` | Meta-skill for writing APED-style skills. Reads `config.yaml` (`user_name`, `communication_language`, `document_output_language`, `ticket_system`, `git_provider`) but only for context — no ticket I/O, no state mutation. HALTs if config missing. |
 | `aped-zoom-out` | Horizontal re-orientation. Reads `state.yaml` and `lessons.md` if present but treats missing artefacts as signal, not error. Produces no artefact — only a 4-bullet re-orientation message. |
+| `aped-glossary` | Project-wide domain dictionary maintenance. Reads upstream artefacts (PRD, architecture, stories) and writes `{{OUTPUT_DIR}}/glossary.md`. Pocock-style CONTEXT.md analog. No config or state.yaml dependency beyond `user_name` / language settings. |
 
 ## Reading hard-dep setup pointers
 
@@ -77,8 +78,8 @@ Orthogonal to the hard/soft classification: every skill ships in directory form.
 
 | Layout | Skills | When |
 |---|---|---|
-| `SKILL.md` only | 14 small skills (`aped-checkpoint`, `aped-status`, `aped-quick`, `aped-claude`, `aped-context`, `aped-course`, `aped-elicit`, `aped-qa`, `aped-write-skill`, `aped-grill`, `aped-triage`, `aped-pre-mortem`, `aped-design-twice`, `aped-zoom-out`) | Skill body fits in one file (<250 lines) — no split needed. |
+| `SKILL.md` only | 15 small skills (`aped-checkpoint`, `aped-status`, `aped-quick`, `aped-claude`, `aped-context`, `aped-course`, `aped-elicit`, `aped-qa`, `aped-write-skill`, `aped-grill`, `aped-triage`, `aped-pre-mortem`, `aped-design-twice`, `aped-zoom-out`, `aped-glossary`) | Skill body fits in one file (<250 lines) — no split needed. |
 | `SKILL.md` + `workflow.md` | 9 medium skills (`aped-arch-audit`, `aped-from-ticket`, `aped-sprint`, `aped-retro`, `aped-ship`, `aped-prfaq`, `aped-receive-review`, `aped-lead`, `aped-iterate`) | Skill has structured phases but no per-step micro-files. |
 | `SKILL.md` + `workflow.md` + `steps/step-NN-*.md` | 10 phase skills — `aped-story` (8 steps), `aped-dev` (8), `aped-review` (12), `aped-epics` (9), `aped-arch` (10), `aped-ux` (7), `aped-prd` (6), `aped-debug` (9), `aped-brainstorm` (7), `aped-analyze` (6) | Long workflows that benefit from progressive disclosure — Claude only loads the slice relevant to the current step. |
 
-Total: 14 + 9 + 10 = **33 skills**. Layout choice is purely about file size, not capability — a `SKILL.md`-only skill is no less capable than a fully-decomposed one.
+Total: 15 + 9 + 10 = **34 skills**. Layout choice is purely about file size, not capability — a `SKILL.md`-only skill is no less capable than a fully-decomposed one.

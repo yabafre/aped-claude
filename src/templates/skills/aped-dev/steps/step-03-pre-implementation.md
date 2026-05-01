@@ -1,3 +1,12 @@
+---
+step: 3
+reads:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+  - "{{OUTPUT_DIR}}/lessons.md"
+writes: []
+mutates_state: false
+---
+
 # Step 3: Pre-Implementation Checklist & Review Continuation
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

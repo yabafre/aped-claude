@@ -1,3 +1,10 @@
+---
+step: 3
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 3: Section 1 (Foundation) + Section 2 (Scope & Journeys)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

@@ -1,3 +1,11 @@
+---
+step: 6
+reads: []
+writes: 
+  - "subagent/spec-reviewer"
+mutates_state: false
+---
+
 # Step 6: Self-Review, Spec-Reviewer, Validation, State Update, Final Gate
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
