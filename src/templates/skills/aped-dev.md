@@ -223,7 +223,7 @@ When `aped-review` has reported findings and handed control back to `aped-dev`, 
 
 ## State Update (start)
 
-Update `{{OUTPUT_DIR}}/state.yaml`: story — `in-progress`, epic — `in-progress` if first story.
+Run `aped_state.advance(phase: "dev", status: "in-progress")`. If MCP unavailable, fall back: update `{{OUTPUT_DIR}}/state.yaml` manually — story `in-progress`, epic `in-progress` if first story.
 
 ## Task Tracking
 

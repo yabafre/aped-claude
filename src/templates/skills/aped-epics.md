@@ -215,17 +215,14 @@ Every FR from PRD mapped to exactly one epic. No orphans, no phantoms.
 
 ## Validation
 
-Run **both** validators — `validate-coverage.sh` for the legacy human-readable report, `oracle-epics.sh` (4.12.0+) for the C-compiler-convention deterministic verifier (E020 FR coverage, E021 every epic has ≥1 story).
+Run `aped_validate.phase(phase: "epics")` — returns `{ ok, violations: [{code, message}] }` typed. If MCP unavailable, fall back:
 
 ```bash
-# Legacy human-readable reporter (kept for backwards compat).
 bash {{APED_DIR}}/aped-epics/scripts/validate-coverage.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md
-
-# Deterministic oracle (canonical 4.12.0+ pre-merge gate).
 bash {{APED_DIR}}/aped-epics/scripts/oracle-epics.sh {{OUTPUT_DIR}}/epics.md {{OUTPUT_DIR}}/prd.md
 ```
 
-If `oracle-epics.sh` exits non-zero, surface the `ERROR Eddd: ...` lines verbatim and HALT. Do not ship the epics list with E020 (uncovered FR) or E021 (empty epic) violations — both block aped-story / aped-dev downstream.
+If violations are non-empty (or oracle exits non-zero), surface each `ERROR` verbatim and HALT. E020 (uncovered FR) or E021 (empty epic) block aped-story / aped-dev downstream.
 
 ### Spec self-review
 
@@ -303,7 +300,7 @@ Before presenting the epics breakdown to the user, walk this checklist. Each `[ 
 ## Output
 
 1. Write epics and story list to `{{OUTPUT_DIR}}/epics.md` with `**Depends on:**` on every story
-2. Update `{{OUTPUT_DIR}}/state.yaml`:
+2. Run `aped_state.advance(phase: "epics", status: "complete")`. If MCP unavailable, fall back: update `{{OUTPUT_DIR}}/state.yaml`:
    - Set `current_phase: "sprint"` — this marks the transition from planning to execution
    - Set `sprint.active_epic` to the epic the user wants to start with (usually `1`)
    - Add `phases.epics` with status `done` and output path

@@ -279,22 +279,20 @@ When the reviewer returns:
 
 ## Validation
 
-Run **both** validators — `validate-prd.sh` is the legacy human-readable reporter; `oracle-prd.sh` (4.12.0+) is the C-compiler-convention deterministic verifier whose `ERROR <code>: <reason>` output any grep pipeline can parse.
+Run `aped_validate.phase(phase: "prd")`. It returns `{ ok, violations: [{code, message}] }` — typed, no parsing needed. If MCP unavailable, fall back to the bash invocations below.
 
 ```bash
-# Legacy human-readable reporter (kept for backwards compat).
+# Fallback when MCP not installed:
 bash {{APED_DIR}}/aped-prd/scripts/validate-prd.sh {{OUTPUT_DIR}}/prd.md
-
-# Deterministic oracle (canonical 4.12.0+ pre-merge gate).
 bash {{APED_DIR}}/aped-prd/scripts/oracle-prd.sh {{OUTPUT_DIR}}/prd.md
 ```
 
-In interactive mode, run this AFTER all sections accepted. If `oracle-prd.sh` exits non-zero, surface the `ERROR Eddd: ...` lines verbatim to the user and offer one final A/P/C round on the failing area. Do **not** ship the PRD until oracle-prd exits 0 — every error code (E001 file-not-found, E002 missing-section, E003 FR-count, E004 non-hyphenated FR, E006 anti-pattern word, E007 NFR-no-threshold) maps to a deterministic fix.
+In interactive mode, run this AFTER all sections accepted. If violations are non-empty (or oracle exits non-zero), surface each `ERROR Eddd: ...` verbatim and offer one final A/P/C round. Do **not** ship the PRD until oracle passes — every error code (E001-E007) maps to a deterministic fix.
 
 ## Output & State
 
 1. Write PRD to `{{OUTPUT_DIR}}/prd.md`
-2. Update `{{OUTPUT_DIR}}/state.yaml` under `pipeline.phases.prd` with the structured fields below:
+2. Run `aped_state.advance(phase: "prd", status: "complete")`. If MCP unavailable, fall back: update `{{OUTPUT_DIR}}/state.yaml` under `pipeline.phases.prd` with the structured fields below:
 
 ```yaml
 pipeline:

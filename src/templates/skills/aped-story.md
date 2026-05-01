@@ -335,8 +335,8 @@ Before presenting the story file to the user, walk this checklist. Each `[ ]` mu
 ## Output
 
 1. Write story file to `{{OUTPUT_DIR}}/stories/{story-key}.md`
-2. Update `{{OUTPUT_DIR}}/state.yaml`: story status → `ready-for-dev`
-3. **Sync back to ticket system** (if `ticket_system` != `none`):
+2. Run `aped_state.advance(phase: "stories", status: "in-progress")`. If MCP unavailable, fall back: update `{{OUTPUT_DIR}}/state.yaml` — story status → `ready-for-dev`.
+3. **Sync back to ticket system** (if `ticket_system` != `none`) — use `aped_ticket.link_pr(ticket_id, pr_url)` or `aped_ticket.create_issue(...)` if MCP available. Fall back to `gh`/`linear` CLI:
    - If the refined ACs differ from the ticket body: post a comment on the ticket summarizing the refinements
    - Don't overwrite the ticket body (it may have user edits) — use comments instead
    - `github-issues`: `gh issue comment {id} --body "..."`
