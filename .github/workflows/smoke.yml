@@ -36,22 +36,27 @@ jobs:
           [ "$STEP_COUNT" -ge 80 ] || { echo "step files missing from tarball"; exit 1; }
           [ "$SKILL_COUNT" -ge 30 ] || { echo "SKILL.md files missing from tarball"; exit 1; }
 
-      - name: Scaffold from tarball
+      - name: Install tarball into smoke project
         run: |
           mkdir -p /tmp/proj && cd /tmp/proj && git init -q
-          npx --yes /tmp/pack/aped-method-*.tgz --yes --project=smoke --tickets=none --git=github
+          TARBALL=$(ls /tmp/pack/aped-method-*.tgz)
+          npm install --no-save "$TARBALL"
+
+      - name: Scaffold from tarball
+        run: |
+          cd /tmp/proj
+          ./node_modules/.bin/aped-method --yes --project=smoke --tickets=none --git=github
 
       - name: Doctor must exit 0
-        run: cd /tmp/proj && npx --yes /tmp/pack/aped-method-*.tgz doctor
+        run: cd /tmp/proj && ./node_modules/.bin/aped-method doctor
 
       - name: Enable every opt-in subcommand
         run: |
           cd /tmp/proj
-          TARBALL=$(ls /tmp/pack/aped-method-*.tgz)
           for sub in statusline safe-bash post-edit-typescript verify-claims \
                      session-start worktree-scope tdd-red-marker enable-mcp; do
             echo "--- $sub ---"
-            npx --yes "$TARBALL" "$sub" --yes 2>&1 || true
+            ./node_modules/.bin/aped-method "$sub" --yes 2>&1 || true
           done
 
       - name: Verify core files exist
