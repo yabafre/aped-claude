@@ -1,19 +1,21 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const __scriptsDirname = dirname(fileURLToPath(import.meta.url));
 const SKILLS_TEMPLATE_DIR = join(__scriptsDirname, 'skills');
 
-// Build a SKILL-INDEX.md listing every aped-*.md skill in the templates dir
+// Build a SKILL-INDEX.md listing every aped skill (flat .md or aped-X/SKILL.md)
 // with its `description:` frontmatter line. Consumed by the opt-in
 // SessionStart hook (`hooks/session-start.sh`) to preload skill awareness
 // at the start of each Claude Code session.
+//
+// 6.0.0: skills moved from flat aped-X.md to aped-X/SKILL.md. We support both.
 function buildSkillIndex() {
   let entries;
   try {
     entries = readdirSync(SKILLS_TEMPLATE_DIR)
-      .filter((f) => f.startsWith('aped-') && f.endsWith('.md'))
+      .filter((f) => f.startsWith('aped-') && f !== 'aped-skills')
       .sort();
   } catch {
     return '# APED Skill Index\n\n_No skills directory found._\n';
@@ -28,22 +30,32 @@ function buildSkillIndex() {
     '',
   ];
 
-  for (const file of entries) {
-    const name = file.slice(0, -3); // strip .md
+  for (const entry of entries) {
+    const fullPath = join(SKILLS_TEMPLATE_DIR, entry);
+    let name;
+    let skillFilePath;
+    if (statSync(fullPath).isDirectory()) {
+      // 6.0.0+ directory layout: aped-X/SKILL.md.
+      const skillMd = join(fullPath, 'SKILL.md');
+      if (!existsSync(skillMd)) continue;
+      name = entry;
+      skillFilePath = skillMd;
+    } else if (entry.endsWith('.md')) {
+      // Legacy flat layout: aped-X.md.
+      name = entry.slice(0, -3);
+      skillFilePath = fullPath;
+    } else {
+      continue;
+    }
     let description = '';
     try {
-      const raw = readFileSync(join(SKILLS_TEMPLATE_DIR, file), 'utf-8');
-      // Match `description:` at top of YAML frontmatter. Value may be
-      // single-quoted, double-quoted, or bare. We only take the first
-      // single-line value — block scalars are not used in APED skill
-      // frontmatter today.
+      const raw = readFileSync(skillFilePath, 'utf-8');
       const m = raw.match(/^description:\s*(?:'([^']*)'|"([^"]*)"|(.+))$/m);
       if (m) {
         description = (m[1] ?? m[2] ?? m[3] ?? '').trim();
       }
     } catch {
-      // Unreadable skill file — emit name with empty description so the
-      // index is still complete enough to reason about.
+      // Unreadable skill file — emit name with empty description.
     }
     lines.push(`- ${name} — ${description}`);
   }

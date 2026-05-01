@@ -1,18 +1,18 @@
 // NL routing rubric (4.14.0) — deterministic verification that each expected
 // trigger phrase has at least one skill with that substring in its description.
 // No model invocation — pure frontmatter shape check.
+//
+// 6.0.0: skills moved from flat aped-X.md to aped-X/SKILL.md.
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { resolveSkillEntries } from './_helpers/resolve-skills.js';
 
 const SKILLS_DIR = join(import.meta.dirname, '..', 'src', 'templates', 'skills');
 
 function getSkillDescriptions() {
-  const files = readdirSync(SKILLS_DIR).filter((f) => f.startsWith('aped-') && f.endsWith('.md'));
-  return files.map((f) => {
-    const content = readFileSync(join(SKILLS_DIR, f), 'utf-8');
+  return resolveSkillEntries(SKILLS_DIR).map(({ name, content }) => {
     const descMatch = content.match(/^description:\s*(.+)$/m);
-    return { file: f, description: descMatch ? descMatch[1].toLowerCase() : '' };
+    return { name, description: descMatch ? descMatch[1].toLowerCase() : '' };
   });
 }
 
@@ -49,21 +49,21 @@ const ROUTING_RUBRIC = [
 ];
 
 describe('NL routing rubric (4.14.0)', () => {
-  it('every expected skill file exists', () => {
+  it('every expected skill exists', () => {
     const expectedSkills = [...new Set(ROUTING_RUBRIC.map((r) => r.expectedSkill))];
-    const existingFiles = SKILLS.map((s) => s.file.replace('.md', ''));
+    const existingNames = SKILLS.map((s) => s.name);
     for (const skill of expectedSkills) {
-      expect(existingFiles).toContain(skill);
+      expect(existingNames).toContain(skill);
     }
   });
 
   for (const { phrase, expectedSkill } of ROUTING_RUBRIC) {
     it(`"${phrase}" routes to ${expectedSkill}`, () => {
-      const target = SKILLS.find((s) => s.file === `${expectedSkill}.md`);
-      expect(target, `${expectedSkill}.md not found`).toBeDefined();
+      const target = SKILLS.find((s) => s.name === expectedSkill);
+      expect(target, `${expectedSkill} not found`).toBeDefined();
       expect(
         target.description.includes(phrase.toLowerCase()),
-        `${expectedSkill}.md description does not contain "${phrase}". Description: "${target.description}"`,
+        `${expectedSkill} description does not contain "${phrase}". Description: "${target.description}"`,
       ).toBe(true);
     });
   }

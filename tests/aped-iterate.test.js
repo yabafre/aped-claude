@@ -1,25 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readSkillContent } from './_helpers/resolve-skills.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SKILL_PATH = join(
-  __dirname,
-  '..',
-  'src',
-  'templates',
-  'skills',
-  'aped-iterate.md',
-);
+const SKILLS_DIR = join(__dirname, '..', 'src', 'templates', 'skills');
 
-// Phase 1 contract for aped-iterate: it must declare the standard APED
-// frontmatter (with keep-coding-instructions: true per Phase 0 G2), it
-// must mirror the OOS KB scan section so it stays consistent with
-// aped-from-ticket / aped-quick, and it must carry the canonical Iron
-// Law verbatim because that wording is what the skill exists to enforce.
+// Phase 1 contract for aped-iterate. 6.0.0: skill moved to directory format.
 describe('aped-iterate skill contract', () => {
-  const content = readFileSync(SKILL_PATH, 'utf-8');
+  const content = readSkillContent(SKILLS_DIR, 'aped-iterate');
 
   it('declares the required frontmatter keys', () => {
     // Frontmatter is the first --- block.

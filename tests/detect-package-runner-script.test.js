@@ -144,12 +144,12 @@ describe('detect-package-runner.sh', () => {
     }
   });
 
-  it('aped-ship and aped-dev reference the script (no "or equivalent" prose)', () => {
-    const fs = require('node:fs');
+  it('aped-ship and aped-dev reference the script (no "or equivalent" prose)', async () => {
     const path = require('node:path');
+    const { readSkillContent } = await import('./_helpers/resolve-skills.js');
     const skillsDir = path.join(__dirname, '..', 'src', 'templates', 'skills');
-    const ship = fs.readFileSync(path.join(skillsDir, 'aped-ship.md'), 'utf8');
-    const dev = fs.readFileSync(path.join(skillsDir, 'aped-dev.md'), 'utf8');
+    const ship = readSkillContent(skillsDir, 'aped-ship');
+    const dev = readSkillContent(skillsDir, 'aped-dev');
     expect(ship).toMatch(/detect-package-runner\.sh/);
     expect(dev).toMatch(/detect-package-runner\.sh/);
     // The bare "or equivalent" prose for typecheck/dev-server should be gone.

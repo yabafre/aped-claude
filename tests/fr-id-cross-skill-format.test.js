@@ -4,55 +4,31 @@
 //   - aped-epics canonical "Running FR coverage matrix" uses FR-1 (hyphen)
 //   - aped-epics output examples + aped-prd + aped-story use FR1 (no hyphen)
 //
-// The pre-merge consequence is that downstream skills consume the prose IDs
-// and one form drifts past the other (validate-coverage.sh, oracle scripts,
-// future MCP atom contracts). Lock the canonical hyphenated form here so any
-// future drift fails CI before it ships.
+// Lock the canonical hyphenated form here so any future drift fails CI.
 //
 // Allowed forms: FR-N, NFR-N, AC-N (case-sensitive, hyphen mandatory).
-// Tolerated context: code blocks where the surrounding language requires a
-// different identifier (regex character classes, JSON keys quoted as the
-// non-hyphen form when documenting an external system). The walker reads
-// markdown bodies and skips fenced code blocks tagged ``` json / yaml /
-// regex — fenced bash blocks DO get scanned because skills there often emit
-// IDs the model is supposed to write back.
+//
+// 6.0.0: skills moved from flat aped-X.md to aped-X/{SKILL.md, workflow.md, steps/...}.
+// We scan every .md inside each skill directory.
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveSkillFullContent } from './_helpers/resolve-skills.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SKILLS_DIR = join(__dirname, '..', 'src', 'templates', 'skills');
 
-function listTopLevelSkills(dir) {
-  return readdirSync(dir)
-    .filter((name) => name.startsWith('aped-') && name.endsWith('.md'))
-    .map((name) => join(dir, name));
-}
-
 // Strip fenced code blocks where a non-hyphen form is legitimately present.
-// The model knows to translate to/from these formats — but the prose around
-// the block must use the canonical form so the routing examples don't
-// teach the wrong shape.
 function stripExemptCodeBlocks(content) {
   return content.replace(/```(json|yaml|regex|html)\n[\s\S]*?\n```/g, '```$1\n[STRIPPED]\n```');
 }
 
-const SKILL_PATHS = listTopLevelSkills(SKILLS_DIR);
+const SKILL_ENTRIES = resolveSkillFullContent(SKILLS_DIR);
 
 describe('FR/NFR/AC ID format lint', () => {
-  it.each(SKILL_PATHS)('%s uses canonical hyphenated form (FR-N, NFR-N, AC-N)', (skillPath) => {
-    const raw = readFileSync(skillPath, 'utf8');
-    const body = stripExemptCodeBlocks(raw);
+  it.each(SKILL_ENTRIES.map((s) => [s.name, s]))('%s uses canonical hyphenated form (FR-N, NFR-N, AC-N)', (_name, skill) => {
+    const body = stripExemptCodeBlocks(skill.content);
 
-    // Match `FR<digits>` / `NFR<digits>` / `AC<digits>` not preceded by a
-    // hyphen, not part of a longer identifier (`FRAME`, `ACME`, `OFCRT`),
-    // and not inside an obviously-irrelevant token (URL, email).
-    //
-    // Word boundary on the leading side does NOT cover the case where the
-    // ID is preceded by an alphanumeric (e.g. `OFCRT3` would otherwise
-    // match). We require a non-alphanumeric leading char (or start-of-line)
-    // and a digit-then-non-alphanumeric trailing context.
     const offenders = [
       ...body.matchAll(/(^|[^\w-])(FR|NFR|AC)(\d+)([^\w-]|$)/g),
     ];
@@ -69,21 +45,21 @@ describe('FR/NFR/AC ID format lint', () => {
     });
 
     throw new Error(
-      `${skillPath} uses non-hyphenated FR/NFR/AC IDs (canonical is FR-N / NFR-N / AC-N):\n${samples.join(
-        '\n'
-      )}\n\nReplace with the hyphenated form so cross-skill consumers (validate-coverage.sh, oracle scripts, future MCP atoms) parse a single shape.`
+      `${skill.name} uses non-hyphenated FR/NFR/AC IDs (canonical is FR-N / NFR-N / AC-N):\n${samples.join('\n')}\n\nReplace with the hyphenated form so cross-skill consumers (validate-coverage.sh, oracle scripts, future MCP atoms) parse a single shape.`,
     );
   });
 
-  it('canonical example block is reachable in aped-epics.md', () => {
-    const content = readFileSync(join(SKILLS_DIR, 'aped-epics.md'), 'utf8');
-    expect(content).toMatch(/FR-1.*FR-3.*FR-7/);
-    expect(content).toMatch(/AC-1: Given/);
-    expect(content).toMatch(/FR-1: \{FR title from PRD\}/);
+  it('canonical example block is reachable in aped-epics', () => {
+    const skill = SKILL_ENTRIES.find((s) => s.name === 'aped-epics');
+    expect(skill).toBeDefined();
+    expect(skill.content).toMatch(/FR-1.*FR-3.*FR-7/);
+    expect(skill.content).toMatch(/AC-1: Given/);
+    expect(skill.content).toMatch(/FR-1: \{FR title from PRD\}/);
   });
 
   it('aped-prd canonical example uses hyphenated NFR-1', () => {
-    const content = readFileSync(join(SKILLS_DIR, 'aped-prd.md'), 'utf8');
-    expect(content).toMatch(/NFR-1:/);
+    const skill = SKILL_ENTRIES.find((s) => s.name === 'aped-prd');
+    expect(skill).toBeDefined();
+    expect(skill.content).toMatch(/NFR-1:/);
   });
 });

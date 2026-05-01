@@ -1,14 +1,34 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SKILLS_DIR = join(__dirname, '..', 'src', 'templates', 'skills');
 
-const skillFiles = readdirSync(SKILLS_DIR)
-  .filter((f) => f.startsWith('aped-') && f.endsWith('.md'))
-  .map((f) => ({ name: f, content: readFileSync(join(SKILLS_DIR, f), 'utf8') }));
+// 6.0.0 — every skill is a directory with SKILL.md as the entrypoint.
+// (4.3.0 lint contract still applies; just resolve the source file based on layout.)
+function resolveSkillEntries(dir) {
+  return readdirSync(dir)
+    .filter((f) => f.startsWith('aped-') && f !== 'aped-skills')
+    .map((f) => {
+      const path = join(dir, f);
+      const stat = statSync(path);
+      if (stat.isDirectory()) {
+        const skillMd = join(path, 'SKILL.md');
+        if (!existsSync(skillMd)) return null;
+        return { name: f, content: readFileSync(skillMd, 'utf8') };
+      }
+      // Legacy single-file skills (still supported by the loader).
+      if (f.endsWith('.md')) {
+        return { name: f.replace(/\.md$/, ''), content: readFileSync(path, 'utf8') };
+      }
+      return null;
+    })
+    .filter(Boolean);
+}
+
+const skillFiles = resolveSkillEntries(SKILLS_DIR);
 
 // 4.3.0 contract — every skill's frontmatter `description:` must be safely
 // parsed by Claude Code's YAML loader. Two known footguns:
@@ -19,7 +39,7 @@ const skillFiles = readdirSync(SKILLS_DIR)
 // We require every description to be wrapped in single/double quotes (or a
 // folded-scalar block, though APED currently uses single quotes).
 describe('skill frontmatter description lint (4.3.0 — H3)', () => {
-  it('returns at least 27 skill files (sanity)', () => {
+  it('returns at least 27 skill entries (sanity)', () => {
     expect(skillFiles.length).toBeGreaterThanOrEqual(27);
   });
 

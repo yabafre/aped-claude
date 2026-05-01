@@ -1,13 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readSkillContent } from './_helpers/resolve-skills.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SKILL = readFileSync(
-  join(__dirname, '..', 'src', 'templates', 'skills', 'aped-qa.md'),
-  'utf8',
-);
+const SKILLS_DIR = join(__dirname, '..', 'src', 'templates', 'skills');
+const SKILL = readSkillContent(SKILLS_DIR, 'aped-qa');
 
 // 4.2.1 contract — aped-qa now ships a standard Input Discovery block
 // before Scope Selection (paralleling aped-dev / aped-prd / aped-arch /

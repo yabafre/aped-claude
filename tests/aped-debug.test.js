@@ -1,24 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readSkillContent } from './_helpers/resolve-skills.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SKILL_PATH = join(
-  __dirname,
-  '..',
-  'src',
-  'templates',
-  'skills',
-  'aped-debug.md',
-);
+const SKILLS_DIR = join(__dirname, '..', 'src', 'templates', 'skills');
 
-// Phase 1 contract for the aped-debug refonte: structure follows Pocock's
-// 6-phase diagnosis loop, the load-bearing APED additions stay
-// (3-failed-fixes rule, Invocation contexts, [DEBUG-XXXX] tag convention),
-// and the new handoff to aped-arch-audit (Phase 6) is documented.
+// Phase 1 contract for aped-debug. 6.0.0: skill moved to directory format.
 describe('aped-debug skill contract', () => {
-  const content = readFileSync(SKILL_PATH, 'utf-8');
+  const content = readSkillContent(SKILLS_DIR, 'aped-debug');
 
   it('preserves the frontmatter contract for callers', () => {
     const match = content.match(/^---\n([\s\S]*?)\n---\n/);
@@ -46,13 +36,15 @@ describe('aped-debug skill contract', () => {
   it('declares all six phase headings in Pocock order', () => {
     // Strict order check: Phase 1 must precede Phase 2, etc. Indexes are
     // measured against the file's own offset markers.
+    // 6.0.0: BMAD step files use "Step N: Phase M — ..." headings; match the
+    // Phase tag wherever it appears (in either monolithic or step layout).
     const phaseRegexes = [
-      /## Phase 1 — Build the feedback loop/,
-      /## Phase 2 — Reproduce/,
-      /## Phase 3 — Hypothesise/,
-      /## Phase 4 — Instrument/,
-      /## Phase 5 — Fix \+ regression test/,
-      /## Phase 6 — Cleanup \+ post-mortem/,
+      /Phase 1 — Build the [Ff]eedback [Ll]oop/,
+      /Phase 2 — Reproduce/,
+      /Phase 3 — Hypothesise/,
+      /Phase 4 — Instrument/,
+      /Phase 5 — Fix \+ [Rr]egression [Tt]est/,
+      /Phase 6 — Cleanup \+ [Pp]ost-[Mm]ortem/,
     ];
     let lastIndex = -1;
     for (const re of phaseRegexes) {

@@ -7,6 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] - 2026-05-01
+
+### BREAKING — skill structure migration to BMAD directory layout
+
+**Every skill is now a directory.** Pre-6.0.0 flat `aped-X.md` files have been split into:
+
+```
+src/templates/skills/aped-X/
+├── SKILL.md          # entrypoint (frontmatter + 1-line pointer)
+├── workflow.md       # orchestrator (goal, role, critical rules, activation)
+└── steps/
+    ├── step-01-init.md
+    ├── step-02-input-discovery.md
+    └── ...
+```
+
+The Claude Code skill loader has supported both layouts since 4.4.0; existing scaffolds with flat `aped-X.md` continue to work, and `aped-method --update` will migrate them. The change is BREAKING because *projects/teams that imported APED skills directly into their own scaffolds via path-specific reads* now need to update their lookup to `aped-X/SKILL.md` (or use the `listSkillEntries` helper).
+
+#### Why
+
+The 5.x skills had grown to 656 lines (`aped-review`), 589 (`aped-epics`), 531 (`aped-dev`). Each skill loaded its full body into context every invocation, which meant later instructions (steps 11–13 of `aped-review`, the completion gate, the ticket-sync flow) were systematically de-prioritised by the model. The session at `d7ad50a3` showed `aped-review` skipping 5 of its 13 steps for exactly this reason.
+
+The BMAD micro-file architecture (Pocock superpowers, Anthropic context-engineering) loads ONE step file at a time, ~80–150 lines each. The model never sees instructions for step N+1 while executing step N.
+
+#### Decomposed skills (full BMAD step decomposition)
+
+10 skills got the full treatment — `SKILL.md` + `workflow.md` + `steps/`:
+
+- `aped-story` — 8 steps. **Branch creation gate moved here from `aped-dev`** (see "Branch gate moved" below).
+- `aped-dev` — 8 steps. Branch verification (not creation), TDD cycle, verification gate, completion.
+- `aped-review` — 12 steps. **Review-file bug fixed**: the Review Record goes ONLY in the story file. No `docs/reviews/...` separate file is ever created.
+- `aped-epics` — 9 steps including ticket-system setup with sync-log auditability.
+- `aped-arch` — 10 steps with the incremental tracking contract preserved (`current_subphase` advance after every gate).
+- `aped-ux` — 7 steps. ANF (Assemble → Normalize → Fill) framework.
+- `aped-prd` — 6 steps. Section-by-section authoring with A/P/C menu after each section.
+- `aped-debug` — 9 steps. 6-phase Pocock diagnosis loop preserved.
+- `aped-brainstorm` — 7 steps. Coaching dialogue (one technique element at a time).
+- `aped-analyze` — 6 steps. 4 Discovery rounds + parallel research agents (Mary/Derek/Tom).
+
+#### Directory-format only (content preserved as `workflow.md`)
+
+23 skills converted to directory format with `SKILL.md` (frontmatter only) + `workflow.md` (full body). No step decomposition because content was already manageable, but the structure is now consistent across all 33 skills:
+
+`aped-arch-audit`, `aped-from-ticket`, `aped-sprint`, `aped-retro`, `aped-ship`, `aped-prfaq`, `aped-receive-review`, `aped-lead`, `aped-iterate`, `aped-course`, `aped-elicit`, `aped-status`, `aped-qa`, `aped-context`, `aped-quick`, `aped-write-skill`, `aped-grill`, `aped-claude`, `aped-triage`, `aped-checkpoint`, `aped-pre-mortem`, `aped-design-twice`, `aped-zoom-out`.
+
+### Changed — Branch gate moved from aped-dev to aped-story
+
+Pre-6.0.0, `aped-dev`'s blocker-halt gate refused to start implementation on `main` / `master`. From 6.0.0:
+
+- `aped-story` (step 01 + step 03) is the ONLY skill that creates feature branches. It refuses to operate on `main` / `master` / `prod` / `production` / `develop` / `release/*` / detached HEAD, presents `[A]` (let me create the branch) / `[B]` (you do it yourself) menu.
+- `aped-dev` (step 01) verifies the branch is a feature branch — does NOT create it. If the branch is protected, it HALTs and tells the user to run `aped-story` first.
+
+This eliminates the race where `aped-dev` was both the branch-creation point AND the implementation point — meaning a story could ship without a branch if the user invoked dev directly.
+
+### Fixed — Review Record bug
+
+`aped-review` could create a separate file at `{{OUTPUT_DIR}}/reviews/{story-key}-review.md` due to ambiguous prose at line 470 of the pre-6.0.0 skill (*"if the merged review report is being persisted to disk"* — the model interpreted the conditional as a permission). The Review Record is now explicitly and exclusively appended to the story file's `## Review Record` section. The completion-gate checklist (`checklist-review.md`) has a hard `[ ] **NO separate review file created** anywhere` item.
+
+### Added — Completion-gate checklists updated
+
+`checklist-story.md`, `checklist-dev.md`, `checklist-review.md` rewritten to reflect:
+- Branch refusal-on-main respected (story).
+- Branch verified, NOT created (dev).
+- Review Record in story file, NO separate review file (review).
+- Stage 1.5 adversarial reviewers (Hannah/Eli/Aaron) handled (review).
+- PR opened against `sprint.umbrella_branch`, NOT base (review).
+
+### Test infrastructure
+
+- `tests/_helpers/resolve-skills.js` — shared utility (`resolveSkillEntries`, `resolveSkillFullContent`, `readSkillContent`, `listSkillMdPaths`) so every test handles both layouts (legacy `aped-X.md` + 6.0.0 `aped-X/` directory) transparently.
+- 12 tests updated to use the shared helper instead of hard-coded `aped-X.md` paths.
+- `scripts/check-pre-merge.sh` skill counter walks both layouts (counts directory-based skills via `find -mindepth 2 -maxdepth 2 -name SKILL.md`).
+- `src/templates/scripts.js` `buildSkillIndex` walks both layouts.
+- 812 tests pass.
+
 ## [5.5.2] - 2026-05-01
 
 ### Changed
