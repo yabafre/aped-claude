@@ -7,6 +7,8 @@
 
 CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — **33 skills** invoked via the Skill tool or natural-language triggers, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, **parallel sprint** mode via `git worktree` with a Lead Dev coordinator, sprint **umbrella branch convention** so parallel sprints integrate via one reviewable PR per sprint, an **external ticket intake** for tickets that bypass the planning flow, a **post-ship router** (`aped-iterate`) that classifies new deltas into the right downstream skill, an **architecture audit** (`aped-arch-audit`) that surfaces deepening candidates in the existing codebase, and **cross-tool skill distribution** via symlinks so OpenCode, Codex CLI, and any `agents.md` reader see the same skills as Claude Code.
 
+> **Upgrading from 5.x?** v6.0.0 restructured every skill into a BMAD-style directory (`aped-X/SKILL.md` + `workflow.md` + `steps/*`). The Claude Code skill loader has handled both layouts since 4.4.0, so existing scaffolds keep working — `aped-method --update` migrates in place. See [Migrating from 5.x](#migrating-from-5x).
+>
 > **Upgrading from 3.x?** The slash-command surface was retired in 4.0.0 — see [Migrating from 3.x](#migrating-from-3x) before running `--update`.
 
 ```
@@ -98,7 +100,23 @@ Each opt-in subcommand also accepts `--uninstall` to remove its installed bits.
 
 ## Skill catalog
 
-APED ships 30 skills. Invoke them by name via Claude Code's Skill tool, or — recommended — let the runtime route automatically by using a phrase that matches the skill's `description:` (e.g. "create the prd", "run an architecture review", "kick off dev"). The phases of the pipeline (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) plus the utility, ideation, post-ship-routing, and architecture-audit skills are listed inline throughout this README; their full descriptions live in `src/templates/skills/aped-*.md` in this repo.
+APED ships **33 skills**. Invoke them by name via Claude Code's Skill tool, or — recommended — let the runtime route automatically by using a phrase that matches the skill's `description:` (e.g. "create the prd", "run an architecture review", "kick off dev"). The phases of the pipeline (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) plus the utility, ideation, post-ship-routing, and architecture-audit skills are listed inline throughout this README; their full descriptions live in `src/templates/skills/aped-*/SKILL.md` (BMAD directory layout, v6.0.0+) in this repo.
+
+### BMAD micro-file architecture (v6.0.0+)
+
+Every skill is a directory with at least a `SKILL.md` (entry point — the file Claude Code reads first), and optionally a `workflow.md` (high-level phases) plus `steps/step-NN-*.md` (one micro-step per file). The 10 phase skills (`aped-story`, `aped-dev`, `aped-review`, `aped-epics`, `aped-arch`, `aped-ux`, `aped-prd`, `aped-debug`, `aped-brainstorm`, `aped-analyze`) are fully decomposed into 6–12 steps each; the other 23 skills carry their content inline in `SKILL.md` (with `workflow.md` for the medium ones).
+
+Why: keeping each step file under ~250 lines means Claude only loads the slice relevant to the current operation, instead of paging through a 600-line monolith. Validates the same thesis as Anthropic's [code-execution-with-MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) (progressive disclosure of typed tools) and [building a C compiler](https://www.anthropic.com/engineering/building-c-compiler) (decomposition for the model, not the human).
+
+### Migrating from 5.x
+
+The 5.x flat-file scaffolds (`.aped/aped-X.md`) still work — the loader handles both layouts. To pick up the v6.0.0 directory structure on an existing install:
+
+```bash
+npx aped-method --update            # rewrites every skill into directory layout, preserves state.yaml + artefacts
+```
+
+The branch-creation responsibility also moved in v6.0.0: `aped-story` is now the canonical place that creates `feature/{ticket}-{slug}` and refuses to operate on `main`/`master`/`prod`/`production`/`develop`/`release/*`/detached HEAD. `aped-dev` only verifies the branch — never creates it. Existing `lessons.md` rules referring to `aped-dev` branch creation should be re-scoped to `aped-story`.
 
 ### Migrating from 3.x
 

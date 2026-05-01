@@ -5,7 +5,7 @@ tags: [aped, workflow, phases, reference]
 
 # APED — Phases
 
-Detail of every phase in the pipeline: **command**, **persona(s) involved**, **expected input**, **produced output**, **validation gate**. APED ships **33 skills** as of v5.5.1.
+Detail of every phase in the pipeline: **command**, **persona(s) involved**, **expected input**, **produced output**, **validation gate**. APED ships **33 skills** as of v6.0.0. Since v6.0.0, every phase skill is a directory (`aped-X/SKILL.md` + `workflow.md` + `steps/step-NN-*.md`) — Claude only loads the slice relevant to the active step.
 
 > 🔗 Overview: [APED — Workflow](.aped-workflow.md) · Personas: [APED — Personas & Teams](.aped-personas.md)
 
@@ -397,7 +397,30 @@ All oracles exit 0 (pass) / 1 (findings, non-blocking) / 2 (structural failure, 
 
 ### Skill count
 
-APED ships **33 skills** as of v5.5.1 (up from 25 in v3.12.0).
+APED ships **33 skills** as of v6.0.0 (up from 25 in v3.12.0). v6.0.0 keeps the count steady — the change is structural (BMAD directory layout), not additive.
+
+---
+
+## What changed in 6.0.0 (BREAKING)
+
+> Released 2026-05-01.
+
+### BMAD-style skill decomposition
+
+Every skill moved from flat `aped-X.md` to a directory layout. Two tiers:
+
+- **10 phase skills fully decomposed** into `SKILL.md` + `workflow.md` + 6–12 step files: `aped-story` (8 steps), `aped-dev` (8), `aped-review` (12), `aped-epics` (9), `aped-arch` (10), `aped-ux` (7), `aped-prd` (6), `aped-debug` (9), `aped-brainstorm` (7), `aped-analyze` (6).
+- **23 utility skills converted to directory + workflow.md split** (no per-step decomposition; content preserved): `aped-arch-audit`, `aped-from-ticket`, `aped-sprint`, `aped-retro`, `aped-ship`, `aped-prfaq`, `aped-receive-review`, `aped-lead`, `aped-iterate`, plus 14 small skills (`aped-checkpoint`, `aped-claude`, `aped-context`, etc.) that ship as `aped-X/SKILL.md` only.
+
+The Claude Code skill loader has supported both layouts since v4.4.0 — flat 5.x scaffolds keep working without re-running `--update`.
+
+### Branch creation moved from `aped-dev` to `aped-story`
+
+`aped-story/steps/step-01-init.md` is the canonical place that refuses `main`/`master`/`prod`/`production`/`develop`/`release/*`/detached HEAD. Step 03 creates `feature/{ticket}-{slug}`. `aped-dev/steps/step-01-init.md` only verifies — never creates. The ` story-must-not-run-on-main` gate is now structural, not advisory.
+
+### `aped-review` Review Record location
+
+Bug fix: `aped-review` no longer creates a separate `docs/reviews/{story-key}-review.md` file. The Review Record is appended to the story file at `docs/aped/stories/{story-key}.md` under a `## Review Record` section. Step 12's completion gate has a hard `[ ] **NO separate review file created** anywhere` item.
 
 ---
 

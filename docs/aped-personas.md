@@ -148,7 +148,7 @@ Principle: **don't introduce coordination where none is needed** — coordinatio
 
 ---
 
-## What changed in 3.11.0 → 5.5.0
+## What changed in 3.11.0 → 6.0.0
 
 ### 3.11.0 → 3.12.0
 
@@ -239,7 +239,11 @@ A provider-agnostic ticket abstraction. Skills call `aped-ticket` methods (`crea
 
 #### Skill count
 
-APED ships **33 skills** as of v5.5.0.
+APED ships **33 skills** as of v6.0.0.
+
+### 6.0.0 — BMAD-style skill decomposition
+
+Personas and tool surface are unchanged. The structural change in v6.0.0: every skill that hosts a persona is now a directory (`aped-X/SKILL.md` + optional `workflow.md` + `steps/step-NN-*.md`). The 10 phase skills are fully decomposed (6–12 steps each) — `aped-review` step-04 is where Eva runs, step-05 is where Hannah/Eli/Aaron run, step-06 is where the Stage 2 specialists dispatch. The persona definitions themselves haven't moved — they live in the skill directory's reference files (`references/review-criteria.md`, etc.). Branch creation discipline moved into the persona-less `aped-story/steps/step-01-init.md` (refuses `main`/`master`/`prod`/`develop`/`release/*`/detached HEAD) and `aped-story/steps/step-03-*.md` (creates `feature/{ticket}-{slug}`).
 
 #### Tool surface update (cumulative)
 

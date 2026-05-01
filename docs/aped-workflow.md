@@ -6,7 +6,7 @@ tags: [aped, workflow, process]
 # APED — Workflow
 **APED** (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) is a disciplined dev pipeline for [Claude Code](https://claude.ai/download). Every phase produces an **artifact**, requires **explicit user validation**, and hands off via a **coherence hook** that warns on skipped steps.
 
-> 📦 Product: `npx aped-method` — scaffolds **33 skills** + hooks into any Claude Code project. Latest stable: **v5.5.1** (2026-04-30).
+> 📦 Product: `npx aped-method` — scaffolds **33 skills** + hooks into any Claude Code project. Latest stable: **v6.0.0** (2026-05-01) — every skill is now a BMAD-style directory (`SKILL.md` + optional `workflow.md` + `steps/*`).
 > 🔗 See also: [APED — Phases](.aped-phases.md), [APED — Personas & Teams](.aped-personas.md), [APED — Team Quickstart](.aped-quickstart.md)
 
 > ℹ️ **Slash commands removed in 4.0.0** — the 3.x `/aped-X` shells (scaffolded as `.claude/commands/aped-*.md`) were retired. Skills are the only invocation surface — use the **Skill tool** directly or rely on **natural-language triggers** that match each skill's `description:` (say *"create the prd"*, *"run an architecture review"*, etc.).
@@ -170,6 +170,7 @@ flowchart TB
 17. **Lessons feedback loop** — `aped-retro` writes scoped rules to `lessons.md`; `aped-story`, `aped-dev`, `aped-review` consume them at runtime.
 18. **Sync-logs auditability** (since 3.12.0) — `aped/scripts/sync-log.sh` (start / phase / record / end) emits structured JSON audit logs at `docs/sync-logs/<provider>-sync-<ISO>.json` for every ticket-system operation. Atomic writes; concurrent calls protected by mkdir-lock with stale-recovery. Configurable per project.
 19. **Anti-rationalization architecture** (since 4.7.0) — structural enforcement over prose. Three layers: (a) **completion-gate checklists** as separate files per BMAD pattern (one per phase/gate, not inline prose the LLM can skip); (b) **hooks for deterministic enforcement** per Anthropic guidance (`commit-gate.sh` blocks commits missing required evidence, `allowed-paths-scope.sh` rejects edits outside the story's declared scope); (c) **oracle scripts** for pre-checks that must not depend on LLM judgment (e.g., "are all tests green?" is a script call, not a question). The principle: anything the LLM can rationalize away must be enforced by code, not by instruction.
+20. **BMAD micro-file architecture** (since 6.0.0) — every skill is a directory: `aped-X/SKILL.md` (entry), optional `aped-X/workflow.md` (high-level phases), optional `aped-X/steps/step-NN-*.md` (one micro-step per file). The 10 phase skills are fully decomposed (6–12 step files each, averaging <120 lines per step); the other 23 skills ship `SKILL.md` only (small) or `SKILL.md` + `workflow.md` (medium). Claude only loads the slice relevant to the current operation, instead of paging through a 600-line monolith. Validates Anthropic's [code-execution-with-MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) (progressive disclosure of typed tools) and [Carlini's C compiler experiment](https://www.anthropic.com/engineering/building-c-compiler) (decomposition for the model, not the human). Branch creation discipline moved here too: `aped-story/steps/step-01-init.md` is the canonical place that refuses `main`/`master`/`prod`/`develop`/`release/*`/detached HEAD; `aped-dev/steps/step-01-init.md` only verifies — never creates.
 
 ---
 
@@ -224,14 +225,14 @@ Two MCP servers ship with the scaffold and are auto-registered in `.claude/setti
 
 ## Resources
 
-- 📚 Skill source: `src/templates/skills/aped-*.md` in [the source repo](https://github.com/yabafre/aped-claude/tree/main/packages/create-aped/src/templates/skills) — every skill carries its own `description:`, triggers, and inline cheat sheet.
+- 📚 Skill source: `src/templates/skills/aped-*/SKILL.md` in [the source repo](https://github.com/yabafre/aped-claude/tree/main/packages/create-aped/src/templates/skills) — every skill is a BMAD-style directory carrying its own `description:`, triggers, and (for the 10 phase skills) micro-step files under `steps/`.
 - 🆘 Troubleshooting: [`docs/TROUBLESHOOTING.md`](https://github.com/yabafre/aped-claude/blob/main/packages/create-aped/docs/TROUBLESHOOTING.md)
-- 📦 npm: [`aped-method`](https://www.npmjs.com/package/aped-method) — latest **5.5.1** with provenance attestation.
+- 📦 npm: [`aped-method`](https://www.npmjs.com/package/aped-method) — latest **6.0.0** with provenance attestation.
 - 💻 Source: [github.com/yabafre/aped-claude](https://github.com/yabafre/aped-claude)
 
 ---
 
-## What changed in 4.7 → 5.5
+## What changed in 4.7 → 6.0
 
 Key evolution milestones since the 4.0 skill-only invocation model:
 
@@ -241,8 +242,9 @@ Key evolution milestones since the 4.0 skill-only invocation model:
 | **5.0** | MCP integration layer: `aped-state` server for typed state ops (replaces raw `state.yaml` edits), `aped-ticket` server for provider-routed ticket management. Single tool surface across Linear/Jira/GitHub/GitLab. |
 | **5.1–5.3** | Release tooling: `cut-release.sh`, `check-pre-merge.sh`, `lint-bash-discipline.sh`. 16 completion-gate checklists covering all phases. |
 | **5.4–5.5** | Skill count reaches 33. Scaffold includes MCP servers, oracle scripts, release scripts, and gate checklists as first-class artifacts. |
+| **6.0** | **BMAD-style skill decomposition**: every skill is a directory (`aped-X/SKILL.md` + optional `workflow.md` + `steps/step-NN-*.md`). The 10 phase skills are fully decomposed into 6–12 micro-steps; the other 23 ship as `SKILL.md`-only or `SKILL.md` + `workflow.md`. Branch creation moved from `aped-dev` to `aped-story` (refuses `main`/`master`/`prod`/`develop`/`release/*`/detached HEAD). `aped-review` no longer writes a separate review file — Review Record is appended inline to the story file. |
 
-**Theme**: the 4.7 → 5.5 arc moved enforcement from prose instructions (that the LLM can rationalize away) to structural code (hooks, oracles, MCP-typed ops, file-per-gate checklists). Prose tells the LLM *why*; code ensures it *does*.
+**Theme**: the 4.7 → 5.5 arc moved enforcement from prose instructions (that the LLM can rationalize away) to structural code (hooks, oracles, MCP-typed ops, file-per-gate checklists). v6.0.0 extends the same logic to skill structure itself: small files Claude can fully load > monoliths it has to skim. Validates Anthropic's [code-execution-with-MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) (progressive disclosure of typed tools) and [building a C compiler](https://www.anthropic.com/engineering/building-c-compiler) (decomposition for the model, not the human).
 
 ---
 

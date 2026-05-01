@@ -19,7 +19,7 @@ A disciplined dev pipeline for [Claude Code](https://claude.ai/download), scaffo
 
 **The flow**: `Analyze → PRD → UX → Arch → Epics → Story → Dev → Review`
 
-**33 skills** cover it all: ideation, critique, parallel sprint, external ticket intake, retrospective, pre-mortem, design exploration, issue triage, and maintenance. Invoked via natural-language triggers or the Skill tool.
+**33 skills** cover it all: ideation, critique, parallel sprint, external ticket intake, retrospective, pre-mortem, design exploration, issue triage, and maintenance. Invoked via natural-language triggers or the Skill tool. Since v6.0.0, every skill is a directory with at least a `SKILL.md` (the entry the loader reads) — the 10 phase skills also carry `workflow.md` + `steps/step-NN-*.md` files so Claude only loads the slice relevant to the current operation.
 
 ---
 
@@ -221,6 +221,24 @@ Each accepts `--uninstall` to remove its installed bits. Default scaffold doesn'
 
 New section before tasks: maps files with single-responsibility rule (split by responsibility, not layer), 3-bullet decision template per file (file-name / single-responsibility / inputs+outputs). Better task decomposition; coherent file boundaries across stories.
 
+## What changed in 6.0.0 (BREAKING)
+
+> Released 2026-05-01. Two structural changes; the loader keeps backwards compat — existing 5.x scaffolds continue to work without re-running `--update`.
+
+### BMAD-style skill decomposition
+
+Every one of the 33 skills moved from flat `aped-X.md` to a directory: `aped-X/SKILL.md` (always) + `aped-X/workflow.md` (medium and large skills) + `aped-X/steps/step-NN-*.md` (the 10 phase skills, fully decomposed). Step files average <120 lines each, vs. the previous 600+ lines monoliths. Inspired by Anthropic's [code-execution-with-MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) progressive disclosure pattern and [Carlini's C compiler experiment](https://www.anthropic.com/engineering/building-c-compiler) (decomposition for the model, not the human).
+
+The 10 fully decomposed skills: `aped-story` (8 steps), `aped-dev` (8), `aped-review` (12), `aped-epics` (9), `aped-arch` (10), `aped-ux` (7), `aped-prd` (6), `aped-debug` (9), `aped-brainstorm` (7), `aped-analyze` (6).
+
+### Branch creation moved from `aped-dev` to `aped-story`
+
+`aped-story/steps/step-01-init.md` is now the canonical place that refuses to operate on `main` / `master` / `prod` / `production` / `develop` / `release/*` / detached HEAD. Step 03 creates the feature branch following `feature/{ticket}-{slug}`. `aped-dev/steps/step-01-init.md` only verifies the branch — never creates it. The fix closes the `superpowers#1246` style issue (skill commits before creating dev branch). Existing `lessons.md` rules referencing `aped-dev` branch creation should be re-scoped to `aped-story`.
+
+### Migration
+
+`aped-method --update` migrates in place. No state.yaml change. Story files preserved.
+
 ## What changed in 4.7 → 5.5
 
 Major evolution across 30+ releases. Highlights:
@@ -246,7 +264,7 @@ Informed by BMAD, Superpowers, Pocock, and Anthropic engineering:
 
 ### 33 skills (was 25 at 3.12)
 
-New since 3.12: `aped-grill` (4.8.0, Pocock-style alignment), `aped-write-skill` (4.6.0, meta), `aped-triage` (4.19.0, issue triage state machine), `aped-pre-mortem` (5.4.0), `aped-design-twice` (5.4.0), `aped-arch-audit` (4.5.0), `aped-iterate` (4.4.0), `aped-zoom-out` (4.6.0).
+New since 3.12: `aped-grill` (4.8.0, Pocock-style alignment), `aped-write-skill` (4.6.0, meta), `aped-triage` (4.19.0, issue triage state machine), `aped-pre-mortem` (5.4.0), `aped-design-twice` (5.4.0), `aped-arch-audit` (4.5.0), `aped-iterate` (4.4.0), `aped-zoom-out` (4.6.0). v6.0.0 keeps the count at 33 — the change is structural (BMAD layout), not additive.
 
 ### Pipeline hardening (4.14.0)
 
