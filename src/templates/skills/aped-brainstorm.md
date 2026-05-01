@@ -365,3 +365,7 @@ User: "aide-moi à brainstormer des idées de features pour bonjour-overlay"
 - **User rejects every idea**: They may be in evaluation mode. Remind them: during divergence, even bad ideas feed better ones. Capture, move to the next element.
 - **Technique feels wrong for the topic**: Use the end-of-technique menu `[T]` to switch. Log the switch in the session file.
 - **Resume a paused session**: Read the previous `session-{date}.md`, identify the last technique + element, pick up from the next element. No need to re-run framing.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-brainstorm.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

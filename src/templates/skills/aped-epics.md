@@ -586,3 +586,7 @@ FR Coverage: FR-1→1-1, FR-2→1-2, FR-3→1-2, ... (all mapped)
 Tell the user: "Epics structure is ready. Run `aped-story` to create the first story file, then `aped-dev` to implement it."
 
 **Do NOT auto-chain.** The user decides when to proceed.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-epics.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

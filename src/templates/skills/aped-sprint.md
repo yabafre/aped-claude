@@ -332,3 +332,7 @@ After dispatch, tell the user:
 > "Worktrees created and `aped-story` auto-injected into each window via workmux. Each Story Leader will draft its story file on the feature branch, commit it, post `story-ready`, and HALT. **Come back to this main session and run `aped-lead`** to approve the batch — the Lead will push `aped-dev` into each worktree via `workmux send`. As stories progress, each Story Leader will post `dev-done` and `review-done` check-ins; re-run `aped-lead` when `aped-status` shows new pending ones. Come back to `aped-sprint` to dispatch more when capacity frees up."
 
 **Do NOT auto-chain beyond `aped-story`.** Auto-injecting `aped-story` is fine because it IS the Story Leader's legitimate first act on its own branch (nothing is approved yet, nothing merges). The user controls `aped-dev` and `aped-review` via `aped-lead`, and `aped-ship` handles the end-of-sprint batch merge.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-sprint.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

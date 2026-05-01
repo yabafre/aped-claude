@@ -4,6 +4,7 @@ import { references } from './references.js';
 import { configFiles } from './config.js';
 import { guardrail } from './guardrail.js';
 import { symlinks } from './symlinks.js';
+import { checklists } from './checklists.js';
 
 export function getTemplates(config) {
   return [
@@ -13,5 +14,6 @@ export function getTemplates(config) {
     ...scripts(config),
     ...references(config),
     ...guardrail(config),
+    ...checklists(config),
   ];
 }

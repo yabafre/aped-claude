@@ -49,6 +49,18 @@ if [[ -z "$CONTENT" ]]; then
   exit 0
 fi
 
+# Check if CLAUDE.md has the APED block (5.5.0). Worktrees with gitignored
+# CLAUDE.local.md lose the discipline instructions entirely. Warn loudly.
+CLAUDE_MD="${PROJECT_ROOT}/CLAUDE.md"
+APED_BLOCK_PRESENT=0
+if [[ -f "$CLAUDE_MD" ]]; then
+  APED_BLOCK_PRESENT=$({ grep 'APED:START' "$CLAUDE_MD" 2>/dev/null || true; } | wc -l | tr -d ' ')
+fi
+APED_BLOCK_WARNING=""
+if [[ "$APED_BLOCK_PRESENT" -eq 0 ]]; then
+  APED_BLOCK_WARNING=" ⚠ CLAUDE.md missing APED block — run aped-claude to inject it"
+fi
+
 # Build the user-visible banner.
 #
 # Skill count — from the SKILL-INDEX.md body. The generator emits one
@@ -94,6 +106,9 @@ if [[ -n "$TICKET_SYSTEM" ]]; then
 fi
 if [[ -n "$GIT_PROVIDER" ]]; then
   BANNER="${BANNER} · git: ${GIT_PROVIDER}"
+fi
+if [[ -n "$APED_BLOCK_WARNING" ]]; then
+  BANNER="${BANNER}${APED_BLOCK_WARNING}"
 fi
 
 # Escape for JSON embedding. Bash parameter substitution is faster than

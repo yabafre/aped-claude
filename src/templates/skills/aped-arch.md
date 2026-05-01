@@ -506,3 +506,7 @@ Phase 2 discussion:
 Tell the user: "Architecture is ready. Run `aped-epics` to create the epic structure."
 
 **Do NOT auto-chain.** The user decides when to proceed.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-arch.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

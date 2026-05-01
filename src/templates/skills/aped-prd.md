@@ -352,3 +352,7 @@ The PRD generation ends when ANY of these fire:
 2. **4 consecutive [C]ontinue without user edits** — the PRD is converged; offer to finalize.
 3. **All sections validated by validate-prd.sh + oracle-prd.sh** — green oracle = done.
 4. **Token budget >30k consumed in this skill invocation** — warn the user that continued iteration risks context degradation; offer to save and `/clear`.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-prd.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

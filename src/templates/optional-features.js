@@ -266,6 +266,36 @@ export function tddRedMarkerTemplates(c) {
   ];
 }
 
+export function commitGateTemplates(c) {
+  const a = c.apedDir;
+  return [
+    {
+      path: `${a}/hooks/commit-gate.js`,
+      executable: true,
+      content: substitute(loadTemplate('hooks/commit-gate.js'), c),
+    },
+    {
+      path: '.claude/settings.local.json',
+      content: stringifySettings({
+        hooks: {
+          PostToolUse: [
+            {
+              matcher: 'Write|Edit|MultiEdit',
+              hooks: [
+                {
+                  type: 'command',
+                  command: `\${CLAUDE_PROJECT_DIR}/${a}/hooks/commit-gate.js`,
+                  timeout: 6,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    },
+  ];
+}
+
 export function typeScriptQualityTemplates(c) {
   const a = c.apedDir;
   return [

@@ -384,3 +384,7 @@ User runs `aped-story`:
 - **Worktree mode**: "Story file committed on `{branch}`. `story-ready` check-in posted. Go to the main project and run `aped-lead` — the Lead will approve and push `aped-dev {story-key}` back into this window."
 
 **Do NOT auto-chain.** The user decides when to proceed.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-story.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

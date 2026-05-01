@@ -34,6 +34,7 @@ import {
   visualCompanionTemplates,
   worktreeScopeTemplates,
   tddRedMarkerTemplates,
+  commitGateTemplates,
   mcpStateTemplates,
 } from './templates/optional-features.js';
 import {
@@ -98,6 +99,11 @@ export async function runSubcommand(command, args) {
 
   if (command === 'tdd-red-marker') {
     await installFeature('tdd-red-marker', tddRedMarkerTemplates(config));
+    return;
+  }
+
+  if (command === 'commit-gate') {
+    await installFeature('commit-gate', commitGateTemplates(config));
     return;
   }
 

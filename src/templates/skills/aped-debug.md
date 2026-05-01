@@ -370,3 +370,7 @@ After Phase 6 verifies, return control:
 - **From `aped-review`** → append the Phase 4 cause statement to the review report as Eva's / Marcus's evidence; resume the review.
 
 **Do NOT auto-chain.** The user (or the calling skill's HALT contract) decides the next move.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-debug.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

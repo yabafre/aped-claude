@@ -291,3 +291,7 @@ After implementing acknowledged fixes:
 - Hand control back to `aped-dev` (if invoked from dev) or report to the user (if standalone).
 
 **Do NOT auto-chain to aped-review.** The user (or the dev session) decides when the next review pass should run.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-receive-review.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

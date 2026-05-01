@@ -307,3 +307,7 @@ If the user chose "Fix blockers first" or "Abandon":
 > "Nothing pushed. The umbrella still has all the merged stories locally — re-run `aped-ship` after fixing the blockers."
 
 **Do NOT auto-chain to `aped-sprint`.** The user decides when to start the next sprint.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-ship.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.
