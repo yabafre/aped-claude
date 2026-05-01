@@ -2,6 +2,8 @@
 
 This matrix classifies every shipped APED skill by its dependence on `aped/config.yaml` keys and `aped/state.yaml` machinery. The distinction tells the agent (and the human reader) which skills run anywhere vs which need APED's pipeline state to be initialized first.
 
+**v6.0.0+:** every skill is a directory (`aped-X/SKILL.md` ± `workflow.md` ± `steps/`). The classification below is structural — neither the count (33) nor the dep tier changes between v5.x and v6.0.0. The hard-dep "setup pointer" line lives in each skill's `SKILL.md`.
+
 > Inspired by [Matt Pocock's ADR 0001](https://github.com/mattpocock/skills/blob/main/docs/adr/0001-explicit-setup-pointer-only-for-hard-dependencies.md): hard-deps carry an explicit setup pointer; soft-deps stay token-light and reference config in vague prose only.
 
 ## Criteria
@@ -68,3 +70,15 @@ A skill is **soft-dep** if it works on any project with default config and no up
 Each hard-dep skill carries an explicit `> Setup pointer:` line right after its Iron Law block. The pointer names the config key (or upstream phase) the skill expects, and the command to run if the project isn't initialized. This costs ~1 line per hard-dep and is worth it: the agent gets an explicit signal instead of guessing why a skill behaves oddly.
 
 Soft-deps stay token-light by design — no setup pointer, no preamble. Their bodies still reference config in prose where relevant.
+
+## BMAD micro-file split (v6.0.0+)
+
+Orthogonal to the hard/soft classification: every skill ships in directory form. Three layouts exist:
+
+| Layout | Skills | When |
+|---|---|---|
+| `SKILL.md` only | 14 small skills (`aped-checkpoint`, `aped-status`, `aped-quick`, `aped-claude`, `aped-context`, `aped-course`, `aped-elicit`, `aped-qa`, `aped-write-skill`, `aped-grill`, `aped-triage`, `aped-pre-mortem`, `aped-design-twice`, `aped-zoom-out`) | Skill body fits in one file (<250 lines) — no split needed. |
+| `SKILL.md` + `workflow.md` | 9 medium skills (`aped-arch-audit`, `aped-from-ticket`, `aped-sprint`, `aped-retro`, `aped-ship`, `aped-prfaq`, `aped-receive-review`, `aped-lead`, `aped-iterate`) | Skill has structured phases but no per-step micro-files. |
+| `SKILL.md` + `workflow.md` + `steps/step-NN-*.md` | 10 phase skills — `aped-story` (8 steps), `aped-dev` (8), `aped-review` (12), `aped-epics` (9), `aped-arch` (10), `aped-ux` (7), `aped-prd` (6), `aped-debug` (9), `aped-brainstorm` (7), `aped-analyze` (6) | Long workflows that benefit from progressive disclosure — Claude only loads the slice relevant to the current step. |
+
+Total: 14 + 9 + 10 = **33 skills**. Layout choice is purely about file size, not capability — a `SKILL.md`-only skill is no less capable than a fully-decomposed one.

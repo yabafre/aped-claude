@@ -4,14 +4,15 @@
 
 ## Supported Versions
 
-Security patches are issued for the latest `4.x` minor release only.
+Security patches are issued for the latest `6.x` minor release only.
 
 | Version  | Supported          |
 | -------- | ------------------ |
+| 6.0.x   | :white_check_mark: |
 | 5.5.x   | :white_check_mark: |
 | < 5.5   | :x:                |
 
-Users on 4.14 or earlier should upgrade to 4.15 before reporting an issue. Earlier lines do not receive new security patches.
+5.5.x receives critical security fixes during the v6.0 transition window (through 2026-07-01). After that, only 6.x is supported. Users on 5.4 or earlier should upgrade before reporting an issue.
 
 ## Reporting a Vulnerability
 

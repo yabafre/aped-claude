@@ -427,6 +427,35 @@ Both `mcpServers` and `hooks` should have entries.
 
 **Fix.** `npx aped-method@latest --update` re-scaffolds all engine files including checklists.
 
+## 19. I have a flat `aped-X.md` scaffold from 5.x — does it still work in 6.0.0?
+
+**Symptom.** You scaffolded with `aped-method@5.x` and have flat skill files (`.aped/aped-X.md`). After updating, you wonder whether anything still routes correctly.
+
+**Cause.** None — both layouts are supported. v6.0.0 introduces the BMAD directory structure (`aped-X/SKILL.md` + optional `workflow.md` + `steps/*`), but the Claude Code skill loader has handled both layouts since v4.4.0.
+
+**Fix.** Two paths:
+
+- **Stay on the flat layout.** Skills keep working. Natural-language triggers still route via the `description:` frontmatter. Nothing breaks.
+- **Migrate to the directory layout.** Run `npx aped-method@latest --update`. The scaffolder rewrites every skill into directory form and preserves `state.yaml`, story files, retros, and lessons. No manual cleanup required.
+
+The directory layout's payoff is token economy: the 10 phase skills now ship 6–12 small step files (averaging <120 lines) instead of one 600-line monolith. Claude only loads the slice relevant to the current operation. If you're hitting context-pressure issues during long phases (especially `aped-review` with all 3 stages), `--update` is worth it.
+
+## 20. Branch creation gate moved in 6.0.0 — `aped-dev` says "verify only"
+
+**Symptom.** You run `aped-dev` and it expects a feature branch to already exist. In 5.x, `aped-dev` would create the branch.
+
+**Cause.** v6.0.0 moved branch creation from `aped-dev` to `aped-story`. Reasons: a story should never start on `main`/`master`/`prod`/`develop`/`release/*`/detached HEAD; the gate belongs at the earliest point where work begins, not just before `aped-dev`.
+
+**Fix.** Run `aped-story` first. It creates `feature/{ticket}-{slug}` after the story write step. Then `aped-dev` verifies the branch and proceeds. If you have `lessons.md` rules referencing `aped-dev` branch creation, re-scope them to `aped-story`.
+
+## 21. `aped-review` Review Record location changed in 6.0.0
+
+**Symptom.** You expected a `docs/reviews/{story-key}-review.md` file after `aped-review` finished. Nothing was created there.
+
+**Cause.** v6.0.0 fixed a bug: `aped-review` no longer writes a separate review file. The Review Record is appended inline to the story file at `docs/aped/stories/{story-key}.md` under a `## Review Record` section. Step 12's completion gate has a hard `[ ] **NO separate review file created** anywhere` item.
+
+**Fix.** Look for `## Review Record` at the bottom of the story file. If you have legacy `docs/reviews/*.md` files from 5.x, you can fold them into the matching story file or leave them as historical reference — the new pipeline never reads them.
+
 ## Still stuck?
 
 Run with `--debug` to get a stack trace on error:

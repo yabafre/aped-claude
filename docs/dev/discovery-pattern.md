@@ -3,7 +3,9 @@
 **Audience:** APED skill authors editing files under `packages/create-aped/src/templates/skills/`.
 **Status:** Canonical pattern. Copy-paste when creating or refactoring any pipeline-phase skill.
 **Related decisions:** `project_aped_doc_consumption` memory (2026-04-25 — drop inter-phase gates, adopt BMAD-style consume-everything-found).
-**Last updated:** v5.5.1.
+**Last updated:** v6.0.0.
+
+> **v6.0.0 layout note.** Since v6.0.0, every skill is a directory (`aped-X/SKILL.md` + optional `workflow.md` + `steps/step-NN-*.md`). For phase skills with full BMAD decomposition, the discovery pattern lives in `aped-X/steps/step-NN-input-discovery.md` (typically step 02). For skills that ship `SKILL.md` only, it remains the first runtime section of `SKILL.md` as documented below. Either way, the pattern is identical — only the file location differs.
 
 > **Typed alternative (v4.20.0+):** Skills can call the `aped_context.load(phase)` MCP tool instead of the manual Read chain described below. The MCP tool performs the same glob-discover-load sequence and returns typed results. The manual pattern remains the reference for understanding the logic and for skills that cannot use MCP tools.
 
