@@ -1,3 +1,14 @@
+---
+step: 2
+reads:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+  - "{{OUTPUT_DIR}}/**"
+  - "{{APED_DIR}}/**"
+  - "{{OUTPUT_DIR}}/lessons.md"
+writes: []
+mutates_state: false
+---
+
 # Step 2: Input Discovery
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

@@ -1,3 +1,14 @@
+---
+step: 3
+reads:
+  - "state.yaml#sprint.stories"
+  - "ticket/{provider}"
+  - "git/HEAD"
+writes:
+  - "git/branches/feature-{ticket}-{slug}"
+mutates_state: false
+---
+
 # Step 3: Story Selection, Ticket Fetch, Feature Branch Creation
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

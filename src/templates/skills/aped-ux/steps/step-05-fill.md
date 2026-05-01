@@ -1,3 +1,10 @@
+---
+step: 5
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 5: F — Fill (States, Responsive, Accessibility)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

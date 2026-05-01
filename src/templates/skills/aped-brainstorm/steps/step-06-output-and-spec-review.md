@@ -1,3 +1,11 @@
+---
+step: 6
+reads: []
+writes: 
+  - "subagent/spec-reviewer"
+mutates_state: false
+---
+
 # Step 6: Phase 5 — Output, Self-Review, Spec-Reviewer
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

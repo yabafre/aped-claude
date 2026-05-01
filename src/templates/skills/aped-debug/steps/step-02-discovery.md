@@ -1,3 +1,10 @@
+---
+step: 2
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 2: Discovery + Out-of-Scope KB Scan
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

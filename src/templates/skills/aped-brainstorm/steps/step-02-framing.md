@@ -1,3 +1,10 @@
+---
+step: 2
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 2: Phase 1 — Framing
 
 ## YOUR TASK

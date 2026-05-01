@@ -1,3 +1,18 @@
+---
+step: 6
+reads:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+  - "src/**"
+  - "tests/**"
+writes:
+  - "src/**"
+  - "tests/**"
+  - "git/commits"
+  - "{{APED_DIR}}/.last-test-exit"
+  - "mcp/react-grab.get_element_context"
+mutates_state: false
+---
+
 # Step 6: TDD Cycle (RED → GREEN → REFACTOR → GATE)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

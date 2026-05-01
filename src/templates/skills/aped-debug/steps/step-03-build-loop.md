@@ -1,3 +1,16 @@
+---
+step: 3
+reads: 
+  - "src/**"
+  - "tests/**"
+  - "git/diff"
+writes: 
+  - "src/**"
+  - "tests/**"
+  - "git/commits"
+mutates_state: false
+---
+
 # Step 3: Phase 1 — Build the Feedback Loop
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

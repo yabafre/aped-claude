@@ -1,3 +1,10 @@
+---
+step: 8
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 8: Phase 5 — Validation, Self-Review, Final A/C Gate
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

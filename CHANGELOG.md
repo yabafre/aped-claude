@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `aped-glossary` skill (34th skill)
+
+New soft-dep skill that maintains a project-wide domain glossary at `{{OUTPUT_DIR}}/glossary.md`. Pattern lifted from Matt Pocock's `CONTEXT.md` convention (see [references/pocock-skills/CONTEXT.md](https://github.com/mattpocock/skills/blob/main/CONTEXT.md) and his "shared language" thesis).
+
+- Workflow: discover → extract candidate terms (NEW / DRIFT / STALE buckets) → per-term loop with one-question-at-a-time confirmation → write/revise glossary.md (append + revise, never rewrite) → notify downstream skills.
+- Iron Law: **ONE WORD, ONE MEANING, ONE PLACE.** Synonyms get listed under `_Avoid:_` so future skill checks can flag drift.
+- Trigger phrases: "build glossary", "update glossary", "domain dictionary", "shared language", "sharpen language", "canonicalize terms".
+- Reads upstream artefacts (PRD, architecture, stories, project-context, brief) and any pre-existing `CONTEXT.md` at the project root. Writes only `{{OUTPUT_DIR}}/glossary.md`.
+- Counted in v6.0.0 inventory: 34 skills total (was 33).
+
+### Added — ADR sharding in `aped-arch`
+
+Architectural decisions can now persist as separate ADR (Architecture Decision Record) files at `docs/aped/adr/000N-{slug}.md`, in addition to the rolling `architecture.md`. Pattern lifted directly from [Matt Pocock's `docs/adr/` convention](https://github.com/mattpocock/skills/blob/main/skills/engineering/grill-with-docs/ADR-FORMAT.md): keep the *that* and *why* of important decisions in stable, citable artefacts that survive `architecture.md` rewrites.
+
+- New scaffolder template: `.aped/templates/adr.md` — minimal Pocock-style format (Context / Decision / Why, optional sections only when they add value).
+- New scaffolder directory: `docs/aped/adr/.gitkeep` — empty placeholder; first ADR creates lazily.
+- `aped-arch/steps/step-04-technology-decisions.md` and `step-05-council-dispatch.md` now instruct the skill to write an ADR for every decision passing Pocock's three criteria (hard-to-reverse + surprising-without-context + real-trade-off). Council-dispatched decisions always qualify.
+- `aped-arch/workflow.md` adds ADR sharding to the Critical Rules.
+- `tests/adr-sharding.test.js` (5 cases) verifies the template + directory + skill body content.
+
+### Added — Typed step I/O contracts
+
+Every step file under `aped-X/steps/` now ships a YAML frontmatter declaring its inputs and outputs:
+
+```yaml
+---
+step: <int>
+reads: ["<path>"]
+writes: ["<path>"]
+mutates_state: <bool>
+---
+```
+
+82 step files across the 10 BMAD-decomposed phase skills carry this contract. Path syntax uses a documented prefix set (`{{OUTPUT_DIR}}/...`, `state.yaml#...`, `git/...`, `tasks`, `subagent/...`, `mcp/...`, `ticket/{provider}`, etc.) — see `docs/dev/discovery-pattern.md` for the table.
+
+`tests/step-io-contract-lint.test.js` enforces frontmatter presence + schema validity on every step file (493 cases). Validates the same thesis as Anthropic's [code-execution-with-MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) (typed tools as first-class citizens) at the skill level — making the path forward to an `aped-step.execute(name, inputs)` MCP server straightforward when desired.
+
 ## [6.0.0] - 2026-05-01
 
 ### BREAKING — skill structure migration to BMAD directory layout

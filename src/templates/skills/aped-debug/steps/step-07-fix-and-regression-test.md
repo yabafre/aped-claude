@@ -1,3 +1,16 @@
+---
+step: 7
+reads: 
+  - "src/**"
+  - "tests/**"
+  - "git/diff"
+writes: 
+  - "src/**"
+  - "tests/**"
+  - "git/commits"
+mutates_state: false
+---
+
 # Step 7: Phase 5 — Fix + Regression Test (with 3-failed-fixes rule)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

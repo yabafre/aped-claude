@@ -1,3 +1,11 @@
+---
+step: 8
+reads:
+  - "{{APED_DIR}}/skills/aped-skills/checklist-story.md"
+writes: []
+mutates_state: false
+---
+
 # Step 8: Completion Gate
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

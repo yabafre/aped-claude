@@ -1,3 +1,13 @@
+---
+step: 4
+reads:
+  - "{{APED_DIR}}/templates/adr.md"
+writes:
+  - "{{OUTPUT_DIR}}/architecture.md"
+  - "{{OUTPUT_DIR}}/adr/*.md"
+mutates_state: false
+---
+
 # Step 4: Phase 2 — Technology Decisions (5 categories)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
@@ -67,6 +77,20 @@ For decisions flagged as **high-stakes** (kind that would cost weeks to reverse 
 → **Branch to step 05 (Architecture Council)** before recording the decision.
 
 The Council dispatches specialist subagents in parallel for divergent perspectives. Skip for low-stakes choices (e.g., a logging library).
+
+## ADR SHARDING (v6.0.0+, Pocock pattern)
+
+For each decision that passes **all three** of:
+
+1. **Hard to reverse** — cost of changing your mind later is meaningful (database, auth, API paradigm, infra).
+2. **Surprising without context** — a future reader will look at the code and wonder "why this way?"
+3. **Real trade-off** — there were genuine alternatives and you picked one for specific reasons.
+
+→ **ALSO write a separate ADR file** at `{{OUTPUT_DIR}}/adr/000N-{slug}.md` using the template at `{{APED_DIR}}/templates/adr.md`. ADRs persist the *that* and *why* of the decision in a stable, citable artefact — `architecture.md` may be rewritten section-by-section over the project's life, but ADRs survive.
+
+Numbering: scan `{{OUTPUT_DIR}}/adr/` for the highest existing `NNNN-` prefix and increment. The directory ships with a `.gitkeep` from the scaffolder; create the first ADR lazily on the first qualifying decision.
+
+Skip the ADR for easy-to-reverse choices (e.g., logging library, error format) — they don't need the audit trail. The `adr/` directory will stay empty until a decision warrants it; that's fine.
 
 ## PHASE 2 GATE
 

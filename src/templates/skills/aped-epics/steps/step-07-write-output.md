@@ -1,3 +1,13 @@
+---
+step: 7
+reads: 
+  - "{{APED_DIR}}/templates/epics.md"
+writes: 
+  - "{{OUTPUT_DIR}}/epics.md"
+  - "state.yaml#pipeline.phases.epics"
+mutates_state: true
+---
+
 # Step 7: Write Output (epics.md + state.yaml)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

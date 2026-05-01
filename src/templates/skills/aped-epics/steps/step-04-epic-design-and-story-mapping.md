@@ -1,3 +1,10 @@
+---
+step: 4
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 4: Epic Design + Story Mapping + Running FR Coverage Matrix
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

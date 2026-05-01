@@ -1,3 +1,16 @@
+---
+step: 4
+reads: 
+  - "src/**"
+  - "tests/**"
+  - "git/diff"
+writes: 
+  - "src/**"
+  - "tests/**"
+  - "git/commits"
+mutates_state: false
+---
+
 # Step 4: Phase 2 — Reproduce
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

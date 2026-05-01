@@ -1,3 +1,20 @@
+---
+step: 6
+reads:
+  - "src/**"
+  - "tests/**"
+  - "git/log"
+writes:
+  - "subagent/marcus"
+  - "subagent/rex"
+  - "subagent/diego"
+  - "subagent/lucas"
+  - "subagent/aria"
+  - "subagent/kai"
+  - "subagent/sam"
+mutates_state: false
+---
+
 # Step 6: Stage 2 — Marcus, Rex, and Conditional Specialists
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

@@ -1,3 +1,10 @@
+---
+step: 5
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 5: Phase 4 — Convergence (cluster, rank, ground)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

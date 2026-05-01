@@ -1,3 +1,12 @@
+---
+step: 7
+reads: 
+  - "{{APED_DIR}}/skills/aped-skills/checklist-brainstorm.md"
+writes: 
+  - "state.yaml#pipeline.phases.brainstorm"
+mutates_state: true
+---
+
 # Step 7: Completion Gate
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

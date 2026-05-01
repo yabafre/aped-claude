@@ -1,3 +1,11 @@
+---
+step: 5
+reads: []
+writes: 
+  - "subagent/spec-reviewer"
+mutates_state: false
+---
+
 # Step 5: Inline Self-Review, Validation, Spec-Reviewer Dispatch
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

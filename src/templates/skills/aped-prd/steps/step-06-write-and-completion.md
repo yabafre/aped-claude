@@ -1,3 +1,12 @@
+---
+step: 6
+reads: 
+  - "{{APED_DIR}}/skills/aped-skills/checklist-prd.md"
+writes: 
+  - "state.yaml#pipeline.phases.prd"
+mutates_state: true
+---
+
 # Step 6: Write Output, State Update, Stop Conditions, Completion Gate
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

@@ -1,3 +1,13 @@
+---
+step: 4
+reads:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+  - "tests/**"
+writes:
+  - "subagent/eva"
+mutates_state: false
+---
+
 # Step 4: Stage 1 — Eva (synchronous AC gate)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

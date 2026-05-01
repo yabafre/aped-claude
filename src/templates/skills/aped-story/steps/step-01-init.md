@@ -1,3 +1,13 @@
+---
+step: 1
+reads: 
+  - "{{APED_DIR}}/WORKTREE"
+  - "git/HEAD"
+writes: 
+  - "tasks"
+mutates_state: false
+---
+
 # Step 1: Initialization, Mode Detection, Branch Gate
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

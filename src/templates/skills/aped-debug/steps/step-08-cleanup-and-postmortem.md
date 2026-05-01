@@ -1,3 +1,16 @@
+---
+step: 8
+reads: 
+  - "src/**"
+  - "tests/**"
+  - "git/diff"
+writes: 
+  - "src/**"
+  - "tests/**"
+  - "git/commits"
+mutates_state: false
+---
+
 # Step 8: Phase 6 — Cleanup + Post-Mortem
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

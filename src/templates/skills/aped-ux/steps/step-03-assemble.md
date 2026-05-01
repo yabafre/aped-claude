@@ -1,3 +1,10 @@
+---
+step: 3
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 3: A — Assemble (Design DNA + Preview Scaffold)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

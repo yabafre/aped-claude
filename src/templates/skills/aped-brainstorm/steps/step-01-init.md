@@ -1,3 +1,14 @@
+---
+step: 1
+reads: 
+  - "{{APED_DIR}}/WORKTREE"
+  - "git/HEAD"
+  - "state.yaml#pipeline.current_phase"
+writes: 
+  - "tasks"
+mutates_state: false
+---
+
 # Step 1: Initialization & Resume Check
 
 ## YOUR TASK

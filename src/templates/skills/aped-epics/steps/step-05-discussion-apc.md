@@ -1,3 +1,10 @@
+---
+step: 5
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 5: A/P/C Discussion Gate
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

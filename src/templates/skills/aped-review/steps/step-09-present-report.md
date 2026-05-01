@@ -1,3 +1,10 @@
+---
+step: 9
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 9: Present Report to User
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

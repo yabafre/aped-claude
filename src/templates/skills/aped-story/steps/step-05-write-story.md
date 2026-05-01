@@ -1,3 +1,12 @@
+---
+step: 5
+reads:
+  - "{{APED_DIR}}/templates/story.md"
+writes:
+  - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+mutates_state: false
+---
+
 # Step 5: Write Story File
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

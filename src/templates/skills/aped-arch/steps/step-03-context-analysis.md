@@ -1,3 +1,10 @@
+---
+step: 3
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 3: Phase 1 — Context Analysis
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

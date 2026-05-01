@@ -1,3 +1,12 @@
+---
+step: 9
+reads: 
+  - "{{APED_DIR}}/skills/aped-skills/checklist-epics.md"
+writes: 
+  - "state.yaml#pipeline.phases.epics"
+mutates_state: true
+---
+
 # Step 9: Completion Gate
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

@@ -1,3 +1,16 @@
+---
+step: 5
+reads: 
+  - "src/**"
+  - "tests/**"
+  - "git/diff"
+writes: 
+  - "src/**"
+  - "tests/**"
+  - "git/commits"
+mutates_state: false
+---
+
 # Step 5: Phase 3 — Hypothesise
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

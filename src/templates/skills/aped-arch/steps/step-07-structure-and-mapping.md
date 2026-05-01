@@ -1,3 +1,10 @@
+---
+step: 7
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 7: Phase 4 — Structure & Mapping
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

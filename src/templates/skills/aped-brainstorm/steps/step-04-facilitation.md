@@ -1,3 +1,10 @@
+---
+step: 4
+reads: []
+writes: []
+mutates_state: false
+---
+
 # Step 4: Phase 3 — Interactive Facilitation (the heart of brainstorming)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

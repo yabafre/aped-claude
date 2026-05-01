@@ -6,7 +6,7 @@ tags: [aped, workflow, process]
 # APED — Workflow
 **APED** (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) is a disciplined dev pipeline for [Claude Code](https://claude.ai/download). Every phase produces an **artifact**, requires **explicit user validation**, and hands off via a **coherence hook** that warns on skipped steps.
 
-> 📦 Product: `npx aped-method` — scaffolds **33 skills** + hooks into any Claude Code project. Latest stable: **v6.0.0** (2026-05-01) — every skill is now a BMAD-style directory (`SKILL.md` + optional `workflow.md` + `steps/*`).
+> 📦 Product: `npx aped-method` — scaffolds **34 skills** + hooks into any Claude Code project. Latest stable: **v6.0.0** (2026-05-01) — every skill is now a BMAD-style directory (`SKILL.md` + optional `workflow.md` + `steps/*`).
 > 🔗 See also: [APED — Phases](.aped-phases.md), [APED — Personas & Teams](.aped-personas.md), [APED — Team Quickstart](.aped-quickstart.md)
 
 > ℹ️ **Slash commands removed in 4.0.0** — the 3.x `/aped-X` shells (scaffolded as `.claude/commands/aped-*.md`) were retired. Skills are the only invocation surface — use the **Skill tool** directly or rely on **natural-language triggers** that match each skill's `description:` (say *"create the prd"*, *"run an architecture review"*, etc.).
