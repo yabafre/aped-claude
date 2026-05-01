@@ -1,13 +1,11 @@
 ---
 step: 3
-reads: 
+reads:
   - "src/**"
   - "tests/**"
-  - "git/diff"
-writes: 
-  - "src/**"
+  - "{{APED_DIR}}/scripts/hitl-loop.template.sh"
+writes:
   - "tests/**"
-  - "git/commits"
 mutates_state: false
 ---
 

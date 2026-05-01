@@ -1,7 +1,10 @@
 ---
 step: 5
-reads: []
-writes: []
+reads:
+  - "{{APED_DIR}}/aped-ux/references/ux-patterns.md"
+  - "{{OUTPUT_DIR}}/ux-preview/**"
+writes:
+  - "{{OUTPUT_DIR}}/ux-preview/**"
 mutates_state: false
 ---
 

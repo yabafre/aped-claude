@@ -1,7 +1,8 @@
 ---
 step: 2
 reads: []
-writes: []
+writes:
+  - "{{OUTPUT_DIR}}/brainstorm/session-{date}.md"
 mutates_state: false
 ---
 

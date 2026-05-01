@@ -1,10 +1,9 @@
 ---
 step: 9
-reads: 
+reads:
   - "{{APED_DIR}}/skills/aped-skills/checklist-epics.md"
-writes: 
-  - "state.yaml#pipeline.phases.epics"
-mutates_state: true
+writes: []
+mutates_state: false
 ---
 
 # Step 9: Completion Gate

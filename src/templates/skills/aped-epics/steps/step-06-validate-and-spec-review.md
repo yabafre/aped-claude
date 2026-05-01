@@ -1,7 +1,12 @@
 ---
 step: 6
-reads: []
-writes: 
+reads:
+  - "{{OUTPUT_DIR}}/prd.md"
+  - "{{APED_DIR}}/aped-epics/scripts/validate-coverage.sh"
+  - "{{APED_DIR}}/aped-epics/scripts/oracle-epics.sh"
+  - "{{APED_DIR}}/scripts/lint-placeholders.sh"
+  - "mcp/aped_validate.phase"
+writes:
   - "subagent/spec-reviewer"
 mutates_state: false
 ---

@@ -1,6 +1,8 @@
 ---
 step: 4
-reads: []
+reads:
+  - "{{OUTPUT_DIR}}/prd.md"
+  - "{{APED_DIR}}/aped-epics/references/epic-rules.md"
 writes: []
 mutates_state: false
 ---

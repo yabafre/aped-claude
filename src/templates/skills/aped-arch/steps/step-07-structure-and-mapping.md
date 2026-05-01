@@ -1,8 +1,13 @@
 ---
 step: 7
-reads: []
-writes: []
-mutates_state: false
+reads:
+  - "{{OUTPUT_DIR}}/architecture.md"
+  - "{{OUTPUT_DIR}}/prd.md"
+  - "{{OUTPUT_DIR}}/ux/**"
+writes:
+  - "{{OUTPUT_DIR}}/architecture.md"
+  - "state.yaml#pipeline.phases.architecture.current_subphase"
+mutates_state: true
 ---
 
 # Step 7: Phase 4 — Structure & Mapping

@@ -1,7 +1,13 @@
 ---
 step: 3
-reads: []
-writes: []
+reads:
+  - "{{APED_DIR}}/templates/prd.md"
+  - "{{OUTPUT_DIR}}/product-brief.md"
+writes:
+  - "{{OUTPUT_DIR}}/prd.md"
+  - "subagent/mary"
+  - "subagent/derek"
+  - "subagent/pm"
 mutates_state: false
 ---
 

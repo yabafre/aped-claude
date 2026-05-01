@@ -1,9 +1,15 @@
 ---
 step: 6
-reads: []
-writes: 
+reads:
+  - "{{OUTPUT_DIR}}/product-brief.md"
+  - "{{APED_DIR}}/scripts/lint-placeholders.sh"
+  - "{{APED_DIR}}/aped-analyze/scripts/validate-brief.sh"
+  - "{{APED_DIR}}/skills/aped-skills/checklist-analyze.md"
+writes:
+  - "{{OUTPUT_DIR}}/product-brief.md"
   - "subagent/spec-reviewer"
-mutates_state: false
+  - "state.yaml#pipeline.phases.analyze"
+mutates_state: true
 ---
 
 # Step 6: Self-Review, Spec-Reviewer, Validation, State Update, Final Gate

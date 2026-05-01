@@ -1,13 +1,13 @@
 ---
 step: 7
-reads: 
+reads:
   - "src/**"
   - "tests/**"
-  - "git/diff"
-writes: 
+writes:
   - "src/**"
   - "tests/**"
   - "git/commits"
+  - "{{APED_DIR}}/.last-test-exit"
 mutates_state: false
 ---
 

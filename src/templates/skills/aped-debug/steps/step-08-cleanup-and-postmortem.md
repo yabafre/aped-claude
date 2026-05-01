@@ -1,10 +1,10 @@
 ---
 step: 8
-reads: 
+reads:
   - "src/**"
   - "tests/**"
   - "git/diff"
-writes: 
+writes:
   - "src/**"
   - "tests/**"
   - "git/commits"

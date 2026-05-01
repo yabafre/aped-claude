@@ -1,9 +1,11 @@
 ---
 step: 6
-reads: 
+reads:
   - "{{APED_DIR}}/skills/aped-skills/checklist-prd.md"
-writes: 
+writes:
+  - "{{OUTPUT_DIR}}/prd.md"
   - "state.yaml#pipeline.phases.prd"
+  - "mcp/aped_state.advance"
 mutates_state: true
 ---
 

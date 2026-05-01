@@ -1,13 +1,9 @@
 ---
 step: 5
-reads: 
+reads:
   - "src/**"
-  - "tests/**"
-  - "git/diff"
-writes: 
-  - "src/**"
-  - "tests/**"
-  - "git/commits"
+  - "git/log"
+writes: []
 mutates_state: false
 ---
 

@@ -1,11 +1,9 @@
 ---
 step: 1
-reads: 
-  - "{{APED_DIR}}/WORKTREE"
-  - "git/HEAD"
-  - "state.yaml#pipeline.current_phase"
-writes: 
-  - "tasks"
+reads:
+  - "{{OUTPUT_DIR}}/brainstorm/session-{date}.md"
+writes:
+  - "{{OUTPUT_DIR}}/brainstorm/"
 mutates_state: false
 ---
 

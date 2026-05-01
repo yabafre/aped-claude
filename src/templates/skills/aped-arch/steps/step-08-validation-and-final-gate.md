@@ -1,6 +1,11 @@
 ---
 step: 8
-reads: []
+reads:
+  - "{{OUTPUT_DIR}}/architecture.md"
+  - "{{OUTPUT_DIR}}/prd.md"
+  - "{{APED_DIR}}/scripts/lint-placeholders.sh"
+  - "{{APED_DIR}}/aped-arch/scripts/oracle-arch.sh"
+  - "mcp/aped_validate.phase"
 writes: []
 mutates_state: false
 ---

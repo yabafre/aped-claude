@@ -1,7 +1,10 @@
 ---
 step: 5
 reads: []
-writes: []
+writes:
+  - "subagent/sam"
+  - "subagent/eva"
+  - "subagent/pm"
 mutates_state: false
 ---
 

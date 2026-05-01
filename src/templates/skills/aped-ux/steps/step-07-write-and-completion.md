@@ -1,9 +1,15 @@
 ---
 step: 7
-reads: 
+reads:
   - "{{APED_DIR}}/skills/aped-skills/checklist-ux.md"
-writes: 
+  - "{{APED_DIR}}/aped-ux/scripts/validate-ux.sh"
+writes:
+  - "{{OUTPUT_DIR}}/ux/design-spec.md"
+  - "{{OUTPUT_DIR}}/ux/screen-inventory.md"
+  - "{{OUTPUT_DIR}}/ux/components.md"
+  - "{{OUTPUT_DIR}}/ux/flows.md"
   - "state.yaml#pipeline.phases.ux"
+  - "mcp/aped_state.advance"
 mutates_state: true
 ---
 

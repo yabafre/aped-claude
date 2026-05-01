@@ -1,8 +1,11 @@
 ---
 step: 6
-reads: []
-writes: []
-mutates_state: false
+reads:
+  - "{{OUTPUT_DIR}}/architecture.md"
+writes:
+  - "{{OUTPUT_DIR}}/architecture.md"
+  - "state.yaml#pipeline.phases.architecture.current_subphase"
+mutates_state: true
 ---
 
 # Step 6: Phase 3 — Implementation Patterns

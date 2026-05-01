@@ -1,10 +1,11 @@
 ---
 step: 9
-reads: 
+reads:
   - "{{APED_DIR}}/skills/aped-skills/checklist-debug.md"
-writes: 
-  - "state.yaml#pipeline.phases.debug"
-mutates_state: true
+  - "git/diff"
+writes:
+  - "{{OUTPUT_DIR}}/lessons.md"
+mutates_state: false
 ---
 
 # Step 9: Self-Review & Completion Gate

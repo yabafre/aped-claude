@@ -1,7 +1,10 @@
 ---
 step: 6
-reads: []
-writes: 
+reads:
+  - "{{OUTPUT_DIR}}/brainstorm/session-{date}.md"
+  - "{{APED_DIR}}/scripts/lint-placeholders.sh"
+writes:
+  - "{{OUTPUT_DIR}}/brainstorm/session-{date}.md"
   - "subagent/spec-reviewer"
 mutates_state: false
 ---

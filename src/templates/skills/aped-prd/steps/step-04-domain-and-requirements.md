@@ -1,7 +1,12 @@
 ---
 step: 4
-reads: []
-writes: []
+reads:
+  - "{{APED_DIR}}/aped-prd/references/fr-rules.md"
+writes:
+  - "{{OUTPUT_DIR}}/prd.md"
+  - "subagent/raj"
+  - "subagent/eva"
+  - "subagent/marcus"
 mutates_state: false
 ---
 
