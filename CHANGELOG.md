@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`mergeSettings` lost `mcpServers` on sequential hook installs** — the settings.local.json merge function handled `hooks`, `permissions`, and `statusLine` but had no branch for `mcpServers`. When `enable-mcp` ran after other hooks (safe-bash, session-start, tdd-red-marker), the MCP server registration was silently dropped. All CI scaffold-e2e checks have been failing since v4.14.0 because of this. Fixed by adding `Object.assign(existing.mcpServers, incoming.mcpServers)` to the merge function.
+
 ## [5.5.0] - 2026-04-30
 
 ### Added

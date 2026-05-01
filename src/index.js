@@ -878,6 +878,11 @@ function mergeSettings(filePath, newContent, options = {}) {
       };
     }
 
+    if (incoming.mcpServers) {
+      if (!existing.mcpServers) existing.mcpServers = {};
+      Object.assign(existing.mcpServers, incoming.mcpServers);
+    }
+
     if (incoming.statusLine) {
       const shouldOverwrite = options.overwriteStatusLine
         || !existing.statusLine
