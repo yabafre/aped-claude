@@ -376,6 +376,57 @@ bash .aped/scripts/validate-state.sh
 
 ---
 
+## 16. MCP server not working after `enable-mcp` (4.13.0+)
+
+**Symptom.** You ran `aped-method enable-mcp` but Claude Code doesn't show `aped_state.get`, `aped_state.update`, etc. in the MCP tools list.
+
+**Cause A.** `settings.local.json` merge lost the `mcpServers` key. This happened in v4.14.0–v5.5.0 when other hooks were installed before `enable-mcp`. Fixed in v5.5.1.
+
+**Fix.** Upgrade to `aped-method@5.5.1+` and re-run `aped-method enable-mcp`. Verify:
+
+```bash
+cat .claude/settings.local.json | node -e '
+  let d=""; process.stdin.on("data",c=>d+=c);
+  process.stdin.on("end",()=>{
+    const s=JSON.parse(d);
+    console.log("mcpServers:", Object.keys(s.mcpServers || {}));
+    console.log("hooks:", Object.keys(s.hooks || {}));
+  });
+'
+```
+
+Both `mcpServers` and `hooks` should have entries.
+
+**Cause B.** `yq` not installed. The MCP server uses `yq` for YAML manipulation.
+
+**Fix.** Install yq: `brew install yq` (macOS) or check [yq docs](https://github.com/mikefarah/yq).
+
+**Cause C.** Claude Code needs a restart after `enable-mcp` to pick up the new MCP server.
+
+## 17. Agent doesn't follow APED skills / skips steps (5.5.0+)
+
+**Symptom.** The agent invokes a skill (e.g. `aped-dev`) but drops execution discipline — skips TDD, batches commits, doesn't sync tickets.
+
+**Cause A.** `CLAUDE.md` missing the APED block. Check the session-start banner — if it shows `⚠ CLAUDE.md missing APED block`, the agent has no instruction to follow APED discipline.
+
+**Fix.** Run `aped-claude` to inject the APED block into your project's `CLAUDE.md` (not `CLAUDE.local.md` — that's gitignored and invisible in worktrees).
+
+**Cause B.** Long skill → attention degradation. Skills > 300 lines lose the agent's attention at the end.
+
+**Fix.** v5.5.0 added completion-gate checklists for 16 skills. Verify they're installed: `ls .aped/skills/aped-skills/checklist-*.md`. If missing, re-scaffold with `aped-method --update`.
+
+**Cause C.** `commit-gate` hook not installed. Without it, the agent can edit many files without committing.
+
+**Fix.** `aped-method commit-gate` — installs the PostToolUse advisory hook that warns after 5+ uncommitted changes.
+
+## 18. Completion-gate checklists not scaffolded (5.5.0+)
+
+**Symptom.** Skills end without referencing a checklist file, or `ls .aped/skills/aped-skills/checklist-*.md` shows 0 files.
+
+**Cause.** Scaffolded with a version < 5.5.0.
+
+**Fix.** `npx aped-method@latest --update` re-scaffolds all engine files including checklists.
+
 ## Still stuck?
 
 Run with `--debug` to get a stack trace on error:

@@ -33,29 +33,35 @@ A skill is **soft-dep** if it works on any project with default config and no up
 | `aped-sprint` | Reads `sprint.stories` from `state.yaml`, dispatches each into a `git worktree`. Without an epics phase output, there's nothing to dispatch. |
 | `aped-lead` | Coordinates across the worktrees produced by `aped-sprint`. Standalone invocation has no worktrees to lead. |
 
-### Soft-dep (19)
+### Soft-dep (25)
 
 | Skill | Notes |
 |-------|-------|
 | `aped-analyze` | Brief from scratch — runs greenfield or alongside `aped-context`. |
 | `aped-brainstorm` | Horizontal — invokable at any phase, no upstream needed. |
 | `aped-prfaq` | Optional upstream of `aped-analyze`; runs anywhere. |
+| `aped-grill` | Pocock-style alignment grilling. Reads `config.yaml` (`user_name`, `communication_language`, `document_output_language`); HALTs if missing but no ticket/sprint dependency. Writes `grill-summary.md`. |
 | `aped-context` | Brownfield analysis — produces context, doesn't consume APED state. |
 | `aped-prd` | Requires a brief but HALTs gracefully with a clear message. |
 | `aped-arch` | Requires a PRD but HALTs gracefully. |
 | `aped-arch-audit` | Audit skill — produces a deepening-candidate report at `{{OUTPUT_DIR}}/architecture-audit.md` and HALTs; never mutates code. Read-only on artefacts. |
+| `aped-design-twice` | Dual design exploration — generates two competing designs before committing. Reads `prd.md` / `architecture.md`; writes `design-alternatives.md`. No config or state dependency. |
 | `aped-ux` | Requires a PRD but HALTs gracefully. |
+| `aped-pre-mortem` | Structured pre-mortem before implementation. Reads `prd.md`, `architecture.md`, `epics.md` from output dir. Writes `pre-mortem.md`. No config.yaml or state.yaml dependency. |
 | `aped-dev` | Reads a story file but doesn't itself need ticket sync. |
 | `aped-debug` | Diagnostic loop — runs anywhere. |
 | `aped-qa` | Generates tests for a story; reads the story file, no config needed. |
 | `aped-review` | Adversarial code review — runs on any code. |
 | `aped-retro` | Reads epic state but presents what's there even if partial. |
 | `aped-course` | Mid-sprint pivot — best when sprint exists, but writes to corrections log either way. |
+| `aped-triage` | Issue triage state machine. Reads `state.yaml` (`pipeline.current_phase`) and `epics.md` for scope check, but handles missing files gracefully ("scope unknown — ask user"). Writes `triage-decision.md` and `.out-of-scope/` records. |
 | `aped-status` | Reads `state.yaml` — shows what's there, no requirement on contents. |
 | `aped-checkpoint` | Human-in-the-loop review — runs anywhere. |
 | `aped-claude` | Syncs CLAUDE.md — only needs `project_name` / `user_name`. |
 | `aped-elicit` | Deep critique toolkit — horizontal, runs on any artefact. |
 | `aped-iterate` | Post-ship router — classifies a delta and recommends the right downstream skill. Read-only; HALTs and redirects to `aped-course` if a worktree is in-flight. |
+| `aped-write-skill` | Meta-skill for writing APED-style skills. Reads `config.yaml` (`user_name`, `communication_language`, `document_output_language`, `ticket_system`, `git_provider`) but only for context — no ticket I/O, no state mutation. HALTs if config missing. |
+| `aped-zoom-out` | Horizontal re-orientation. Reads `state.yaml` and `lessons.md` if present but treats missing artefacts as signal, not error. Produces no artefact — only a 4-bullet re-orientation message. |
 
 ## Reading hard-dep setup pointers
 

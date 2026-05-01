@@ -19,7 +19,7 @@ A disciplined dev pipeline for [Claude Code](https://claude.ai/download), scaffo
 
 **The flow**: `Analyze → PRD → UX → Arch → Epics → Story → Dev → Review`
 
-**23 slash commands** cover it all: ideation, critique, parallel sprint, external ticket intake, retrospective, maintenance.
+**33 skills** cover it all: ideation, critique, parallel sprint, external ticket intake, retrospective, pre-mortem, design exploration, issue triage, and maintenance. Invoked via natural-language triggers or the Skill tool.
 
 ---
 
@@ -221,11 +221,53 @@ Each accepts `--uninstall` to remove its installed bits. Default scaffold doesn'
 
 New section before tasks: maps files with single-responsibility rule (split by responsibility, not layer), 3-bullet decision template per file (file-name / single-responsibility / inputs+outputs). Better task decomposition; coherent file boundaries across stories.
 
+## What changed in 4.7 → 5.5
+
+Major evolution across 30+ releases. Highlights:
+
+### MCP companion servers (4.13.0+)
+
+APED now ships **two MCP servers** (opt-in via `aped-method enable-mcp`):
+- **aped-state** — 8 typed tools for state.yaml: `get`, `update`, `advance` (state-machine validated transitions), `lock`/`unlock` (cross-call mutex), `describe` (schema introspection), `context.load` (phase artefact bundle), `validate.phase` (oracle gate).
+- **aped-ticket** — 4 provider-routed tools: `create_issue`, `get_status`, `list_open`, `link_pr`. Reads `ticket_system` from config.yaml and dispatches to GitHub/Linear/Jira/GitLab. Closes the "agent invents CLI flags for the wrong provider" class.
+
+### 6 oracle scripts (4.12.0+, 4.16.0+)
+
+Deterministic bash verifiers with `ERROR <code>: <reason>` output:
+- **oracle-prd.sh** (E001-E007), **oracle-arch.sh** (E010-E013), **oracle-epics.sh** (E020-E021) — shipped 4.12.0
+- **oracle-dev.sh** (E030-E036), **oracle-qa.sh** (E042-E044), **oracle-state.sh** (E050-E055) — shipped 4.16.0+
+
+### Anti-rationalization (5.5.0)
+
+Informed by BMAD, Superpowers, Pocock, and Anthropic engineering:
+- **16 completion-gate checklists** — separate files at `aped-skills/checklist-<name>.md`. Each skill's final section forces a `Read` of its checklist before DONE, re-injecting completion criteria into context when attention is lowest.
+- **commit-gate hook** — PostToolUse advisory after 5+ uncommitted changes. Structural enforcement: compliance detectable by artifact, not honor system.
+- **session-start CLAUDE.md check** — warns when `CLAUDE.md` is missing the `<!-- APED:START -->` block (catches worktree visibility issue with gitignored `CLAUDE.local.md`).
+
+### 33 skills (was 25 at 3.12)
+
+New since 3.12: `aped-grill` (4.8.0, Pocock-style alignment), `aped-write-skill` (4.6.0, meta), `aped-triage` (4.19.0, issue triage state machine), `aped-pre-mortem` (5.4.0), `aped-design-twice` (5.4.0), `aped-arch-audit` (4.5.0), `aped-iterate` (4.4.0), `aped-zoom-out` (4.6.0).
+
+### Pipeline hardening (4.14.0)
+
+- `scripts/cut-release.sh` — validates 8 preconditions, bumps version, rewrites CHANGELOG, prints 5 manual steps
+- `scripts/check-pre-merge.sh` — automates the 4-file pre-merge checklist
+- `scripts/lint-bash-discipline.sh` — flags `grep -c` and unwrapped grep under pipefail
+- `.github/workflows/smoke.yml` — full tarball scaffold on every PR + daily cron
+- `.github/workflows/nightly-npm.yml` — daily npm@latest probe
+
+### v5.0.0 MAJOR — allowed-paths
+
+All 33 skills now declare `allowed-paths` frontmatter with `write` and `read-only` scopes. v5.1.0 added the advisory PreToolUse hook (`aped-method allowed-paths-scope`).
+
+### 813 tests (was ~100 at 4.0)
+
+51 test files covering: skill frontmatter lint, routing rubric, bash discipline, oracle scripts, MCP protocol, review output schema, allowed-paths, FR-ID format, error-swallow discipline, and more.
+
 ### Read next
 
-If you want the full per-phase delta, see [APED — Phases](.aped-phases.md) §"What changed in 3.11.0 → 3.12.0".  
-If you want to understand which discipline ships with which persona, see [APED — Personas & Teams](.aped-personas.md) §"What changed in 3.11.0 → 3.12.0".
-
+If you want the full per-phase delta, see [APED — Phases](aped-phases.md).  
+If you want to understand which discipline ships with which persona, see [APED — Personas & Teams](aped-personas.md).
 
 ---
 
