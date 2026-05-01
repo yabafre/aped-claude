@@ -418,6 +418,7 @@ These are installed explicitly when you want them:
 - `aped-method tdd-red-marker` adds a `PostToolUse` advisory hook that warns when production-code edits follow a test-file edit without a `Confirmed RED:` token in the transcript. Pocock workshop discipline. Advisory only.
 - `aped-method enable-mcp` installs the **aped-state MCP companion server** (4.13.0+). Typed atomic ops on `state.yaml`: `aped_state.get`, `update`, `advance`, `lock`/`unlock`, `describe`, `aped_context.load`, `aped_validate.phase`. Plus `aped-ticket` provider-routed adapter (GitHub/Linear/Jira/GitLab).
 - `aped-method allowed-paths-scope` adds a `PreToolUse` advisory hook (5.1.0+) that reads the active skill's `allowed-paths` frontmatter and warns when Write/Edit targets a file outside scope.
+- `aped-method commit-gate` adds a `PostToolUse` advisory hook (5.5.0+) that warns after 5+ uncommitted file changes. Structural enforcement of the "one commit per GREEN gate" discipline. Advisory only.
 
 ## Install / Update / Fresh
 
