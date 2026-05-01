@@ -3,6 +3,9 @@
 **Audience:** APED skill authors editing files under `packages/create-aped/src/templates/skills/`.
 **Status:** Canonical pattern. Copy-paste when creating or refactoring any pipeline-phase skill.
 **Related decisions:** `project_aped_doc_consumption` memory (2026-04-25 — drop inter-phase gates, adopt BMAD-style consume-everything-found).
+**Last updated:** v5.5.1.
+
+> **Typed alternative (v4.20.0+):** Skills can call the `aped_context.load(phase)` MCP tool instead of the manual Read chain described below. The MCP tool performs the same glob-discover-load sequence and returns typed results. The manual pattern remains the reference for understanding the logic and for skills that cannot use MCP tools.
 
 ## Why this pattern exists
 
@@ -21,6 +24,9 @@ Insert as the **first runtime section** of the skill, before the existing `## Se
 ```
 ---
 frontmatter
+  allowed-paths:            <-- REQUIRED since v5.0.0 (see below)
+    - docs/aped/**
+    - ...
 ---
 # Skill title
 
@@ -31,6 +37,8 @@ frontmatter
 ## Phase 1: ...
 ...
 ```
+
+> **`allowed-paths` (v5.0.0+):** Every skill must declare an `allowed-paths` list in its frontmatter. List the directories the skill needs to read during discovery (e.g. `docs/aped/**`, `src/**`). The runtime rejects file access outside these paths. When adding a new skill, set `allowed-paths` to cover your glob list from Input Discovery plus any output directories the skill writes to.
 
 The discovery step replaces the part of the legacy Setup that loaded upstream documents via `state.yaml` paths. State.yaml is still read in Setup for *pipeline status* (e.g. "this phase is already done — redo or skip?"), but **never for artefact paths** anymore — those come from the glob discovery below.
 
@@ -149,13 +157,19 @@ For the nine pipeline-phase skills that need this pattern, the customization is:
 
 - **Intra-skill A/P/C menus and ⏸ HALTs** — these are BMAD-style and remain. The pattern adds a single light `[C]` confirmation at the end of discovery; it does not remove the existing per-section gates inside each skill.
 - **Personas in parallel** (Mary / Derek / Tom in `aped-analyze`; Council in `aped-arch`) — unchanged. The pattern only changes input loading at skill entry, not how phases dispatch agents.
-- **`state.yaml` for pipeline status** — still read in `## Setup` to detect "this phase is already done" and offer redo/skip. Just no longer used for artefact path lookup.
+- **`state.yaml` for pipeline status** — still read in `## Setup` to detect "this phase is already done" and offer redo/skip. Just no longer used for artefact path lookup. Since v5.2.0, `state-schema.mjs` is the single source of truth for the `state.yaml` shape — skill authors must not invent new state keys without adding them to the schema first.
 
 ## What this pattern does NOT do
 
 - It does not introduce a shared runtime include. Each skill duplicates the customised pattern. This matches how BMAD ships `step-01-init.md` per skill and avoids cross-skill coupling.
 - It does not auto-generate missing prereqs. Hard-stop is intentional — generating a placeholder PRD inside `aped-arch` would hide a real gap and produce architecture grounded in fiction.
 - It does not remove `aped-context` as a command. `aped-context` stays a first-class artefact producer (like `aped-research`); other skills consume its output via discovery.
+
+## Completion-gate checklists (v5.5.0+)
+
+Every skill longer than 250 lines must include a `## Completion Gate` section with a markdown checklist before its final output. The checklist enumerates the concrete deliverables the skill commits to (files written, validations passed, state.yaml updates). The runtime surfaces incomplete items to the user before marking the phase done.
+
+When creating a new skill, add a completion gate if the skill body exceeds 250 lines. For shorter skills the gate is optional but encouraged.
 
 ## Reference implementation already in tree
 

@@ -5,7 +5,7 @@ tags: [aped, workflow, phases, reference]
 
 # APED — Phases
 
-Detail of every phase in the pipeline: **command**, **persona(s) involved**, **expected input**, **produced output**, **validation gate**.
+Detail of every phase in the pipeline: **command**, **persona(s) involved**, **expected input**, **produced output**, **validation gate**. APED ships **33 skills** as of v5.5.1.
 
 > 🔗 Overview: [APED — Workflow](.aped-workflow.md) · Personas: [APED — Personas & Teams](.aped-personas.md)
 
@@ -41,6 +41,7 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Purpose**: generate the PRD section by section with the **A/P/C menu** at every section gate (Foundation / Scope / Domain / Requirements). `--headless` skips the menus and produces the PRD straight-through, equivalent to the pre-3.9 autonomous behaviour, for CI / scripted workflows.
 - **Input**: validated `product-brief.md`
 - **Output**: `docs/aped/prd.md` with FRs, NFRs, validation-ready structure
+- **Oracle**: `oracle-prd.sh` — automated validation of PRD structure and FR/NFR completeness
 - **Gate** ⏸: PRD review before `aped-ux`
 
 ## 3. UX — `aped-ux`
@@ -56,6 +57,7 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Normal mode**: 5 collaborative phases, decisions consistent with the PRD
 - **"Architecture Council" mode** (high-stakes decisions): **Winston, Lena, Raj, Nina, Maya** dispatched in parallel, each thinks independently and returns a structured verdict. Trigger for: primary DB, auth model, API paradigm, frontend framework, infra platform.
 - **Output**: `docs/aped/architecture.md` (decisions + patterns + structure)
+- **Oracle**: `oracle-arch.sh` — validates architecture decisions against PRD constraints, checks ADR consistency
 - **Gate** ⏸: architecture validated before `aped-epics`
 
 ## 5. Epics — `aped-epics`
@@ -65,6 +67,8 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Output**:
   - `docs/aped/epics.md` (map + stories with sizes S/M/L + `depends_on:`)
   - Seeded tickets in Linear/Jira/GitHub/GitLab with labels 🆕 / 🔄 / 🔁
+- **Oracle**: `oracle-epics.sh` — validates FR coverage, detects `depends_on` cycles, checks story granularity
+- **MCP**: `aped_ticket` — programmatic ticket creation and sync with the configured provider
 - **Gate** ⏸: FR coverage validated (`validate-coverage.sh`)
 
 ## 6. Story — `aped-story [story-key]`
@@ -83,6 +87,12 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Visual check**: every frontend GREEN pass → `mcp__react-grab-mcp__get_element_context`
 - **Re-fetch the ticket** before implementation; divergence = HALT
 - 🔍 **Input Discovery** (since 3.10.2): loads PRD + arch + UX + `project-context.md` + `lessons.md` (`Scope: aped-dev | all`) at entry. Lessons are added to the Pre-Implementation Checklist and interpolated into the `epic-{N}-context.md` cache so they're surfaced inline during TDD cycles.
+- **Oracle**: `oracle-dev.sh` — validates TDD cycle completion, test coverage thresholds, and commit hygiene
+- **MCP**: `aped_state.advance` — programmatic state transition on story completion
+- **Completion-gate checklist** (since 5.0.0): structured checklist that must be satisfied before a story can leave dev — covers test evidence, AC coverage, no forbidden phrases, no skipped tasks
+- **Commit-gate hook** (since 5.0.0): pre-commit hook that rejects commits missing test evidence or containing TODO/FIXME markers in production code
+- **RED witness enforcement** (since 5.2.0): `tdd-red-marker` hook — every GREEN pass must have a preceding RED on record; commits without a witnessed RED phase are rejected. Prevents "write code first, backfill test later" shortcuts
+- **Verbatim AC spec-quote rule** (since 5.3.0): each AC must be quoted verbatim from the story spec in the test file (as a comment or describe block); paraphrased ACs are flagged at review
 - **Output**: code + tests + execution notes updated in the story
 - **Gate** ⏸: tests GREEN + visual check OK → `aped-review`
 
@@ -93,6 +103,9 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Minimum 3 findings** — the review **hunts** for problems, it does not blindly validate
 - **Binary outcomes**: `review → done` (all resolved/dismissed) or stay `review` (you fix and re-run)
 - 🔍 **Input Discovery** (since 3.10.2): loads story + PRD + arch + UX + `project-context.md` + `lessons.md` (`Scope: aped-review | all`) at entry. Each specialist's prompt is augmented with their scoped lessons so checks are explicit, not advisory. Architecture is now strongly recommended (degraded mode if missing) instead of required — projects that legitimately skip `aped-arch` can still run review.
+- **Stage 1.5** (since 4.7.0): intermediate review layer between Eva (Stage 1) and the full parallel dispatch (Stage 2). Three specialists — **Hannah** (dependency auditor), **Eli** (error-path coverage), **Aaron** (API contract consistency) — run synchronously after Eva PASS. Stage 1.5 NACK halts before full dispatch, saving token budget on structurally flawed code. Stage 1.5 PASS unlocks Stage 2.
+- **`merge-findings.mjs`** (since 4.7.0): deduplicates and merges findings from all review stages into a single consolidated report. Handles cross-specialist overlap (e.g., Marcus and Diego both flag the same missing error handler) — keeps the most specific finding, discards duplicates, and produces a ranked severity list.
+- **`config.review.parallel_reviewers`** (since 5.0.0): configurable cap on Stage 2 parallel reviewer count (default: 4). Useful for projects with limited token budgets or where fewer specialist perspectives suffice. Set in `.aped/config.yaml` under `review.parallel_reviewers`.
 - **Output**: report posted as ticket comment + status updated
 - **Ticket**: source of truth, git audit via `git-audit.sh`
 
@@ -120,6 +133,7 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 
 ### `aped-ship`
 - **Sprint umbrella → base PR opener.** Does NOT batch-merge stories — those merges happen au-fil-de-l'eau in `aped-lead`.
+- **MCP**: `aped_state.advance` (marks sprint as shipped), `aped_ticket` (bulk-closes tickets on ship)
 - Verifies all done stories of the active epic are merged into the umbrella (both `git branch --merged $UMBRELLA` and `merged_into_umbrella: true` in state.yaml agree).
 - Runs the composite review on `umbrella vs origin/<base>`: secret scan, debug/TODO scan, typecheck, lint, `db:generate`, `state.yaml` consistency on the umbrella tip, leftover worktrees/branches.
 - Pushes the umbrella branch and prints `gh pr create --base <base> --head sprint/epic-{N}` (with the composite summary as PR body) for the user to run. **Base only ever sees commits via that one PR.**
@@ -147,6 +161,7 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 
 ### `aped-qa [story-key]`
 - Generates E2E + integration tests from ACs of a completed feature
+- **Oracle**: `oracle-qa.sh` — validates test coverage against ACs, checks for missing edge-case scenarios
 
 ### `aped-quick <title> [fix|feature|refactor]`
 - Quick fix / small feature — bypasses the full pipeline
@@ -158,6 +173,26 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Flow**: parse argument (bare ID or full URL — host must match `ticket_system`) → fetch ticket → compile project context (PRD overlap, architecture constraints, related stories, codebase patterns) → draft story collaboratively with ⏸ GATE → persist under `external-tickets` bucket or auto-matched epic → register in `state.yaml` with `source: from_ticket` (out-of-sprint by default — explicit promotion required) → 3-option handoff prompt (`[D]` run aped-dev / `[P]` promote to active sprint / `[S]` stop).
 - **Optional comment-back** to the source ticket (opt-in via `from_ticket.ticket_comment.enabled`).
 - **All knobs** under `from_ticket:` in `.aped/config.yaml`: `story_placement.{mode, bucket_epic}`, `ticket_comment.{enabled, template}`, `sprint_integration.auto_add`, `handoff.after_story`. Sensible defaults — works out-of-the-box without config edits.
+
+### `aped-triage [ticket-id | description]`
+- **Purpose**: rapid severity/priority assessment of an incoming issue before it enters the pipeline
+- Routes to the appropriate entry point: `aped-quick` (trivial), `aped-from-ticket` (external), or full pipeline (`aped-analyze`) based on complexity score
+- Produces a one-page triage card with severity, blast radius, recommended path, and estimated effort
+
+### `aped-pre-mortem [artifact-path]`
+- **Purpose**: prospective failure analysis on any APED artifact (PRD, architecture, epic plan, story spec) before it reaches the next gate
+- Enumerates the top failure modes ("how could this go wrong?"), assigns likelihood and impact, and produces mitigations
+- Complements `aped-elicit` (which is broader) — `aped-pre-mortem` is specifically structured around risk registers
+
+### `aped-design-twice [topic]`
+- **Purpose**: generates two competing designs for the same problem, then evaluates trade-offs
+- Forces genuine alternatives (not strawman vs. real) — each design must be independently viable
+- Produces a comparison matrix and a recommendation with dissenting-opinion section
+
+### `aped-grill [artifact-path | story-key]`
+- **Purpose**: adversarial stress-test of a completed artifact or implementation
+- Goes beyond review — actively tries to break assumptions, find contradictions, and expose implicit dependencies
+- Produces a findings report with severity tiers (structural / significant / cosmetic)
 
 ### `aped-check`
 - Human-in-the-loop checkpoint — summarizes recent changes, highlights concerns, HALTs for review
@@ -284,6 +319,8 @@ Three reference docs callable on demand from any skill:
 
 ### state.yaml schema (v1 since 3.12.0, v2 since 4.1.0)
 
+- **Oracle**: `oracle-state.sh` — validates state.yaml integrity, checks for schema conformance, detects stale entries and orphaned references
+
 Existing scaffolds keep working without changes (missing `schema_version` is treated as implicit 1). `validate-state.sh` accepts both `1` and `2`. Migration is **automatic and idempotent** — `aped-method --update` runs `migrate-state.sh` 1 → 2 as a Phase-3 task, writing a backup at `docs/state.yaml.pre-v2-migration.bak` before any mutation.
 
 #### Schema v1 (3.12.0 → 4.0.x)
@@ -306,6 +343,61 @@ Existing scaffolds keep working without changes (missing `schema_version` is tre
 
 The 3.x slash-command shells (`/aped-X`, scaffolded as `.claude/commands/aped-*.md`) were retired in 4.0.0. Skills are the only invocation surface — call them by name via Claude Code's Skill tool, or let the runtime route from a phrase that matches the skill's `description:`. `aped-method doctor` flags any leftover `.claude/commands/aped-*.md` stubs and a leftover `commands_path:` key in `aped/config.yaml` as warn-level diagnostics (non-blocking — exitCode stays 0) until the user removes them.
 
+---
+
+## What changed in 4.7.0 → 5.5.1
+
+Cumulative changes from v4.7.0 through v5.5.1. Only deltas not already covered in per-phase sections above. Nothing breaking from 4.x — every existing scaffold continues to work without configuration changes.
+
+### Oracle scripts (5.0.0+)
+
+Six oracle scripts shipped as automated validation gates, each runnable standalone or invoked by its parent skill:
+
+| Script | Phase | Purpose |
+|---|---|---|
+| `oracle-prd.sh` | PRD | FR/NFR structure, AC completeness, metric unambiguity |
+| `oracle-arch.sh` | Architecture | ADR consistency, PRD constraint alignment, pattern conflicts |
+| `oracle-epics.sh` | Epics | FR coverage, dependency cycle detection, story granularity |
+| `oracle-dev.sh` | Dev | TDD cycle completeness, coverage thresholds, commit hygiene |
+| `oracle-qa.sh` | QA | AC coverage in tests, edge-case scenario completeness |
+| `oracle-state.sh` | State | Schema conformance, stale entries, orphaned references |
+
+All oracles exit 0 (pass) / 1 (findings, non-blocking) / 2 (structural failure, blocking). Findings are appended to the skill's report output.
+
+### Review Stage 1.5 (4.7.0)
+
+- Three new specialists — **Hannah** (dependency audit), **Eli** (error-path coverage), **Aaron** (API contract consistency) — run synchronously between Eva (Stage 1) and the full parallel dispatch (Stage 2).
+- `merge-findings.mjs` deduplicates cross-specialist overlap into a single ranked report.
+- See the updated Review phase section (section 8) for details.
+
+### MCP tool integration (5.0.0+)
+
+- `aped_state.advance` — programmatic state machine transitions, used in Dev (story completion) and Ship (sprint closure).
+- `aped_ticket` — programmatic ticket CRUD, used in Epics (ticket seeding) and Ship (bulk close).
+
+### Dev phase hardening (5.0.0 → 5.3.0)
+
+- **Completion-gate checklist** (5.0.0): structured exit criteria for dev phase.
+- **Commit-gate hook** (5.0.0): pre-commit validation for test evidence and TODO markers.
+- **RED witness enforcement** (5.2.0): `tdd-red-marker` hook rejects GREEN commits without a preceding RED on record.
+- **Verbatim AC spec-quote rule** (5.3.0): ACs must be quoted verbatim from the story spec in test files.
+
+### Review enhancements (4.7.0 → 5.0.0)
+
+- **Stage 1.5** with Hannah/Eli/Aaron (4.7.0).
+- **`merge-findings.mjs`** for cross-specialist deduplication (4.7.0).
+- **`config.review.parallel_reviewers`** — configurable Stage 2 reviewer cap, default 4 (5.0.0).
+
+### New utilities (5.1.0 → 5.4.0)
+
+- **`aped-triage`** (5.1.0): rapid severity/priority assessment and pipeline routing.
+- **`aped-pre-mortem`** (5.2.0): prospective failure analysis on any APED artifact.
+- **`aped-design-twice`** (5.3.0): competing-designs generator with trade-off matrix.
+- **`aped-grill`** (5.4.0): adversarial stress-test beyond standard review.
+
+### Skill count
+
+APED ships **33 skills** as of v5.5.1 (up from 25 in v3.12.0).
 
 ---
 

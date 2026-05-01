@@ -34,6 +34,9 @@ APED runs work through **named personas** (BMAD-inspired) so each agent stays in
 | **Aria** | Visual / Design Engineer | `aped-review` (if FE + preview) | Parallel, Lead merges |
 | **Kai** | Platform / DevOps | `aped-review` (if infra) | Parallel, Lead merges |
 | **Sam** | Fullstack Tech Lead | `aped-review` (if ≥ 2 layers) | Parallel, Lead merges |
+| **Hannah** | Blind Hunter | `aped-review` Stage 1.5 | Parallel, Lead merges |
+| **Eli** | Edge Case Hunter | `aped-review` Stage 1.5 | Parallel, Lead merges |
+| **Aaron** | Acceptance Auditor | `aped-review` Stage 1.5 | Parallel, Lead merges |
 | **Mia** | Struggle Analyzer | `aped-retro` | Independent parallel |
 | **Leo** (retro) | Velocity & Quality | `aped-retro` | Independent parallel |
 | **Ava** | Previous-Retro Auditor | `aped-retro` | Independent parallel |
@@ -98,6 +101,16 @@ Why? Keeps the workflow focused on **validation**, avoids tmux-pane rendering is
 
 **Minimum 3 findings** — if a reviewer finds nothing, they're looking wrong.
 
+### Stage 1.5 — Adversarial reviewers (since 4.18.0)
+
+After Eva's Stage 1 gate passes and before the conditional specialists fan out, three adversarial reviewers run in parallel as **Stage 1.5**. They apply orthogonal attack vectors to catch what domain specialists miss.
+
+- **Hannah** — Blind Hunter. *"If I can't find it in the code, it doesn't exist."* Reviews the implementation **without reading the spec** — flags hallucinated identifiers, phantom imports, references to functions/variables/types that don't exist in the codebase. Catches spec-wishful-thinking that leaks into code.
+- **Eli** — Edge Case Hunter. *"What happens at the boundary?"* Walks every branching path and boundary condition: off-by-ones, empty inputs, nil/undefined propagation, concurrent access, locale edge cases. Method-driven, not attitude-driven — exhaustive path analysis.
+- **Aaron** — Acceptance Auditor. *"Show me the AC in the test, verbatim."* Verifies that every acceptance criterion from the story spec appears **verbatim** in at least one test assertion. No paraphrasing, no "implied coverage" — if the AC says "returns 404 when not found", a test must assert exactly that.
+
+Stage 1.5 findings merge into the Lead's consolidated report alongside Stage 2 conditional specialists.
+
 ---
 
 ## Retrospective specialists — `aped-retro`
@@ -119,6 +132,8 @@ Output: `docs/aped/retros/epic-{N}.md` + `docs/aped/lessons.md` (distilled, cros
 | `Agent` | All specialist dispatches |
 | `TaskCreate` / `TaskUpdate` / `TaskList` | Sprint task tracking |
 | `TeamCreate` / `TeamDelete` / `SendMessage` | **Only** `aped-dev` fullstack mode (Kenji / Amelia / Leo co-edit a contract) |
+| `aped_state.get` / `aped_state.update` / `aped_state.advance` | MCP state tools — read/write `state.yaml` fields, advance pipeline phase. Used by all pipeline skills. |
+| `aped-ticket` adapter | Ticket system abstraction (Linear, GitHub Issues, Jira). Skills call the adapter; the adapter routes to the configured provider. |
 
 Review is **pure validation** → skips the team machinery entirely, each reviewer is a plain subagent.
 
@@ -133,7 +148,9 @@ Principle: **don't introduce coordination where none is needed** — coordinatio
 
 ---
 
-## What changed in 3.11.0 → 3.12.0
+## What changed in 3.11.0 → 5.5.0
+
+### 3.11.0 → 3.12.0
 
 The persona roster is unchanged — no new named personas were added in Tiers 4-6. But several personas gained sharper criteria, and a new **adversarial subagent role** (the spec-reviewer) joins the lineup as a non-persona dispatched on demand.
 
@@ -194,6 +211,46 @@ When the Architecture Council (Winston / Lena / Raj / Nina / Maya) is dispatched
 | `TeamCreate` / `TeamDelete` / `SendMessage` | **Only** `aped-dev` fullstack mode (Kenji / Amelia / Leo co-edit a contract) |
 | `Skill` | Primary invocation surface (slash commands removed in 4.0.0). Use the bare skill name (`aped-prd`, `aped-review`…) — no leading slash. |
 
+### 4.7.0 → 5.5.0
+
+#### Stage 1.5 adversarial reviewers — Hannah, Eli, Aaron (since 4.18.0)
+
+Three new **named personas** join the review pipeline as a dedicated adversarial layer between Eva's AC gate (Stage 1) and the conditional domain specialists (Stage 2). See the [Stage 1.5 section](#stage-15--adversarial-reviewers-since-4180) above for full descriptions.
+
+The review flow is now three stages:
+
+1. **Stage 1** — Eva (AC gate, blocking)
+2. **Stage 1.5** — Hannah + Eli + Aaron (adversarial, parallel)
+3. **Stage 2** — Marcus + Rex + conditional specialists (domain, parallel)
+
+This brings the total named persona count to **24** (21 prior + Hannah + Eli + Aaron).
+
+#### MCP state tools (since 4.7.0)
+
+Pipeline skills no longer write `state.yaml` via raw file I/O. The `aped_state` MCP server exposes:
+
+- `aped_state.get` — read any `state.yaml` path (dot-notation)
+- `aped_state.update` — write any `state.yaml` path with validation
+- `aped_state.advance` — advance the pipeline phase with guard rails (no skipping, no backward moves without `--force`)
+
+#### aped-ticket adapter (since 5.0.0)
+
+A provider-agnostic ticket abstraction. Skills call `aped-ticket` methods (`create`, `transition`, `comment`, `link`); the adapter routes to whichever provider was selected at install time (Linear, GitHub Issues, Jira). Persona skills that interact with tickets (Eva for AC traceability, Rex for commit-ticket cross-ref) use the adapter transparently.
+
+#### Skill count
+
+APED ships **33 skills** as of v5.5.0.
+
+#### Tool surface update (cumulative)
+
+| Tool | Usage |
+|---|---|
+| `Agent` | All specialist dispatches + spec-reviewer subagent |
+| `TaskCreate` / `TaskUpdate` / `TaskList` | Sprint task tracking |
+| `TeamCreate` / `TeamDelete` / `SendMessage` | **Only** `aped-dev` fullstack mode |
+| `Skill` | Primary invocation surface (bare skill name, no slash) |
+| `aped_state.get` / `.update` / `.advance` | MCP state tools (since 4.7.0) |
+| `aped-ticket` adapter | Provider-agnostic ticket ops (since 5.0.0) |
 
 ---
 

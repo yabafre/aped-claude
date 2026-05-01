@@ -6,7 +6,7 @@ tags: [aped, workflow, process]
 # APED — Workflow
 **APED** (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) is a disciplined dev pipeline for [Claude Code](https://claude.ai/download). Every phase produces an **artifact**, requires **explicit user validation**, and hands off via a **coherence hook** that warns on skipped steps.
 
-> 📦 Product: `npx aped-method` — scaffolds **25 skills** + hooks into any Claude Code project. Latest stable: **v4.0.0** (2026-04-29).
+> 📦 Product: `npx aped-method` — scaffolds **33 skills** + hooks into any Claude Code project. Latest stable: **v5.5.1** (2026-04-30).
 > 🔗 See also: [APED — Phases](.aped-phases.md), [APED — Personas & Teams](.aped-personas.md), [APED — Team Quickstart](.aped-quickstart.md)
 
 > ℹ️ **Slash commands removed in 4.0.0** — the 3.x `/aped-X` shells (scaffolded as `.claude/commands/aped-*.md`) were retired. Skills are the only invocation surface — use the **Skill tool** directly or rely on **natural-language triggers** that match each skill's `description:` (say *"create the prd"*, *"run an architecture review"*, etc.).
@@ -169,6 +169,7 @@ flowchart TB
 16. **Input discovery — consume-everything-found** — every skill globs `docs/aped/**` at entry and loads upstream artefacts.
 17. **Lessons feedback loop** — `aped-retro` writes scoped rules to `lessons.md`; `aped-story`, `aped-dev`, `aped-review` consume them at runtime.
 18. **Sync-logs auditability** (since 3.12.0) — `aped/scripts/sync-log.sh` (start / phase / record / end) emits structured JSON audit logs at `docs/sync-logs/<provider>-sync-<ISO>.json` for every ticket-system operation. Atomic writes; concurrent calls protected by mkdir-lock with stale-recovery. Configurable per project.
+19. **Anti-rationalization architecture** (since 4.7.0) — structural enforcement over prose. Three layers: (a) **completion-gate checklists** as separate files per BMAD pattern (one per phase/gate, not inline prose the LLM can skip); (b) **hooks for deterministic enforcement** per Anthropic guidance (`commit-gate.sh` blocks commits missing required evidence, `allowed-paths-scope.sh` rejects edits outside the story's declared scope); (c) **oracle scripts** for pre-checks that must not depend on LLM judgment (e.g., "are all tests green?" is a script call, not a question). The principle: anything the LLM can rationalize away must be enforced by code, not by instruction.
 
 ---
 
@@ -176,8 +177,9 @@ flowchart TB
 
 A `npx aped-method` run drops:
 
-- **`.aped/`** — update-safe engine: `config.yaml`, hooks (`guardrail.sh`, `upstream-lock.sh`), scripts (sync-state, sync-log, validate-state, migrate-state, check-auto-approve, check-active-worktrees, log, find-polluter, lint-placeholders), templates, **25 sub-skills** including the new `aped-debug/`, `aped-receive-review/`.
+- **`.aped/`** — update-safe engine: `config.yaml`, hooks (`guardrail.sh`, `upstream-lock.sh`, `commit-gate.sh`, `allowed-paths-scope.sh`), scripts (sync-state, sync-log, validate-state, migrate-state, check-auto-approve, check-active-worktrees, log, find-polluter, lint-placeholders), **6 oracle scripts** (deterministic pre-checks invoked by hooks and skills), **3 release scripts** (`cut-release.sh`, `check-pre-merge.sh`, `lint-bash-discipline.sh`), templates, **16 completion-gate checklists** (separate files per BMAD pattern, one per phase/gate), **33 sub-skills** including `aped-debug/`, `aped-receive-review/`.
 - **`.aped/aped-skills/`** (since 3.11.0) — reference docs callable on demand: `anthropic-best-practices.md` (CSO description principle, gerund naming, no-placeholders), `persuasion-principles.md` (7-principle table, Meincke 2025 attribution), `testing-skills-with-subagents.md` (RED-GREEN-REFACTOR runner methodology — wakes up the skill-triggering harness).
+- **MCP servers** (since 5.0.0) — `aped-state` (typed state ops: read/write/transition on `state.yaml` with schema validation, replacing raw file edits), `aped-ticket` (provider-routed ticket management: create/update/transition tickets across Linear/Jira/GitHub/GitLab through a single tool surface).
 - **`.claude/skills/aped-*`** — symlinks back to `.aped/aped-*/` so Claude Code's standard skill discovery picks every APED skill up. The 3.x slash-command shells under `.claude/commands/` were removed in 4.0.0.
 - **`.claude/settings.local.json`** — UserPromptSubmit + PreToolUse hooks + pre-approved Bash permissions.
 - **`docs/aped/`** — evolving output: `state.yaml` (since 4.1.0 / schema v2: `schema_version: 2` + top-level slots `ticket_sync` / `backlog_future_scope` / `corrections_pointer` + `corrections_count`; richer per-phase records under `pipeline.phases.<phase>`), `state-corrections.yaml` (split out of state.yaml in 4.1.0; appended via `sync-state.sh append-correction`), `product-brief.md`, `prd.md`, `ux/`, `architecture.md`, `epics.md`, `stories/`, `retros/`, `lessons.md`, `epic-{N}-context.md`.
@@ -211,15 +213,36 @@ Each opt-in subcommand also accepts `--uninstall`.
 | GitLab Issues (`glab`) | | `feat(#XX): …` | `gitlab` |
 | `none` (JSONL fallback) | | `feat: …` | n/a (no sync-log emitted) |
 
+### MCP integration layer (since 5.0.0)
+
+Two MCP servers ship with the scaffold and are auto-registered in `.claude/settings.local.json`:
+
+- **`aped_state`** — typed state operations (`read_phase`, `write_phase`, `transition`, `validate`) on `state.yaml` with schema v2 validation. Replaces raw file edits that previously caused schema drift and partial writes. Skills call `mcp__aped_state__*` tools instead of writing YAML directly.
+- **`aped_ticket`** — provider-routed ticket management. A single tool surface (`create_ticket`, `update_ticket`, `transition_ticket`, `get_ticket`) dispatches to the configured provider (Linear / Jira / GitHub Issues / GitLab Issues) via the install-time `ticket_system` choice in `config.yaml`. Removes provider-specific branching from skill code.
+
 ---
 
 ## Resources
 
 - 📚 Skill source: `src/templates/skills/aped-*.md` in [the source repo](https://github.com/yabafre/aped-claude/tree/main/packages/create-aped/src/templates/skills) — every skill carries its own `description:`, triggers, and inline cheat sheet.
 - 🆘 Troubleshooting: [`docs/TROUBLESHOOTING.md`](https://github.com/yabafre/aped-claude/blob/main/packages/create-aped/docs/TROUBLESHOOTING.md)
-- 📦 npm: [`aped-method`](https://www.npmjs.com/package/aped-method) — latest **4.0.0** with provenance attestation.
+- 📦 npm: [`aped-method`](https://www.npmjs.com/package/aped-method) — latest **5.5.1** with provenance attestation.
 - 💻 Source: [github.com/yabafre/aped-claude](https://github.com/yabafre/aped-claude)
 
+---
+
+## What changed in 4.7 → 5.5
+
+Key evolution milestones since the 4.0 skill-only invocation model:
+
+| Version | Highlight |
+|---|---|
+| **4.7** | Anti-rationalization architecture: completion-gate checklists extracted to separate files (BMAD pattern), `commit-gate.sh` and `allowed-paths-scope.sh` hooks for deterministic enforcement per Anthropic guidance, 6 oracle scripts for pre-checks that must not depend on LLM judgment. |
+| **5.0** | MCP integration layer: `aped-state` server for typed state ops (replaces raw `state.yaml` edits), `aped-ticket` server for provider-routed ticket management. Single tool surface across Linear/Jira/GitHub/GitLab. |
+| **5.1–5.3** | Release tooling: `cut-release.sh`, `check-pre-merge.sh`, `lint-bash-discipline.sh`. 16 completion-gate checklists covering all phases. |
+| **5.4–5.5** | Skill count reaches 33. Scaffold includes MCP servers, oracle scripts, release scripts, and gate checklists as first-class artifacts. |
+
+**Theme**: the 4.7 → 5.5 arc moved enforcement from prose instructions (that the LLM can rationalize away) to structural code (hooks, oracles, MCP-typed ops, file-per-gate checklists). Prose tells the LLM *why*; code ensures it *does*.
 
 ---
 
