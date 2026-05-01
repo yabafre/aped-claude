@@ -22,7 +22,19 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Build tarball
-        run: npm pack --pack-destination /tmp/pack
+        run: |
+          mkdir -p /tmp/pack
+          npm pack --pack-destination /tmp/pack
+
+      - name: Verify tarball includes BMAD layout
+        run: |
+          TARBALL=$(ls /tmp/pack/aped-method-*.tgz)
+          STEP_COUNT=$(tar tzf "$TARBALL" | grep -c "/steps/" || true)
+          SKILL_COUNT=$(tar tzf "$TARBALL" | grep -c "/SKILL\.md$" || true)
+          echo "step files in tarball: $STEP_COUNT"
+          echo "SKILL.md files in tarball: $SKILL_COUNT"
+          [ "$STEP_COUNT" -ge 80 ] || { echo "step files missing from tarball"; exit 1; }
+          [ "$SKILL_COUNT" -ge 30 ] || { echo "SKILL.md files missing from tarball"; exit 1; }
 
       - name: Scaffold from tarball
         run: |
