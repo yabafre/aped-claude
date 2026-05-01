@@ -142,7 +142,7 @@ Before doing any of the steps below, check resume conditions in this order:
 ### Steps (only when no `in-progress` state exists)
 
 1. If `{{OUTPUT_DIR}}/architecture.md` does **not** already exist, write the skeleton below to it (Write tool).
-2. Initialise `pipeline.phases.architecture` in `{{OUTPUT_DIR}}/state.yaml`:
+2. Run `aped_state.advance(phase: "arch", status: "in-progress")`. If MCP unavailable, fall back: initialise `pipeline.phases.architecture` in `{{OUTPUT_DIR}}/state.yaml`:
    ```yaml
    pipeline:
      current_phase: "architecture"
@@ -419,7 +419,7 @@ Choose your next move:
 Before flipping `architecture.md` to `done`, walk this checklist. Each `[ ]` must flip to `[x]` or HALT.
 
 - [ ] **Placeholder lint** — run `bash {{APED_DIR}}/scripts/lint-placeholders.sh {{OUTPUT_DIR}}/architecture.md`.
-- [ ] **Oracle pass** — run `bash {{APED_DIR}}/aped-arch/scripts/oracle-arch.sh {{OUTPUT_DIR}}/architecture.md {{OUTPUT_DIR}}/prd.md`. The oracle (4.12.0+) verifies E010 every PRD FR is referenced, E011/E012 every component declaration has Owner + Tech stack, E013 every ADR template field is filled. Surface any `ERROR Eddd: ...` line verbatim to the user and HALT. **MCP-enabled installs**: prefer `aped_validate.phase(phase: "arch")` over the bash invocation when `aped-state` MCP is registered (see `aped-method enable-mcp`, 4.13.0+) — it returns `{ ok, violations: [{code, message}, …] }` without natural-language parsing. The two paths are equivalent; the MCP atom is just typed.
+- [ ] **Oracle pass** — run `bash {{APED_DIR}}/aped-arch/scripts/oracle-arch.sh {{OUTPUT_DIR}}/architecture.md {{OUTPUT_DIR}}/prd.md`. The oracle (4.12.0+) verifies E010 every PRD FR is referenced, E011/E012 every component declaration has Owner + Tech stack, E013 every ADR template field is filled. Surface any `ERROR Eddd: ...` line verbatim to the user and HALT. Run `aped_validate.phase(phase: "arch")` — returns `{ ok, violations: [{code, message}] }` typed. If MCP unavailable, fall back to the bash invocation above.
 - [ ] **FR implementation paths** — every PRD FR is mentioned somewhere in `architecture.md` with a clear implementation surface (file/module/component).
 - [ ] **No conflicting decisions** — Phase 2 categories (data, auth, API, frontend, infra) work together; no contradictions (e.g. `tRPC` + `gRPC` simultaneously without justification).
 - [ ] **Council minority views recorded** — every Council dispatch in Phase 2b includes the minority view in `architecture.md` (it's signal for future pivots).
