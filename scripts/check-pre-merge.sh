@@ -17,15 +17,28 @@ if [[ "$TIER_DIRECT" -gt 0 ]]; then
 fi
 
 # ── 2. Skills — description present, no /aped- self-refs ─────────────
-for skill in src/templates/skills/aped-*.md; do
-  [[ -f "$skill" ]] || continue
-  base=$(basename "$skill")
-  DESC_COUNT=$({ grep -E '^description:' "$skill" 2>/dev/null || true; } | wc -l | tr -d ' ')
+# 6.0.0: skills moved from flat aped-X.md to aped-X/SKILL.md (with optional
+# workflow.md + steps/). Walk both layouts.
+for skill_entry in src/templates/skills/aped-*; do
+  [[ -e "$skill_entry" ]] || continue
+  base_dir=$(basename "$skill_entry")
+  [[ "$base_dir" == "aped-skills" ]] && continue  # non-routable bucket
+  if [[ -d "$skill_entry" ]]; then
+    skill_md="$skill_entry/SKILL.md"
+    [[ -f "$skill_md" ]] || continue
+    base="$base_dir/SKILL.md"
+  elif [[ -f "$skill_entry" && "$skill_entry" == *.md ]]; then
+    skill_md="$skill_entry"
+    base=$(basename "$skill_entry")
+  else
+    continue
+  fi
+  DESC_COUNT=$({ grep -E '^description:' "$skill_md" 2>/dev/null || true; } | wc -l | tr -d ' ')
   if [[ "$DESC_COUNT" -lt 1 ]]; then
     echo "FAIL: $base missing 'description:' frontmatter"
     ERRORS=$((ERRORS + 1))
   fi
-  SELF_REF=$({ grep -E '^\s*/aped-' "$skill" 2>/dev/null || true; } | wc -l | tr -d ' ')
+  SELF_REF=$({ grep -E '^\s*/aped-' "$skill_md" 2>/dev/null || true; } | wc -l | tr -d ' ')
   if [[ "$SELF_REF" -gt 0 ]]; then
     echo "FAIL: $base has /aped- self-reference (slash commands retired in 4.0.0)"
     ERRORS=$((ERRORS + 1))
@@ -33,7 +46,10 @@ for skill in src/templates/skills/aped-*.md; do
 done
 
 # ── 3. README skill counter matches actual ───────────────────────────
-SKILL_COUNT=$({ ls src/templates/skills/aped-*.md 2>/dev/null || true; } | wc -l | tr -d ' ')
+# Count both flat aped-X.md (legacy) and aped-X/SKILL.md (6.0.0+).
+SKILL_COUNT_FLAT=$({ ls src/templates/skills/aped-*.md 2>/dev/null || true; } | wc -l | tr -d ' ')
+SKILL_COUNT_DIR=$({ find src/templates/skills -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null || true; } | grep -v aped-skills | wc -l | tr -d ' ')
+SKILL_COUNT=$((SKILL_COUNT_FLAT + SKILL_COUNT_DIR))
 README_COUNT=$({ grep -oE '\*\*[0-9]+ skills\*\*' README.md || true; } | head -1 | { grep -oE '[0-9]+' || echo 0; })
 if [[ "$SKILL_COUNT" != "$README_COUNT" ]]; then
   echo "FAIL: README claims $README_COUNT skills, actual count is $SKILL_COUNT"

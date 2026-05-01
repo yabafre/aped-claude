@@ -17,28 +17,42 @@ export function checklists({ apedDir }) {
 
 Read this checklist BEFORE declaring dev complete. Every unchecked item is a blocker.
 
-- [ ] **Branch created** before any code writes (not on main)
+- [ ] **Branch verified** as a feature branch (not main/master/prod/develop) — branch creation is aped-story's job, this skill only verifies
 - [ ] **RED witnessed** for every new test (Confirmed RED token emitted)
 - [ ] **GREEN confirmed** (test runner exit 0, output visible in transcript)
+- [ ] **Verbatim AC quote** present above each test (no paraphrase)
+- [ ] **Schema identifiers** verified verbatim against story / PRD (no invented table/column names)
 - [ ] **One commit per task** (not batched at the end)
+- [ ] **No git add .** anywhere — specific files only
 - [ ] **No --no-verify** on any commit (pre-commit hooks must run)
 - [ ] **last-test-exit cache** updated (.aped/.last-test-exit = 0)
+- [ ] **Story file Dev Agent Record** filled (NO Review Record — that's aped-review's territory)
 - [ ] **Story file status** updated to review (not still ready-for-dev)
 - [ ] **state.yaml updated** (pipeline.phases.dev.status = complete)
 - [ ] **Ticket synced** (if ticket_system != none: status → In Review, comment with summary)
-- [ ] **PR created** with link to story (if not worktree mode)
+- [ ] **PR created** with link to story (only in classic solo mode without sprint umbrella)
+- [ ] **dev-done check-in posted** (worktree/parallel-sprint mode only)
 `,
     },
     {
       path: `${dir}/checklist-story.md`,
       content: `# aped-story — Completion Gate
 
-- [ ] **Branch created** before writing story file
+- [ ] **Branch refusal-on-main respected** — never created a story on main/master/prod/production/develop/release/*/DETACHED
+- [ ] **Feature branch created** before writing the story file (solo mode) OR pre-existing in worktree mode
+- [ ] **Branch name follows convention** feature/{ticket}-{slug} (or feature/none-{slug} when ticket_system=none)
+- [ ] **Step-0 quote** present in Dev Notes for every modified file (or "none — new file" for greenfield)
+- [ ] **File structure design** present — 3-bullet decision template per file in File List
+- [ ] **Reader-persona check** ran — story top-to-bottom asks "would the junior produce the right code from this?"
+- [ ] **Task granularity contract** — every task has all 5 must-haves (path, full code, test cmd, expected output, commit step)
+- [ ] **Forbidden patterns absent** — no "similar to story X", "appropriate error handling", "see line N", snippet "..."
 - [ ] **Story file written** to {{OUTPUT_DIR}}/stories/
-- [ ] **state.yaml updated** (pipeline.current_phase = stories)
-- [ ] **Ticket synced** (if ticket_system != none: assign + post AC comment)
+- [ ] **Placeholder lint** passed (no TODO/TBD/<replace-me> in the story file)
+- [ ] **state.yaml updated** (sprint.stories.{key}.status = ready-for-dev)
+- [ ] **Ticket synced** (if ticket_system != none: assign + post refined-AC comment, never overwrite body)
 - [ ] **All ACs** have measurable acceptance criteria (no "should work well")
-- [ ] **File list** matches architecture component map
+- [ ] **ACs describe behaviour** not implementation (no file paths or function names in ACs — those go in Tasks)
+- [ ] **Worktree mode**: story file + state.yaml committed on the feature branch, story-ready check-in posted
 `,
     },
     {
@@ -46,13 +60,23 @@ Read this checklist BEFORE declaring dev complete. Every unchecked item is a blo
       content: `# aped-review — Completion Gate
 
 - [ ] **Fresh context** (not same session as implementation — if same, /clear first)
-- [ ] **Stage 1 (Eva)** completed — AC validation verdict rendered
-- [ ] **Stage 1.5** dispatched (if review.parallel_reviewers = true in config)
-- [ ] **Stage 2** dispatched — all specialists returned findings
-- [ ] **Final report written** to {{OUTPUT_DIR}}/
-- [ ] **Verdict** clearly stated (APPROVED / CHANGES_REQUESTED)
-- [ ] **Ticket status** updated (if ticket_system != none)
-- [ ] **Story file status** updated to match verdict
+- [ ] **Stage 1 (Eva)** completed — AC validation verdict rendered as a synchronous gate
+- [ ] **NACK handled** — Eva NACK led to [F]ix or [O]verride with non-empty reason (override path only)
+- [ ] **Stage 1.5** dispatched in parallel (if review.parallel_reviewers = true in config) — Hannah/Eli/Aaron
+- [ ] **Stage 2** dispatched in a single Agent message — Marcus/Rex + conditionals
+- [ ] **Marcus 5-anti-pattern audit** included in his prompt and findings reflect it
+- [ ] **Rex git-audit** ran via the script (not paraphrased)
+- [ ] **Minimum 3 findings** — re-dispatch a specialist if fewer
+- [ ] **Every finding has evidence** — file:line + Evidence + Suggested fix + Source
+- [ ] **Verification re-run captured in this message** (test runner output / diff+output / screenshot)
+- [ ] **No forbidden phrases alone** — "should work" / "looks good" / "probably fine" never present without evidence
+- [ ] **Verdict** clearly stated (story → done OR stays review)
+- [ ] **Ticket comment posted** with the consolidated report (if ticket_system != none)
+- [ ] **PR opened/updated against sprint.umbrella_branch** (NEVER against base) — only when story → done
+- [ ] **Review Record appended to the story file** at {{OUTPUT_DIR}}/stories/{story-key}.md
+- [ ] **NO separate review file created** anywhere — the story file is the single canonical home
+- [ ] **state.yaml updated** to match the verdict (story → done OR stays review)
+- [ ] **review-done check-in posted** (worktree/parallel-sprint mode + story → done)
 `,
     },
     {

@@ -1,26 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readSkillContent } from './_helpers/resolve-skills.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SKILL_PATH = join(
-  __dirname,
-  '..',
-  'src',
-  'templates',
-  'skills',
-  'aped-arch-audit.md',
-);
+const SKILLS_DIR = join(__dirname, '..', 'src', 'templates', 'skills');
 
-// Phase 1 contract for aped-arch-audit: standard APED frontmatter, the
-// canonical Iron Law, the full vocabulary (translation of Pocock's
-// LANGUAGE.md), the Disposition vs aped-arch boundary, and the four
-// dependency categories from DEEPENING.md. The skill is monolithic in
-// Phase 1 -- a Phase 2 split into LANGUAGE / DEEPENING / INTERFACE-DESIGN
-// companions will require updating this test to follow the new layout.
+// Phase 1 contract for aped-arch-audit. 6.0.0: skill moved from flat .md
+// to directory format; concatenated body still satisfies the contract.
 describe('aped-arch-audit skill contract', () => {
-  const content = readFileSync(SKILL_PATH, 'utf-8');
+  const content = readSkillContent(SKILLS_DIR, 'aped-arch-audit');
 
   it('declares the required frontmatter keys', () => {
     const match = content.match(/^---\n([\s\S]*?)\n---\n/);
