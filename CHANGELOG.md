@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.5.0] - 2026-04-30
+
 ### Added
 
 - **Completion Gate checklists for 16 skills** — each skill > 250 lines gets a companion `checklist-<name>.md` file under `aped-skills/`. The skill body's final section forces a fresh `Read` of the checklist before declaring DONE. Pattern from BMAD: separate checklist files re-inject completion criteria into context at the point where attention is lowest (Anthropic context-engineering). Skills: dev, story, review, prd, arch, epics, ux, ship, sprint, debug, brainstorm, analyze, from-ticket, receive-review, retro, prfaq.
