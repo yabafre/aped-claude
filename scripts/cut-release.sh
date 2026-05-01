@@ -43,7 +43,10 @@ MINOR="${TARGET%.*}"
 }
 
 # ── Validate README skill counter ────────────────────────────────────
-SKILL_COUNT=$({ ls src/templates/skills/aped-*.md 2>/dev/null || true; } | wc -l | tr -d ' ')
+# 6.0.0+: count both legacy flat aped-X.md files and BMAD-layout aped-X/SKILL.md.
+SKILL_COUNT_FLAT=$({ ls src/templates/skills/aped-*.md 2>/dev/null || true; } | wc -l | tr -d ' ')
+SKILL_COUNT_DIR=$({ find src/templates/skills -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null || true; } | { grep -v aped-skills || true; } | wc -l | tr -d ' ')
+SKILL_COUNT=$((SKILL_COUNT_FLAT + SKILL_COUNT_DIR))
 README_COUNT=$({ grep -oE '\*\*[0-9]+ skills\*\*' README.md || true; } | head -1 | { grep -oE '[0-9]+' || echo 0; })
 [[ "$SKILL_COUNT" == "$README_COUNT" ]] || {
   echo "ERROR: README claims ${README_COUNT} skills, ls counts ${SKILL_COUNT}"

@@ -2,7 +2,7 @@
 step: 7
 reads:
   - "subagent/findings"
-  - "{{APED_DIR}}/scripts/merge-findings.mjs"
+  - "{{APED_DIR}}/scripts/aped-review/merge-findings.mjs"
 writes: []
 mutates_state: false
 ---
