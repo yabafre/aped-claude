@@ -1,10 +1,8 @@
 ---
 step: 1
-reads: 
-  - "{{APED_DIR}}/WORKTREE"
-  - "git/HEAD"
-  - "state.yaml#pipeline.current_phase"
-writes: 
+reads:
+  - "{{OUTPUT_DIR}}/state.yaml"
+writes:
   - "tasks"
 mutates_state: false
 ---

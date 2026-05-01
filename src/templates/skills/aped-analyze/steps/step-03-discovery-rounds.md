@@ -5,6 +5,9 @@ writes: []
 mutates_state: false
 ---
 
+<!-- Note: Step 3 is pure conversational discovery — questions only, no I/O. The synthesis lands in step 05. -->
+
+
 # Step 3: Phase 1 — Guided Discovery (4 rounds)
 
 ## MANDATORY EXECUTION RULES (READ FIRST):

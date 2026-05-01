@@ -1,13 +1,12 @@
 ---
 step: 6
-reads: 
+reads:
   - "src/**"
   - "tests/**"
-  - "git/diff"
-writes: 
+  - "{{APED_DIR}}/scripts/find-polluter.sh"
+writes:
   - "src/**"
   - "tests/**"
-  - "git/commits"
 mutates_state: false
 ---
 

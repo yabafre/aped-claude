@@ -1,7 +1,13 @@
 ---
 step: 2
-reads: []
-writes: []
+reads:
+  - "{{APED_DIR}}/.last-test-exit"
+  - "{{OUTPUT_DIR}}/state.yaml"
+  - "{{APED_DIR}}/.out-of-scope/*.md"
+  - "git/diff"
+  - "git/log"
+writes:
+  - "{{APED_DIR}}/.out-of-scope/*.md"
 mutates_state: false
 ---
 

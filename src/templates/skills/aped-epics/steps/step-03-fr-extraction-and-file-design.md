@@ -1,6 +1,9 @@
 ---
 step: 3
-reads: []
+reads:
+  - "{{OUTPUT_DIR}}/prd.md"
+  - "{{OUTPUT_DIR}}/architecture.md"
+  - "{{OUTPUT_DIR}}/ux/**"
 writes: []
 mutates_state: false
 ---

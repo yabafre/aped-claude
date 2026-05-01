@@ -1,7 +1,13 @@
 ---
 step: 6
-reads: []
-writes: []
+reads:
+  - "{{APED_DIR}}/aped-ux/references/ux-patterns.md"
+  - "{{OUTPUT_DIR}}/ux-preview/**"
+  - "{{APED_DIR}}/scripts/lint-placeholders.sh"
+  - "mcp/react-grab.get_element_context"
+writes:
+  - "{{OUTPUT_DIR}}/ux-preview/**"
+  - "subagent/spec-reviewer"
 mutates_state: false
 ---
 

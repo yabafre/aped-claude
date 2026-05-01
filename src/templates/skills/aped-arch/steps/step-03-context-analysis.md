@@ -1,8 +1,15 @@
 ---
 step: 3
-reads: []
-writes: []
-mutates_state: false
+reads:
+  - "{{OUTPUT_DIR}}/prd.md"
+  - "{{OUTPUT_DIR}}/ux/**"
+  - "{{OUTPUT_DIR}}/product-brief.md"
+  - "{{OUTPUT_DIR}}/project-context.md"
+  - "{{OUTPUT_DIR}}/architecture.md"
+writes:
+  - "{{OUTPUT_DIR}}/architecture.md"
+  - "state.yaml#pipeline.phases.architecture.current_subphase"
+mutates_state: true
 ---
 
 # Step 3: Phase 1 — Context Analysis

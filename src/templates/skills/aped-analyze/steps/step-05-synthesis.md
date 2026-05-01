@@ -1,8 +1,10 @@
 ---
 step: 5
-reads: 
+reads:
   - "subagent/findings"
-writes: []
+  - "{{APED_DIR}}/templates/product-brief.md"
+writes:
+  - "{{OUTPUT_DIR}}/product-brief.md"
 mutates_state: false
 ---
 

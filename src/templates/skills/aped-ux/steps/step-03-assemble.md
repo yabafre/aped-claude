@@ -1,7 +1,12 @@
 ---
 step: 3
-reads: []
-writes: []
+reads:
+  - "{{OUTPUT_DIR}}/prd.md"
+  - "{{APED_DIR}}/scripts/detect-package-runner.sh"
+  - "mcp/context7.resolve-library-id"
+  - "mcp/context7.query-docs"
+writes:
+  - "{{OUTPUT_DIR}}/ux-preview/**"
 mutates_state: false
 ---
 

@@ -1,7 +1,12 @@
 ---
 step: 5
-reads: []
-writes: 
+reads:
+  - "{{OUTPUT_DIR}}/prd.md"
+  - "{{APED_DIR}}/scripts/lint-placeholders.sh"
+  - "{{APED_DIR}}/aped-prd/scripts/validate-prd.sh"
+  - "{{APED_DIR}}/aped-prd/scripts/oracle-prd.sh"
+  - "mcp/aped_validate.phase"
+writes:
   - "subagent/spec-reviewer"
 mutates_state: false
 ---

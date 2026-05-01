@@ -1,10 +1,9 @@
 ---
 step: 7
-reads: 
+reads:
   - "{{APED_DIR}}/skills/aped-skills/checklist-brainstorm.md"
-writes: 
-  - "state.yaml#pipeline.phases.brainstorm"
-mutates_state: true
+writes: []
+mutates_state: false
 ---
 
 # Step 7: Completion Gate

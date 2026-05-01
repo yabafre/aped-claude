@@ -1,12 +1,13 @@
 ---
 step: 1
-reads: 
-  - "{{APED_DIR}}/WORKTREE"
-  - "git/HEAD"
-  - "state.yaml#pipeline.current_phase"
-writes: 
-  - "tasks"
-mutates_state: false
+reads:
+  - "{{OUTPUT_DIR}}/state.yaml"
+  - "{{OUTPUT_DIR}}/architecture.md"
+writes:
+  - "{{OUTPUT_DIR}}/architecture.md"
+  - "state.yaml#pipeline.phases.architecture"
+  - "mcp/aped_state.advance"
+mutates_state: true
 ---
 
 # Step 1: Initialization, Resume Guard, Phase 0 Skeleton

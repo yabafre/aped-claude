@@ -1,8 +1,18 @@
 ---
 step: 8
-reads: []
-writes: []
-mutates_state: false
+reads:
+  - "config.yaml#ticket_system"
+  - "{{APED_DIR}}/scripts/sync-log.sh"
+  - "{{APED_DIR}}/aped-dev/references/ticket-git-workflow.md"
+  - "{{OUTPUT_DIR}}/epics.md"
+writes:
+  - "ticket/{provider}"
+  - "{{OUTPUT_DIR}}/sync-logs/{provider}-sync-{iso}.json"
+  - "{{OUTPUT_DIR}}/epics.md"
+  - "state.yaml#sprint.stories"
+  - "state.yaml#ticket_sync"
+  - "state.yaml#pipeline.phases.epics.ticket_sync"
+mutates_state: true
 ---
 
 # Step 8: Ticket System Setup (with sync-log auditability)
