@@ -7,23 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] - 2026-05-01
+
 ### Added — `aped-glossary` skill (34th skill)
 
-New soft-dep skill that maintains a project-wide domain glossary at `{{OUTPUT_DIR}}/glossary.md`. Pattern lifted from Matt Pocock's `CONTEXT.md` convention (see [references/pocock-skills/CONTEXT.md](https://github.com/mattpocock/skills/blob/main/CONTEXT.md) and his "shared language" thesis).
+New soft-dep skill that maintains a project-wide domain glossary at `{{OUTPUT_DIR}}/glossary.md`. Pattern lifted from Matt Pocock's `CONTEXT.md` convention.
 
 - Workflow: discover → extract candidate terms (NEW / DRIFT / STALE buckets) → per-term loop with one-question-at-a-time confirmation → write/revise glossary.md (append + revise, never rewrite) → notify downstream skills.
 - Iron Law: **ONE WORD, ONE MEANING, ONE PLACE.** Synonyms get listed under `_Avoid:_` so future skill checks can flag drift.
 - Trigger phrases: "build glossary", "update glossary", "domain dictionary", "shared language", "sharpen language", "canonicalize terms".
 - Reads upstream artefacts (PRD, architecture, stories, project-context, brief) and any pre-existing `CONTEXT.md` at the project root. Writes only `{{OUTPUT_DIR}}/glossary.md`.
-- Counted in v6.0.0 inventory: 34 skills total (was 33).
 
 ### Added — ADR sharding in `aped-arch`
 
-Architectural decisions can now persist as separate ADR (Architecture Decision Record) files at `docs/aped/adr/000N-{slug}.md`, in addition to the rolling `architecture.md`. Pattern lifted directly from [Matt Pocock's `docs/adr/` convention](https://github.com/mattpocock/skills/blob/main/skills/engineering/grill-with-docs/ADR-FORMAT.md): keep the *that* and *why* of important decisions in stable, citable artefacts that survive `architecture.md` rewrites.
+Architectural decisions can now persist as separate ADR (Architecture Decision Record) files at `docs/aped/adr/000N-{slug}.md`, in addition to the rolling `architecture.md`. Pattern lifted from Matt Pocock's `docs/adr/` convention: keep the *that* and *why* of important decisions in stable, citable artefacts that survive `architecture.md` rewrites.
 
 - New scaffolder template: `.aped/templates/adr.md` — minimal Pocock-style format (Context / Decision / Why, optional sections only when they add value).
 - New scaffolder directory: `docs/aped/adr/.gitkeep` — empty placeholder; first ADR creates lazily.
-- `aped-arch/steps/step-04-technology-decisions.md` and `step-05-council-dispatch.md` now instruct the skill to write an ADR for every decision passing Pocock's three criteria (hard-to-reverse + surprising-without-context + real-trade-off). Council-dispatched decisions always qualify.
+- `aped-arch/steps/step-04-technology-decisions.md` and `step-05-council-dispatch.md` instruct the skill to write an ADR for every decision passing Pocock's three criteria (hard-to-reverse + surprising-without-context + real-trade-off). Council-dispatched decisions always qualify.
 - `aped-arch/workflow.md` adds ADR sharding to the Critical Rules.
 - `tests/adr-sharding.test.js` (5 cases) verifies the template + directory + skill body content.
 
@@ -42,9 +43,19 @@ mutates_state: <bool>
 
 82 step files across the 10 BMAD-decomposed phase skills carry this contract. Path syntax uses a documented prefix set (`{{OUTPUT_DIR}}/...`, `state.yaml#...`, `git/...`, `tasks`, `subagent/...`, `mcp/...`, `ticket/{provider}`, etc.) — see `docs/dev/discovery-pattern.md` for the table.
 
-`tests/step-io-contract-lint.test.js` enforces frontmatter presence + schema validity on every step file (493 cases). Validates the same thesis as Anthropic's [code-execution-with-MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) (typed tools as first-class citizens) at the skill level — making the path forward to an `aped-step.execute(name, inputs)` MCP server straightforward when desired.
+`tests/step-io-contract-lint.test.js` enforces frontmatter presence + schema validity on every step file. Validates the same thesis as Anthropic's [code-execution-with-MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) (typed tools as first-class citizens) at the skill level — paving the way for a future `aped-step.execute(name, inputs)` MCP server.
 
-## [6.0.0] - 2026-05-01
+### Fixed — npm tarball excluded the BMAD layout
+
+Pre-6.0.0 the `package.json` `files` field matched only flat `src/templates/skills/*.md`. The BMAD migration silently dropped every step + workflow file from the published tarball — `npm install aped-method@6.0.0` would have produced a non-functional scaffold. Added explicit globs for `aped-*/SKILL.md` / `workflow.md` / `steps/` / `scripts/` / `references/`. Local `npm pack` now produces 177 files (was 42); the smoke workflow has a regression guard that fails if step count drops under 80.
+
+### Fixed — release script counted only flat skills
+
+`scripts/cut-release.sh` skill counter walked only the legacy flat-file glob. After this PR's BMAD migration the expression returned 0 against README's 34, blocking every future release. Fixed to count both layouts (mirrors `scripts/check-pre-merge.sh`). Regression test added.
+
+### Fixed — `aped-review` Review Record location bug
+
+`aped-review` could create a separate file at `{{OUTPUT_DIR}}/reviews/{story-key}-review.md` due to ambiguous prose at line 470 of the pre-6.0.0 skill. The Review Record is now explicitly and exclusively appended to the story file's `## Review Record` section. The completion-gate checklist (`checklist-review.md`) has a hard `[ ] **NO separate review file created** anywhere` item.
 
 ### BREAKING — skill structure migration to BMAD directory layout
 
@@ -85,9 +96,9 @@ The BMAD micro-file architecture (Pocock superpowers, Anthropic context-engineer
 
 #### Directory-format only (content preserved as `workflow.md`)
 
-23 skills converted to directory format with `SKILL.md` (frontmatter only) + `workflow.md` (full body). No step decomposition because content was already manageable, but the structure is now consistent across all 33 skills:
+24 skills converted to directory format with `SKILL.md` (frontmatter only) + `workflow.md` (full body). No step decomposition because content was already manageable, but the structure is now consistent across all 34 skills:
 
-`aped-arch-audit`, `aped-from-ticket`, `aped-sprint`, `aped-retro`, `aped-ship`, `aped-prfaq`, `aped-receive-review`, `aped-lead`, `aped-iterate`, `aped-course`, `aped-elicit`, `aped-status`, `aped-qa`, `aped-context`, `aped-quick`, `aped-write-skill`, `aped-grill`, `aped-claude`, `aped-triage`, `aped-checkpoint`, `aped-pre-mortem`, `aped-design-twice`, `aped-zoom-out`.
+`aped-arch-audit`, `aped-from-ticket`, `aped-sprint`, `aped-retro`, `aped-ship`, `aped-prfaq`, `aped-receive-review`, `aped-lead`, `aped-iterate`, `aped-course`, `aped-elicit`, `aped-status`, `aped-qa`, `aped-context`, `aped-quick`, `aped-write-skill`, `aped-grill`, `aped-claude`, `aped-triage`, `aped-checkpoint`, `aped-pre-mortem`, `aped-design-twice`, `aped-zoom-out`, `aped-glossary`.
 
 ### Changed — Branch gate moved from aped-dev to aped-story
 
@@ -97,10 +108,6 @@ Pre-6.0.0, `aped-dev`'s blocker-halt gate refused to start implementation on `ma
 - `aped-dev` (step 01) verifies the branch is a feature branch — does NOT create it. If the branch is protected, it HALTs and tells the user to run `aped-story` first.
 
 This eliminates the race where `aped-dev` was both the branch-creation point AND the implementation point — meaning a story could ship without a branch if the user invoked dev directly.
-
-### Fixed — Review Record bug
-
-`aped-review` could create a separate file at `{{OUTPUT_DIR}}/reviews/{story-key}-review.md` due to ambiguous prose at line 470 of the pre-6.0.0 skill (*"if the merged review report is being persisted to disk"* — the model interpreted the conditional as a permission). The Review Record is now explicitly and exclusively appended to the story file's `## Review Record` section. The completion-gate checklist (`checklist-review.md`) has a hard `[ ] **NO separate review file created** anywhere` item.
 
 ### Added — Completion-gate checklists updated
 
