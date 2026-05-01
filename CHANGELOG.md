@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.5.2] - 2026-05-01
+
 ### Changed
 
 - **MCP-first flip in 6 skills** — `aped-dev`, `aped-prd`, `aped-arch`, `aped-epics`, `aped-story`, `aped-review` now default to MCP tools (`aped_state.advance`, `aped_validate.phase`, `aped_ticket.*`) with prose yq/bash fallback when MCP is unavailable. Previously MCP was mentioned as an option; now it's the primary path. Per Superpowers #1267: "deterministic steps written as prose are where compliance fails — script what can be scripted."
