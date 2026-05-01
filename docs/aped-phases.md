@@ -56,7 +56,7 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 
 - **Normal mode**: 5 collaborative phases, decisions consistent with the PRD
 - **"Architecture Council" mode** (high-stakes decisions): **Winston, Lena, Raj, Nina, Maya** dispatched in parallel, each thinks independently and returns a structured verdict. Trigger for: primary DB, auth model, API paradigm, frontend framework, infra platform.
-- **Output**: `docs/aped/architecture.md` (decisions + patterns + structure)
+- **Output**: `docs/aped/architecture.md` (rolling decisions + patterns + structure) + `docs/aped/adr/000N-{slug}.md` (sharded ADRs since 6.0.0 — Pocock pattern: short, citable, written when a decision passes hard-to-reverse + surprising + real-trade-off)
 - **Oracle**: `oracle-arch.sh` — validates architecture decisions against PRD constraints, checks ADR consistency
 - **Gate** ⏸: architecture validated before `aped-epics`
 
@@ -193,6 +193,12 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Purpose**: adversarial stress-test of a completed artifact or implementation
 - Goes beyond review — actively tries to break assumptions, find contradictions, and expose implicit dependencies
 - Produces a findings report with severity tiers (structural / significant / cosmetic)
+
+### `aped-glossary` (since 6.0.0)
+- **Purpose**: maintains a project-wide canonical domain glossary at `docs/aped/glossary.md` so PRD / architecture / stories / code use the same vocabulary
+- **Iron Law**: ONE WORD, ONE MEANING, ONE PLACE — synonyms live under `_Avoid:_` so future skill checks can flag drift
+- **Workflow**: discover candidate terms from upstream artefacts (PRD, architecture, stories) → bucket as NEW / DRIFT / STALE → per-term loop with one-question-at-a-time confirmation → write/revise (append + revise, never rewrite)
+- Pocock CONTEXT.md analog. Triggers: "build glossary", "update glossary", "domain dictionary", "shared language"
 
 ### `aped-check`
 - Human-in-the-loop checkpoint — summarizes recent changes, highlights concerns, HALTs for review

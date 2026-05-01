@@ -223,7 +223,7 @@ New section before tasks: maps files with single-responsibility rule (split by r
 
 ## What changed in 6.0.0 (BREAKING)
 
-> Released 2026-05-01. Two structural changes; the loader keeps backwards compat — existing 5.x scaffolds continue to work without re-running `--update`.
+> Released 2026-05-01. Five structural changes; the loader keeps backwards compat — existing 5.x scaffolds continue to work without re-running `--update`.
 
 ### BMAD-style skill decomposition
 
@@ -235,9 +235,21 @@ The 10 fully decomposed skills: `aped-story` (8 steps), `aped-dev` (8), `aped-re
 
 `aped-story/steps/step-01-init.md` is now the canonical place that refuses to operate on `main` / `master` / `prod` / `production` / `develop` / `release/*` / detached HEAD. Step 03 creates the feature branch following `feature/{ticket}-{slug}`. `aped-dev/steps/step-01-init.md` only verifies the branch — never creates it. The fix closes the `superpowers#1246` style issue (skill commits before creating dev branch). Existing `lessons.md` rules referencing `aped-dev` branch creation should be re-scoped to `aped-story`.
 
+### Typed step I/O contracts
+
+Every step file under `aped-X/steps/` ships a YAML frontmatter declaring `reads:` / `writes:` / `mutates_state:` with a documented prefix vocabulary (`{{OUTPUT_DIR}}/...`, `state.yaml#...`, `git/...`, `subagent/...`, `mcp/...`, `ticket/...`). Lint enforced (`tests/step-io-contract-lint.test.js`). Future tooling can verify cross-step contracts and route step execution through MCP.
+
+### ADR sharding in `aped-arch`
+
+Architectural decisions can persist as separate `docs/aped/adr/000N-{slug}.md` files (Pocock pattern: short, citable, survive `architecture.md` rewrites). Triggers when a decision is hard-to-reverse + surprising-without-context + a real trade-off. Council-dispatched decisions always qualify. Template at `.aped/templates/adr.md`; directory ships with `.gitkeep`.
+
+### `aped-glossary` — 34th skill
+
+New soft-dep skill maintaining `docs/aped/glossary.md` (canonical domain dictionary). Iron Law: ONE WORD, ONE MEANING, ONE PLACE. Synonyms live under `_Avoid:_` so future skill checks can flag drift. Pocock CONTEXT.md analog. Discovers candidate terms from upstream artefacts (PRD, architecture, stories) — never invents.
+
 ### Migration
 
-`aped-method --update` migrates in place. No state.yaml change. Story files preserved.
+`aped-method --update` migrates in place. No state.yaml change. Story files preserved. ADR directory + glossary.md created lazily (only when the skills actually fire).
 
 ## What changed in 4.7 → 5.5
 
