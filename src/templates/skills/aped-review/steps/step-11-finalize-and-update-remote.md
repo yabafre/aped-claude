@@ -6,7 +6,7 @@ writes:
   - "{{OUTPUT_DIR}}/stories/{story-key}.md"
   - "ticket/{provider}"
   - "pr/{provider}"
-  - "{{APED_DIR}}/checkins/{story-key}.json"
+  - "{{APED_DIR}}/checkins/{story-key}.jsonl"
   - "state.yaml#sprint.stories[story-key].status"
 mutates_state: true
 ---
