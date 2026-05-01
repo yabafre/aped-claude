@@ -365,3 +365,7 @@ User says: "I want to build a SaaS for restaurant inventory management"
 - **Agent returns empty results**: WebSearch may fail — retry with different keywords, broaden search terms
 - **Brief validation fails**: Check which section is missing, fill it from agent results, re-validate
 - **User changes direction after research**: This is normal and expected. Update the discovery summary, re-run research if needed, re-synthesize.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-analyze.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

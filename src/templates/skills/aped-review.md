@@ -650,3 +650,7 @@ User: "Fix all HIGH, dismiss the MEDIUM."
 - **Git audit fails (no git repo)**: Script handles this — skips audit with WARNING, proceeds to code review
 - **Fewer than 3 findings**: Re-examine edge cases, error handling, test gaps, security surface
 - **Story file not found**: Check `sprint.stories` in state.yaml — story key may have changed
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-review.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

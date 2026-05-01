@@ -525,3 +525,7 @@ Story "1-2-user-registration":
 - **3 consecutive failures**: HALT — ask user. Do not brute-force; the approach may be wrong
 - **Missing dependency**: HALT — ask user before installing. Do not add deps silently
 - **Tests pass before writing code**: The test is wrong — it doesn't test new behavior. Rewrite it
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-dev.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

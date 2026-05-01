@@ -296,3 +296,7 @@ User: "I want to build a SaaS for restaurant inventory"
 - **User gives vague answers**: offer 2-3 concrete alternatives, not "be more specific"
 - **Research agents return thin data**: retry with different keywords, broaden the search, or note the gap in the verdict
 - **User wants to skip stages**: each stage builds on the last. Skipping Stage 2 means Stage 3 has no press release to critique. Don't skip — speed-run if the user wants, but cover each stage.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-prfaq.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

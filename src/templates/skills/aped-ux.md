@@ -472,3 +472,7 @@ The epics phase reads `{{OUTPUT_DIR}}/ux/` (all 4 spec files) and inspects the l
 - **User gives no design inspiration**: Use the product domain to suggest a style — "SaaS dashboard" → clean/minimal, "e-commerce" → card-heavy/visual
 - **Prototype looks wrong on mobile**: Check responsive breakpoints — sidebar must collapse, touch targets ≥ 44px
 - **Dark mode contrast fails**: Use semantic tokens, not hardcoded colors. Check with browser devtools contrast checker.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-ux.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

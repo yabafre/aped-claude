@@ -335,3 +335,7 @@ Configured: `ticket_system: linear`, defaults otherwise (placement=ask, comment=
 ## Next Step
 
 After successful run, follow `from_ticket.handoff.after_story`. By default, ask the user — never auto-chain.
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-from-ticket.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

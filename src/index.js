@@ -49,6 +49,7 @@ const SUBCOMMANDS = new Set([
   'sync-logs',
   'worktree-scope',
   'tdd-red-marker',
+  'commit-gate',
   'enable-mcp',
 ]);
 
@@ -115,6 +116,9 @@ SUBCOMMANDS
                           hook (warns when production-code Write/Edit follows a
                           test-file Write/Edit without a "Confirmed RED:" token
                           in the recent transcript). Pass --uninstall to remove.
+  commit-gate             Install the opt-in commit-gate PostToolUse advisory
+                          hook (warns after 5+ uncommitted file changes — enforces
+                          one commit per GREEN gate). Pass --uninstall to remove.
   enable-mcp              Install the opt-in aped-state MCP companion server
                           (typed atomic ops on state.yaml: get / update /
                           validate.phase). Registers under .claude/settings

@@ -326,3 +326,7 @@ User: "retro on epic 1"
 - **User resists negative findings**: hold the line — retros without honest findings are theater. Reframe as "the system failed you, let's fix the system".
 - **Action items without owners**: push back. Every action needs a human or a role. "The team" is not an owner.
 - **Repeated lesson from previous retro**: this is the most important finding. Flag it explicitly: "We committed to X in epic {N-1}, didn't do it, and paid for it here".
+
+## Completion Gate
+
+BEFORE declaring this skill complete, Read `{{APED_DIR}}/skills/aped-skills/checklist-retro.md` and verify every item. Do NOT skip this step. If any item is unchecked, you are NOT done.

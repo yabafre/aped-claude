@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Completion Gate checklists for 16 skills** — each skill > 250 lines gets a companion `checklist-<name>.md` file under `aped-skills/`. The skill body's final section forces a fresh `Read` of the checklist before declaring DONE. Pattern from BMAD: separate checklist files re-inject completion criteria into context at the point where attention is lowest (Anthropic context-engineering). Skills: dev, story, review, prd, arch, epics, ux, ship, sprint, debug, brainstorm, analyze, from-ticket, receive-review, retro, prfaq.
+- **`commit-gate` PostToolUse advisory hook** — after 5+ uncommitted file changes, emits advisory reminding the agent that aped-dev requires one commit per GREEN gate. Structural enforcement (Superpowers #463): compliance is detectable by artifact (uncommitted file count), not by honor system. Opt-in via `aped-method commit-gate`.
+- **`session-start.sh` CLAUDE.md check** — warns loudly when `CLAUDE.md` is missing the `<!-- APED:START -->` block. Catches the worktree visibility issue where `CLAUDE.local.md` (gitignored) has the APED block but worktrees don't see it.
+- **`checklists.js` template module** — generates 16 checklist files during scaffold, wired into `src/templates/index.js`.
+
 ## [5.4.0] - 2026-04-30
 
 ### Added
