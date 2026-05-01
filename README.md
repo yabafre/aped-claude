@@ -104,9 +104,15 @@ APED ships **34 skills**. Invoke them by name via Claude Code's Skill tool, or �
 
 ### BMAD micro-file architecture (v6.0.0+)
 
-Every skill is a directory with at least a `SKILL.md` (entry point — the file Claude Code reads first), and optionally a `workflow.md` (high-level phases) plus `steps/step-NN-*.md` (one micro-step per file). The 10 phase skills (`aped-story`, `aped-dev`, `aped-review`, `aped-epics`, `aped-arch`, `aped-ux`, `aped-prd`, `aped-debug`, `aped-brainstorm`, `aped-analyze`) are fully decomposed into 6–12 steps each; the other 23 skills carry their content inline in `SKILL.md` (with `workflow.md` for the medium ones).
+Every skill is a directory with at least a `SKILL.md` (entry point — the file Claude Code reads first), and optionally a `workflow.md` (high-level phases) plus `steps/step-NN-*.md` (one micro-step per file). The 10 phase skills (`aped-story`, `aped-dev`, `aped-review`, `aped-epics`, `aped-arch`, `aped-ux`, `aped-prd`, `aped-debug`, `aped-brainstorm`, `aped-analyze`) are fully decomposed into 6–12 steps each; the other 24 skills carry their content inline in `SKILL.md` (with `workflow.md` for the medium ones).
 
 Why: keeping each step file under ~250 lines means Claude only loads the slice relevant to the current operation, instead of paging through a 600-line monolith. Validates the same thesis as Anthropic's [code-execution-with-MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) (progressive disclosure of typed tools) and [building a C compiler](https://www.anthropic.com/engineering/building-c-compiler) (decomposition for the model, not the human).
+
+**Typed step I/O contracts (v6.0.0+).** Every step file carries a YAML frontmatter declaring `reads:` / `writes:` / `mutates_state:` against a documented prefix vocabulary (`{{OUTPUT_DIR}}/...`, `state.yaml#...`, `git/...`, `subagent/...`, `mcp/...`, `ticket/...`). The contract is lint-enforced (`tests/step-io-contract-lint.test.js`); it documents what each step touches and serves as the foundation for a future `aped-step.execute(name, inputs)` MCP server.
+
+**ADR sharding (v6.0.0+, in `aped-arch`).** Architectural decisions can persist as separate `docs/aped/adr/000N-{slug}.md` files (Pocock pattern: short, citable, written when a decision is hard-to-reverse + surprising-without-context + a real trade-off). Council-dispatched decisions always qualify. The directory ships with `.gitkeep`; the first ADR creates lazily.
+
+**Domain glossary (v6.0.0+, `aped-glossary`).** New skill maintaining `docs/aped/glossary.md` (canonical project-wide term dictionary). Iron Law: ONE WORD, ONE MEANING, ONE PLACE. Synonyms live under `_Avoid:_` so future skill checks can flag drift. Pocock CONTEXT.md analog.
 
 ### Migrating from 5.x
 
@@ -336,14 +342,16 @@ You run `aped-lead` in the main project whenever you want to process the batch. 
 ├── aped-brainstorm/                # Divergent ideation (upstream of aped-analyze)
 ├── aped-prfaq/                     # Working Backwards challenge (upstream)
 ├── aped-retro/                     # Post-epic retrospective (Mia/Leo/Ava specialists)
-└── aped-elicit/                    # Horizontal critique toolkit (19 methods)
+├── aped-elicit/                    # Horizontal critique toolkit (19 methods)
+└── aped-glossary/                  # Project-wide domain dictionary (Pocock CONTEXT.md analog)
 
 docs/aped/                          # Output (evolves during project)
 ├── state.yaml                      # Pipeline state machine
 ├── product-brief.md                # aped-analyze
 ├── prd.md                          # aped-prd
 ├── ux/                             # aped-ux (spec + preview app)
-├── architecture.md                 # aped-arch
+├── architecture.md                 # aped-arch (rolling structure)
+├── adr/                            # aped-arch — sharded ADRs (000N-{slug}.md, Pocock pattern)
 ├── epics.md                        # aped-epics
 ├── stories/                        # aped-story (one file per story)
 ├── epic-{N}-context.md             # Compiled epic context (cached)
@@ -351,6 +359,7 @@ docs/aped/                          # Output (evolves during project)
 ├── brainstorm/                     # aped-brainstorm sessions
 ├── prfaq.md                        # aped-prfaq (5-stage artefact)
 ├── retros/                         # aped-retro (one file per epic)
+├── glossary.md                     # aped-glossary (canonical domain terms)
 └── lessons.md                      # aped-retro distilled lessons (cross-epic continuity)
 
 .claude/
