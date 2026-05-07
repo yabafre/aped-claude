@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.3.2] - 2026-05-07
+
 ### Added — Local-only disable mode (`aped-method disable --local`)
 
 A per-developer disable that doesn't propagate to the team. Useful when one teammate wants Claude Code without APED routing in a project that the rest of the team uses with APED routing. Marker-only, gitignored, fully reversible.
