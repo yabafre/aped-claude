@@ -2,8 +2,10 @@
 step: 11
 reads:
   - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+  - "{{OUTPUT_DIR}}/epic-{N}-context.md"
 writes:
   - "{{OUTPUT_DIR}}/stories/{story-key}.md"
+  - "{{OUTPUT_DIR}}/epic-{N}-context.md"
   - "ticket/{provider}"
   - "pr/{provider}"
   - "{{APED_DIR}}/checkins/{story-key}.jsonl"
@@ -144,12 +146,34 @@ Run, in order:
 
 In worktree mode, this writes the worktree-local copy of `state.yaml`. The merge resolution at `aped-ship` time will apply `--ours` (main wins).
 
+### 5. Append story outcome to `epic-{N}-context.md` (6.2.0+, only if story → `done`)
+
+**Skip this section** if the story stays `review` — the cache only records terminal outcomes.
+
+If the story flipped to `done`, append a new entry to the cache's "Previous stories — outcomes" section so the next story's `aped-dev` and `aped-review` invocations inherit the decisions made here. Cache path: `{{OUTPUT_DIR}}/epic-{N}-context.md` (N = epic number from story key).
+
+**Strict template** (downstream consumers parse the headers — do not deviate):
+
+```markdown
+### Story {story-key} — done {YYYY-MM-DD}T{HH:MM:SS}Z
+
+- **Decisions:** {1–3 short bullets, technical decisions made during dev that the next story should not re-litigate. Example: "chose Zod over Joi for validation". Empty list = no notable cross-cutting decisions.}
+- **Files:** {comma-separated list of paths created or modified, mirroring the story's File List}
+- **Contracts:** {types / endpoints / schemas introduced or changed that other stories may depend on. Empty if none.}
+- **Deviations from plan:** {short bullets where the implementation diverged from the story's Dev Notes, with the reason. "none" if implementation matched the plan.}
+```
+
+Read the cache file, locate the `## Previous stories — outcomes` heading, append the new `### Story {story-key} …` block immediately after it (or after the previous outcome entry, preserving chronological order). Do not rewrite other sections of the cache. Do not edit hand-edits — if the cache shape has been altered (heading missing), HALT and surface the issue rather than appending blindly.
+
+The "Decisions / Files / Contracts / Deviations" fields are 1-2 short sentences each — read `{{APED_DIR}}/aped-skills/writing-discipline.md` first. The cache is consumed by future `aped-dev` cycles; padding here costs context every story for the rest of the epic.
+
 ## SUCCESS METRICS
 
 ✅ Ticket comment posted (or `none`).
 ✅ PR opened/updated targeting `sprint.umbrella_branch`.
 ✅ Story file appended with a fully populated Review Record section.
 ✅ State updated (MCP-first, file fallback).
+✅ Epic context cache appended with a strict-template outcome block (only if story → done).
 ✅ NO separate file created at `{{OUTPUT_DIR}}/reviews/...` or anywhere else.
 
 ## FAILURE MODES

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — Epic-context cache becomes the canonical consumer-side artefact (6.2.0 C)
+
+`aped-dev` and `aped-review` previously re-loaded the full PRD + UX + project-context at every story-scope invocation, even though `epic-{N}-context.md` was already on disk and meant to short-circuit exactly that. The "fresh-read discipline" hedge ("never trust a cached summary") fought the cache that was supposed to save tokens. Per Anthropic's progressive-disclosure guidance and BMAD's epic-context pattern, the cache *is* the source for cross-cutting epic knowledge — the consumers should trust it.
+
+- `aped-story` is now the **canonical compiler** of `epic-{N}-context.md` (step-02 §4). The cache shape is template-strict so downstream consumers can parse it: Scope from PRD / Architecture references / UX references / Project context / Lessons / Previous stories — outcomes.
+- `aped-dev` step-02 stops loading raw PRD / UX / project-context. Required inputs: story file ✱, epic-context cache ✱, `architecture.md` (full — patterns are LAW for dev), lessons, last done story of same epic. HALTs if cache absent — fix is to re-run `aped-story`, never to work around with raw loads.
+- `aped-dev` step-04 strips its compile logic. The cache was already loaded in step-02; step-04 keeps story classification (single-layer / fullstack) and team dispatch.
+- `aped-review` step-02 mirrors the same consumer shape. Architecture stays full-load (Pattern Compliance grades against it).
+- `aped-review` step-11 appends a strict-template entry (`Decisions / Files / Contracts / Deviations`) to the cache's "Previous stories — outcomes" section when a story flips to `done`. The cache becomes an append-only journal of the epic; the next story's dev/review cycle inherits prior decisions without re-litigating them.
+- Architecture stays primordial (always loaded fresh, full file) — only PRD / UX / project-context move into the cache. Pattern compliance during dev and review is grounded in `architecture.md`, not in a distillate.
+
+Token win on a mid/late-epic story is roughly proportional to PRD + UX size; on an 8-story epic the saving compounds across all dev and review cycles.
+
 ### Added — Writing discipline reference for APED-generated artefacts
 
 Skills that author commits, PR titles/bodies, code comments, review reports, or ticket comments previously had no shared rule. The agent defaulted to verbose technical inventories — file lists, test counts, "boundaries respected" checkboxes — that re-narrate what the diff already shows.
