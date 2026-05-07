@@ -1,7 +1,7 @@
 ---
 name: aped-glossary
 keep-coding-instructions: true
-description: 'Use when user says "build glossary", "update glossary", "domain dictionary", "shared language", "sharpen language", "canonicalize terms", "glossary check", or invokes aped-glossary. Builds and maintains a project-wide domain glossary at docs/aped/glossary.md so every APED skill, persona, and downstream artefact uses the same vocabulary. Pocock-style CONTEXT.md analog. Not for divergent ideation (use aped-brainstorm), not for stress-testing decisions (use aped-grill).'
+description: 'Use when user says "build glossary", "update glossary", "domain dictionary", "shared language", "sharpen language", "canonicalize terms", "glossary check", or invokes aped-glossary. Builds and maintains a project-wide domain glossary at docs/aped/glossary.md so every APED skill, persona, and downstream artefact uses the same vocabulary. Acts as the project-wide CONTEXT.md analog. Not for divergent ideation (use aped-brainstorm), not for stress-testing decisions (use aped-grill).'
 allowed-tools: "Read Edit Write Glob Grep"
 allowed-paths:
   write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
@@ -45,7 +45,7 @@ Read `{{APED_DIR}}/config.yaml` and resolve `{user_name}` / `{communication_lang
    - `{{OUTPUT_DIR}}/product-brief.md` — business / market terms.
    - `{{OUTPUT_DIR}}/project-context.md` (brownfield) — existing-system terms.
    - `{{OUTPUT_DIR}}/stories/*.md` — story-specific vocabulary that may have drifted.
-5. Any `CONTEXT.md` at the project root — Pocock-style domain context, treat as authoritative if present.
+5. Any `CONTEXT.md` at the project root — domain context file, treat as authoritative if present.
 
 If none of the upstream artefacts exist, ask the user what corpus to glossarise against and HALT until they answer.
 

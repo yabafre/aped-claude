@@ -69,7 +69,7 @@ metadata:
 ```
 
 Description requirements (APED's lint tests enforce these):
-- Wrapped in **single quotes** (avoids the unquoted-`: ` silent-skip footgun, Superpowers issue #955).
+- Wrapped in **single quotes** (avoids the unquoted-`: ` silent-skip footgun where YAML parses the value as a nested mapping and the skill silently fails to register).
 - ≤ 1024 characters.
 - Includes 2+ trigger phrases the user would actually say.
 - Includes ≥1 anti-trigger pointing at the adjacent skill that handles the contrasting case.
