@@ -22,6 +22,7 @@
     "src/disable.js",
     "src/templates/*.js",
     "src/templates/data/*.csv",
+    "src/templates/data/*.json",
     "src/templates/hooks/*.js",
     "src/templates/hooks/*.sh",
     "src/templates/providers/*.js",
@@ -79,6 +80,9 @@
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "js-yaml": "^4.1.1",
     "vitest": "^2.1.9"
   }
 }

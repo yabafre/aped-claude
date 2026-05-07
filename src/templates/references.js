@@ -17,6 +17,18 @@ function loadCSV(name) {
   }
 }
 
+function loadDataFile(name) {
+  // Used for non-CSV bundled data files (JSON schema, etc). Returns empty
+  // string when the file isn't packed — validate-state.sh skips schema
+  // checks gracefully on missing schema, so an empty payload is the safe
+  // fallback for offline or stripped installs.
+  try {
+    return readFileSync(join(__dirname, 'data', name), 'utf-8');
+  } catch {
+    return '';
+  }
+}
+
 export function references(c) {
   const a = c.apedDir;
   const ts = c.ticketSystem ?? 'none';
@@ -73,6 +85,14 @@ export function references(c) {
     {
       path: `${a}/aped-dev/references/ticket-git-workflow.md`,
       content: buildTicketGitWorkflow(ts, gp),
+    },
+    // 6.2.0 — JSON Schema v3 for state.yaml (draft 2020-12). Read by
+    // validate-state.sh via `npx -y ajv-cli@latest`; WARN-only on any
+    // mismatch. Shipping the schema in-tree (not via npm dependency)
+    // keeps `aped-method` itself dependency-free.
+    {
+      path: `${a}/data/state.yaml.schema.v3.json`,
+      content: loadDataFile('state.yaml.schema.v3.json'),
     },
   ];
 }

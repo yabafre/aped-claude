@@ -533,6 +533,46 @@ So the skill HALTs silently before doing any work when APED is disabled, regardl
 
 **Stale snapshot recovery.** If `.aped/.DISABLED` exists but `.aped/.disable-snapshot.json` is missing (manual edits, partial backup restore), `aped-method enable` falls back to a best-effort restore — strips the flag from all 34 skills. The 14 originals lose their pre-existing opt-out, but routing is restored. Re-edit the 14 SKILL.md frontmatters by hand if you need them opt-out again, or run `aped-method --update` to re-scaffold from the package defaults.
 
+## 27. `validate-state.sh` prints schema WARN lines about my state.yaml (6.2.0+)
+
+**Symptom.** Running `bash .aped/scripts/validate-state.sh` (or any skill that calls it at Setup) emits stderr lines like:
+
+```
+WARN: state.yaml does not match schema v3 (drift detected — see below).
+6.2.0 is WARN-only; 7.0.0 will refuse to operate.
+data/sprint/stories/1-2-auth must NOT have additional properties: dev_completed_at
+data/pipeline/phases/ux must NOT have additional properties: design_system
+```
+
+**Cause.** v6.2.0 added a strict JSON Schema (draft 2020-12) for `state.yaml v3` shipped at `.aped/data/state.yaml.schema.v3.json`. `validate-state.sh` invokes `npx -y ajv-cli@^5` against the schema at the end of its checks. The schema rejects:
+
+- Invented sub-blocks under `pipeline.phases.<phase>` (e.g. `design_system`, `style_direction`, `councils_retired`, `ramp_tiering`).
+- Free-form fields under `sprint.stories.<key>` (e.g. `verdict`, `review_notes`, `dev_completed_at` — those belong in the story file's Review Record, not state.yaml).
+- Out-of-taxonomy phase statuses (only `in-progress` / `done`).
+- Heterogeneous-shape lists or prose-laden YAML comments narrating descopes.
+- `sprint.parallel_limit` / `sprint.review_limit` (moved to `config.yaml.sprint.*` in v3).
+
+**Rollout schedule.** WARN-only in 6.2.0 — your skills keep working unchanged. **7.0.0 will escalate to ERROR** (validate-state.sh exits non-zero) — clean drift before then.
+
+**Fix.**
+
+1. Read each WARN line — it names the exact path that drifted.
+2. Decide per field:
+   - **Field belongs in the story file's Review Record** (verdict, review_notes, dev_completed_at) — move it there, drop from state.yaml.
+   - **Field belongs in `config.yaml`** (parallel_limit, review_limit) — move it. The migration script does this automatically: `bash .aped/scripts/migrate-state.sh`.
+   - **Field is a legit new shape we forgot to schema-add** — open an issue with the field + its purpose so the next minor adds it.
+3. Re-run `validate-state.sh` until clean.
+
+**Skip the schema check** (offline / sandboxed CI / no `npx`):
+
+The script auto-skips with a single-line `WARN: schema check skipped (...)` if any of `yq`, `npx`, or outbound npm access is unavailable. No special flag — graceful by design.
+
+**Force-refresh the schema:**
+
+```bash
+npx aped-method --update    # ships the latest .aped/data/state.yaml.schema.v3.json
+```
+
 ## 28. I see broken external links / unfamiliar names in old skill bodies (6.2.0+)
 
 **Symptom.** Skills scaffolded before v6.2.0 mention "Pocock", "Adapted from", "Translation of", "Lifted from Superpowers", "BMAD pattern", or "Anthropic context-engineering". Claude tries to look up these references in your project and finds nothing.

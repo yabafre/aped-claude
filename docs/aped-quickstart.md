@@ -138,7 +138,22 @@ aped-method disable         # (6.2.0+) suppress APED routing in this project
 aped-method enable          # (6.2.0+) restore APED routing
 ```
 
-### 6.1 Disabling APED (6.2.0+)
+### 6.1 Strict state.yaml schema (6.2.0+, WARN-only — ERROR in 7.0.0)
+
+v6.2.0 ships a draft 2020-12 JSON Schema for `state.yaml v3` at `.aped/data/state.yaml.schema.v3.json`. `validate-state.sh` runs it via `npx -y ajv-cli@^5` and surfaces drift as stderr `WARN` lines:
+
+- Invented sub-blocks under `pipeline.phases.<phase>` (e.g. `design_system`, `councils_retired`).
+- Free-form story fields (e.g. `verdict`, `review_notes`, `dev_completed_at`) — those belong in the story file's Review Record, not state.yaml.
+- Out-of-taxonomy phase statuses.
+- `sprint.parallel_limit` / `sprint.review_limit` (moved to `config.yaml.sprint.*` in v3 — run `migrate-state.sh` to relocate).
+
+**Rollout.** 6.2.0 is **WARN-only** — your skills keep working. **7.0.0 escalates to ERROR**: validate-state.sh exits non-zero on drift, blocking the skills that call it at Setup. The 6.x cycle is the grace window to clean drift.
+
+**Skip.** If `yq` / `npx` / network is unavailable, the schema check skips gracefully with a single `WARN: schema check skipped (...)` and exits 0. No CI break in air-gapped pipelines.
+
+See `docs/TROUBLESHOOTING.md` §27 for fix patterns.
+
+### 6.2 Disabling APED (6.2.0+)
 
 If you want Claude Code without APED auto-routing in a project:
 
