@@ -94,6 +94,27 @@ export function references(c) {
       path: `${a}/data/state.yaml.schema.v3.json`,
       content: loadDataFile('state.yaml.schema.v3.json'),
     },
+    // 6.3.0 — markdown structural-schema DSL spec + per-artefact schemas.
+    // Read by validate-{artefact}.sh wrappers via the shared Node walker
+    // (lib/markdown-schema-walk.mjs). Schemas live in JSON for parity
+    // with state.yaml.schema.v3.json (chantier S, 6.2.0). WARN-only at
+    // producer-side gates in 6.3.0; ERROR escalation in 7.0.0.
+    {
+      path: `${a}/data/markdown-schema.dsl.md`,
+      content: loadDataFile('markdown-schema.dsl.md'),
+    },
+    {
+      path: `${a}/data/story.schema.json`,
+      content: loadDataFile('story.schema.json'),
+    },
+    {
+      path: `${a}/data/epics.schema.json`,
+      content: loadDataFile('epics.schema.json'),
+    },
+    {
+      path: `${a}/data/epic-context.schema.json`,
+      content: loadDataFile('epic-context.schema.json'),
+    },
   ];
 }
 
