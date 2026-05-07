@@ -112,6 +112,7 @@ _(Files moved to `.archive/` via aped-purge.)_
 For "Status" of each row, use:
 - ✓ present — file exists, list mtime
 - ⚠ stale — file exists but its mtime is older than the most recent canonical input that should have refreshed it (e.g. PRD edited but epics-context not refreshed)
+- ⚠ schema-violation — file exists and a structural validator is shipped for it (`{{APED_DIR}}/scripts/validate-{artefact}.sh`), but exits non-zero (drift caught at audit time). Surface advisory; aped-purge is read-only — re-run the producing skill to fix. Validators present in 6.3.0: `validate-story.sh` for `stories/*.md`, `validate-epics.sh` for `epics.md`, `validate-epic-context.sh` for `epics-context/*.md`. If the validator is absent (older scaffold or stripped install), the row stays `✓ present` — no false negatives.
 - — absent — phase hasn't run yet (don't flag as a problem; many projects don't use every phase)
 
 ### 3. Triage unknowns
