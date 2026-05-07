@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Artefact contracts (story / epics / epic-context)
+
+Markdown structural-schema DSL + first-cohort schemas + per-artefact validators. Producer-side gates **WARN-only** in 6.3.0 (rollout grace window, same playbook as the chantier S state.yaml schema in 6.2.0); ERROR escalation documented for 7.0.0.
+
+- New DSL doc at `{{APED_DIR}}/data/markdown-schema.dsl.md` describes the manifest shape (`artefact_name`, `description`, `version`, `top_level`, `sections`) and the validator failure-shape contract.
+- Three JSON schemas ship under `{{APED_DIR}}/data/`: `story.schema.json`, `epics.schema.json`, `epic-context.schema.json`. Schemas live alongside `state.yaml.schema.v3.json` (chantier S) — same shipping pattern.
+- Three thin bash launchers ship under `{{APED_DIR}}/scripts/`: `validate-story.sh`, `validate-epics.sh`, `validate-epic-context.sh`. Each `exec node` the shared walker at `scripts/lib/markdown-schema-walk.mjs`.
+- DSL field set is **locked** in 6.3.0 (per the spec's Boundaries). Pattern-based heading match (`heading_pattern`) and level-3 sub-section schemas are deferred to 6.4.0 — that's when validators tighten on epic-context's repeating `### Story X — done` blocks and on epics' story-key bullet format.
+
+### Changed — Producer-side schema gates wired (WARN-only)
+
+- `aped-story` step-06 (self-review) invokes `validate-story.sh` after the file write. On non-zero, surfaces the validator's stderr; advises re-run or hand-edit; does NOT advance state.yaml.
+- `aped-story` step-02 (input discovery) invokes `validate-epic-context.sh` immediately after the cache is written or refreshed. On non-zero, surfaces drift; advises re-run aped-story (the cache is engine-owned).
+- `aped-epics` step-07 (write output) invokes `validate-epics.sh` immediately after the `epics.md` write block, before the state.yaml advance. On non-zero, blocks the state advance (state stays at the prior phase).
+- All three gates fail-soft on a missing validator (graceful skip-with-warn — same pattern as ajv-cli skip in `validate-state.sh`).
+- `aped-purge` Status column gains a new value: `⚠ schema-violation`. When a canonical artefact has a validator and the validator exits non-zero, the INDEX row reflects the drift instead of `✓ present`. Read-only — `aped-purge` doesn't fix, the producing skill does.
+
 ## [6.2.0] - 2026-05-07
 
 ### Added — `aped-purge` doc hygiene + INDEX (35th skill)

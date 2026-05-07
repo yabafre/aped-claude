@@ -117,6 +117,8 @@ _(Appended by aped-review at story→done. Empty on first story of the epic.)_
 
 The "Previous stories — outcomes" section starts empty; `aped-review` appends to it (strict template) when a story flips to `done`.
 
+**After writing or refreshing the cache (WARN-only in 6.3.0)** — run `bash {{APED_DIR}}/scripts/validate-epic-context.sh {{OUTPUT_DIR}}/epics-context/epic-{N}-context.md`. On non-zero, surface the stderr verbatim to the user, advise them to re-run `aped-story` (the cache is engine-owned; manual fixes risk going stale on the next refresh), and continue this step (the cache exists, just non-conformant). If the validator script is absent, warn-once and continue. Escalates to ERROR in 7.0.0 — at that point a non-conformant cache will block aped-review's append.
+
 ### 5. Report + HALT
 
 Present a discovery report (adapt to `communication_language`):
