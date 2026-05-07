@@ -24,6 +24,15 @@ Markdown structural-schema DSL + first-cohort schemas + per-artefact validators.
 - All three gates fail-soft on a missing validator (graceful skip-with-warn — same pattern as ajv-cli skip in `validate-state.sh`).
 - `aped-purge` Status column gains a new value: `⚠ schema-violation`. When a canonical artefact has a validator and the validator exits non-zero, the INDEX row reflects the drift instead of `✓ present`. Read-only — `aped-purge` doesn't fix, the producing skill does.
 
+### Fixed — `--update` now removes engine files orphaned by template renames
+
+`aped-method --update` previously wrote new templates but left files that had been removed/renamed from the template set on disk. Concrete impact: upgrading from 6.1.x → 6.2.0 left the 12 old `aped-review/steps/step-*.md` files on disk alongside the 5 new ones (17 total), confusing the user and bloating the engine surface every release that changes a filename.
+
+- `--update` now diffs templates vs disk under `{{APED_DIR}}/`, surfaces the orphan list, prompts `[D]elete all / [K]eep + allowlist / [C]ancel` (`--yes` auto-confirms `Delete all`), and writes an audit log to `{{APED_DIR}}/.update-orphans-{ISO}.log` before removing files.
+- **Engine paths only.** `outputDir/` (artefacts), `{{APED_DIR}}/config.yaml`, `.disable-snapshot.json`, `.DISABLED`, `.archive/`, `checkins/`, `logs/`, `WORKTREE`, and `.update-allowlist` are never in scope.
+- Per-project escape hatch: `{{APED_DIR}}/.update-allowlist` (one path per line, `#` comments allowed). `[K]eep + allowlist` appends orphan paths to it so future `--update` runs respect them.
+- `--fresh` already wipes `apedDir/` upfront — orphan cleanup is `--update`-only.
+
 ## [6.2.0] - 2026-05-07
 
 ### Added — `aped-purge` doc hygiene + INDEX (35th skill)

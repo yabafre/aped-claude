@@ -1,6 +1,6 @@
 import * as p from '@clack/prompts';
-import { existsSync, mkdirSync, readFileSync, writeFileSync as writeFS, chmodSync, lstatSync, readlinkSync, rmSync, symlinkSync } from 'node:fs';
-import { join, dirname, isAbsolute } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync as writeFS, chmodSync, lstatSync, readlinkSync, rmSync, symlinkSync, readdirSync } from 'node:fs';
+import { join, dirname, isAbsolute, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import color from 'picocolors';
 import { statuslineTemplates, safeBashTemplates, typeScriptQualityTemplates } from './templates/optional-features.js';
@@ -401,7 +401,7 @@ export async function run() {
       throw new UserError(`invalid --git value: ${config.gitProvider} (allowed: ${[...VALID_GIT_VALUES].join(', ')})`);
     }
 
-    await runScaffold(config, mode);
+    await runScaffold(config, mode, { yes: true });
     return;
   }
 
@@ -534,7 +534,7 @@ export async function run() {
     return;
   }
 
-  await runScaffold(config, mode);
+  await runScaffold(config, mode, { yes: false });
 }
 
 function pathPromptValidator(value, label) {
@@ -547,7 +547,7 @@ function pathPromptValidator(value, label) {
   }
 }
 
-async function runScaffold(config, mode) {
+async function runScaffold(config, mode, options = {}) {
   const modeLabel = mode === 'update'
     ? color.yellow(color.bold('UPDATE'))
     : mode === 'fresh'
@@ -606,6 +606,17 @@ async function runScaffold(config, mode) {
 
   // ── Phase 2: Scaffold ──
   const { created, updated, skipped } = await scaffoldWithProgress(config, mode);
+
+  // ── Phase 2.5: --update orphan cleanup (chantier U, 6.3.0) ──
+  // Surface engine files left behind by template renames between releases
+  // (e.g. 6.1.x → 6.2.0 left 12 stale aped-review/steps/step-*.md). The
+  // outputDir/ side is never in scope — user artefacts are sacred. The
+  // {apedDir}/.update-allowlist file is the per-project escape hatch for
+  // hand-added engine files that should survive --update.
+  let removedCount = 0;
+  if (mode === 'update') {
+    removedCount = await runUpdateOrphanCleanup(config, options);
+  }
 
   // ── Phase 3: Post-install tasks ──
   const total = created + updated;
@@ -835,6 +846,188 @@ async function scaffoldWithProgress(config, mode) {
   );
 
   return { created, updated, skipped };
+}
+
+// 6.3.0 — chantier U.
+// Driver: read .update-allowlist, walk apedDir, compute orphans, surface to
+// the user (or auto-confirm under --yes), write the audit log, rm files.
+// Returns the number of files actually removed.
+async function runUpdateOrphanCleanup(config, options = {}) {
+  const cwd = process.cwd();
+  const { getTemplates } = await import('./templates/index.js');
+  const templates = [
+    ...getTemplates(config),
+    ...getInstalledOptionalTemplates(config, cwd),
+  ];
+
+  const templatedPaths = new Set(
+    templates
+      .filter((t) => t.type !== 'symlink')
+      .map((t) => t.path)
+      .filter((p) => p.startsWith(`${config.apedDir}/`)),
+  );
+  const filesOnDisk = walkApedDir(cwd, config.apedDir);
+
+  const allowlistPath = join(cwd, config.apedDir, '.update-allowlist');
+  let allowlist = [];
+  if (existsSync(allowlistPath)) {
+    try {
+      allowlist = readFileSync(allowlistPath, 'utf-8')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith('#'));
+    } catch { /* ignore — best-effort */ }
+  }
+
+  const orphans = computeOrphans({
+    apedDir: config.apedDir,
+    templatedPaths,
+    filesOnDisk,
+    allowlist,
+  });
+
+  if (orphans.length === 0) {
+    if (!options.yes) {
+      p.log.info('No engine orphans to clean up.');
+    }
+    return 0;
+  }
+
+  p.log.warn(
+    `${color.bold(String(orphans.length))} engine file(s) on disk are no longer in the templates ` +
+    `(probably renamed/removed since your last install). They will be deleted unless you keep them.`,
+  );
+  for (const o of orphans) p.log.message(`  ${color.dim('-')} ${o}`);
+
+  let action = 'delete';
+  if (!options.yes) {
+    const choice = await p.select({
+      message: 'Cleanup action?',
+      options: [
+        { value: 'delete', label: '[D]elete all — recommended' },
+        { value: 'keep',   label: '[K]eep all — append to .update-allowlist' },
+        { value: 'cancel', label: '[C]ancel — skip cleanup, leave as-is' },
+      ],
+    });
+    if (p.isCancel(choice)) {
+      p.log.warn('Cleanup cancelled.');
+      return 0;
+    }
+    action = choice;
+  }
+
+  if (action === 'cancel') return 0;
+
+  if (action === 'keep') {
+    const lines = [
+      ...(existsSync(allowlistPath) ? readFileSync(allowlistPath, 'utf-8').split('\n') : []),
+      ...orphans,
+    ].filter((l, i, arr) => l.trim() !== '' && arr.indexOf(l) === i);
+    writeFS(allowlistPath, lines.join('\n') + '\n', 'utf-8');
+    p.log.info(`Appended ${orphans.length} path(s) to ${color.dim(`${config.apedDir}/.update-allowlist`)}.`);
+    return 0;
+  }
+
+  // action === 'delete'
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const logPath = join(cwd, config.apedDir, `.update-orphans-${stamp}.log`);
+  writeFS(
+    logPath,
+    `# APED --update orphan cleanup — ${new Date().toISOString()}\n` +
+    `# Files removed below were on disk under ${config.apedDir}/ but no longer\n` +
+    `# emitted by the templates. The pre-update tarball under .aped-backups/\n` +
+    `# (if present) preserves their content for recovery.\n\n` +
+    orphans.join('\n') + '\n',
+    'utf-8',
+  );
+
+  let removed = 0;
+  for (const o of orphans) {
+    try {
+      rmSync(join(cwd, o), { force: true });
+      removed += 1;
+    } catch (err) {
+      p.log.error(`Failed to remove ${o}: ${err.message}`);
+    }
+  }
+  p.log.success(`Removed ${removed} orphan engine file(s). Audit log: ${color.dim(`${config.apedDir}/.update-orphans-${stamp}.log`)}`);
+  return removed;
+}
+
+// 6.3.0 — chantier U.
+// Compute the set of engine files left over from a previous install whose
+// templates no longer emit them. Pure function — surfaced for tests.
+//
+// Inputs:
+//   - apedDir: relative path to the engine root (e.g. ".aped").
+//   - templatedPaths: Set<string> of paths the new templates emit.
+//   - filesOnDisk: array of paths under apedDir found on disk (relative to
+//     project root). Caller is responsible for the walk so this stays I/O-free.
+//   - allowlist: array of paths the user has marked as "keep" via
+//     `.aped/.update-allowlist`. These are subtracted from the orphan set.
+//
+// Returns: array of orphan paths (sorted, deduplicated).
+//
+// Protected paths (never returned as orphans even if absent from templates):
+//   {apedDir}/config.yaml, .DISABLED, .disable-snapshot.json, WORKTREE,
+//   .archive/**, checkins/**, logs/**, .update-allowlist, .update-orphans-*.log.
+// Anything OUTSIDE apedDir/ (notably outputDir/) is the caller's responsibility
+// to exclude — the cleanup pass operates on engine paths only.
+export function computeOrphans({ apedDir, templatedPaths, filesOnDisk, allowlist = [] }) {
+  const PROTECTED_FILES = new Set([
+    `${apedDir}/config.yaml`,
+    `${apedDir}/.DISABLED`,
+    `${apedDir}/.disable-snapshot.json`,
+    `${apedDir}/WORKTREE`,
+    `${apedDir}/.update-allowlist`,
+  ]);
+  const PROTECTED_PREFIXES = [
+    `${apedDir}/.archive/`,
+    `${apedDir}/checkins/`,
+    `${apedDir}/logs/`,
+  ];
+
+  const allowSet = new Set(allowlist);
+  const orphans = [];
+
+  for (const p of filesOnDisk) {
+    if (templatedPaths.has(p)) continue;
+    if (PROTECTED_FILES.has(p)) continue;
+    if (PROTECTED_PREFIXES.some((prefix) => p.startsWith(prefix))) continue;
+    if (p.startsWith(`${apedDir}/.update-orphans-`)) continue; // own audit logs
+    if (allowSet.has(p)) continue;
+    orphans.push(p);
+  }
+
+  return [...new Set(orphans)].sort();
+}
+
+// 6.3.0 — chantier U.
+// Walk filesystem under apedDir (recursive, files only), return paths relative
+// to project root. Symlinks are surfaced as their link path, not followed —
+// orphan cleanup works on the engine source, not its consumers.
+export function walkApedDir(cwd, apedDir) {
+  const out = [];
+  const root = join(cwd, apedDir);
+  if (!existsSync(root)) return out;
+  function walk(dir) {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      let s;
+      try { s = lstatSync(full); } catch { continue; }
+      if (s.isSymbolicLink()) {
+        out.push(relative(cwd, full));
+      } else if (s.isDirectory()) {
+        walk(full);
+      } else if (s.isFile()) {
+        out.push(relative(cwd, full));
+      }
+    }
+  }
+  walk(root);
+  return out;
 }
 
 function getInstalledOptionalTemplates(config, cwd = process.cwd()) {

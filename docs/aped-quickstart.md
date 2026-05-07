@@ -154,7 +154,42 @@ v6.2.0 ships a draft 2020-12 JSON Schema for `state.yaml v3` at `.aped/data/stat
 
 See `docs/TROUBLESHOOTING.md` §27 for fix patterns.
 
-### 6.2 Disabling APED (6.2.0+)
+### 6.2 Artefact contracts (6.3.0+, WARN-only — ERROR in 7.0.0)
+
+v6.3.0 extends the structural-validation pattern from `state.yaml` (chantier S, 6.2.0) to three pipeline-critical markdown artefacts: `story.md`, `epics.md`, and `epics-context/epic-{N}-context.md`. JSON schemas ship at `.aped/data/{artefact}.schema.json`; the DSL spec is at `.aped/data/markdown-schema.dsl.md`.
+
+**Producer-side gates run automatically:**
+
+- `aped-story` step-06 invokes `validate-story.sh` after the file write — drift surfaces as stderr WARN, state stays at `pending`.
+- `aped-story` step-02 invokes `validate-epic-context.sh` after the cache is written or refreshed — drift surfaces, the cache is engine-owned (re-run aped-story to fix).
+- `aped-epics` step-07 invokes `validate-epics.sh` between the file write and the state.yaml advance — drift blocks the state advance until fixed.
+
+**What gets caught.** Invented sections (`### Verdict` outside the contract), missing required headings, malformed AC bullets (no `Given/When/Then`), missing `## FR Coverage Map` in `epics.md`, missing `## Previous stories — outcomes` in the cache (which would silently break `aped-review`'s append).
+
+**Manual run:**
+
+```bash
+bash .aped/scripts/validate-story.sh docs/aped/stories/1-1-foo.md
+bash .aped/scripts/validate-epics.sh docs/aped/epics.md
+bash .aped/scripts/validate-epic-context.sh docs/aped/epics-context/epic-1-context.md
+```
+
+Exit `0` = conformant. Exit `1` = drift (stderr names file:line and class). Exit `2` = unreadable schema/target.
+
+**Rollout.** 6.3.0 is **WARN-only** — drift surfaces but doesn't block state advance (except for `aped-epics` step-07, which holds before the state.yaml mutation since the FR Coverage Map is consumed downstream). **7.0.0 escalates to ERROR.** See `docs/TROUBLESHOOTING.md` §29-31 for fix patterns per validator.
+
+### 6.3 `--update` orphan cleanup (6.3.0+)
+
+`aped-method --update` previously left engine files behind when templates were renamed/removed between releases (concretely: 6.1→6.2 left 12 stale `aped-review/steps/step-*.md` files). v6.3.0 surfaces these orphans during `--update`:
+
+```bash
+npx aped-method --update              # interactive: [D]elete all / [K]eep+allowlist / [C]ancel
+npx aped-method --update --yes        # non-interactive: auto-Delete
+```
+
+Per-project escape hatch: `.aped/.update-allowlist` (one path per line, `#` comments allowed). `[K]eep + allowlist` appends paths so future `--update` runs respect them. Engine paths only — `outputDir/` artefacts, `config.yaml`, `.disable-snapshot.json`, `.DISABLED`, `.archive/`, `checkins/`, `logs/`, `WORKTREE` are never in scope. Audit log at `.aped/.update-orphans-{ISO}.log`. See `docs/TROUBLESHOOTING.md` §32.
+
+### 6.4 Disabling APED (6.2.0+)
 
 If you want Claude Code without APED auto-routing in a project:
 
