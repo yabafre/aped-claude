@@ -648,6 +648,8 @@ Audit log lands at `.aped/.update-orphans-{ISO}.log` before any rm, and the pre-
 
 **Out of scope.** The cleanup never touches `outputDir/` (your artefacts), `.aped/config.yaml`, `.disable-snapshot.json`, `.DISABLED`, `.archive/`, `checkins/`, `logs/`, or `WORKTREE`. Engine paths only.
 
+**Opt-in installation surfaces are protected (6.3.1+).** `.aped/hooks/`, `.aped/mcp/`, `.aped/visual-companion/`, and any `*.example` file are never returned as orphans — even if the probe-detection in `getInstalledOptionalTemplates` ever misses a feature. So an `aped-method enable-mcp` install, an `aped-method commit-gate` hook, or a `workmux.yaml.example` survives every `--update`. (The 6.3.0 GA briefly flagged these as orphans; if you ran `--update --yes` between v6.3.0 and v6.3.1 release time, the `.aped-backups/aped-{stamp}.tar.gz` tarball under your project root is the recovery path: `tar xzf .aped-backups/...tar.gz path/to/file`.)
+
 ## Still stuck?
 
 Run with `--debug` to get a stack trace on error:
