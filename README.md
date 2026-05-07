@@ -161,9 +161,9 @@ The CLI also includes a few maintenance subcommands for installed APED projects:
 - `aped-method enable-mcp` — install the **aped-state MCP companion server** (4.13.0+; opt-in). Exposes typed atomic ops on `state.yaml` to Claude Code: `aped_state.get(path)` for surgical reads, `aped_state.update(path, value, expect_sha?)` for atomic mutations with optimistic-concurrency, `aped_validate.phase(name)` for the canonical oracle gate. Top-level key allowlist rejects schema typos. Eliminates the entire state.yaml hallucination class. Requires `yq`.
 - `aped-method session-start` — install the SessionStart hook that injects `aped/skills/SKILL-INDEX.md` as `additionalContext` at session boot
 - `aped-method visual-companion` — install the bash + python3 HTTP server (default port 3737) that powers `aped-brainstorm`'s browser-based mockup/diagram rendering
-- `aped-method disable` — (6.2.0+) suppress all APED skills from natural-language routing in this project. Flips `disable-model-invocation: true` on every `.aped/aped-*/SKILL.md`, snapshots the originally-unflagged skills to `.aped/.disable-snapshot.json`, writes a `.aped/.DISABLED` marker. Reversible — see `aped-method enable`.
-- `aped-method enable` — (6.2.0+) restore APED routing by consuming the snapshot. Originally-flagged skills stay opt-out; only the newly-suppressed ones lose the flag.
-- `aped-method status` — (6.2.0+) report whether APED is currently enabled / disabled / disabled-stale plus the last-toggle timestamp and skill counts.
+- `aped-method disable` — (6.2.0+) suppress all APED skills from natural-language routing in this project. Flips `disable-model-invocation: true` on every `.aped/aped-*/SKILL.md`, snapshots the originally-unflagged skills to `.aped/.disable-snapshot.json`, writes a `.aped/.DISABLED` marker. Reversible — see `aped-method enable`. Pass `--local` (6.3.2+) for a per-developer disable: marker only, no frontmatter flips, auto-gitignored — the rest of the team is unaffected on commit.
+- `aped-method enable` — (6.2.0+) restore APED routing. Reads the marker mode and either consumes the snapshot (full) or just removes the marker (local, 6.3.2+).
+- `aped-method status` — (6.2.0+) report whether APED is currently enabled / disabled / disabled-local (6.3.2+) / disabled-stale (legacy marker) plus the last-toggle timestamp and skill counts.
 
 ### Disable APED in a project (6.2.0+)
 
@@ -191,6 +191,22 @@ npx aped-method enable
 **Defense in depth.** Every skill body now starts with an activation guard that runs `bash {{APED_DIR}}/scripts/check-enabled.sh`. Even if a user types `/aped-X` explicitly to bypass routing, the guard reads the marker / `aped.enabled: false` in `config.yaml` and HALTs the skill silently with a one-liner. No skill work happens while APED is disabled.
 
 **Enable consumes the snapshot.** Only the originally-unflagged skills lose the `disable-model-invocation` line; the 14 always-opt-out skills (`aped-arch`, `aped-grill`, `aped-zoom-out`, etc.) stay opt-out. If the snapshot is missing, `enable` falls back to a best-effort restore (strips the flag from all 34) and warns.
+
+**Local-only disable (6.3.2+).** When you want APED off in your working copy without committing the change to your team's branch:
+
+```bash
+npx aped-method disable --local
+# → Disabled APED locally — marker only, no team-wide changes.
+#   Added `.aped/.DISABLED` to .gitignore.
+
+npx aped-method status
+# → APED is disabled (local) — marker only, 35 skills unchanged.
+
+npx aped-method enable
+# → Enabled APED — local marker removed.
+```
+
+Footprint: 1 gitignored file (`.aped/.DISABLED` with `mode: local`). No `SKILL.md` modifications, no snapshot, nothing to commit. The activation guard `check-enabled.sh` HALTs every skill body on the marker regardless of mode — runtime UX is identical to a full disable. Mode-conflict (running `--local` against a full-disabled install or vice-versa) exits with a clear "run `aped-method enable` first" message; no hybrid states.
 
 ## Personas & teams
 

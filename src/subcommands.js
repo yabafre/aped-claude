@@ -142,7 +142,7 @@ export async function runSubcommand(command, args) {
   }
 
   if (command === 'disable') {
-    runDisableSubcommand(config);
+    runDisableSubcommand(config, args);
     return;
   }
 
@@ -157,14 +157,42 @@ export async function runSubcommand(command, args) {
   }
 }
 
-function runDisableSubcommand(config) {
+function runDisableSubcommand(config, args = {}) {
   p.intro(`${color.green(color.bold('APED Method'))} ${color.dim(`v${CLI_VERSION}`)}`);
-  const result = disableAped(config);
+  const local = args.local === true;
+  const result = disableAped(config, process.cwd(), { local });
+
+  if (result.action === 'mode-conflict') {
+    p.log.error(
+      `APED is already disabled (${result.currentMode}). ` +
+      `Run \`aped-method enable\` first to switch to ${result.requestedMode} mode.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   if (result.action === 'noop') {
-    p.log.warn('APED is already disabled.');
+    const modeLabel = result.mode === 'local' ? ' (local)' : '';
+    p.log.warn(`APED is already disabled${modeLabel}.`);
     p.outro(color.dim(`${result.total} skills suppressed. Run \`aped-method enable\` to restore routing.`));
     return;
   }
+
+  // 6.3.2 — local mode summary.
+  if (result.mode === 'local') {
+    p.log.success(`Disabled APED locally — marker only, no team-wide changes.`);
+    if (result.gitignore?.added) {
+      p.log.message(color.dim(`Added \`${config.apedDir}/.DISABLED\` to ${result.gitignore.path}.`));
+    } else if (result.gitignore?.skipped === 'no-git') {
+      p.log.message(color.dim(`Not a git repo — \`${config.apedDir}/.DISABLED\` won't be committed (no .git/).`));
+    } else if (result.gitignore?.skipped === 'already-present') {
+      p.log.message(color.dim('Gitignore already excludes the marker.'));
+    }
+    p.outro(color.dim(`${result.total} skills total. Run \`aped-method enable\` to restore routing.`));
+    return;
+  }
+
+  // Full mode summary (existing).
   p.log.success(`Disabled APED — ${result.newlySuppressed} newly suppressed, ${result.originallyFlagged} already opt-out.`);
   p.outro(color.dim(`${result.total} skills total. Run \`aped-method enable\` to restore routing.`));
 }
@@ -202,6 +230,13 @@ function runStatusSubcommand(config) {
     p.log.warn(`APED is ${color.yellow('disabled')} (stale snapshot — enable to recover).`);
     if (result.lastToggle) p.log.message(color.dim(`Last toggle: ${result.lastToggle}`));
     p.outro(color.dim(`${result.total} skills suppressed. Run \`aped-method enable\` to restore.`));
+    return;
+  }
+  // 6.3.2 — disabled-local: marker only, no frontmatter flips, no snapshot.
+  if (result.state === 'disabled-local') {
+    p.log.success(`APED is ${color.yellow('disabled')} (local) — marker only, ${result.total} skills unchanged.`);
+    if (result.lastToggle) p.log.message(color.dim(`Last toggle: ${result.lastToggle}`));
+    p.outro(color.dim('Run `aped-method enable` to restore routing.'));
     return;
   }
   // disabled

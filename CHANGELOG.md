@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Local-only disable mode (`aped-method disable --local`)
+
+A per-developer disable that doesn't propagate to the team. Useful when one teammate wants Claude Code without APED routing in a project that the rest of the team uses with APED routing. Marker-only, gitignored, fully reversible.
+
+- `aped-method disable --local` writes `.aped/.DISABLED` with a `mode: local` line, **does not** flip `disable-model-invocation: true` on any `SKILL.md`, **does not** write `.aped/.disable-snapshot.json`, and auto-appends `.aped/.DISABLED` to the project root `.gitignore` (creates the file if absent; in non-git dirs the gitignore step is skipped).
+- Activation guard `check-enabled.sh` HALTs the skill body on the marker regardless of mode — runtime UX is identical to a full disable. Only the file footprint differs (1 file vs ~37, gitignored vs committed).
+- `aped-method enable` reads the marker mode and either consumes the snapshot (full mode) or just removes the marker (local mode). The `.gitignore` line is left alone — future `disable --local` runs benefit from the guard.
+- `aped-method status` adds a `disabled-local` state distinct from `disabled-stale` (marker present but no `mode:` line, legacy or corrupt).
+- Mode-conflict refusal: `--local` against a full-disabled install (or vice-versa) exits non-zero with a clear "run aped-method enable first" message. Avoids hybrid states.
+- Marker file format extended: `disabled_at: <ISO>` + `mode: <local|full>`. Pre-6.3.2 markers (single ISO line, no `mode:` key) read as legacy and continue to behave as before.
+
 ## [6.3.1] - 2026-05-07
 
 ### Fixed — `--update` orphan cleanup no longer flags installed opt-in features
