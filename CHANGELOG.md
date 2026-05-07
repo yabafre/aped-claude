@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — Skill bodies no longer cite external sources (6.2.0 R)
+
+APED skill bodies preserved attribution prose from upstream sources (Pocock skills, Superpowers issues, "BMAD pattern", "Anthropic context-engineering", "Adapted from", "Translation of", "Lifted from"). Those sources don't ship with user projects — Claude routinely tried to "look up" the references and wasted context.
+
+- Purged 17+ citations across 16 skill files (`aped-arch`, `aped-arch-audit`, `aped-brainstorm`, `aped-checkpoint`, `aped-context`, `aped-debug`, `aped-glossary`, `aped-grill`, `aped-review`, `aped-story`, `aped-write-skill`, `aped-zoom-out`). Technical content preserved; only the citation prose was dropped.
+- New regression test `tests/no-external-attributions.test.js` walks `src/templates/skills/**/*.md` with a 9-token forbidden regex and an allowlist for `aped-skills/` reference docs which intentionally cite their origin.
+- TROUBLESHOOTING §28 documents `npx aped-method --update` for users upgrading from pre-6.2.0 scaffolds.
+
+### Added — `aped-method disable / enable / status` subcommands (6.2.0 D)
+
+Projects that no longer want APED auto-routing previously had no escape — the 20 ambient APED skills kept matching natural-language phrases via their `description:`. v6.2.0 ships an opt-in suppression mechanism with reversibility built in.
+
+- `aped-method disable` flips `disable-model-invocation: true` on every `.aped/aped-*/SKILL.md`, snapshots the names of the 20 originally-unflagged skills to `.aped/.disable-snapshot.json`, and writes a `.aped/.DISABLED` marker. Idempotent.
+- `aped-method enable` consumes the snapshot — only the originally-unflagged skills lose the line; the 14 originals stay flagged. Marker + snapshot are removed. If the snapshot is missing but the marker remains, a best-effort restore strips the flag from all skills.
+- `aped-method status` reports `enabled` / `disabled` / `disabled (stale snapshot)` plus the last-toggle timestamp and skill counts (newly suppressed vs already opt-out).
+- Defense-in-depth knob `aped.enabled` seeded in `config.yaml` (defaults `true`). Every skill body now starts with an activation guard line that runs `bash {{APED_DIR}}/scripts/check-enabled.sh`; non-zero exit prints `APED disabled — run aped-method enable` and HALTs even when the user explicitly types `/aped-X`.
+- New helper `${APED_DIR}/scripts/check-enabled.sh` (no `yq` dependency — pure `awk`/`grep`) reads the `.DISABLED` marker first, then `aped.enabled` from `config.yaml`.
+- 19 `workflow.md` and 15 standalone `SKILL.md` bodies received the activation guard line at the top of the body.
+- New `tests/aped-disable.test.js` (10 tests) covers idempotency, snapshot fidelity, marker lifecycle, status output, and the best-effort restore path.
+
 ## [6.1.0] - 2026-05-07
 
 ### Added — Sprint-mode config knobs (schema v3)

@@ -1,3 +1,5 @@
+**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
 # APED Debug — Disciplined Diagnosis Loop
 
 **Goal:** Apply a six-phase discipline for hard bugs and performance regressions: build the loop, reproduce, hypothesise, instrument, fix + regression test, cleanup + post-mortem. Enforces the 3-failed-fixes rule, the Invocation contexts contract, defense-in-depth, and condition-based waiting.

@@ -12,6 +12,8 @@ metadata:
   version: {{CLI_VERSION}}
 ---
 
+**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
 # APED Quick — Fast Track for Small Changes
 
 Use this for isolated fixes, small features, or refactors that don't warrant the full A→P→E→D→R pipeline.

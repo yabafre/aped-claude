@@ -25,6 +25,7 @@ import { join, dirname } from 'node:path';
 import color from 'picocolors';
 import { inspectInstallation } from './doctor.js';
 import { repairSkillSymlinks, summarizeSymlinkInspection } from './symlink-manager.js';
+import { disableAped, enableAped, statusAped } from './disable.js';
 import {
   statuslineTemplates,
   safeBashTemplates,
@@ -139,6 +140,76 @@ export async function runSubcommand(command, args) {
     runSyncLogsSubcommand(config, args);
     return;
   }
+
+  if (command === 'disable') {
+    runDisableSubcommand(config);
+    return;
+  }
+
+  if (command === 'enable') {
+    runEnableSubcommand(config);
+    return;
+  }
+
+  if (command === 'status') {
+    runStatusSubcommand(config);
+    return;
+  }
+}
+
+function runDisableSubcommand(config) {
+  p.intro(`${color.green(color.bold('APED Method'))} ${color.dim(`v${CLI_VERSION}`)}`);
+  const result = disableAped(config);
+  if (result.action === 'noop') {
+    p.log.warn('APED is already disabled.');
+    p.outro(color.dim(`${result.total} skills suppressed. Run \`aped-method enable\` to restore routing.`));
+    return;
+  }
+  p.log.success(`Disabled APED — ${result.newlySuppressed} newly suppressed, ${result.originallyFlagged} already opt-out.`);
+  p.outro(color.dim(`${result.total} skills total. Run \`aped-method enable\` to restore routing.`));
+}
+
+function runEnableSubcommand(config) {
+  p.intro(`${color.green(color.bold('APED Method'))} ${color.dim(`v${CLI_VERSION}`)}`);
+  const result = enableAped(config);
+  if (result.action === 'noop') {
+    p.log.warn('APED is already enabled.');
+    p.outro(color.dim(`${result.total} skills routing normally.`));
+    return;
+  }
+  if (result.bestEffort) {
+    p.log.warn('Snapshot missing — best-effort restore stripped the flag from all skills.');
+  }
+  p.log.success(`Enabled APED — restored ${result.restored} skill${result.restored === 1 ? '' : 's'}, ${result.kept} kept opt-out.`);
+  p.outro(color.dim(`${result.total} skills total.`));
+}
+
+function runStatusSubcommand(config) {
+  p.intro(`${color.green(color.bold('APED Method'))} ${color.dim(`v${CLI_VERSION}`)}`);
+  const result = statusAped(config);
+  if (result.state === 'no-install') {
+    p.log.error(`No APED installation at ${config.apedDir}.`);
+    p.outro(color.dim('Run `aped-method` to scaffold one.'));
+    process.exitCode = 1;
+    return;
+  }
+  if (result.state === 'enabled') {
+    p.log.success(`APED is ${color.green('enabled')} — ${result.total} skills routing normally.`);
+    p.outro(color.dim('Run `aped-method disable` to suppress natural-language routing.'));
+    return;
+  }
+  if (result.state === 'disabled-stale') {
+    p.log.warn(`APED is ${color.yellow('disabled')} (stale snapshot — enable to recover).`);
+    if (result.lastToggle) p.log.message(color.dim(`Last toggle: ${result.lastToggle}`));
+    p.outro(color.dim(`${result.total} skills suppressed. Run \`aped-method enable\` to restore.`));
+    return;
+  }
+  // disabled
+  p.log.success(
+    `APED is ${color.yellow('disabled')} — ${result.total} skills (${result.newlySuppressed} newly suppressed, ${result.originallyFlagged} already opt-out).`,
+  );
+  if (result.lastToggle) p.log.message(color.dim(`Last toggle: ${result.lastToggle}`));
+  p.outro(color.dim('Run `aped-method enable` to restore routing.'));
 }
 
 // ── sync-logs prune ────────────────────────────────────────────────────────

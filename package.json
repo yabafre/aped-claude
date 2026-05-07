@@ -19,6 +19,7 @@
     "src/doctor.js",
     "src/symlink-manager.js",
     "src/bash-safety.js",
+    "src/disable.js",
     "src/templates/*.js",
     "src/templates/data/*.csv",
     "src/templates/hooks/*.js",

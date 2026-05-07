@@ -51,6 +51,9 @@ const SUBCOMMANDS = new Set([
   'tdd-red-marker',
   'commit-gate',
   'enable-mcp',
+  'disable',
+  'enable',
+  'status',
 ]);
 
 // Subcommands that take a second positional action (e.g. `sync-logs prune`).
@@ -119,6 +122,17 @@ SUBCOMMANDS
   commit-gate             Install the opt-in commit-gate PostToolUse advisory
                           hook (warns after 5+ uncommitted file changes — enforces
                           one commit per GREEN gate). Pass --uninstall to remove.
+  disable                 Suppress all APED skills from natural-language routing
+                          by flipping disable-model-invocation: true on every
+                          .aped/aped-*/SKILL.md, with a snapshot of the original
+                          state for reversibility (.aped/.disable-snapshot.json
+                          + .aped/.DISABLED marker). Use when a project should
+                          run with Claude Code only, without APED auto-routing.
+  enable                  Restore APED routing by consuming the snapshot from
+                          \`disable\`. Originals stay flagged; only the
+                          newly-suppressed skills lose the line.
+  status                  Print whether APED is currently enabled or disabled
+                          + last toggle timestamp + skill counts.
   enable-mcp              Install the opt-in aped-state MCP companion server
                           (typed atomic ops on state.yaml: get / update /
                           validate.phase). Registers under .claude/settings

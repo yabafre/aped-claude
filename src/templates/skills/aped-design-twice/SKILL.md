@@ -8,6 +8,8 @@ allowed-paths:
   read-only: ["src/**", "tests/**", "package.json"]
 ---
 
+**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
 # aped-design-twice — Dual Design Exploration
 
 ## Purpose
