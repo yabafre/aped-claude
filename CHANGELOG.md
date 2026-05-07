@@ -15,6 +15,18 @@ APED skill bodies preserved attribution prose from upstream sources (Pocock skil
 - New regression test `tests/no-external-attributions.test.js` walks `src/templates/skills/**/*.md` with a 9-token forbidden regex and an allowlist for `aped-skills/` reference docs which intentionally cite their origin.
 - TROUBLESHOOTING §28 documents `npx aped-method --update` for users upgrading from pre-6.2.0 scaffolds.
 
+### Added — Strict JSON Schema v3 for state.yaml (6.2.0 S, WARN-only)
+
+`state.yaml v3` had no machine-checkable shape — observed drift in production projects included invented sub-blocks (`design_system`, `style_direction`, `councils_retired`, `ramp_tiering`), out-of-taxonomy phase statuses, free-form story fields (`verdict`, `review_notes`, `dev_completed_at`), heterogeneous-shape lists, and prose-laden YAML comments narrating descopes. None were caught by the soft `validate-state.sh`.
+
+- New `src/templates/data/state.yaml.schema.v3.json` (JSON Schema draft 2020-12). Strict on `sprint.stories.<key>` and `pipeline.phases.<phase>` (additionalProperties: false). Permissive on `ticket_sync` / `backlog_future_scope` (provider-shape varies). Rejects `sprint.parallel_limit` / `sprint.review_limit` (moved to config.yaml in v3).
+- Schema ships to `${APED_DIR}/data/state.yaml.schema.v3.json` via the references scaffold.
+- `validate-state.sh` invokes `npx -y ajv-cli@^5` against the schema as the final check. **WARN-only in 6.2.0** — escalates to ERROR in 7.0.0 (one MINOR cycle of grace). Skips gracefully when `yq` / `npx` / network is unavailable (offline / sandboxed CI stays green).
+- New `tests/state-schema-v3.test.js` (10 tests) — validates the seeded state.yaml against the schema, asserts drift fields are rejected, asserts provider-shape latitude on ticket_sync.
+- New `tests/skill-body-state-fields.test.js` (270 tests) — every `sprint.stories.<key>.<field>` and `pipeline.phases.<phase>.<field>` mention in skill bodies must reference a field present in the schema. Catches drift propagation.
+- `docs/aped-quickstart.md` §6.1 + `docs/TROUBLESHOOTING.md` §27 document the rollout + fix patterns.
+- `ajv`, `ajv-formats`, `js-yaml` added as devDependencies (test-only — runtime uses `npx -y ajv-cli@^5`, no production deps added).
+
 ### Added — `aped-method disable / enable / status` subcommands (6.2.0 D)
 
 Projects that no longer want APED auto-routing previously had no escape — the 20 ambient APED skills kept matching natural-language phrases via their `description:`. v6.2.0 ships an opt-in suppression mechanism with reversibility built in.

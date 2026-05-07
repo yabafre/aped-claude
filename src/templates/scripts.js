@@ -2201,6 +2201,50 @@ if (( invalid_found )); then
   exit 3
 fi
 
+# ── Strict schema validation (6.2.0+, WARN-only) ─────────────────────────
+# Validate state.yaml against the canonical JSON Schema v3 shipped at
+# \${APED_DIR}/data/state.yaml.schema.v3.json. Surfaces drift (invented
+# sub-blocks, free-form story fields, out-of-taxonomy phase shapes) as
+# stderr warnings. WARN-only in 6.2.0 — escalates to ERROR in 7.0.0
+# after one MINOR cycle of grace.
+#
+# Lazy + optional dependencies: yq (YAML->JSON) + npx + ajv-cli. Any
+# missing piece triggers a skip with a one-line stderr note. CI pipelines
+# without yq or outbound npm access stay green.
+if [[ "\$schema_version" == "3" ]]; then
+  schema_file="\$PROJECT_ROOT/${a}/data/state.yaml.schema.v3.json"
+  if [[ ! -f "\$schema_file" ]]; then
+    echo "WARN: schema check skipped (\$schema_file not found - re-run \\\`aped-method --update\\\` to scaffold it)" >&2
+  elif ! command -v yq >/dev/null 2>&1; then
+    echo "WARN: schema check skipped (yq not installed)" >&2
+  elif ! command -v npx >/dev/null 2>&1; then
+    echo "WARN: schema check skipped (npx not installed)" >&2
+  else
+    # mktemp on macOS ignores the .json template suffix; add it ourselves
+    # so ajv-cli detects the file as JSON (it dispatches by extension).
+    json_tmp_dir=\$(mktemp -d -t aped-state-XXXXXX 2>/dev/null || mktemp -d)
+    json_tmp="\$json_tmp_dir/state.json"
+    if ! yq eval -o=json '.' "\$STATE_FILE" > "\$json_tmp" 2>/dev/null; then
+      rm -rf "\$json_tmp_dir"
+      echo "WARN: schema check skipped (yq could not convert state.yaml to JSON)" >&2
+    else
+      ajv_output=\$(npx --yes ajv-cli@^5 validate \\
+        --spec=draft2019 \\
+        --strict=false \\
+        -s "\$schema_file" \\
+        -d "\$json_tmp" 2>&1) || ajv_status=\$?
+      ajv_status=\${ajv_status:-0}
+      rm -rf "\$json_tmp_dir"
+      if [[ "\$ajv_status" == "127" ]]; then
+        echo "WARN: schema check skipped (npx ajv-cli unavailable - offline or sandboxed)" >&2
+      elif [[ "\$ajv_status" != "0" ]]; then
+        echo "WARN: state.yaml does not match schema v3 (drift detected - see below). 6.2.0 is WARN-only; 7.0.0 will refuse to operate. Run \\\`aped-method --update\\\` to ship the latest schema; fix or re-route invented fields." >&2
+        printf '%s\\n' "\$ajv_output" | head -40 >&2
+      fi
+    fi
+  fi
+fi
+
 exit 0
 `,
     },
