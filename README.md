@@ -120,6 +120,10 @@ Why: keeping each step file under ~250 lines means Claude only loads the slice r
 
 **Doc hygiene + INDEX (v6.2.0+, `aped-purge`).** Walks `docs/aped/`, classifies each entry as canonical / archived / allowlisted / unknown, regenerates `INDEX.md` as the single entry point. Per-file triage menu for orphan docs the agent might have written outside the APED canon: `[A]rchive` / `[I]nline into a canonical artefact` / `[K]eep+allowlist` / `[D]elete` / `[S]kip`. Read-only by default — moves and deletes only on explicit user choice.
 
+**Artefact contracts (v6.3.0+, WARN-only).** Markdown structural-schema validators ship for `story.md`, `epics.md`, and `epics-context/epic-{N}-context.md`. Each producing skill (`aped-story`, `aped-epics`) invokes the validator after writing the artefact and surfaces drift (invented sections, malformed AC bullets, missing required headings) without blocking state advance. Per-project escape via `--update --yes` and `.aped/.update-allowlist`. Schemas live at `.aped/data/{artefact}.schema.json`; the DSL spec is at `.aped/data/markdown-schema.dsl.md`. Manual run: `bash .aped/scripts/validate-{artefact}.sh <file>`. Escalates to ERROR in 7.0.0 — same playbook as the chantier S `state.yaml` schema in 6.2.0.
+
+**`--update` orphan cleanup (v6.3.0+).** `aped-method --update` now diffs the new templates against the on-disk `{{APED_DIR}}/` and surfaces engine files that no longer have a producer (e.g. step files renamed between releases). Interactive prompt (`[D]elete all` / `[K]eep + allowlist` / `[C]ancel`); `--yes` auto-confirms `Delete`. The `outputDir/` (artefacts), `config.yaml`, `.disable-snapshot.json`, `.DISABLED`, `.archive/`, `checkins/`, `logs/`, and `WORKTREE` are never in scope. An audit log is written to `{{APED_DIR}}/.update-orphans-{ISO}.log` before deletion.
+
 ### Migrating from 5.x
 
 The 5.x flat-file scaffolds (`.aped/aped-X.md`) still work — the loader handles both layouts. To pick up the v6.0.0 directory structure on an existing install:

@@ -581,6 +581,73 @@ npx aped-method --update    # ships the latest .aped/data/state.yaml.schema.v3.j
 
 **Fix.** Run `npx aped-method --update` to refresh the scaffolded skills. The technical content is preserved; only the citation prose was removed. Reference docs under `.aped/aped-skills/` (e.g. `anthropic-best-practices.md`) keep their attribution intentionally — they are user-readable references, not skill bodies.
 
+## 29. `validate-story.sh` complains about my `story.md` (6.3.0+)
+
+**Symptom.** `aped-story` self-review (or a manual `bash .aped/scripts/validate-story.sh docs/aped/stories/1-1-foo.md`) emits stderr lines like:
+
+```
+docs/aped/stories/1-1-foo.md:42 — invented top-level heading 'Verdict' not in schema
+docs/aped/stories/1-1-foo.md: missing required heading 'Acceptance Criteria'
+docs/aped/stories/1-1-foo.md:23 — line does not match expected pattern under 'Acceptance Criteria'
+```
+
+**Cause.** v6.3.0 ships a structural schema for `story.md` at `.aped/data/story.schema.json`. The validator walks the markdown, requires the canonical `## ` headings (User Story / Acceptance Criteria / Tasks / Dev Notes / File List, plus optional Dev Agent Record / Review Record), forbids invented top-level sections, and requires AC bullets to mention `Given` / `When` / `Then`.
+
+**Rollout schedule.** WARN-only in 6.3.0 (state stays advanced; the warning is informational). **7.0.0 will escalate to ERROR** — the producing skill blocks state.yaml advance on drift.
+
+**Fix.**
+
+1. Read each line — it names the file:line and the violation class.
+2. **Invented heading** — rename to a canonical heading or move the content under one (most "Verdict" / "Status" / "Notes" sections belong inside Review Record).
+3. **Missing required heading** — add the section. AC and Tasks are non-negotiable.
+4. **AC line shape** — rewrite the bullet to include `Given X, when Y, then Z`. Rationale: see `.aped/aped-story/SKILL.md` ("Reader-persona check").
+5. Re-run aped-story (or hand-edit and re-run `validate-story.sh`).
+
+**Skip the schema check.** The validator fail-soft when its Node walker (`scripts/lib/markdown-schema-walk.mjs`) is missing — same pattern as `validate-state.sh`. No flag needed.
+
+## 30. `validate-epic-context.sh` says my cache is malformed (6.3.0+)
+
+**Symptom.**
+
+```
+docs/aped/epics-context/epic-1-context.md: missing required heading 'Previous stories — outcomes'
+```
+
+**Cause.** The epic-context cache at `docs/aped/epics-context/epic-{N}-context.md` is engine-owned: `aped-story` writes the strict template, and `aped-review` appends `### Story X — done {ISO}` blocks under the `## Previous stories — outcomes` heading. If that heading goes missing, `aped-review`'s append step has no anchor and silently breaks.
+
+**Fix.** Re-run `aped-story` for any story in the epic — step-02 detects the stale/malformed cache and refreshes it. Do **not** hand-edit the cache to add the heading; the next refresh would re-overwrite. The validator's purpose is to surface the breakage early, before `aped-review` discovers it.
+
+## 31. `validate-epics.sh` flags my `epics.md` (6.3.0+)
+
+**Symptom.**
+
+```
+docs/aped/epics.md: missing required heading 'FR Coverage Map'
+```
+
+**Cause.** The 6.3.0 epics schema is permissive on `## Epic 1: ...`, `## Epic 2: ...` (count varies per project — pattern matching lands in 6.4.0), but **strict on the closing `## FR Coverage Map`** which `aped-sprint` consumes to compute the dependency DAG.
+
+**Fix.** Re-run `aped-epics` step-07 — the writer adds the FR Coverage Map at the bottom. If you hand-edited an existing `epics.md`, append a `## FR Coverage Map` section listing each FR → Epic → Story mapping.
+
+## 32. I see legacy `step-XX-*.md` files under `.aped/aped-review/steps/` after upgrading (6.3.0+)
+
+**Symptom.** Right after `aped-method --update` from 6.1.x or 6.2.x to 6.3.0, the directory `.aped/aped-review/steps/` contains the **old** step files (12 of them, named `step-01-init.md` etc) **alongside** the **new** ones (5 files, `step-01-setup.md` etc). 17 files total. Confusing.
+
+**Cause.** Pre-6.3.0, `--update` wrote the new templates but never deleted files that no longer existed in the new template set. Every release that renamed an engine file accumulated dead state.
+
+**Fix.** v6.3.0+ surfaces those orphans during `--update`. Run:
+
+```bash
+npx aped-method --update            # interactive: pick [D]elete all
+npx aped-method --update --yes      # non-interactive: auto-delete
+```
+
+The cleanup pass walks `.aped/`, diffs against the new templates, and prompts `[D]elete all` / `[K]eep + allowlist` / `[C]ancel`. `[K]eep + allowlist` appends paths to `.aped/.update-allowlist` (one path per line, `#` comments allowed) so future `--update` runs respect them — useful when you've hand-added an engine file you want to keep.
+
+Audit log lands at `.aped/.update-orphans-{ISO}.log` before any rm, and the pre-update tarball under `.aped-backups/aped-{stamp}.tar.gz` (if present) preserves the file content for recovery.
+
+**Out of scope.** The cleanup never touches `outputDir/` (your artefacts), `.aped/config.yaml`, `.disable-snapshot.json`, `.DISABLED`, `.archive/`, `checkins/`, `logs/`, or `WORKTREE`. Engine paths only.
+
 ## Still stuck?
 
 Run with `--debug` to get a stack trace on error:
