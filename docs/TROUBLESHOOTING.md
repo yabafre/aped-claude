@@ -519,9 +519,9 @@ The snapshot is consumed: only the originally-unflagged skills lose the flag; th
 
 ```bash
 npx aped-method status
-# → APED is enabled — 34 skills routing normally.
+# → APED is enabled — 35 skills routing normally.
 # or
-# → APED is disabled — 34 skills (20 newly suppressed, 14 already opt-out).
+# → APED is disabled — 35 skills (20 newly suppressed, 14 already opt-out).
 #   Last toggle: 2026-05-07T11:50:00.000Z
 ```
 
@@ -531,7 +531,7 @@ npx aped-method status
 
 So the skill HALTs silently before doing any work when APED is disabled, regardless of how it was invoked.
 
-**Stale snapshot recovery.** If `.aped/.DISABLED` exists but `.aped/.disable-snapshot.json` is missing (manual edits, partial backup restore), `aped-method enable` falls back to a best-effort restore — strips the flag from all 34 skills. The 14 originals lose their pre-existing opt-out, but routing is restored. Re-edit the 14 SKILL.md frontmatters by hand if you need them opt-out again, or run `aped-method --update` to re-scaffold from the package defaults.
+**Stale snapshot recovery.** If `.aped/.DISABLED` exists but `.aped/.disable-snapshot.json` is missing (manual edits, partial backup restore), `aped-method enable` falls back to a best-effort restore — strips the flag from all 35 skills. The 14 originals lose their pre-existing opt-out, but routing is restored. Re-edit the 14 SKILL.md frontmatters by hand if you need them opt-out again, or run `aped-method --update` to re-scaffold from the package defaults.
 
 ## 27. `validate-state.sh` prints schema WARN lines about my state.yaml (6.2.0+)
 

@@ -1,7 +1,7 @@
 ---
 step: 4
 reads:
-  - "{{OUTPUT_DIR}}/epic-{N}-context.md"
+  - "{{OUTPUT_DIR}}/epics-context/epic-{N}-context.md"
   - "{{OUTPUT_DIR}}/stories/{story-key}.md"
 writes: []
 mutates_state: false

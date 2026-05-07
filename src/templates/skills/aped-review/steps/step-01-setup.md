@@ -2,7 +2,7 @@
 step: 1
 reads:
   - "{{OUTPUT_DIR}}/stories/{story-key}.md"
-  - "{{OUTPUT_DIR}}/epic-{N}-context.md"
+  - "{{OUTPUT_DIR}}/epics-context/epic-{N}-context.md"
   - "{{OUTPUT_DIR}}/architecture.md"
   - "{{OUTPUT_DIR}}/lessons.md"
 writes: []
@@ -39,7 +39,7 @@ Verify the current branch matches the story's expected feature branch (`feature/
 ## Required inputs (HALT on missing)
 
 - ✱ **Story file** — `{{OUTPUT_DIR}}/stories/{story-key}.md`. Missing → *"No story file. Run `aped-story` first."*
-- ✱ **Epic-context cache** — `{{OUTPUT_DIR}}/epic-{N}-context.md` (N = epic number from story key). Missing → *"No epic context cache. Run `aped-story` first — never work around with raw PRD/UX loads, that's the drift the cache exists to prevent."*
+- ✱ **Epic-context cache** — `{{OUTPUT_DIR}}/epics-context/epic-{N}-context.md` (N = epic number from story key). Missing → *"No epic context cache. Run `aped-story` first — never work around with raw PRD/UX loads, that's the drift the cache exists to prevent."*
 
 ## Soft inputs (load if present)
 

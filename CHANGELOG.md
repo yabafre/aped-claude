@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `aped-purge` doc hygiene + INDEX (35th skill)
+
+`aped-` skills sometimes wrote project-specific reference docs (`migration-pattern-modules.md`, `migration-framework.md`, …) directly under `{{OUTPUT_DIR}}/`. Those files have no producer skill, no consumer, no entry point — they just sit there and the next `aped-status` doesn't even know they exist.
+
+- New `aped-purge` skill walks `{{OUTPUT_DIR}}/`, classifies each entry as canonical / archived / allowlisted / unknown, regenerates `INDEX.md` (single entry point listing every artefact + status), and triages unknowns interactively per file: `[A]rchive` / `[I]nline into a canonical artefact` / `[K]eep+allowlist` (with rationale) / `[D]elete` (typed confirmation required) / `[S]kip`.
+- Read-only by default — moves and deletes only happen on explicit user choice. `state.yaml` and the canon are protected from `[D]elete`.
+- Stale-flag advisory surfaces gaps (e.g. `prd.md` edited but `epics-context/` not refreshed) without auto-running other skills.
+- Compaction is **not** in v1 — moving done-epic caches to `.archive/` is a deferred follow-up.
+- Skill catalog: 34 → 35 skills.
+
+### Changed — Epic-context cache moves to `epics-context/` folder
+
+Cleaner output-dir layout: `{{OUTPUT_DIR}}/epic-{N}-context.md` becomes `{{OUTPUT_DIR}}/epics-context/epic-{N}-context.md`. Producer (`aped-story`) and consumers (`aped-dev`, `aped-review`) updated; docs (workflow, phases, dev/discovery-pattern, INDEX) re-aligned. Existing v6.2.0-pre-rc projects moving from the flat path: `mkdir docs/aped/epics-context && mv docs/aped/epic-*-context.md docs/aped/epics-context/`.
+
+### Fixed — Smoke (full tarball) tarball-e2e step-count threshold
+
+CI workflow `tarball-e2e` asserted `STEP_COUNT >= 80` from the pre-slim count. After the `aped-review` slim redesign (12 → 5 steps) the count fell to 75; the threshold is loosened to 70 to match the new floor.
+
 ### Changed — `aped-review` slim redesign (6.2.0)
 
 The previous review surface was 1456 lines, 12 sequential step files, 11 named specialists with overlapping scopes (Eva ↔ Aaron on AC matching; Marcus ↔ Diego on code quality; Hannah ↔ Eli on adversarial), and a 1 → 1.5 → 2 stage gate that serialised what could run in parallel. The Anthropic best-practices doc explicitly calls out that "the `aped-review` Lead role has high freedom"; the implementation was fighting that with low-freedom shepherding.

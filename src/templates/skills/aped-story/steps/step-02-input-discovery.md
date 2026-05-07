@@ -6,7 +6,7 @@ reads:
   - "docs/**"
   - "{{OUTPUT_DIR}}/lessons.md"
 writes:
-  - "{{OUTPUT_DIR}}/epic-{N}-context.md"
+  - "{{OUTPUT_DIR}}/epics-context/epic-{N}-context.md"
 mutates_state: false
 ---
 
@@ -73,14 +73,14 @@ If epic N cannot be resolved (no active sprint, no pending stories), skip this s
 
 **Cache freshness check:**
 
-The cache at `{{OUTPUT_DIR}}/epic-{N}-context.md` is **fresh** when:
+The cache at `{{OUTPUT_DIR}}/epics-context/epic-{N}-context.md` is **fresh** when:
 - It exists, AND
 - Its mtime is newer than every PRD / UX / Architecture / Project Context / Lessons / `epics.md` source file mtime, AND
 - No story in the same epic has flipped to `done` since the cache was last written.
 
 If fresh → no recompile.
 
-If absent or stale → compile by writing `{{OUTPUT_DIR}}/epic-{N}-context.md` with this exact shape (template strict — downstream consumers parse the headers):
+If absent or stale → compile by writing `{{OUTPUT_DIR}}/epics-context/epic-{N}-context.md` with this exact shape (template strict — downstream consumers parse the headers):
 
 ```markdown
 # Epic {N} — Context Cache

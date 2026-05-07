@@ -2,7 +2,7 @@
 step: 2
 reads:
   - "{{OUTPUT_DIR}}/stories/{story-key}.md"
-  - "{{OUTPUT_DIR}}/epic-{N}-context.md"
+  - "{{OUTPUT_DIR}}/epics-context/epic-{N}-context.md"
   - "{{OUTPUT_DIR}}/architecture.md"
   - "{{OUTPUT_DIR}}/lessons.md"
   - "{{APED_DIR}}/**"
@@ -40,7 +40,7 @@ In worktree mode, glob from the worktree's checkout — discovery sees the featu
 Load each of these (✱ = required):
 
 - ✱ Story file — `{{OUTPUT_DIR}}/stories/{story-key}.md`.
-- ✱ Epic context cache — `{{OUTPUT_DIR}}/epic-{N}-context.md` (N = epic number from story key, e.g. `1-2-jwt` → epic 1).
+- ✱ Epic context cache — `{{OUTPUT_DIR}}/epics-context/epic-{N}-context.md` (N = epic number from story key, e.g. `1-2-jwt` → epic 1).
 - Architecture — `{{OUTPUT_DIR}}/architecture.md` (full load — patterns are LAW for dev; architecture stays primordial, not in the cache).
 - Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter `Scope: aped-dev` or `Scope: all` — produced by `aped-retro` after each epic).
 - Last done story of same epic — the most recent `{{OUTPUT_DIR}}/stories/{epic}-*.md` with status `done` (continuity for fine-grain decisions; skip if first story of epic).
@@ -55,7 +55,7 @@ For ✱ Story file:
 
 For ✱ Epic context cache:
 - Found → continue.
-- Missing → HALT: *"No epic context cache found at `{{OUTPUT_DIR}}/epic-{N}-context.md`. Run `aped-story` first — it compiles the cache so `aped-dev` can stay token-light. Do not work around this by loading PRD/UX/architecture raw — that's exactly the drift the cache exists to prevent."*
+- Missing → HALT: *"No epic context cache found at `{{OUTPUT_DIR}}/epics-context/epic-{N}-context.md`. Run `aped-story` first — it compiles the cache so `aped-dev` can stay token-light. Do not work around this by loading PRD/UX/architecture raw — that's exactly the drift the cache exists to prevent."*
 
 ### 3. Load + report
 

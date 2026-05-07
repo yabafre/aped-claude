@@ -51,7 +51,7 @@ Look for these artefacts (✱ = required):
 - PRD — `*prd*.md` or `prd.md`
 - Architecture — `*architecture*.md` or `architecture.md`
 - UX Spec — `ux/*.md` (sharded) or `*ux*.md`
-- Epic Context Cache — `{{OUTPUT_DIR}}/epic-{N}-context.md` (where N = epic number)
+- Epic Context Cache — `{{OUTPUT_DIR}}/epics-context/epic-{N}-context.md` (where N = epic number)
 - Lessons — `{{OUTPUT_DIR}}/lessons.md` (filter entries with `Scope: aped-qa` or `Scope: all`)
 
 ### 2. Required-input validation (hard-stop)

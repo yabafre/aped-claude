@@ -5,7 +5,7 @@ tags: [aped, workflow, phases, reference]
 
 # APED — Phases
 
-Detail of every phase in the pipeline: **command**, **persona(s) involved**, **expected input**, **produced output**, **validation gate**. APED ships **34 skills** as of v6.0.0. Since v6.0.0, every phase skill is a directory (`aped-X/SKILL.md` + `workflow.md` + `steps/step-NN-*.md`) — Claude only loads the slice relevant to the active step.
+Detail of every phase in the pipeline: **command**, **persona(s) involved**, **expected input**, **produced output**, **validation gate**. APED ships **35 skills** as of v6.0.0. Since v6.0.0, every phase skill is a directory (`aped-X/SKILL.md` + `workflow.md` + `steps/step-NN-*.md`) — Claude only loads the slice relevant to the active step.
 
 > 🔗 Overview: [APED — Workflow](.aped-workflow.md) · Personas: [APED — Personas & Teams](.aped-personas.md)
 
@@ -76,7 +76,7 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Purpose**: produce a detailed story file **right before implementation**, with full context compilation
 - **Input**: ticket from chosen system (Linear/Jira/GH/GL) — **the ticket wins** on divergence
 - 🔍 **Input Discovery** (since 3.10.2): loads every upstream artefact present (PRD, UX, architecture, brief, project-context, lessons scoped `aped-story | all`, completed stories of the current epic). Lessons are applied to the draft (cited in Discussion Points, used to adjust scope per prior-epic rules); previous stories of the same epic are loaded for continuity (decisions reused, not re-litigated).
-- **Cache**: checks `docs/aped/epic-{N}-context.md`; if missing/stale, a sub-agent compiles it once from PRD / arch / UX / `project-context.md` (brownfield only) / `lessons.md` (`Scope: aped-dev | all`) / completed stories / codebase patterns
+- **Cache**: checks `docs/aped/epics-context/epic-{N}-context.md`; if missing/stale, a sub-agent compiles it once from PRD / arch / UX / `project-context.md` (brownfield only) / `lessons.md` (`Scope: aped-dev | all`) / completed stories / codebase patterns
 - **Output**: `docs/aped/stories/{story-key}.md` (implementation-ready)
 - **Gate** ⏸: story ready before `aped-dev`
 
@@ -410,7 +410,7 @@ All oracles exit 0 (pass) / 1 (findings, non-blocking) / 2 (structural failure, 
 
 ### Skill count
 
-APED ships **34 skills** as of v6.0.0 (up from 25 in v3.12.0). v6.0.0 keeps the existing 33 unchanged structurally and adds one new — `aped-glossary` — bringing the count to 34.
+APED ships **35 skills** as of v6.0.0 (up from 25 in v3.12.0). v6.0.0 keeps the existing 33 unchanged structurally and adds one new — `aped-glossary` — bringing the count to 34.
 
 ---
 
