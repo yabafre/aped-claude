@@ -19,7 +19,7 @@ A disciplined dev pipeline for [Claude Code](https://claude.ai/download), scaffo
 
 **The flow**: `Analyze → PRD → UX → Arch → Epics → Story → Dev → Review`
 
-**34 skills** cover it all: ideation, critique, parallel sprint, external ticket intake, retrospective, pre-mortem, design exploration, issue triage, and maintenance. Invoked via natural-language triggers or the Skill tool. Since v6.0.0, every skill is a directory with at least a `SKILL.md` (the entry the loader reads) — the 10 phase skills also carry `workflow.md` + `steps/step-NN-*.md` files so Claude only loads the slice relevant to the current operation.
+**35 skills** cover it all: ideation, critique, parallel sprint, external ticket intake, retrospective, pre-mortem, design exploration, issue triage, and maintenance. Invoked via natural-language triggers or the Skill tool. Since v6.0.0, every skill is a directory with at least a `SKILL.md` (the entry the loader reads) — the 10 phase skills also carry `workflow.md` + `steps/step-NN-*.md` files so Claude only loads the slice relevant to the current operation.
 
 ---
 
@@ -348,7 +348,7 @@ Informed by BMAD, Superpowers, Pocock, and Anthropic engineering:
 - **commit-gate hook** — PostToolUse advisory after 5+ uncommitted changes. Structural enforcement: compliance detectable by artifact, not honor system.
 - **session-start CLAUDE.md check** — warns when `CLAUDE.md` is missing the `<!-- APED:START -->` block (catches worktree visibility issue with gitignored `CLAUDE.local.md`).
 
-### 34 skills (was 25 at 3.12)
+### 35 skills (was 25 at 3.12)
 
 New since 3.12: `aped-grill` (4.8.0, Pocock-style alignment), `aped-write-skill` (4.6.0, meta), `aped-triage` (4.19.0, issue triage state machine), `aped-pre-mortem` (5.4.0), `aped-design-twice` (5.4.0), `aped-arch-audit` (4.5.0), `aped-iterate` (4.4.0), `aped-zoom-out` (4.6.0). v6.0.0 keeps the count at 33 — the change is structural (BMAD layout), not additive.
 
@@ -362,7 +362,7 @@ New since 3.12: `aped-grill` (4.8.0, Pocock-style alignment), `aped-write-skill`
 
 ### v5.0.0 MAJOR — allowed-paths
 
-All 34 skills now declare `allowed-paths` frontmatter with `write` and `read-only` scopes. v5.1.0 added the advisory PreToolUse hook (`aped-method allowed-paths-scope`).
+All 35 skills now declare `allowed-paths` frontmatter with `write` and `read-only` scopes. v5.1.0 added the advisory PreToolUse hook (`aped-method allowed-paths-scope`).
 
 ### 813 tests (was ~100 at 4.0)
 

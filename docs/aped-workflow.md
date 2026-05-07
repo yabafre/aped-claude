@@ -6,7 +6,7 @@ tags: [aped, workflow, process]
 # APED — Workflow
 **APED** (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) is a disciplined dev pipeline for [Claude Code](https://claude.ai/download). Every phase produces an **artifact**, requires **explicit user validation**, and hands off via a **coherence hook** that warns on skipped steps.
 
-> 📦 Product: `npx aped-method` — scaffolds **34 skills** + hooks into any Claude Code project. Latest stable: **v6.1.0** (2026-05-05) — sprint mode hardening: schema v3 moves `parallel_limit`/`review_limit` to `config.yaml`, adds `base_branch:` + `review.parallel_reviewers:` + `sprint.push_umbrella_on_create:` + `sprint.merge_poll_timeout_seconds:`. Builds on v6.0.0's BMAD-style skill directories.
+> 📦 Product: `npx aped-method` — scaffolds **35 skills** + hooks into any Claude Code project. Latest stable: **v6.1.0** (2026-05-05) — sprint mode hardening: schema v3 moves `parallel_limit`/`review_limit` to `config.yaml`, adds `base_branch:` + `review.parallel_reviewers:` + `sprint.push_umbrella_on_create:` + `sprint.merge_poll_timeout_seconds:`. Builds on v6.0.0's BMAD-style skill directories.
 > 🔗 See also: [APED — Phases](.aped-phases.md), [APED — Personas & Teams](.aped-personas.md), [APED — Team Quickstart](.aped-quickstart.md)
 
 > ℹ️ **Slash commands removed in 4.0.0** — the 3.x `/aped-X` shells (scaffolded as `.claude/commands/aped-*.md`) were retired. Skills are the only invocation surface — use the **Skill tool** directly or rely on **natural-language triggers** that match each skill's `description:` (say *"create the prd"*, *"run an architecture review"*, etc.).
@@ -164,7 +164,7 @@ flowchart TB
 11. **Visual check first-class** — every frontend GREEN pass → `mcp__react-grab-mcp__get_element_context`.
 12. **Ticket = source of truth** — divergence = HALT.
 13. **Stories created one at a time** — `aped-epics` writes the plan; `aped-story` produces one story file right before implementation.
-14. **Epic context cache** — `docs/aped/epic-{N}-context.md` compiled once, reused.
+14. **Epic context cache** — `docs/aped/epics-context/epic-{N}-context.md` compiled once, reused.
 15. **External ticket intake** — `aped-from-ticket <ticket-id-or-url>` for tickets bypassing `aped-epics` planning.
 16. **Input discovery — consume-everything-found** — every skill globs `docs/aped/**` at entry and loads upstream artefacts.
 17. **Lessons feedback loop** — `aped-retro` writes scoped rules to `lessons.md`; `aped-story`, `aped-dev`, `aped-review` consume them at runtime.
@@ -186,7 +186,7 @@ A `npx aped-method` run drops:
 - **MCP servers** (since 5.0.0) — `aped-state` (typed state ops: read/write/transition on `state.yaml` with schema validation, replacing raw file edits), `aped-ticket` (provider-routed ticket management: create/update/transition tickets across Linear/Jira/GitHub/GitLab through a single tool surface).
 - **`.claude/skills/aped-*`** — symlinks back to `.aped/aped-*/` so Claude Code's standard skill discovery picks every APED skill up. The 3.x slash-command shells under `.claude/commands/` were removed in 4.0.0.
 - **`.claude/settings.local.json`** — UserPromptSubmit + PreToolUse hooks + pre-approved Bash permissions.
-- **`docs/aped/`** — evolving output: `state.yaml` (since 4.1.0 / schema v2: `schema_version: 2` + top-level slots `ticket_sync` / `backlog_future_scope` / `corrections_pointer` + `corrections_count`; richer per-phase records under `pipeline.phases.<phase>`), `state-corrections.yaml` (split out of state.yaml in 4.1.0; appended via `sync-state.sh append-correction`), `product-brief.md`, `prd.md`, `ux/`, `architecture.md`, `adr/000N-{slug}.md` (since 6.0.0; Pocock-style ADRs), `epics.md`, `stories/`, `retros/`, `glossary.md` (since 6.0.0; canonical domain terms), `lessons.md`, `epic-{N}-context.md`.
+- **`docs/aped/`** — evolving output: `state.yaml` (since 4.1.0 / schema v2: `schema_version: 2` + top-level slots `ticket_sync` / `backlog_future_scope` / `corrections_pointer` + `corrections_count`; richer per-phase records under `pipeline.phases.<phase>`), `state-corrections.yaml` (split out of state.yaml in 4.1.0; appended via `sync-state.sh append-correction`), `product-brief.md`, `prd.md`, `ux/`, `architecture.md`, `adr/000N-{slug}.md` (since 6.0.0; ADR sharding), `epics.md`, `stories/`, `retros/`, `glossary.md` (since 6.0.0; canonical domain terms), `lessons.md`, `epics-context/epic-{N}-context.md` (since 6.2.0; cache compiled by `aped-story`, consumed by `aped-dev` / `aped-review`).
 - **`docs/sync-logs/`** (since 3.12.0) — structured JSON audit logs `<provider>-sync-<ISO>.json` emitted by `aped-epics`, `aped-from-ticket`, `aped-ship`, `aped-course`. Configurable: `sync_logs.{enabled, dir, retention}` in `config.yaml`. Retention (since 4.1.0, opt-in): `mode: keep_last_n` + `keep_last_n: N` prunes the oldest provider-scoped logs after every successful sync; `aped-method sync-logs prune [--apply]` runs a one-shot manual sweep.
 - **Cross-tool symlinks** (auto-detected): `.claude/skills/`, `.opencode/skills/`, `.agents/skills/`, `.codex/skills/` → `.aped/aped-*`.
 
