@@ -80,6 +80,38 @@ describe('computeOrphans (chantier U)', () => {
     expect(orphans).toEqual([`${APED_DIR}/aped-review/steps/step-01-stale.md`]);
   });
 
+  // 6.3.1 — opt-in installation surfaces (`hooks/`, `mcp/`, `visual-companion/`)
+  // and `.example` files. The 6.3.0 GA shipped with getInstalledOptionalTemplates
+  // only detecting 3 of 10 opt-in features, so a real upgrade flagged installed
+  // hooks (commit-gate, session-start, tdd-red-marker, worktree-scope), MCP
+  // server files, and config.yaml.example as orphans. The safety-net
+  // protection prevents loss when probe-detection misses an opt-in.
+  it('NEVER returns hooks/, mcp/, visual-companion/, or *.example files as orphans (6.3.1 safety net)', () => {
+    const onDisk = [
+      `${APED_DIR}/hooks/commit-gate.js`,
+      `${APED_DIR}/hooks/session-start.sh`,
+      `${APED_DIR}/hooks/tdd-red-marker.js`,
+      `${APED_DIR}/hooks/worktree-scope.js`,
+      `${APED_DIR}/hooks/safe-bash.js`,
+      `${APED_DIR}/hooks/post-edit-typescript.js`,
+      `${APED_DIR}/hooks/verify-claims.js`,
+      `${APED_DIR}/mcp/aped-state-server.mjs`,
+      `${APED_DIR}/mcp/state-schema.mjs`,
+      `${APED_DIR}/visual-companion/start-server.sh`,
+      `${APED_DIR}/visual-companion/frame-template.html`,
+      `${APED_DIR}/config.yaml.example`,
+      `${APED_DIR}/templates/workmux.yaml.example`,
+      `${APED_DIR}/aped-review/steps/step-01-stale.md`, // genuine orphan
+    ];
+    const orphans = computeOrphans({
+      apedDir: APED_DIR,
+      templatedPaths: new Set(),
+      filesOnDisk: onDisk,
+      allowlist: [],
+    });
+    expect(orphans).toEqual([`${APED_DIR}/aped-review/steps/step-01-stale.md`]);
+  });
+
   it('does not consider paths outside apedDir/ (outputDir/ artefacts are caller-filtered)', () => {
     // Caller passes only apedDir/ files. computeOrphans should not need to
     // know about outputDir/ — the protection is the caller's responsibility.

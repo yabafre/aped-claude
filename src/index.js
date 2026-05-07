@@ -3,7 +3,18 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync as writeFS, chmodSyn
 import { join, dirname, isAbsolute, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import color from 'picocolors';
-import { statuslineTemplates, safeBashTemplates, typeScriptQualityTemplates } from './templates/optional-features.js';
+import {
+  statuslineTemplates,
+  safeBashTemplates,
+  typeScriptQualityTemplates,
+  verifyClaimsTemplates,
+  sessionStartTemplates,
+  visualCompanionTemplates,
+  worktreeScopeTemplates,
+  mcpStateTemplates,
+  tddRedMarkerTemplates,
+  commitGateTemplates,
+} from './templates/optional-features.js';
 import { runSubcommand } from './subcommands.js';
 
 // ── CLI version (read from package.json) ──
@@ -969,8 +980,16 @@ async function runUpdateOrphanCleanup(config, options = {}) {
 // Returns: array of orphan paths (sorted, deduplicated).
 //
 // Protected paths (never returned as orphans even if absent from templates):
-//   {apedDir}/config.yaml, .DISABLED, .disable-snapshot.json, WORKTREE,
-//   .archive/**, checkins/**, logs/**, .update-allowlist, .update-orphans-*.log.
+//   - {apedDir}/config.yaml, .DISABLED, .disable-snapshot.json, WORKTREE,
+//     .update-allowlist (engine state; never templated).
+//   - {apedDir}/.archive/**, checkins/**, logs/** (user data under engine root).
+//   - {apedDir}/.update-orphans-*.log (own audit logs).
+//   - 6.3.1 safety net: {apedDir}/hooks/**, {apedDir}/mcp/**,
+//     {apedDir}/visual-companion/**, *.example. These are opt-in installation
+//     surfaces (`aped-method enable-mcp`, `aped-method session-start`, etc).
+//     `getInstalledOptionalTemplates` adds them to `templatedPaths` when
+//     detected, but the safety net guarantees that an opt-in feature whose
+//     detection probe fails is never deleted by --update.
 // Anything OUTSIDE apedDir/ (notably outputDir/) is the caller's responsibility
 // to exclude — the cleanup pass operates on engine paths only.
 export function computeOrphans({ apedDir, templatedPaths, filesOnDisk, allowlist = [] }) {
@@ -985,6 +1004,13 @@ export function computeOrphans({ apedDir, templatedPaths, filesOnDisk, allowlist
     `${apedDir}/.archive/`,
     `${apedDir}/checkins/`,
     `${apedDir}/logs/`,
+    // 6.3.1 — opt-in installation surfaces. Hooks, MCP servers, and visual-
+    // companion ship via subcommands (`aped-method enable-mcp`, etc) and may
+    // be present without being returned by getTemplates(). Protected by
+    // location so a user who installed an opt-in never loses it on --update.
+    `${apedDir}/hooks/`,
+    `${apedDir}/mcp/`,
+    `${apedDir}/visual-companion/`,
   ];
 
   const allowSet = new Set(allowlist);
@@ -995,6 +1021,7 @@ export function computeOrphans({ apedDir, templatedPaths, filesOnDisk, allowlist
     if (PROTECTED_FILES.has(p)) continue;
     if (PROTECTED_PREFIXES.some((prefix) => p.startsWith(prefix))) continue;
     if (p.startsWith(`${apedDir}/.update-orphans-`)) continue; // own audit logs
+    if (p.endsWith('.example')) continue;                       // .yaml.example, .json.example
     if (allowSet.has(p)) continue;
     orphans.push(p);
   }
@@ -1032,17 +1059,46 @@ export function walkApedDir(cwd, apedDir) {
 
 function getInstalledOptionalTemplates(config, cwd = process.cwd()) {
   const templates = [];
+  const a = config.apedDir;
   const settingsPath = join(cwd, '.claude/settings.local.json');
   const settingsContent = existsSync(settingsPath) ? readFileSync(settingsPath, 'utf-8') : '';
+  const probe = (relPath, marker) =>
+    existsSync(join(cwd, relPath)) || settingsContent.includes(marker);
 
-  if (existsSync(join(cwd, config.apedDir, 'scripts', 'statusline.js')) || settingsContent.includes('/scripts/statusline.js')) {
+  // 6.3.1 — every opt-in feature checked here, otherwise --update orphan
+  // cleanup would flag legitimately-installed opt-in files as orphans (the
+  // safety net under .aped/hooks/, .aped/mcp/, .aped/visual-companion/
+  // protects against a missed entry, but precise detection lets each opt-in
+  // re-emit its current template content on --update).
+  if (probe(`${a}/scripts/statusline.js`, '/scripts/statusline.js')) {
     templates.push(...statuslineTemplates(config));
   }
-  if (existsSync(join(cwd, config.apedDir, 'hooks', 'safe-bash.js')) || settingsContent.includes('/hooks/safe-bash.js')) {
+  if (probe(`${a}/hooks/safe-bash.js`, '/hooks/safe-bash.js')) {
     templates.push(...safeBashTemplates(config));
   }
-  if (existsSync(join(cwd, config.apedDir, 'hooks', 'post-edit-typescript.js')) || settingsContent.includes('/hooks/post-edit-typescript.js')) {
+  if (probe(`${a}/hooks/post-edit-typescript.js`, '/hooks/post-edit-typescript.js')) {
     templates.push(...typeScriptQualityTemplates(config));
+  }
+  if (probe(`${a}/hooks/verify-claims.js`, '/hooks/verify-claims.js')) {
+    templates.push(...verifyClaimsTemplates(config));
+  }
+  if (probe(`${a}/hooks/session-start.sh`, '/hooks/session-start.sh')) {
+    templates.push(...sessionStartTemplates(config));
+  }
+  if (probe(`${a}/hooks/worktree-scope.js`, '/hooks/worktree-scope.js')) {
+    templates.push(...worktreeScopeTemplates(config));
+  }
+  if (probe(`${a}/hooks/tdd-red-marker.js`, '/hooks/tdd-red-marker.js')) {
+    templates.push(...tddRedMarkerTemplates(config));
+  }
+  if (probe(`${a}/hooks/commit-gate.js`, '/hooks/commit-gate.js')) {
+    templates.push(...commitGateTemplates(config));
+  }
+  if (probe(`${a}/mcp/aped-state-server.mjs`, '/mcp/aped-state-server.mjs')) {
+    templates.push(...mcpStateTemplates(config));
+  }
+  if (probe(`${a}/visual-companion/start-server.sh`, '/visual-companion/')) {
+    templates.push(...visualCompanionTemplates(config));
   }
 
   return templates;
