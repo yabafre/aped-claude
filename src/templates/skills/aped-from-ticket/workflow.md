@@ -241,6 +241,8 @@ bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG state_registered complete '{"st
 
 ## Comment Back to Ticket
 
+> **Writing discipline.** If you override the default template with a custom one, read `{{APED_DIR}}/aped-skills/writing-discipline.md` first — short, sharp, status + link to the artefact, don't re-narrate the story in the ticket.
+
 If `from_ticket.ticket_comment.enabled: true`:
 
 - Render the template `from_ticket.ticket_comment.template` with `{story_path}` substituted.

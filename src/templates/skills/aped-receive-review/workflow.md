@@ -244,6 +244,8 @@ Before sending your response back to the reviewer (or back into `aped-dev` for r
 
 When replying to inline review comments on GitHub, reply **in the comment thread** (`gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies`), not as a top-level PR comment. The reviewer will see top-level comments late or not at all.
 
+> **Writing discipline.** Read `{{APED_DIR}}/aped-skills/writing-discipline.md` before posting thread replies or commit messages for the fixes. Reply: state the decision (acted / verified / pushed back) + one short sentence — no "you're absolutely right" preamble, no re-summary of the reviewer's point. Commits: same rules as everywhere else (subject ≤ 70 chars, body only when WHY is non-obvious).
+
 ## Common Mistakes
 
 | Mistake | Fix |

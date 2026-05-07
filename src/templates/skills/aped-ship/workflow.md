@@ -228,7 +228,11 @@ Sprint umbrella ship — `sprint/epic-1` is {AHEAD} commits ahead of origin/main
 Present three options:
 
 1. **Fix blockers first** (recommended when BLOCKERS > 0) — the user applies fixes on the umbrella branch directly (or on a story branch + rerun `aped-lead` to merge), then re-runs `aped-ship`. The composite review re-runs on the new tip.
-2. **Open the PR anyway** — only sensible when findings are all WARNINGS or INFO. Print the exact commands:
+2. **Open the PR anyway** — only sensible when findings are all WARNINGS or INFO.
+
+   > **Writing discipline (PR title + body).** Before drafting either, read `{{APED_DIR}}/aped-skills/writing-discipline.md`. Title: short, recognizable, ≤ 70 chars (epic slug + the *one* lever the sprint pulled, not the kitchen sink). Body: 3–6 short bullets — what the sprint changed for the reader, the WARNING items the reviewer should ack, link to the merged stories. Drop file lists, test counts, "boundaries respected" checkboxes. The diff proves the work; prose adds the *why*.
+
+   Print the exact commands:
 
    ```
    git push -u origin "$UMBRELLA"
@@ -294,7 +298,7 @@ bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG tickets_closed complete '{"call
 bash {{APED_DIR}}/scripts/sync-log.sh record $LOG api_calls_total T
 ```
 
-If you also post a "shipped in PR #N" comment on each ticket:
+If you also post a "shipped in PR #N" comment on each ticket — keep it one short line + the PR link, per `{{APED_DIR}}/aped-skills/writing-discipline.md`:
 
 ```bash
 bash {{APED_DIR}}/scripts/sync-log.sh phase $LOG comments_posted complete '{"calls":C,"tickets":[...]}'

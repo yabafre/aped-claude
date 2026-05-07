@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Writing discipline reference for APED-generated artefacts
+
+Skills that author commits, PR titles/bodies, code comments, review reports, or ticket comments previously had no shared rule. The agent defaulted to verbose technical inventories — file lists, test counts, "boundaries respected" checkboxes — that re-narrate what the diff already shows.
+
+- New `aped-skills/writing-discipline.md` codifies the Iron Law: short, sharp, slightly human; diff proves the work, prose adds the *why*.
+- Pointers added at the producing surfaces: `aped-dev` (commit + PR), `aped-debug` (post-mortem commit), `aped-ship` (sprint PR + ticket-close comments), `aped-review` (review report + finding comments + PR title/body), `aped-receive-review` (thread replies + fix commits), `aped-quick` (commit + PR + ticket comment), `aped-course` (scope-change ticket comment), `aped-from-ticket` (ticket-comment template), and the scaffolded `ticket-git-workflow.md` reference.
+- PRDs, stories, architecture, retros, project-context are out of scope — those are structured specs by design.
+
 ### Changed — Skill bodies no longer cite external sources (6.2.0 R)
 
 APED skill bodies preserved attribution prose from upstream sources (Pocock skills, Superpowers issues, "BMAD pattern", "Anthropic context-engineering", "Adapted from", "Translation of", "Lifted from"). Those sources don't ship with user projects — Claude routinely tried to "look up" the references and wasted context.
