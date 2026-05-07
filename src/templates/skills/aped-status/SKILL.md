@@ -30,7 +30,20 @@ Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
 
 ## Setup
 
-1. Read `{{OUTPUT_DIR}}/state.yaml` — pipeline + sprint state (active_epic, parallel_limit, review_limit, stories with their `status`, `worktree`, `depends_on`, `ticket`). **If state.yaml is absent**, the project is pre-pipeline (greenfield, never ran `aped-prd`/`aped-epics`). Surface "no state.yaml — pipeline not started yet" and stop here; do NOT invent a phase or fabricate a dashboard from git alone.
+1. Read `{{OUTPUT_DIR}}/state.yaml` — pipeline + sprint state (active_epic, umbrella_branch, stories with their `status`, `worktree`, `depends_on`, `ticket`). **If state.yaml is absent**, the project is pre-pipeline (greenfield, never ran `aped-prd`/`aped-epics`). Surface "no state.yaml — pipeline not started yet" and stop here; do NOT invent a phase or fabricate a dashboard from git alone.
+
+   `parallel_limit` and `review_limit` come from `{{APED_DIR}}/config.yaml.sprint.*` on schema v3 (6.1.0+); fall back to `state.yaml.sprint.*` for v2 scaffolds, then to hardcoded `3`/`2` if both are absent. Use the shared resolution snippet:
+
+   ```bash
+   PARALLEL_LIMIT=$(yq '.sprint.parallel_limit // ""' {{APED_DIR}}/config.yaml)
+   if [[ -z "$PARALLEL_LIMIT" || "$PARALLEL_LIMIT" == "null" ]]; then
+     PARALLEL_LIMIT=$(yq '.sprint.parallel_limit // 3' {{OUTPUT_DIR}}/state.yaml)
+   fi
+   REVIEW_LIMIT=$(yq '.sprint.review_limit // ""' {{APED_DIR}}/config.yaml)
+   if [[ -z "$REVIEW_LIMIT" || "$REVIEW_LIMIT" == "null" ]]; then
+     REVIEW_LIMIT=$(yq '.sprint.review_limit // 2' {{OUTPUT_DIR}}/state.yaml)
+   fi
+   ```
 2. Read `{{APED_DIR}}/aped-status/references/status-format.md` for display conventions
 3. Probe optional tooling once: `command -v workmux >/dev/null` — if available, surface a "Live agents: `workmux dashboard`" hint in the header so the user knows where the fuller TUI view is.
 

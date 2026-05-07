@@ -6,7 +6,7 @@ tags: [aped, workflow, process]
 # APED — Workflow
 **APED** (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) is a disciplined dev pipeline for [Claude Code](https://claude.ai/download). Every phase produces an **artifact**, requires **explicit user validation**, and hands off via a **coherence hook** that warns on skipped steps.
 
-> 📦 Product: `npx aped-method` — scaffolds **34 skills** + hooks into any Claude Code project. Latest stable: **v6.0.0** (2026-05-01) — every skill is now a BMAD-style directory (`SKILL.md` + optional `workflow.md` + `steps/*`).
+> 📦 Product: `npx aped-method` — scaffolds **34 skills** + hooks into any Claude Code project. Latest stable: **v6.1.0** (2026-05-05) — sprint mode hardening: schema v3 moves `parallel_limit`/`review_limit` to `config.yaml`, adds `base_branch:` + `review.parallel_reviewers:` + `sprint.push_umbrella_on_create:` + `sprint.merge_poll_timeout_seconds:`. Builds on v6.0.0's BMAD-style skill directories.
 > 🔗 See also: [APED — Phases](.aped-phases.md), [APED — Personas & Teams](.aped-personas.md), [APED — Team Quickstart](.aped-quickstart.md)
 
 > ℹ️ **Slash commands removed in 4.0.0** — the 3.x `/aped-X` shells (scaffolded as `.claude/commands/aped-*.md`) were retired. Skills are the only invocation surface — use the **Skill tool** directly or rely on **natural-language triggers** that match each skill's `description:` (say *"create the prd"*, *"run an architecture review"*, etc.).
@@ -139,7 +139,7 @@ flowchart TB
 - `aped-lead` — approves check-ins, pushes the next command, merges each story PR into the umbrella au-fil-de-l'eau on `review-done`. **Status protocol** (since 3.11.0): `--status DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED` — only `DONE` runs auto-approve; the other three escalate with priority hints.
 - `aped-ship` — opens the final umbrella → base PR with the composite review attached. Emits a sync-log per ticket close.
 
-**Default limits**: `parallel_limit: 3`, `review_limit: 2`. Check-ins (4 kinds): `story-ready`, `dev-done`, `review-done`, `dev-blocked`. Programmatic verdicts via `check-auto-approve.sh`. Audit log at `.aped/logs/sprint-{date}.jsonl`.
+**Default limits** (`config.yaml.sprint.*` since 6.1.0; state.yaml fallback for v2 scaffolds): `parallel_limit: 3`, `review_limit: 2`. Other sprint knobs in 6.1.0+: `push_umbrella_on_create: true`, `merge_poll_timeout_seconds: 120` (used by `aped-lead` to poll `gh pr view --json state` until MERGED before tearing down the worktree). Stage 1.5 reviewers (Hannah/Eli/Aaron) gated by `review.parallel_reviewers: false`. Check-ins (4 kinds): `story-ready`, `dev-done`, `review-done`, `dev-blocked`. Programmatic verdicts via `check-auto-approve.sh`. Audit log at `.aped/logs/sprint-{date}.jsonl`.
 
 **State.yaml authority lives in main** — worktrees write divergent copies; `aped-ship` resolves with `--ours` by design.
 

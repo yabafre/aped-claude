@@ -99,17 +99,31 @@ The `upstream-lock` hook **denies** any edit on `prd.md` / `architecture.md` / `
 Useful when several stories are **independent** (no cross-dependencies).
 
 ```
-aped-sprint             # from main project: dispatches DAG + worktrees
-aped-lead               # batch-approve check-ins (periodic return)
-aped-ship               # end-of-sprint: merge + pre-push checks
+aped-sprint             # from main project: creates the umbrella + dispatches DAG + worktrees
+aped-lead               # batch-approve check-ins (periodic return); merges story PRs into umbrella au-fil-de-l'eau
+aped-ship               # end-of-sprint: composite review + umbrella → base PR
 ```
 
-- Up to **3 stories** in parallel by default (`parallel_limit`), **2 reviews** max (`review_limit`)
-- Each story runs in `../{project}-{ticket}` on branch `feature/{ticket}-{slug}`
+- Up to **3 stories** in parallel by default (`sprint.parallel_limit`), **2 reviews** max (`sprint.review_limit`) — both read from `{{APED_DIR}}/config.yaml` since 6.1.0 (state.yaml fallback for v2 scaffolds)
+- Each story runs in `../{project}-{ticket}-{story-key}` on branch `feature/{ticket}-{story-key}` (path includes the story key since 6.1.0 to prevent collisions when multiple stories share a parent ticket)
 - With **workmux**: auto-tmux + Claude pre-launched. Without: commands printed for you to run manually.
 - Story Leaders HALT at every transition (`story-ready`, `dev-done`, `review-done`) and wait for the Lead Dev
+- A **sprint umbrella branch** (`sprint/epic-{N}`) parents every story branch and is the only thing that ships to base. `aped-lead` merges each story PR into the umbrella the moment it approves the `review-done` check-in (au-fil-de-l'eau, with merge-completion polling); `aped-ship` opens the umbrella → base PR with a composite review.
 
 **Golden rule**: you are the Lead Dev. `aped-lead` auto-approves what is clearly safe (tests 100%, git clean, no blockers) and **escalates everything else to you**. No story on autopilot.
+
+### Sprint config knobs (config.yaml)
+
+```yaml
+base_branch: main                # umbrella is cut from this ref; aped-ship targets it
+sprint:
+  parallel_limit: 3              # max stories dispatched concurrently
+  review_limit: 2                # max parallel reviews (specialists are token-heavy)
+  push_umbrella_on_create: true  # set false on offline / branch-protected workflows
+  merge_poll_timeout_seconds: 120 # aped-lead polls gh pr view until MERGED
+review:
+  parallel_reviewers: false      # set true to activate Hannah/Eli/Aaron Stage 1.5 reviewers
+```
 
 ---
 
@@ -171,9 +185,9 @@ Every ticket-system operation in `aped-epics`, `aped-from-ticket`, `aped-ship`, 
 
 Useful for: forensic audit when a sync goes wrong, postmortem analysis, cross-machine reproducibility, compliance trails.
 
-### state.yaml schema (v1 since 3.12.0; v2 since 4.1.0)
+### state.yaml schema (v1 since 3.12.0; v2 since 4.1.0; v3 since 6.1.0)
 
-`validate-state.sh` accepts both `schema_version: 1` and `schema_version: 2`. **Migration is automatic** — `aped-method --update` runs `migrate-state.sh` 1 → 2, idempotent on v2, with a backup at `docs/state.yaml.pre-v2-migration.bak` before any mutation. Existing scaffolds without `schema_version` are treated as implicit 1.
+`validate-state.sh` accepts `schema_version` 1, 2, or 3. **Migration is automatic** — `aped-method --update` runs `migrate-state.sh` which chains v1 → v2 → v3 in a single pass, idempotent on the head version, with per-step backups (`state.yaml.pre-v2-migration.bak`, `state.yaml.pre-v3-migration.bak`) before any mutation. Existing scaffolds without `schema_version` are treated as implicit 1.
 
 Top-level slots:
 
@@ -220,6 +234,38 @@ Each accepts `--uninstall` to remove its installed bits. Default scaffold doesn'
 ### File structure design upfront in `aped-story` and `aped-epics` (since 3.11.0)
 
 New section before tasks: maps files with single-responsibility rule (split by responsibility, not layer), 3-bullet decision template per file (file-name / single-responsibility / inputs+outputs). Better task decomposition; coherent file boundaries across stories.
+
+## What changed in 6.1.0 (sprint mode hardening)
+
+> Released 2026-05-05. Schema bump v2 → v3; migration is automatic (`aped-method --update` runs `migrate-state.sh` 2 → 3 idempotently, with a backup at `docs/aped/state.yaml.pre-v3-migration.bak`).
+
+### config.yaml gains four blocks (B5/B4 + new sprint knobs)
+
+- `base_branch: main` — single source of truth for the ref the umbrella is cut from and the ref `aped-ship` PRs against. Previously documented but never seeded; readers always silently fell back to `main`. Override per project for `develop` / `master` / `trunk` workflows.
+- `sprint.parallel_limit` / `sprint.review_limit` — moved from `state.yaml.sprint.*` (where they conflated preferences with runtime state) to `config.yaml.sprint.*`. Readers: config wins, state is the v2 fallback for unmigrated scaffolds.
+- `sprint.push_umbrella_on_create: true` — gate for the auto-push of the freshly-created umbrella to origin. Set false on offline / branch-protected / solo workflows.
+- `sprint.merge_poll_timeout_seconds: 120` — `aped-lead` polls `gh pr view --json state` until MERGED before tearing down the worktree.
+- `review.parallel_reviewers: false` — activates Hannah (Blind Hunter) / Eli (Edge Case Hunter) / Aaron (Acceptance Auditor) Stage 1.5 reviewers. Referenced by `aped-review/steps/step-03` since 4.x but never seeded; the trio silently never ran. 6.1.0 closes the gap.
+
+### Sprint mode bug fixes
+
+- **B1 ordering** — `aped-lead`'s `review-done` handler used to flip `mark-story-done` (status: done + delete worktree field) BEFORE merging the PR. On merge failure, state was left inconsistent (`status: done`, `merged_into_umbrella: false`, worktree on disk but field gone). New order: capture worktree+PR → merge → poll until MERGED → set `merged_into_umbrella: true` → mark-story-done → teardown.
+- **B2 polling** — `gh pr merge --auto` returns success after enqueueing, not after merging. Lead now uses `gh pr merge --squash` and polls `gh pr view --json state` for `MERGED` (with the configurable timeout). On timeout / `CLOSED` / failure: state stays `review`, worktree stays on disk for recovery.
+- **B3 idempotent PR open** — `aped-review` step-11 now probes `gh pr view` first; on hit, it `gh pr edit`s the existing PR (and silently corrects the base if it points elsewhere). Re-review of a story no longer crashes on "PR already exists".
+- **B6 trap-protected git checkout** — `aped-ship`'s composite review (typecheck + lint + db-regen) now wraps the `git checkout "$UMBRELLA"` in a trap that returns to the base branch on any exit/interrupt. No more "stranded on the umbrella" after an interrupted run.
+- **B7 worktree path collision** — `sprint-dispatch.sh` now keys `WORKTREE_PATH` on `<project>-<ticket>-<story-key>` instead of `<project>-<ticket>`. Stories sharing a parent ticket no longer collide on disk.
+- **B8 structural validation** — `validate-state.sh` (v3) refuses state.yaml that has `sprint.parallel_limit`/`sprint.review_limit` (incomplete migration) or has `sprint.active_epic` set without a `sprint.umbrella_branch`. Surfaces broken state before downstream skills crash on it.
+
+### Audit script overhaul
+
+`scripts/check-pre-merge.sh` now validates:
+- `[Unreleased]` non-empty when there are non-doc commits since the last tag.
+- `/aped-` self-references walk SKILL.md + workflow.md + every `steps/*.md`.
+- All 7 `docs/*.md` files are present + skills-classification skill count matches code + quickstart cites a version >= current minor.
+- README counter regex tolerates more wording variants (was bold-only).
+- SECURITY.md grep tolerates whitespace variations (was single-space).
+
+`scripts/lint-bash-discipline.sh` now also lints the **~25 scaffolded scripts embedded as strings in `src/templates/scripts.js`** by materializing them to a tmp dir via the exported `scripts()` function. Previously these were uncovered — exactly the surface where production regressions in 4.7.5 / 4.10.0 / 4.11.0 / 4.13.0 originated.
 
 ## What changed in 6.0.0 (BREAKING)
 

@@ -49,6 +49,21 @@ const ALLOWED_SWALLOWS = new Set([
   // || git checkout "$BRANCH"` — explicit fallback when the branch already
   // exists (user re-invoking after partial setup).
   'aped-story:idempotent branch checkout',
+  // aped-review step-11 idempotent PR open — `gh pr view 2>/dev/null`
+  // probes for an existing PR. On miss, the script EXPLICITLY falls
+  // through to `gh pr create`; on hit, it edits the existing PR. The
+  // commented-out glab variant uses the same idempotency pattern.
+  // Surfaces noisy on real auth/network errors via the subsequent gh
+  // call (no silent default to wrong branch).
+  'aped-review:idempotent gh pr view probe',
+  // aped-ship trap-protected git checkout — the trap fallback runs
+  // `git checkout "$ORIGINAL_BRANCH" 2>/dev/null || true` precisely
+  // because (a) we are inside a trap and re-raising would mask the
+  // original cause of the EXIT/INT/TERM, and (b) the explicit
+  // `git checkout` AFTER the runner is the primary path; the trap is
+  // a safety net for the agent crash case. See workflow.md "Trap-protect
+  // the checkout".
+  'aped-ship:trap-protected checkout fallback',
 ]);
 
 function findSwallows(content) {

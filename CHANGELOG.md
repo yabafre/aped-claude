@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Sprint-mode config knobs (schema v3)
+
+`config.yaml` gains the blocks every sprint-mode skill assumed but the scaffolder never seeded:
+
+- **`base_branch: main`** — single source of truth for the ref the umbrella is cut from and the ref `aped-ship` PRs against. Override per project for `develop` / `master` / `trunk` workflows. Pre-6.1.0 the value was *referenced* by `aped-sprint` and `aped-ship` but always silently fell back to the literal string `"main"`.
+- **`sprint.parallel_limit` / `sprint.review_limit`** — moved from `state.yaml.sprint.*` (where they conflated preferences with runtime state) to `config.yaml.sprint.*`. Readers: config wins, state is the v2 fallback for unmigrated scaffolds.
+- **`sprint.push_umbrella_on_create: true`** — gate for the auto-push of the freshly-created umbrella to origin. Set `false` on offline / branch-protected / solo workflows.
+- **`sprint.merge_poll_timeout_seconds: 120`** — `aped-lead` polls `gh pr view --json state` until `MERGED` before tearing down the worktree (see Fixed §B2 below).
+- **`review.parallel_reviewers: false`** — activates Hannah (Blind Hunter) / Eli (Edge Case Hunter) / Aaron (Acceptance Auditor) Stage 1.5 reviewers. Referenced by `aped-review/steps/step-03` since 4.x but never seeded; the trio silently never ran. 6.1.0 closes the gap.
+
+### Changed — state.yaml schema v2 → v3 (auto-migrated)
+
+- `validate-state.sh` accepts `1`, `2`, and `3`. **Migration is automatic** — `aped-method --update` runs `migrate-state.sh` which chains v1 → v2 → v3 in a single pass, idempotent on the head version.
+- Per-step backups: `state.yaml.pre-v2-migration.bak`, `state.yaml.pre-v3-migration.bak`.
+- v3 `validate-state.sh` refuses state files that still contain `sprint.parallel_limit` / `sprint.review_limit` (incomplete migration) or that have `sprint.active_epic` set without a `sprint.umbrella_branch` (broken sprint state).
+- `migrate-state.sh` v2→v3 step also seeds `base_branch:`, `sprint.push_umbrella_on_create`, `sprint.merge_poll_timeout_seconds`, and `review.parallel_reviewers` in `config.yaml` if absent.
+
+### Fixed — Sprint mode bugs
+
+- **B1 — `aped-lead` `review-done` ordering**: the handler used to flip `mark-story-done` (status: done + delete worktree field) BEFORE merging the PR. On merge failure, state was left inconsistent (`status: done`, `merged_into_umbrella: false`, worktree on disk but field gone). New order: capture worktree+PR → merge → poll until `MERGED` → set `merged_into_umbrella: true` → `mark-story-done` → teardown. Order is load-bearing and documented inline.
+- **B2 — `gh pr merge --auto` is fire-and-forget**: it returns success after enqueueing, not after merging. Teardown then ran while the PR was still pending checks. Lead now uses `gh pr merge --squash` (no `--auto`) and polls `gh pr view --json state` for `MERGED`. On timeout / `CLOSED` / failure: state stays at `status: review`, worktree stays on disk for recovery.
+- **B3 — `aped-review` step-11 idempotent PR open**: `gh pr create` crashed on re-review when a PR already existed. The block now probes `gh pr view` first; on hit, it `gh pr edit`s the existing PR (and silently corrects the base if it points elsewhere).
+- **B4 — Stage 1.5 reviewers**: see Added above. Real config block now seeded.
+- **B5 — `base_branch`**: see Added above. Real config block now seeded.
+- **B6 — `aped-ship` trap-protected git checkout**: the composite review (typecheck / lint / db-regen) now wraps `git checkout "$UMBRELLA"` in a trap that returns to the base branch on any exit/interrupt. No more "stranded on the umbrella" after an interrupted run.
+- **B7 — `sprint-dispatch.sh` worktree path collision**: `WORKTREE_PATH` now keys on `<project>-<ticket>-<story-key>` instead of `<project>-<ticket>`. Stories sharing a parent ticket no longer collide on disk.
+- **B8 — `validate-state.sh` structural sprint check**: catches broken state before downstream skills crash on it.
+
+### Fixed — Audit script coverage
+
+`scripts/check-pre-merge.sh`:
+- `[Unreleased]` is now validated for non-emptiness when there are non-doc commits since the last tag (previously the script computed the count and never read it).
+- `/aped-` self-reference scan walks the full skill body (`SKILL.md` + `workflow.md` + every `steps/*.md`) instead of just `SKILL.md`.
+- New row 5: validates the 7 `docs/*.md` files are present, `skills-classification.md` skill count matches the actual file count, and `aped-quickstart.md` cites a version >= the current minor (catches the lived case where docs froze at v4.1.2 while code was on v5.5).
+- README counter regex tolerates wording variants beyond `**N skills**`.
+- SECURITY.md grep tolerates whitespace variations.
+
+`scripts/lint-bash-discipline.sh` now also lints the **~25 scaffolded scripts embedded as strings in `src/templates/scripts.js`** by materializing them to a tmp dir via the exported `scripts()` function. Previously these were uncovered — exactly the surface where production regressions in 4.7.5 / 4.10.0 / 4.11.0 / 4.13.0 originated.
+
 ## [6.0.0] - 2026-05-01
 
 ### Added — `aped-glossary` skill (34th skill)

@@ -115,10 +115,10 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 
 
 ### `aped-sprint [story-keys...]`
-- **Creates the sprint umbrella branch** `sprint/epic-{N}` from `origin/<base>` at sprint start (records it in `state.yaml` at `sprint.umbrella_branch`).
+- **Creates the sprint umbrella branch** `sprint/epic-{N}` from `origin/<base_branch>` at sprint start (records it in `state.yaml` at `sprint.umbrella_branch`). `base_branch` is read from `config.yaml` (default `main`); `push_umbrella_on_create` (default true) gates the auto-push to origin.
 - Resolves the dependency DAG (`depends_on:` in `epics.md` and `state.yaml`).
 - Reconciles state.yaml ↔ disk via `check-active-worktrees.sh` before computing capacity (a `rm -rf`'d worktree no longer blocks a slot).
-- Dispatches up to `parallel_limit` stories (default 3), each in its worktree `../{project}-{ticket}` on branch `feature/{ticket}-{slug}` **cut from the umbrella** (not from base).
+- Dispatches up to `parallel_limit` stories (default 3, read from `config.yaml.sprint.parallel_limit` since 6.1.0; state.yaml fallback for v2 scaffolds), each in its worktree `../{project}-{ticket}-{story-key}` on branch `feature/{ticket}-{story-key}` **cut from the umbrella** (not from base). Path includes the story key since 6.1.0 to prevent collisions when multiple stories share a parent ticket.
 - Posts `story-ready` check-in per story (handled by `aped-story` inside each worktree).
 - Ticket-side mutations happen **after** worktree creation (transactional). On ticket-sync failure → story marked `ticket_sync_status: failed`, retry via `aped-lead`.
 - `--plan-only`: dry-run, no mutations.
@@ -127,7 +127,7 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 ### `aped-lead`
 - Lead Dev hub — batch-processes Story Leaders' check-ins (4 kinds: `story-ready`, `dev-done`, `review-done`, `dev-blocked`).
 - **Programmatic verdicts**: calls `.aped/scripts/check-auto-approve.sh <kind> <story-key>` (exit 0 = AUTO, 1 = ESCALATE + reasons on stderr). No LLM judgement.
-- On `review-done` approval → **merges the story PR into the umbrella au-fil-de-l'eau** (`gh pr merge`), tears down the worktree (`workmux merge` or `worktree-cleanup.sh --delete-branch`), sets `merged_into_umbrella: true` in state.yaml.
+- On `review-done` approval → **merges the story PR into the umbrella au-fil-de-l'eau** with merge-completion polling (since 6.1.0). Sequence: capture worktree+PR → `gh pr merge --squash` → poll `gh pr view --json state` until MERGED (timeout `sprint.merge_poll_timeout_seconds`, default 120s) → set `merged_into_umbrella: true` → `mark-story-done` → teardown the worktree (`workmux merge` or `worktree-cleanup.sh --delete-branch`). Order is load-bearing: prior versions flipped status before merging, leaving state inconsistent on merge failure.
 - `dev-blocked` always ESCALATEs (no auto-approve path) — surfaces the reason for user input.
 - Pushes the next command via `workmux send` (preferred) or `tmux send-keys` (fallback). `checkin.sh push` accepts `--target` to disambiguate; refuses ambiguity (exit 3) instead of silently picking the first match.
 
@@ -135,7 +135,7 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Sprint umbrella → base PR opener.** Does NOT batch-merge stories — those merges happen au-fil-de-l'eau in `aped-lead`.
 - **MCP**: `aped_state.advance` (marks sprint as shipped), `aped_ticket` (bulk-closes tickets on ship)
 - Verifies all done stories of the active epic are merged into the umbrella (both `git branch --merged $UMBRELLA` and `merged_into_umbrella: true` in state.yaml agree).
-- Runs the composite review on `umbrella vs origin/<base>`: secret scan, debug/TODO scan, typecheck, lint, `db:generate`, `state.yaml` consistency on the umbrella tip, leftover worktrees/branches.
+- Runs the composite review on `umbrella vs origin/<base>`: secret scan, debug/TODO scan, typecheck, lint, `db:generate`, `state.yaml` consistency on the umbrella tip, leftover worktrees/branches. The typecheck/lint/db-regen blocks **trap-protect** the `git checkout "$UMBRELLA"` since 6.1.0 so an interrupted run cannot strand the user on the umbrella branch.
 - Pushes the umbrella branch and prints `gh pr create --base <base> --head sprint/epic-{N}` (with the composite summary as PR body) for the user to run. **Base only ever sees commits via that one PR.**
 - Archives `.aped/checkins/*.jsonl` to `archive/{date}/` after the PR is opened (`checkin.sh archive`).
 - `--plan-only`: dry-run, no mutations.
@@ -323,11 +323,18 @@ Three reference docs callable on demand from any skill:
 - **`persuasion-principles.md`** — 7-principle table verbatim (Authority, Commitment, Scarcity, Social Proof, Unity, avoid Liking, avoid Reciprocity), Meincke et al. 2025 attribution (N=28k LLM conversations, compliance 33%→72% under research-grounded patterns), ethical-use test.
 - **`testing-skills-with-subagents.md`** — RED-GREEN-REFACTOR runner methodology for skills (baseline pressure scenarios → write skill → close loopholes), 7-pressure-type table, rationalization-table template, bulletproof checklist. This methodology wakes up the Tier 3 skill-triggering harness placeholder.
 
-### state.yaml schema (v1 since 3.12.0, v2 since 4.1.0)
+### state.yaml schema (v1 since 3.12.0, v2 since 4.1.0, v3 since 6.1.0)
 
 - **Oracle**: `oracle-state.sh` — validates state.yaml integrity, checks for schema conformance, detects stale entries and orphaned references
 
-Existing scaffolds keep working without changes (missing `schema_version` is treated as implicit 1). `validate-state.sh` accepts both `1` and `2`. Migration is **automatic and idempotent** — `aped-method --update` runs `migrate-state.sh` 1 → 2 as a Phase-3 task, writing a backup at `docs/state.yaml.pre-v2-migration.bak` before any mutation.
+Existing scaffolds keep working without changes (missing `schema_version` is treated as implicit 1). `validate-state.sh` accepts `1`, `2`, and `3`. Migration is **automatic and idempotent** — `aped-method --update` runs `migrate-state.sh` which chains v1 → v2 → v3 in a single pass as a Phase-3 task, writing per-step backups (`state.yaml.pre-v2-migration.bak`, `state.yaml.pre-v3-migration.bak`) before any mutation.
+
+#### Schema v3 (6.1.0+)
+
+- `schema_version: 3` at top.
+- `sprint.parallel_limit` and `sprint.review_limit` move out of state.yaml to `config.yaml.sprint.*`. State.yaml retains only runtime sprint state (active_epic, umbrella_branch, stories with their per-story fields).
+- `validate-state.sh` refuses v3 state files that still contain those fields (incomplete migration) or that have `sprint.active_epic` set without a `sprint.umbrella_branch`.
+- The migration also seeds `base_branch:`, `sprint.push_umbrella_on_create`, `sprint.merge_poll_timeout_seconds`, and `review.parallel_reviewers` in `config.yaml` if absent.
 
 #### Schema v1 (3.12.0 → 4.0.x)
 

@@ -510,14 +510,14 @@ sprint:
     expect(r.code, r.stderr).toBe(0);
   });
 
-  it('errors on schema_version 3 with a clear "upgrade aped-method" message', () => {
-    // 4.1.0 raises KNOWN_SCHEMA_VERSIONS to "1 2"; the next reserved version
-    // (3) must still be rejected with a hint pointing at the upgrade path.
-    // This test guards the forward-compat refusal contract for any future
-    // schema beyond what this build understands.
+  it('errors on a future schema_version with a clear "upgrade aped-method" message', () => {
+    // 4.1.0 raised KNOWN_SCHEMA_VERSIONS to "1 2"; 6.1.0 raises it to "1 2 3".
+    // The next reserved version (4) must still be rejected with a hint
+    // pointing at the upgrade path. This test guards the forward-compat
+    // refusal contract for any schema beyond what this build understands.
     installScript(sandbox, 'validate-state.sh');
     writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
-      `schema_version: 3
+      `schema_version: 4
 sprint:
   stories: {}
 `);
@@ -601,9 +601,13 @@ sprint:
 });
 
 describe('migrate-state.sh', () => {
-  it('migrates v1 → v2 and writes a backup', () => {
+  it('migrates v1 → v3 (chained through v2) and writes per-step backups', () => {
+    // 6.1.0: migrate-state.sh chains v1 → v2 → v3 in a single run so legacy
+    // 3.x scaffolds bring up to the current head in one `aped-method --update`.
+    // Two backups are written, one per migration step.
     installScript(sandbox, 'migrate-state.sh');
-    // Need a config.yaml so the migration can resolve corrections_path.
+    // Need a config.yaml so the migration can resolve corrections_path AND
+    // host the v3 sprint/review/base_branch blocks the v2→v3 step writes.
     mkdirSync(join(sandbox, APED_DIR), { recursive: true });
     writeFileSync(join(sandbox, APED_DIR, 'config.yaml'),
       `state:\n  corrections_path: "${OUTPUT_DIR}/state-corrections.yaml"\n`);
@@ -627,9 +631,9 @@ sprint:
       { CLAUDE_PROJECT_DIR: sandbox });
     expect(r.code, r.stderr).toBe(0);
 
-    // state.yaml: schema bumped, corrections removed, pointer + count present.
+    // state.yaml: schema chained to 3, corrections removed, pointer + count present.
     const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
-    expect(after).toMatch(/schema_version:\s*2/);
+    expect(after).toMatch(/schema_version:\s*3/);
     expect(after).toMatch(/corrections_pointer:\s*"?[^"\n]*state-corrections\.yaml"?/);
     expect(after).toMatch(/corrections_count:\s*2/);
     expect(after).not.toMatch(/^corrections:/m);
@@ -639,15 +643,21 @@ sprint:
     expect(corrFile).toContain('"first"');
     expect(corrFile).toContain('"second"');
 
-    // Backup exists.
-    const backup = join(sandbox, OUTPUT_DIR, 'state.yaml.pre-v2-migration.bak');
-    expect(existsSync(backup)).toBe(true);
+    // Both per-step backups exist (one per migration hop).
+    expect(existsSync(join(sandbox, OUTPUT_DIR, 'state.yaml.pre-v2-migration.bak'))).toBe(true);
+    expect(existsSync(join(sandbox, OUTPUT_DIR, 'state.yaml.pre-v3-migration.bak'))).toBe(true);
+
+    // config.yaml gained the v3 sprint/review/base_branch blocks.
+    const cfg = readFileSync(join(sandbox, APED_DIR, 'config.yaml'), 'utf8');
+    expect(cfg).toMatch(/sprint:[\s\S]*parallel_limit:\s*3/);
+    expect(cfg).toMatch(/review:[\s\S]*parallel_reviewers:\s*false/);
+    expect(cfg).toMatch(/base_branch:\s*main/);
   });
 
-  it('is idempotent on schema v2 (re-run is no-op)', () => {
+  it('is idempotent on schema v3 (re-run is no-op)', () => {
     installScript(sandbox, 'migrate-state.sh');
     writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
-      `schema_version: 2
+      `schema_version: 3
 corrections_pointer: "${OUTPUT_DIR}/state-corrections.yaml"
 corrections_count: 0
 sprint:
@@ -661,6 +671,61 @@ sprint:
     expect(after).toBe(before);
     // No backup created on a no-op.
     expect(existsSync(join(sandbox, OUTPUT_DIR, 'state.yaml.pre-v2-migration.bak'))).toBe(false);
+    expect(existsSync(join(sandbox, OUTPUT_DIR, 'state.yaml.pre-v3-migration.bak'))).toBe(false);
+  });
+
+  it('migrates v2 → v3: parallel_limit/review_limit move to config.yaml', () => {
+    installScript(sandbox, 'migrate-state.sh');
+    mkdirSync(join(sandbox, APED_DIR), { recursive: true });
+    writeFileSync(join(sandbox, APED_DIR, 'config.yaml'),
+      `project_name: test\n`);
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 2
+corrections_pointer: "${OUTPUT_DIR}/state-corrections.yaml"
+corrections_count: 0
+sprint:
+  active_epic: 1
+  umbrella_branch: "sprint/epic-1"
+  parallel_limit: 5
+  review_limit: 3
+  stories: {}
+`);
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/migrate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code, r.stderr).toBe(0);
+    const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+    expect(after).toMatch(/schema_version:\s*3/);
+    // Limits removed from state.yaml.
+    expect(after).not.toMatch(/parallel_limit/);
+    expect(after).not.toMatch(/review_limit/);
+    // Limits present in config.yaml under sprint:.
+    const cfg = readFileSync(join(sandbox, APED_DIR, 'config.yaml'), 'utf8');
+    expect(cfg).toMatch(/sprint:[\s\S]*parallel_limit:\s*5/);
+    expect(cfg).toMatch(/sprint:[\s\S]*review_limit:\s*3/);
+    // Backup written.
+    expect(existsSync(join(sandbox, OUTPUT_DIR, 'state.yaml.pre-v3-migration.bak'))).toBe(true);
+  });
+
+  it('refuses v2 → v3 when config.yaml is missing', () => {
+    // The v2→v3 step writes the moved limits to config.yaml, which is the
+    // single source of truth for preferences in v3. Without the file,
+    // refuse loudly rather than silently scaffold defaults that may not
+    // match the user's project.
+    installScript(sandbox, 'migrate-state.sh');
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      `schema_version: 2
+corrections_pointer: "${OUTPUT_DIR}/state-corrections.yaml"
+corrections_count: 0
+sprint:
+  stories: {}
+`);
+    const r = run(`bash ${sandbox}/${APED_DIR}/scripts/migrate-state.sh`,
+      { CLAUDE_PROJECT_DIR: sandbox });
+    expect(r.code).toBe(4);
+    expect(r.stderr).toMatch(/v2 → v3 migration requires config\.yaml/);
+    // State.yaml unchanged on refusal.
+    const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+    expect(after).toMatch(/schema_version:\s*2/);
   });
 
   it('recovers from a botched previous migration: state.yaml v1 + sister with same content', () => {
@@ -702,9 +767,9 @@ sprint:
       { CLAUDE_PROJECT_DIR: sandbox });
     expect(r.code, r.stderr).toBe(0);
 
-    // schema bumped to 2 + count matches sister + no top-level corrections
+    // schema chained to 3 + count matches sister + no top-level corrections
     const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
-    expect(after).toMatch(/schema_version:\s*2/);
+    expect(after).toMatch(/schema_version:\s*3/);
     expect(after).toMatch(/corrections_count:\s*2/);
     expect(after).not.toMatch(/^corrections:/m);
 
@@ -845,6 +910,10 @@ sprint:
 
   it('handles a v1 state with no corrections block (count = 0)', () => {
     installScript(sandbox, 'migrate-state.sh');
+    // v2→v3 step requires config.yaml — scaffold one so the chain completes.
+    mkdirSync(join(sandbox, APED_DIR), { recursive: true });
+    writeFileSync(join(sandbox, APED_DIR, 'config.yaml'),
+      `project_name: test\n`);
     writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
       `schema_version: 1
 sprint:
@@ -854,7 +923,7 @@ sprint:
       { CLAUDE_PROJECT_DIR: sandbox });
     expect(r.code, r.stderr).toBe(0);
     const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
-    expect(after).toMatch(/schema_version:\s*2/);
+    expect(after).toMatch(/schema_version:\s*3/);
     expect(after).toMatch(/corrections_count:\s*0/);
   });
 });
