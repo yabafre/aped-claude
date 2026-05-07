@@ -68,6 +68,7 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
   - `docs/aped/epics.md` (map + stories with sizes S/M/L + `depends_on:`)
   - Seeded tickets in Linear/Jira/GitHub/GitLab with labels 🆕 / 🔄 / 🔁
 - **Oracle**: `oracle-epics.sh` — validates FR coverage, detects `depends_on` cycles, checks story granularity
+- **Schema validator** (since 6.3.0, WARN-only): `validate-epics.sh` runs immediately after the file write at step-07; surfaces missing `## FR Coverage Map` and structural drift; blocks the state.yaml advance on non-zero. Escalates to ERROR in 7.0.0.
 - **MCP**: `aped_ticket` — programmatic ticket creation and sync with the configured provider
 - **Gate** ⏸: FR coverage validated (`validate-coverage.sh`)
 
@@ -77,6 +78,7 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Input**: ticket from chosen system (Linear/Jira/GH/GL) — **the ticket wins** on divergence
 - 🔍 **Input Discovery** (since 3.10.2): loads every upstream artefact present (PRD, UX, architecture, brief, project-context, lessons scoped `aped-story | all`, completed stories of the current epic). Lessons are applied to the draft (cited in Discussion Points, used to adjust scope per prior-epic rules); previous stories of the same epic are loaded for continuity (decisions reused, not re-litigated).
 - **Cache**: checks `docs/aped/epics-context/epic-{N}-context.md`; if missing/stale, a sub-agent compiles it once from PRD / arch / UX / `project-context.md` (brownfield only) / `lessons.md` (`Scope: aped-dev | all`) / completed stories / codebase patterns
+- **Schema validators** (since 6.3.0, WARN-only): `validate-epic-context.sh` runs at step-02 right after the cache write/refresh (surfaces drift in the strict template that `aped-review` appends to); `validate-story.sh` runs at step-06 self-review (catches invented sections, missing required headings, malformed AC bullets without `Given/When/Then`). Both fail-soft on missing walker. Escalates to ERROR in 7.0.0.
 - **Output**: `docs/aped/stories/{story-key}.md` (implementation-ready)
 - **Gate** ⏸: story ready before `aped-dev`
 
