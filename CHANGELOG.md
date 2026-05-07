@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.0] - 2026-05-07
+
 ### Added — `aped-purge` doc hygiene + INDEX (35th skill)
 
 `aped-` skills sometimes wrote project-specific reference docs (`migration-pattern-modules.md`, `migration-framework.md`, …) directly under `{{OUTPUT_DIR}}/`. Those files have no producer skill, no consumer, no entry point — they just sit there and the next `aped-status` doesn't even know they exist.
