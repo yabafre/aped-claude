@@ -1278,7 +1278,11 @@ fi
 
 STORY_KEY="\$1"
 TICKET_ID="\${2:-\$STORY_KEY}"
-BASE_REF="\${3:-HEAD}"
+# When omitted, the base ref defaults to the umbrella recorded in state.yaml
+# (sprint mode) → config.yaml.base_branch (solo mode) → HEAD (last resort).
+# /aped-sprint always passes the umbrella explicitly; this resolution chain
+# only kicks in when the script is invoked manually.
+BASE_REF="\${3:-}"
 
 PROJECT_ROOT="\${CLAUDE_PROJECT_DIR:-\$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 if [[ ! -d "\$PROJECT_ROOT/.git" ]] && ! git -C "\$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
@@ -1286,12 +1290,33 @@ if [[ ! -d "\$PROJECT_ROOT/.git" ]] && ! git -C "\$PROJECT_ROOT" rev-parse --git
   exit 2
 fi
 
+# Resolve BASE_REF when not given on the command line. Read state.yaml first
+# (sprint umbrella wins) then config.yaml.base_branch, then HEAD.
+if [[ -z "\$BASE_REF" ]]; then
+  STATE_FILE_TMP="\$PROJECT_ROOT/${o}/state.yaml"
+  CONFIG_FILE_TMP="\$PROJECT_ROOT/${a}/config.yaml"
+  if command -v yq >/dev/null 2>&1 && [[ -f "\$STATE_FILE_TMP" ]]; then
+    BASE_REF=\$(yq eval '.sprint.umbrella_branch // ""' "\$STATE_FILE_TMP" 2>/dev/null || echo "")
+  fi
+  if [[ -z "\$BASE_REF" || "\$BASE_REF" == "null" ]]; then
+    if command -v yq >/dev/null 2>&1 && [[ -f "\$CONFIG_FILE_TMP" ]]; then
+      BASE_REF=\$(yq eval '.base_branch // ""' "\$CONFIG_FILE_TMP" 2>/dev/null || echo "")
+    fi
+  fi
+  if [[ -z "\$BASE_REF" || "\$BASE_REF" == "null" ]]; then
+    BASE_REF="HEAD"
+  fi
+fi
+
 # Compute target paths up-front so the lock is keyed on the actual contended
-# resource (the worktree path), not on the story key. Two stories that share
-# a TICKET_ID would resolve to the same WORKTREE_PATH and race in
-# \`git worktree add\`; the old per-story-key lock missed that case.
+# resource (the worktree path), not on the story key. The path includes
+# BOTH the ticket id AND the story key — without the story key, two stories
+# that share a ticket (e.g. sub-stories of the same parent ticket) would
+# collide on disk and the second \`git worktree add\` would fail. The lock
+# is then keyed on this resolved path, so sequential dispatch of two
+# distinct stories no longer false-conflicts on the lock either.
 PROJECT_NAME=\$(basename "\$PROJECT_ROOT")
-WORKTREE_PATH="\$(dirname "\$PROJECT_ROOT")/\${PROJECT_NAME}-\${TICKET_ID}"
+WORKTREE_PATH="\$(dirname "\$PROJECT_ROOT")/\${PROJECT_NAME}-\${TICKET_ID}-\${STORY_KEY}"
 BRANCH_NAME="feature/\${TICKET_ID}-\${STORY_KEY}"
 
 # ── Fleet-lock keyed on the worktree path (sanitised for filesystem use) ─
@@ -2068,9 +2093,12 @@ fi
 # missing as version 1 so existing projects keep working until they bump.
 # v1 → v2 migration (4.1.0) splits \`corrections:\` out into a sibling file
 # (\`corrections_pointer\` + \`corrections_count\` mirror in state.yaml).
+# v2 → v3 migration (6.1.0) moves \`sprint.parallel_limit\` and
+# \`sprint.review_limit\` out to config.yaml.sprint.* (preferences, not
+# runtime state). Skill readers fall back to state.yaml for v2 scaffolds.
 # Schema versions beyond KNOWN_SCHEMA_VERSIONS — refuse with a clear hint
 # instead of silently best-effort-parsing a future shape.
-KNOWN_SCHEMA_VERSIONS="1 2"
+KNOWN_SCHEMA_VERSIONS="1 2 3"
 schema_version="1"
 if command -v yq >/dev/null 2>&1; then
   schema_version=\$(yq eval '.schema_version // 1' "\$STATE_FILE" 2>/dev/null || echo "1")
@@ -2094,20 +2122,53 @@ fi
 # blocks declared by config.js + the documented schema-extension slots.
 KNOWN_TOP_LEVEL_BLOCKS_V1="schema_version pipeline sprint ticket_sync backlog_future_scope corrections"
 KNOWN_TOP_LEVEL_BLOCKS_V2="schema_version pipeline sprint ticket_sync backlog_future_scope corrections_pointer corrections_count"
+KNOWN_TOP_LEVEL_BLOCKS_V3="\$KNOWN_TOP_LEVEL_BLOCKS_V2"
 case "\$schema_version" in
+  3) KNOWN_TOP_LEVEL_BLOCKS="\$KNOWN_TOP_LEVEL_BLOCKS_V3" ;;
   2) KNOWN_TOP_LEVEL_BLOCKS="\$KNOWN_TOP_LEVEL_BLOCKS_V2" ;;
   *) KNOWN_TOP_LEVEL_BLOCKS="\$KNOWN_TOP_LEVEL_BLOCKS_V1" ;;
 esac
 
-# In v2, top-level \`corrections:\` is a hard error — the migration moves it
+# In v2+, top-level \`corrections:\` is a hard error — the migration moves it
 # to the sister file pointed to by \`corrections_pointer\` (default
 # \`\${output_path}/state-corrections.yaml\`) and replaces it with a pointer. A residual
 # top-level \`corrections:\` after migration means manual editing or a botched
 # migration; either way the audit invariant ("one source of truth for
 # corrections") is broken. Surface it loudly.
-if [[ "\$schema_version" == "2" ]] && grep -qE '^corrections:' "\$STATE_FILE" 2>/dev/null; then
-  echo "ERROR: state.yaml schema_version=2 but a top-level \\\`corrections:\\\` block is still present. In v2 corrections live in the file pointed to by \\\`corrections_pointer\\\`. Run \\\`bash ${a}/scripts/migrate-state.sh\\\` to migrate, or remove the residual top-level block manually." >&2
+if [[ "\$schema_version" == "2" || "\$schema_version" == "3" ]] && grep -qE '^corrections:' "\$STATE_FILE" 2>/dev/null; then
+  echo "ERROR: state.yaml schema_version=\$schema_version but a top-level \\\`corrections:\\\` block is still present. In v2+ corrections live in the file pointed to by \\\`corrections_pointer\\\`. Run \\\`bash ${a}/scripts/migrate-state.sh\\\` to migrate, or remove the residual top-level block manually." >&2
   exit 4
+fi
+
+# In v3, \`sprint.parallel_limit\` and \`sprint.review_limit\` MUST live in
+# config.yaml, not state.yaml. A residual mention here points at an
+# incomplete v2→v3 migration; the migration tool moves them to config.yaml
+# and deletes them from state.yaml in lock-step.
+if [[ "\$schema_version" == "3" ]] && command -v yq >/dev/null 2>&1; then
+  for runtime_pref in parallel_limit review_limit; do
+    val=\$(yq eval ".sprint.\$runtime_pref // \\"\\"" "\$STATE_FILE" 2>/dev/null || echo "")
+    if [[ -n "\$val" && "\$val" != "null" ]]; then
+      echo "ERROR: state.yaml schema_version=3 still has \\\`sprint.\$runtime_pref\\\` — this preference moved to config.yaml in v3. Run \\\`bash ${a}/scripts/migrate-state.sh\\\` to complete the migration, or remove the field manually." >&2
+      exit 4
+    fi
+  done
+fi
+
+# In v3, when a sprint is active (\`sprint.active_epic\` is set), the
+# umbrella branch MUST be recorded — every story branch parents under it
+# and aped-ship reads it as the only thing it ships. Missing umbrella
+# while active_epic is set means the sprint was started before the
+# umbrella convention or someone hand-edited state.yaml. Surface it
+# rather than letting aped-ship blow up later with a cryptic null.
+if [[ "\$schema_version" == "3" ]] && command -v yq >/dev/null 2>&1; then
+  active_epic=\$(yq eval '.sprint.active_epic // ""' "\$STATE_FILE" 2>/dev/null || echo "")
+  if [[ -n "\$active_epic" && "\$active_epic" != "null" ]]; then
+    umbrella=\$(yq eval '.sprint.umbrella_branch // ""' "\$STATE_FILE" 2>/dev/null || echo "")
+    if [[ -z "\$umbrella" || "\$umbrella" == "null" ]]; then
+      echo "ERROR: state.yaml has \\\`sprint.active_epic: \$active_epic\\\` but no \\\`sprint.umbrella_branch\\\`. Re-run aped-sprint to create+record the umbrella, or unset active_epic to abandon the sprint." >&2
+      exit 4
+    fi
+  fi
 fi
 
 while IFS= read -r block; do
@@ -2922,23 +2983,116 @@ self_heal_corrections_pointer() {
 }
 self_heal_corrections_pointer
 
-case "\$schema_version" in
-  1)
-    # Sub-case: if there's nothing to migrate (no corrections block at all),
-    # we still bump schema + write the pointer + count=0 so subsequent calls
-    # are no-ops. This keeps the validate-state.sh contract uniform.
-    migrate_v1_to_v2
-    exit \$?
-    ;;
-  2)
-    # Already on v2 — idempotent no-op (after self-heal above).
-    exit 0
-    ;;
-  *)
-    echo "ERROR: unsupported schema_version \$schema_version; upgrade aped-method (\\\`npm i -g aped-method@latest\\\`) and retry." >&2
-    exit 1
-    ;;
-esac
+migrate_v2_to_v3() {
+  if ! command -v yq >/dev/null 2>&1; then
+    echo "ERROR: v2 → v3 migration requires \\\`yq\\\` to manipulate YAML structurally. Install yq (\\\`brew install yq\\\` or \\\`npm i -g yq\\\`) and re-run \\\`aped-method --update\\\`." >&2
+    return 3
+  fi
+
+  local cfg=""
+  for candidate in "\$APED_DIR_ABS/config.yaml" "\$PROJECT_ROOT/.aped/config.yaml"; do
+    if [[ -f "\$candidate" ]]; then cfg="\$candidate"; break; fi
+  done
+  if [[ -z "\$cfg" ]]; then
+    echo "ERROR: v2 → v3 migration requires config.yaml under \$APED_DIR_ABS/. Re-run \\\`aped-method --update\\\` to scaffold the missing config first." >&2
+    return 4
+  fi
+
+  local backup="\$PROJECT_ROOT/${o}/state.yaml.pre-v3-migration.bak"
+  echo "Migrating state.yaml schema 2 → 3 (extracting sprint.parallel_limit / sprint.review_limit to config.yaml)..." >&2
+
+  # 1. Backup before any mutation.
+  if ! cp -f "\$STATE_FILE" "\$backup"; then
+    echo "ERROR: failed to write backup at \$backup — aborting migration." >&2
+    return 1
+  fi
+
+  # 2. Read existing values from state.yaml; default to 3/2 if absent
+  # (matches the historical seeded defaults from config.js).
+  local parallel_limit review_limit
+  parallel_limit=\$(yq eval '.sprint.parallel_limit // 3' "\$STATE_FILE" 2>/dev/null || echo 3)
+  review_limit=\$(yq eval '.sprint.review_limit // 2' "\$STATE_FILE" 2>/dev/null || echo 2)
+
+  # 3. Write to config.yaml under sprint:. Only overwrite if the keys are
+  # missing OR still match the historical defaults; if the user already
+  # set custom values in config.yaml we trust those and only delete the
+  # state.yaml duplicates.
+  local cfg_tmp
+  cfg_tmp=\$(mktemp "\$(dirname "\$cfg")/.config.XXXXXX")
+  cp -f "\$cfg" "\$cfg_tmp"
+  local cfg_pl cfg_rl
+  cfg_pl=\$(yq eval '.sprint.parallel_limit // ""' "\$cfg_tmp" 2>/dev/null || echo "")
+  cfg_rl=\$(yq eval '.sprint.review_limit // ""' "\$cfg_tmp" 2>/dev/null || echo "")
+  if [[ -z "\$cfg_pl" || "\$cfg_pl" == "null" ]]; then
+    yq eval -i ".sprint.parallel_limit = \$parallel_limit" "\$cfg_tmp"
+  fi
+  if [[ -z "\$cfg_rl" || "\$cfg_rl" == "null" ]]; then
+    yq eval -i ".sprint.review_limit = \$review_limit" "\$cfg_tmp"
+  fi
+  # Seed the new defaults if absent so downstream readers can rely on them.
+  if [[ "\$(yq eval '.sprint.push_umbrella_on_create // ""' "\$cfg_tmp" 2>/dev/null || echo "")" == "" ]]; then
+    yq eval -i '.sprint.push_umbrella_on_create = true' "\$cfg_tmp"
+  fi
+  if [[ "\$(yq eval '.sprint.merge_poll_timeout_seconds // ""' "\$cfg_tmp" 2>/dev/null || echo "")" == "" ]]; then
+    yq eval -i '.sprint.merge_poll_timeout_seconds = 120' "\$cfg_tmp"
+  fi
+  if [[ "\$(yq eval '.review.parallel_reviewers // ""' "\$cfg_tmp" 2>/dev/null || echo "")" == "" ]]; then
+    yq eval -i '.review.parallel_reviewers = false' "\$cfg_tmp"
+  fi
+  if [[ "\$(yq eval '.base_branch // ""' "\$cfg_tmp" 2>/dev/null || echo "")" == "" ]]; then
+    yq eval -i '.base_branch = "main"' "\$cfg_tmp"
+  fi
+
+  if ! yq eval 'true' "\$cfg_tmp" >/dev/null 2>&1; then
+    echo "ERROR: produced config.yaml is not valid YAML. State unchanged. Backup at \$backup; produced file at \$cfg_tmp." >&2
+    return 1
+  fi
+  mv -f "\$cfg_tmp" "\$cfg"
+
+  # 4. Mutate state.yaml: remove sprint.parallel_limit/review_limit, bump schema.
+  local state_tmp
+  state_tmp=\$(mktemp "\$(dirname "\$STATE_FILE")/.state.XXXXXX")
+  cp -f "\$STATE_FILE" "\$state_tmp"
+  yq eval -i '
+    del(.sprint.parallel_limit) |
+    del(.sprint.review_limit) |
+    .schema_version = 3
+  ' "\$state_tmp"
+
+  if ! yq eval 'true' "\$state_tmp" >/dev/null 2>&1; then
+    echo "ERROR: produced state.yaml is not valid YAML. State unchanged. Backup at \$backup; produced file at \$state_tmp." >&2
+    return 1
+  fi
+  mv -f "\$state_tmp" "\$STATE_FILE"
+
+  echo "Migration complete. parallel_limit=\$parallel_limit, review_limit=\$review_limit moved to config.yaml. Backup at \$backup." >&2
+  return 0
+}
+
+# Chain migrations so a single run brings legacy 3.x scaffolds all the way
+# up to the latest schema. Avoid bash-4-only \`;;&\` fall-through: we use a
+# while loop that re-reads schema_version after each step. Each migrator is
+# idempotent on its target version so re-entry is safe.
+while true; do
+  case "\$schema_version" in
+    1)
+      migrate_v1_to_v2 || exit \$?
+      schema_version=2
+      ;;
+    2)
+      migrate_v2_to_v3 || exit \$?
+      schema_version=3
+      ;;
+    3)
+      # Reached the head of the migration chain.
+      exit 0
+      ;;
+    *)
+      echo "ERROR: unsupported schema_version \$schema_version; upgrade aped-method (\\\`npm i -g aped-method@latest\\\`) and retry." >&2
+      exit 1
+      ;;
+  esac
+done
 `,
     },
     {

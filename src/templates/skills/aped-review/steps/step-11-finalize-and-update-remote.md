@@ -45,18 +45,35 @@ If story → `done`:
 
 1. **Open (or update) the story PR — target = sprint umbrella, NOT base.** Read `sprint.umbrella_branch` from state.yaml; that's the PR base. The PR's job is to be the unit of review against the umbrella; the umbrella aggregates the sprint and PRs once into base via `aped-ship`.
 
+   The block must be **idempotent** — re-running aped-review after a fix-up cycle must NOT crash on "PR already exists". Probe first, then either edit-or-create.
+
    ```bash
    UMBRELLA=$(yq '.sprint.umbrella_branch' ${project_root}/{{OUTPUT_DIR}}/state.yaml)
-   # github
-   gh pr create --base "$UMBRELLA" --head "$(git symbolic-ref --short HEAD)" \\
-     --title "feat({ticket}): {story-key} — {short-title}" \\
-     --body "Closes {ticket}. Review Record in {{OUTPUT_DIR}}/stories/{story-key}.md."
-   # gitlab
-   glab mr create --target-branch "$UMBRELLA" --source-branch "$(git symbolic-ref --short HEAD)" \\
-     --title "feat({ticket}): {story-key} — {short-title}"
+   HEAD_BRANCH=$(git symbolic-ref --short HEAD)
+   TITLE="feat({ticket}): {story-key} — {short-title}"
+   BODY="Closes {ticket}. Review Record in {{OUTPUT_DIR}}/stories/{story-key}.md."
+
+   # github — probe first; gh pr view returns non-zero if no PR exists for HEAD.
+   if EXISTING_PR=$(gh pr view "$HEAD_BRANCH" --json number,baseRefName -q '.number' 2>/dev/null) && [[ -n "$EXISTING_PR" ]]; then
+     # Existing PR — refresh title/body and assert the base is the umbrella.
+     EXISTING_BASE=$(gh pr view "$HEAD_BRANCH" --json baseRefName -q '.baseRefName' 2>/dev/null || echo "")
+     if [[ -n "$EXISTING_BASE" && "$EXISTING_BASE" != "$UMBRELLA" ]]; then
+       gh pr edit "$EXISTING_PR" --base "$UMBRELLA"
+     fi
+     gh pr edit "$EXISTING_PR" --title "$TITLE" --body "$BODY"
+   else
+     gh pr create --base "$UMBRELLA" --head "$HEAD_BRANCH" --title "$TITLE" --body "$BODY"
+   fi
+
+   # gitlab equivalent — glab mr view returns non-zero if no MR exists.
+   # if EXISTING_MR=$(glab mr view --json -F number 2>/dev/null | jq -r '.number // empty'); then
+   #   glab mr update "$EXISTING_MR" --target-branch "$UMBRELLA" --title "$TITLE" --description "$BODY"
+   # else
+   #   glab mr create --target-branch "$UMBRELLA" --source-branch "$HEAD_BRANCH" --title "$TITLE" --description "$BODY"
+   # fi
    ```
 
-   If the PR already exists (re-review of a story), update its body/comments instead.
+   The probe-and-edit path also catches the case where a previous aped-review opened the PR against the wrong base (e.g. against the project base branch instead of the umbrella, before the umbrella convention shipped). Re-running aped-review on the same branch silently corrects the base.
 
 2. **Do NOT merge here.** The merge into umbrella is owned by `aped-lead` after it approves the `review-done` check-in (au-fil-de-l'eau policy: each story PR is merged into umbrella the moment the lead approves, not batched at `aped-ship`).
 

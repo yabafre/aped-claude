@@ -8,11 +8,12 @@ Security patches are issued for the latest `6.x` minor release only.
 
 | Version  | Supported          |
 | -------- | ------------------ |
+| 6.1.x   | :white_check_mark: |
 | 6.0.x   | :white_check_mark: |
 | 5.5.x   | :white_check_mark: |
 | < 5.5   | :x:                |
 
-5.5.x receives critical security fixes during the v6.0 transition window (through 2026-07-01). After that, only 6.x is supported. Users on 5.4 or earlier should upgrade before reporting an issue.
+5.5.x receives critical security fixes during the v6.x transition window (through 2026-07-01). After that, only 6.x is supported. Users on 5.4 or earlier should upgrade before reporting an issue.
 
 ## Reporting a Vulnerability
 

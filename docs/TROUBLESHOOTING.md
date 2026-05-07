@@ -456,6 +456,42 @@ The directory layout's payoff is token economy: the 10 phase skills now ship 6�
 
 **Fix.** Look for `## Review Record` at the bottom of the story file. If you have legacy `docs/reviews/*.md` files from 5.x, you can fold them into the matching story file or leave them as historical reference — the new pipeline never reads them.
 
+## 22. Sprint mode — `parallel_limit` ignored after upgrading to 6.1.0
+
+**Symptom.** You set `sprint.parallel_limit: 5` in `state.yaml.sprint.parallel_limit`, but `aped-sprint` still dispatches max 3.
+
+**Cause.** v6.1.0 schema v3 moved `parallel_limit` and `review_limit` out of state.yaml into `{{APED_DIR}}/config.yaml.sprint.*` (preferences, not runtime state). Readers prefer config; only fall back to state.yaml for v2 scaffolds. If your scaffold has `schema_version: 3` AND a stale `sprint.parallel_limit` in state.yaml, the value in state.yaml is ignored and `validate-state.sh` will refuse to operate.
+
+**Fix.** Either:
+- Run `aped-method --update` and let `migrate-state.sh` move the value to `config.yaml` automatically (idempotent on v3, so safe to re-run); or
+- Manually move the value: edit `{{APED_DIR}}/config.yaml`, add `sprint:` with `parallel_limit: 5` underneath, then delete the field from state.yaml.
+
+Verify: `bash .aped/scripts/validate-state.sh` exits 0 and `bash .aped/scripts/migrate-state.sh` reports no-op.
+
+## 23. Sprint mode — `aped-lead` review-done teardown happens before merge completes
+
+**Symptom.** `aped-lead` approves `review-done`, prints "merging…", and then the worktree is gone — but the PR is still open / pending checks.
+
+**Cause.** Pre-6.1.0, `aped-lead` used `gh pr merge --auto --squash` which returns success after **enqueueing** the merge (subject to required reviews / status checks), not after the merge actually happens. Teardown then ran while the PR was still pending.
+
+**Fix.** v6.1.0 reordered the handler and added merge-completion polling: `gh pr merge --squash` (no `--auto`) → poll `gh pr view --json state -q .state` until `MERGED` or `sprint.merge_poll_timeout_seconds` elapses (default 120s) → only then set `merged_into_umbrella: true` → `mark-story-done` → teardown. On timeout / `CLOSED` / failure: state stays at `status: review`, worktree stays on disk for recovery, user re-runs `aped-lead` after fixing the PR side. If you're on 6.0.x, run `aped-method --update`.
+
+## 24. Sprint mode — base branch is `develop` / `master`, but umbrella was cut from `main`
+
+**Symptom.** Your project trunk-deploys from `develop`, but `aped-sprint` created `sprint/epic-N` from `origin/main` and `aped-ship` wants to PR into `main`.
+
+**Cause.** Pre-6.1.0, `base_branch` was *referenced* by `aped-sprint` and `aped-ship` but **never seeded by the scaffolder** — the read always fell back to the literal string `"main"` regardless of the project. v6.1.0 seeds `base_branch: main` in `config.yaml` at scaffold time and the migration v2→v3 also adds it to existing scaffolds.
+
+**Fix.** Edit `{{APED_DIR}}/config.yaml` and set `base_branch: develop` (or whatever your trunk is). `aped-sprint` will cut the next umbrella from `origin/develop` and `aped-ship` will PR against it. Existing umbrellas are not relocated — abandon them or rebase manually.
+
+## 25. Sprint mode — Stage 1.5 reviewers (Hannah/Eli/Aaron) silently never run
+
+**Symptom.** You set `review.parallel_reviewers: true` in `config.yaml` but the review only ever shows Eva / Marcus / Rex / specialists — never Hannah / Eli / Aaron.
+
+**Cause.** Pre-6.1.0, the `review.parallel_reviewers` flag was *referenced* by `aped-review/steps/step-03` but the `review:` block was **never seeded in config.yaml**. Even if you added the key by hand, the resolution path read `null` and skipped Stage 1.5.
+
+**Fix.** v6.1.0 adds a real `review:` block to `config.yaml` with `parallel_reviewers: false` as the default. Run `aped-method --update` to scaffold it, then flip to `true`. Verify via `yq '.review.parallel_reviewers' .aped/config.yaml` — must return `true` (not `null`).
+
 ## Still stuck?
 
 Run with `--debug` to get a stack trace on error:

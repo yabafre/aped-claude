@@ -36,13 +36,19 @@ Read all comments — they may contain clarifications or decisions made during d
 
 ## CAPACITY CHECK
 
-Before spinning up specialists, check `sprint.review_limit` (default 2) against current reviews:
+Before spinning up specialists, check `sprint.review_limit` (default 2) against current reviews. **Schema v3 (6.1.0+) reads it from `{{APED_DIR}}/config.yaml.sprint.review_limit`; v2 scaffolds keep the legacy value at `state.yaml.sprint.review_limit`.** Resolution: config wins, state is the v2 fallback, hardcoded `2` is the last resort.
 
-```
-reviews_running = count(stories where status == "review" AND story_key != this one)
+```bash
+REVIEW_LIMIT=$(yq '.sprint.review_limit // ""' {{APED_DIR}}/config.yaml)
+if [[ -z "$REVIEW_LIMIT" || "$REVIEW_LIMIT" == "null" ]]; then
+  REVIEW_LIMIT=$(yq '.sprint.review_limit // 2' {{OUTPUT_DIR}}/state.yaml)
+fi
+reviews_running=$(yq '[.sprint.stories[] | select(.status == "review")] | length' {{OUTPUT_DIR}}/state.yaml)
 ```
 
-If `reviews_running >= review_limit`:
+`reviews_running` includes the current story (still `review`); subtract 1 before comparing against `REVIEW_LIMIT`.
+
+If `(reviews_running - 1) >= REVIEW_LIMIT`:
 
 - Update this story's status to `review-queued` in `state.yaml`.
 - Post a comment on the ticket (if applicable): *"Review capacity reached — queued."*
@@ -81,7 +87,13 @@ A story can trigger multiple specialists.
 
 ### Stage 1.5 (opt-in)
 
-If `review.parallel_reviewers: true` is set in `config.yaml`:
+Read the gate from `{{APED_DIR}}/config.yaml.review.parallel_reviewers` (introduced as a real config key in 6.1.0 — earlier versions referenced this flag in the skill but never seeded the block, so the trio silently never ran):
+
+```bash
+PARALLEL_REVIEWERS=$(yq '.review.parallel_reviewers // false' {{APED_DIR}}/config.yaml)
+```
+
+If `PARALLEL_REVIEWERS == true`:
 
 - **Hannah** — Blind Hunter (reviews diff WITHOUT the spec).
 - **Eli** — Edge Case Hunter (walks every branching path and boundary condition).
