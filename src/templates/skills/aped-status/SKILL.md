@@ -97,10 +97,10 @@ Gather this by:
 
 For stories in `review`, also show:
 ```
-  Review: 5 findings (HIGH×2, MEDIUM×2, LOW×1) · specialists: Eva, Marcus, Rex, Diego
+  Review: 5 findings (HIGH×2, MEDIUM×2, LOW×1) · auditors: Spec, Code, Edge
 ```
 
-Read these from the story file's Review Record (no live specialist spawning here).
+Read these from the story file's Review Record (no live auditor spawning here).
 
 For any story with `ticket_sync_status: failed` set on it (deferred ticket mutation from `aped-sprint`), append a warning line under that worktree row:
 

@@ -37,7 +37,9 @@ describe('step I/O contract lint (v6.0.0)', () => {
   const steps = listStepFiles();
 
   it('discovers step files in decomposed phase skills', () => {
-    expect(steps.length).toBeGreaterThanOrEqual(82);
+    // Sanity floor — asserts decomposition exists, not a specific count.
+    // Loosened in 6.2.0 after aped-review slim redesign (12 → 5 steps).
+    expect(steps.length).toBeGreaterThanOrEqual(70);
   });
 
   for (const { skill, file, content } of steps) {

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — `aped-review` slim redesign (6.2.0)
+
+The previous review surface was 1456 lines, 12 sequential step files, 11 named specialists with overlapping scopes (Eva ↔ Aaron on AC matching; Marcus ↔ Diego on code quality; Hannah ↔ Eli on adversarial), and a 1 → 1.5 → 2 stage gate that serialised what could run in parallel. The Anthropic best-practices doc explicitly calls out that "the `aped-review` Lead role has high freedom"; the implementation was fighting that with low-freedom shepherding.
+
+- **One method = one auditor.** Three replace eleven:
+  - **Spec auditor** (folds Eva + Aaron) — every AC has a verbatim test, every `[x]` task has code evidence.
+  - **Code auditor** (folds Marcus + Diego + Lucas + Kai + Sam) — file-surface aware (backend / frontend / infra / cross-layer). Security, performance, reliability, test quality, the 5 testing anti-patterns. The lens adapts to the surface detected in step 01; one prompt instead of five.
+  - **Edge & hallucination auditor** (folds Hannah + Eli) — boundary conditions + production identifiers absent from the diff context.
+  - **Aria** stays — visual review via React Grab MCP, frontend-only, conditional.
+- **Single parallel dispatch.** No more Stage 1 sync gate. All auditors run in one Agent message. Spec NACK is triaged post-hoc — if Spec flags AC gaps, the Lead presents the [F]ix / [O]verride menu before merging the rest.
+- **`bash git-audit.sh`** runs inline by the Lead — no longer a separate Rex subagent.
+- **5 steps instead of 12** — setup / dispatch / merge+verify / decide+iterate / finalize.
+- **Minimum-3-findings floor dropped** — padding produces false positives under pressure. If the auditors found fewer and the evidence is genuine, that's the answer; integrity beats inflation.
+- **`review.parallel_reviewers` config knob is now inert** — kept in the seed for backwards-compat. Edge & hallucination is always-on, so the Stage 1.5 opt-in flag has no effect.
+
+Surface: **1456 → 602 lines (−59%)** including the workflow, the SKILL stub, and the 5 step files. The reference docs (anthropic-best-practices.md) prescribed `under 500 lines`; we're now within range for the body and the steps each fit under 160.
+
 ### Changed — Epic-context cache becomes the canonical consumer-side artefact (6.2.0 C)
 
 `aped-dev` and `aped-review` previously re-loaded the full PRD + UX + project-context at every story-scope invocation, even though `epic-{N}-context.md` was already on disk and meant to short-circuit exactly that. The "fresh-read discipline" hedge ("never trust a cached summary") fought the cache that was supposed to save tokens. Per Anthropic's progressive-disclosure guidance and BMAD's epic-context pattern, the cache *is* the source for cross-cutting epic knowledge — the consumers should trust it.
