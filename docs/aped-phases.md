@@ -98,14 +98,18 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 
 ## 8. Review — `aped-review [story-key]`
 
-- **Always-on specialists**: **Eva** (AC Validator/QA), **Marcus** (Code Quality/Staff Eng), **Rex** (Git Auditor)
-- **Conditional specialists**: **Diego** (backend), **Lucas** (frontend), **Aria** (visual/design), **Kai** (platform/DevOps), **Sam** (fullstack tech lead if ≥ 2 layers)
-- **Minimum 3 findings** — the review **hunts** for problems, it does not blindly validate
-- **Binary outcomes**: `review → done` (all resolved/dismissed) or stay `review` (you fix and re-run)
-- 🔍 **Input Discovery** (since 3.10.2): loads story + PRD + arch + UX + `project-context.md` + `lessons.md` (`Scope: aped-review | all`) at entry. Each specialist's prompt is augmented with their scoped lessons so checks are explicit, not advisory. Architecture is now strongly recommended (degraded mode if missing) instead of required — projects that legitimately skip `aped-arch` can still run review.
-- **Stage 1.5** (since 4.7.0): intermediate review layer between Eva (Stage 1) and the full parallel dispatch (Stage 2). Three specialists — **Hannah** (dependency auditor), **Eli** (error-path coverage), **Aaron** (API contract consistency) — run synchronously after Eva PASS. Stage 1.5 NACK halts before full dispatch, saving token budget on structurally flawed code. Stage 1.5 PASS unlocks Stage 2.
-- **`merge-findings.mjs`** (since 4.7.0): deduplicates and merges findings from all review stages into a single consolidated report. Handles cross-specialist overlap (e.g., Marcus and Diego both flag the same missing error handler) — keeps the most specific finding, discards duplicates, and produces a ranked severity list.
-- **`config.review.parallel_reviewers`** (since 5.0.0): configurable cap on Stage 2 parallel reviewer count (default: 4). Useful for projects with limited token budgets or where fewer specialist perspectives suffice. Set in `.aped/config.yaml` under `review.parallel_reviewers`.
+- **Slim model (since 6.2.0)**: three method-driven auditors dispatched in a single parallel `Agent` message + Aria conditional for visual.
+  - **Spec auditor** — every AC has a verbatim test, every `[x]` task has code evidence (folds the previous Eva + Aaron).
+  - **Code auditor** — file-surface aware (backend / frontend / infra / cross-layer). Security, performance, reliability, test quality, the 5 testing anti-patterns (folds Marcus + Diego + Lucas + Kai + Sam).
+  - **Edge & hallucination auditor** — boundary conditions + production identifiers absent from the diff context (folds Hannah + Eli).
+  - **Aria** — visual review via React Grab MCP, frontend stories with a preview app only. Validates dev's React Grab pass; doesn't redo it.
+  - The Lead runs `bash {{APED_DIR}}/aped-review/scripts/git-audit.sh` inline (no longer a Rex subagent).
+- **No minimum-findings floor** (since 6.2.0): if the auditors found fewer than three and the evidence is genuine, that's the answer. Padding produces false positives under pressure.
+- **Spec NACK gate**: if Spec auditor flags AC gaps, the Lead presents `[F]ix → return story to dev` / `[O]verride → proceed with reason recorded` before merging the rest. Same UX as the pre-6.2.0 Eva-NACK gate.
+- **Binary outcomes**: `review → done` (all resolved/dismissed) or stay `review` (you fix and re-run).
+- 🔍 **Input Discovery** (since 6.2.0): consumer-only — story + `epics-context/epic-{N}-context.md` + `architecture.md` + `lessons.md` (`Scope: aped-review | all`) + the last `done` story of the epic. **Does NOT load** raw PRD / UX / project-context — those live in the cache. HALTs if the cache is missing (re-run `aped-story`).
+- **`merge-findings.mjs`**: deduplicates and merges findings from all auditors into a single consolidated report. Reviewer-name agnostic — handles the slim 3-auditor set or the legacy 11-specialist set the same way.
+- **`config.review.parallel_reviewers`** (deprecated in 6.2.0): inert in the slim model — Edge & hallucination is always-on. Kept in the seed for backwards-compat with v6.0/6.1 configs.
 - **Output**: report posted as ticket comment + status updated
 - **Ticket**: source of truth, git audit via `git-audit.sh`
 

@@ -122,7 +122,8 @@ sprint:
   push_umbrella_on_create: true  # set false on offline / branch-protected workflows
   merge_poll_timeout_seconds: 120 # aped-lead polls gh pr view until MERGED
 review:
-  parallel_reviewers: false      # set true to activate Hannah/Eli/Aaron Stage 1.5 reviewers
+  parallel_reviewers: false      # deprecated in 6.2.0 — slim model folds Edge & hallucination
+                                  # into the always-on auditor set, so this flag is now inert
 ```
 
 ---
@@ -262,6 +263,50 @@ Each accepts `--uninstall` to remove its installed bits. Default scaffold doesn'
 ### File structure design upfront in `aped-story` and `aped-epics` (since 3.11.0)
 
 New section before tasks: maps files with single-responsibility rule (split by responsibility, not layer), 3-bullet decision template per file (file-name / single-responsibility / inputs+outputs). Better task decomposition; coherent file boundaries across stories.
+
+## What changed in 6.2.0
+
+> Released 2026-05-07. Five fixes shipped together: external-attribution purge (R), `aped-method disable / enable / status` (D), strict JSON Schema for state.yaml v3 (S), epic-context cache becomes canonical (C), `aped-review` slim redesign + writing discipline + `aped-purge` (35th skill).
+
+### `aped-review` slim — 11 specialists → 3 auditors
+
+The previous review surface was 1456 lines, 12 sequential steps, 11 specialists with overlapping scopes (Eva/Aaron on AC, Marcus/Diego/Lucas/Kai/Sam on code quality, Hannah/Eli on adversarial). Replaced with **Spec / Code / Edge & hallucination** — three method-driven auditors dispatched in a single parallel `Agent` message. Aria stays for visual review (frontend + preview app only). `git-audit.sh` runs inline by the Lead.
+
+Spec NACK gate replaces Eva-NACK gate (same `[F]ix / [O]verride` UX). Minimum-3-findings floor dropped — padding produces false positives under pressure. `review.parallel_reviewers` config flag is now inert (kept for backwards-compat). 1456 → 602 lines (−59%).
+
+### `aped-method disable / enable / status` — kill switch with memory
+
+```bash
+npx aped-method disable      # 20 newly suppressed, 14 already opt-out
+npx aped-method status       # APED is disabled — last toggle: 2026-05-07T...
+npx aped-method enable       # restored 20 skills, 14 kept opt-out
+```
+
+`disable` snapshots which skills were originally opt-out (`.aped/.disable-snapshot.json`) so `enable` restores the exact pre-disable state. Defense-in-depth activation guard at the top of every skill body catches the explicit `/aped-X` path even when natural-language routing is off.
+
+### Epic-context cache becomes canonical, moves to `epics-context/`
+
+`aped-dev` and `aped-review` no longer load raw PRD + UX + project-context. The cache (compiled by `aped-story`, appended-to by `aped-review` on `done`) is the consumer-side source for cross-cutting epic knowledge. Cache moves from `docs/aped/epic-{N}-context.md` to `docs/aped/epics-context/epic-{N}-context.md`.
+
+Architecture stays primordial (full load — patterns are LAW for dev). Only PRD / UX / project-context move into the cache.
+
+### Strict JSON Schema for state.yaml v3 (WARN-only)
+
+`{{APED_DIR}}/data/state.yaml.schema.v3.json` ships with the scaffold. `validate-state.sh` invokes `npx -y ajv-cli@^5` against it, surfacing drift (invented sub-blocks, free-form story fields, out-of-taxonomy phase shapes) as stderr WARN lines. **WARN-only in 6.2.0; ERROR in 7.0.0.** Skips silently when yq/npx/network is missing.
+
+### `aped-purge` (35th skill) — doc hygiene + INDEX
+
+Walks `{{OUTPUT_DIR}}/`, classifies each entry canonical / archived / allowlisted / unknown, regenerates `INDEX.md` as the single entry point. Per-file triage menu for unknowns: `[A]rchive` / `[I]nline into a canonical artefact` / `[K]eep+allowlist` (with rationale) / `[D]elete` (typed confirmation) / `[S]kip`. Read-only by default — moves and deletes only on explicit user choice.
+
+### External attribution purge
+
+Skill bodies cited Pocock / BMAD / Anthropic context-engineering / Adapted from / Translation of / Lifted from Superpowers / superpowers issue / verbatim Superpowers / BMAD pattern. Those sources don't ship with user projects — Claude wasted context looking them up. 17+ citations purged across 16 skills; `tests/no-external-attributions.test.js` blocks regressions.
+
+### Writing discipline
+
+New `aped-skills/writing-discipline.md` codifies the rule for commits, PRs, code comments, review reports, ticket comments: short, sharp, slightly human — diff proves the work, prose adds the *why*. Pointers added at every producing surface (`aped-dev`, `aped-debug`, `aped-ship`, `aped-review`, `aped-receive-review`, `aped-quick`, `aped-course`, `aped-from-ticket`).
+
+PRDs / stories / architecture / retros stay out of scope — those are structured specs by design.
 
 ## What changed in 6.1.0 (sprint mode hardening)
 

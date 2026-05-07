@@ -26,17 +26,10 @@ APED runs work through **named personas** (BMAD-inspired) so each agent stays in
 | **Kenji** | API Designer | `aped-dev` fullstack | Team (SendMessage) |
 | **Amelia** | Senior Backend | `aped-dev` fullstack | Team (SendMessage) |
 | **Leo** (dev) | Senior Frontend | `aped-dev` fullstack | Team (SendMessage) |
-| **Eva** | AC Validator / QA | `aped-review` (always) | Parallel, Lead merges |
-| **Marcus** | Code Quality / Staff Eng | `aped-review` (always) | Parallel, Lead merges |
-| **Rex** | Git Auditor | `aped-review` (always) | Parallel, Lead merges |
-| **Diego** | Backend Reviewer | `aped-review` (if backend) | Parallel, Lead merges |
-| **Lucas** | Frontend Reviewer | `aped-review` (if frontend) | Parallel, Lead merges |
+| **Spec auditor** | AC verbatim + task evidence | `aped-review` (always) | Parallel, Lead merges |
+| **Code auditor** | File-surface aware code review | `aped-review` (always) | Parallel, Lead merges |
+| **Edge & hallucination auditor** | Boundary + identifier presence | `aped-review` (always) | Parallel, Lead merges |
 | **Aria** | Visual / Design Engineer | `aped-review` (if FE + preview) | Parallel, Lead merges |
-| **Kai** | Platform / DevOps | `aped-review` (if infra) | Parallel, Lead merges |
-| **Sam** | Fullstack Tech Lead | `aped-review` (if ≥ 2 layers) | Parallel, Lead merges |
-| **Hannah** | Blind Hunter | `aped-review` Stage 1.5 | Parallel, Lead merges |
-| **Eli** | Edge Case Hunter | `aped-review` Stage 1.5 | Parallel, Lead merges |
-| **Aaron** | Acceptance Auditor | `aped-review` Stage 1.5 | Parallel, Lead merges |
 | **Mia** | Struggle Analyzer | `aped-retro` | Independent parallel |
 | **Leo** (retro) | Velocity & Quality | `aped-retro` | Independent parallel |
 | **Ava** | Previous-Retro Auditor | `aped-retro` | Independent parallel |
@@ -87,29 +80,20 @@ Uses `TeamCreate` / `TeamDelete` / `SendMessage` — because the three genuinely
 
 Why? Keeps the workflow focused on **validation**, avoids tmux-pane rendering issues of the experimental agent-teams mode, scales to N specialists without a parallelism cap.
 
-### Always invoked
-- **Eva** — AC Validator / QA Lead. *"I trust nothing without proof in the code."* Verifies acceptance criteria with proof in the code.
-- **Marcus** — Code Quality / Staff Engineer. *"Security and performance are non-negotiable."*
-- **Rex** — Git Auditor. *"Every commit tells a story. Most lie."* Reads commits, detects drift and lying messages.
+### Slim model (since 6.2.0)
 
-### Conditional (based on what the story touched)
-- **Diego** — Backend reviewer (if backend files touched)
-- **Lucas** — Frontend reviewer (if frontend files touched)
-- **Aria** — Visual / Design Engineer (frontend + preview app)
-- **Kai** — Platform / DevOps (if infra files)
-- **Sam** — Fullstack Tech Lead (if story spans ≥ 2 layers)
+`aped-review` was 11 specialists across three sequential stages until 6.1.x; the 6.2.0 redesign collapses overlapping scopes into **one method = one auditor**, all dispatched in parallel.
 
-**Minimum 3 findings** — if a reviewer finds nothing, they're looking wrong.
+- **Spec auditor** — *"Show me the AC in the test, verbatim."* Every AC has at least one test asserting it; every `[x]` task has code evidence at file:line. (Folds the previous Eva + Aaron.)
+- **Code auditor** — *"Security and performance are non-negotiable."* File-surface aware: backend / frontend / infra / cross-layer lenses adapt to what the story touched. Security, performance, reliability, test quality, and the 5 testing anti-patterns. (Folds Marcus + Diego + Lucas + Kai + Sam.)
+- **Edge & hallucination auditor** — *"What happens at the boundary? And does this identifier even exist?"* Boundary conditions + production identifiers absent from the diff context. (Folds Hannah + Eli.)
+- **Aria** — Visual / Design Engineer. Conditional (frontend + preview app only). Validates dev's React Grab pass via MCP — does not redo it.
 
-### Stage 1.5 — Adversarial reviewers (since 4.18.0)
+The Lead also runs `git-audit.sh` inline (no longer a separate Rex subagent — it's a pure script).
 
-After Eva's Stage 1 gate passes and before the conditional specialists fan out, three adversarial reviewers run in parallel as **Stage 1.5**. They apply orthogonal attack vectors to catch what domain specialists miss.
+**No minimum-findings floor.** The previous "minimum 3 findings — re-dispatch if fewer" rule produced false positives under pressure. If the auditors found fewer and the evidence is genuine, that's the answer.
 
-- **Hannah** — Blind Hunter. *"If I can't find it in the code, it doesn't exist."* Reviews the implementation **without reading the spec** — flags hallucinated identifiers, phantom imports, references to functions/variables/types that don't exist in the codebase. Catches spec-wishful-thinking that leaks into code.
-- **Eli** — Edge Case Hunter. *"What happens at the boundary?"* Walks every branching path and boundary condition: off-by-ones, empty inputs, nil/undefined propagation, concurrent access, locale edge cases. Method-driven, not attitude-driven — exhaustive path analysis.
-- **Aaron** — Acceptance Auditor. *"Show me the AC in the test, verbatim."* Verifies that every acceptance criterion from the story spec appears **verbatim** in at least one test assertion. No paraphrasing, no "implied coverage" — if the AC says "returns 404 when not found", a test must assert exactly that.
-
-Stage 1.5 findings merge into the Lead's consolidated report alongside Stage 2 conditional specialists.
+**Spec NACK gate.** If Spec auditor flags AC gaps, the Lead presents `[F]ix → return story to dev` / `[O]verride → proceed with reason recorded` before merging the rest.
 
 ---
 
@@ -153,6 +137,10 @@ Principle: **don't introduce coordination where none is needed** — coordinatio
 ### 3.11.0 → 3.12.0
 
 The persona roster is unchanged — no new named personas were added in Tiers 4-6. But several personas gained sharper criteria, and a new **adversarial subagent role** (the spec-reviewer) joins the lineup as a non-persona dispatched on demand.
+
+### 6.2.0 — review slim, persona consolidation
+
+The 11-specialist model documented above (Eva / Marcus / Rex / Diego / Lucas / Aria / Kai / Sam / Hannah / Eli / Aaron, 1 → 1.5 → 2 sequential stages) is **superseded** by the slim model (Spec / Code / Edge & hallucination + Aria conditional, single parallel dispatch). The historical sections below describe the pre-6.2.0 lineage and the rationale that informed each persona's scope; the slim model preserves that scope but folds method-overlapping personas into one prompt each. The 5 testing anti-patterns Marcus carried since 3.11.0 are now part of the Code auditor's prompt; Hannah's blind-hunter discipline + Eli's boundary walk are part of the Edge & hallucination auditor's prompt; Eva's AC verbatim discipline + Aaron's task evidence rule are part of the Spec auditor's prompt. Rex's git audit moved from a subagent to an inline `git-audit.sh` invocation by the Lead.
 
 ### Marcus — gains a Testing Anti-Patterns checklist (since 3.11.0)
 
