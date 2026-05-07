@@ -185,3 +185,153 @@ describe('statusAped', () => {
     expect(s.state).toBe('enabled');
   });
 });
+
+// 6.3.2 — local mode: marker-only disable for per-developer suppression
+// without committing frontmatter flips. The activation guard
+// (check-enabled.sh) HALTs on the marker regardless of mode, so the
+// runtime UX is identical; only the file footprint differs.
+describe('disableAped — local mode (6.3.2)', () => {
+  // Stub a git repo so .gitignore handling fires.
+  beforeEach(() => {
+    mkdirSync(join(dir, '.git'), { recursive: true });
+  });
+
+  it('writes marker with mode: local and skips frontmatter + snapshot', () => {
+    const result = disableAped(config, dir, { local: true });
+
+    expect(result.action).toBe('disabled');
+    expect(result.mode).toBe('local');
+
+    // Marker present, snapshot absent.
+    expect(existsSync(join(dir, '.aped', '.DISABLED'))).toBe(true);
+    expect(existsSync(join(dir, '.aped', '.disable-snapshot.json'))).toBe(false);
+
+    // Marker carries mode: local.
+    const markerContent = readFileSync(join(dir, '.aped', '.DISABLED'), 'utf-8');
+    expect(markerContent).toMatch(/^mode:\s*local$/m);
+    expect(markerContent).toMatch(/^disabled_at:\s*\d{4}-\d{2}-\d{2}T/m);
+
+    // Frontmatters untouched — originals stay flagged, unflagged stay clean.
+    for (const name of SKILLS_UNFLAGGED) {
+      const c = readFileSync(join(dir, '.aped', name, 'SKILL.md'), 'utf-8');
+      expect(c, `${name} unflagged should remain unflagged`).not.toMatch(/^disable-model-invocation: true$/m);
+    }
+    for (const name of SKILLS_FLAGGED) {
+      const c = readFileSync(join(dir, '.aped', name, 'SKILL.md'), 'utf-8');
+      expect(c, `${name} originally flagged stays flagged`).toMatch(/^disable-model-invocation: true$/m);
+    }
+  });
+
+  it('auto-appends .aped/.DISABLED to .gitignore (creates if absent)', () => {
+    disableAped(config, dir, { local: true });
+    const gitignorePath = join(dir, '.gitignore');
+    expect(existsSync(gitignorePath)).toBe(true);
+    const ignore = readFileSync(gitignorePath, 'utf-8');
+    expect(ignore).toMatch(/^\.aped\/\.DISABLED$/m);
+  });
+
+  it('appends to existing .gitignore without duplicating', () => {
+    writeFileSync(join(dir, '.gitignore'), 'node_modules\n', 'utf-8');
+    disableAped(config, dir, { local: true });
+    let ignore = readFileSync(join(dir, '.gitignore'), 'utf-8');
+    expect((ignore.match(/^\.aped\/\.DISABLED$/gm) || []).length).toBe(1);
+
+    // Re-running disable while already local-disabled is a noop —
+    // gitignore must NOT grow further.
+    disableAped(config, dir, { local: true });
+    ignore = readFileSync(join(dir, '.gitignore'), 'utf-8');
+    expect((ignore.match(/^\.aped\/\.DISABLED$/gm) || []).length).toBe(1);
+  });
+
+  it('skips .gitignore in non-git directories (no .git/)', () => {
+    rmSync(join(dir, '.git'), { recursive: true, force: true });
+    const result = disableAped(config, dir, { local: true });
+    expect(result.gitignore.skipped).toBe('no-git');
+    expect(existsSync(join(dir, '.gitignore'))).toBe(false);
+  });
+
+  it('refuses --local when full-disabled is already in effect (mode-conflict)', () => {
+    disableAped(config, dir);
+    const result = disableAped(config, dir, { local: true });
+    expect(result.action).toBe('mode-conflict');
+    expect(result.currentMode).toBe('full');
+    expect(result.requestedMode).toBe('local');
+  });
+
+  it('refuses default disable when local-disabled is already in effect (mode-conflict)', () => {
+    disableAped(config, dir, { local: true });
+    const result = disableAped(config, dir);
+    expect(result.action).toBe('mode-conflict');
+    expect(result.currentMode).toBe('local');
+    expect(result.requestedMode).toBe('full');
+  });
+
+  it('is idempotent — re-running --local while already local returns noop', () => {
+    disableAped(config, dir, { local: true });
+    const second = disableAped(config, dir, { local: true });
+    expect(second.action).toBe('noop');
+    expect(second.mode).toBe('local');
+  });
+});
+
+describe('enableAped — local mode (6.3.2)', () => {
+  beforeEach(() => {
+    mkdirSync(join(dir, '.git'), { recursive: true });
+  });
+
+  it('removes the marker without touching frontmatters', () => {
+    disableAped(config, dir, { local: true });
+    const result = enableAped(config, dir);
+
+    expect(result.action).toBe('enabled');
+    expect(result.mode).toBe('local');
+    expect(result.restored).toBe(0);
+    expect(existsSync(join(dir, '.aped', '.DISABLED'))).toBe(false);
+
+    // Frontmatters never changed by local-disable, still in original shape.
+    for (const name of SKILLS_FLAGGED) {
+      const c = readFileSync(join(dir, '.aped', name, 'SKILL.md'), 'utf-8');
+      expect(c).toMatch(/^disable-model-invocation: true$/m);
+    }
+    for (const name of SKILLS_UNFLAGGED) {
+      const c = readFileSync(join(dir, '.aped', name, 'SKILL.md'), 'utf-8');
+      expect(c).not.toMatch(/^disable-model-invocation: true$/m);
+    }
+  });
+
+  it('keeps the .gitignore line after enable (future-proof guard)', () => {
+    disableAped(config, dir, { local: true });
+    enableAped(config, dir);
+    const ignore = readFileSync(join(dir, '.gitignore'), 'utf-8');
+    expect(ignore).toMatch(/^\.aped\/\.DISABLED$/m);
+  });
+});
+
+describe('statusAped — local mode (6.3.2)', () => {
+  beforeEach(() => {
+    mkdirSync(join(dir, '.git'), { recursive: true });
+  });
+
+  it('reports disabled-local after a local disable', () => {
+    disableAped(config, dir, { local: true });
+    const s = statusAped(config, dir);
+    expect(s.state).toBe('disabled-local');
+    expect(typeof s.lastToggle).toBe('string');
+    expect(s.total).toBe(SKILLS_FLAGGED.length + SKILLS_UNFLAGGED.length);
+  });
+
+  it('reports enabled after a local-disable + enable round-trip', () => {
+    disableAped(config, dir, { local: true });
+    enableAped(config, dir);
+    const s = statusAped(config, dir);
+    expect(s.state).toBe('enabled');
+  });
+
+  it('still differentiates legacy disabled-stale from disabled-local', () => {
+    // Legacy marker — single ISO line, no `mode:` key, no snapshot.
+    writeFileSync(join(dir, '.aped', '.DISABLED'), '2026-04-01T10:00:00Z\n', 'utf-8');
+    const s = statusAped(config, dir);
+    expect(s.state).toBe('disabled-stale');
+    expect(s.lastToggle).toBe('2026-04-01T10:00:00Z');
+  });
+});

@@ -1,14 +1,23 @@
 // 6.2.0 — APED disable / enable / status mechanism.
+// 6.3.2 — added local-only mode (--local) so a single dev can suppress
+//         APED routing in their working copy without committing the
+//         frontmatter flips to the team. Marker file gains a `mode:`
+//         line ('local' or 'full') so enable can branch correctly.
 //
-// disableAped() flips `disable-model-invocation: true` on every
-// .aped/aped-*/SKILL.md (preserving any pre-existing flag) and writes
-// .aped/.DISABLED + .aped/.disable-snapshot.json with the list of
-// originally-unflagged skill names. enableAped() consumes the snapshot
-// to restore the exact pre-disable shape (originals stay flagged,
-// newly-suppressed lose the line).
+// disableAped(config, cwd, { local: false }) — full mode (existing):
+//   flips `disable-model-invocation: true` on every .aped/aped-*/SKILL.md
+//   (preserving any pre-existing flag) and writes
+//   .aped/.DISABLED + .aped/.disable-snapshot.json with the list of
+//   originally-unflagged skill names.
 //
-// statusAped() reads the marker + snapshot and returns a structured
-// shape the CLI handler turns into a one-line summary.
+// disableAped(config, cwd, { local: true }) — local mode (6.3.2):
+//   writes .aped/.DISABLED with `mode: local` only. No frontmatter
+//   changes, no snapshot. The activation guard (check-enabled.sh) HALTs
+//   on the marker regardless of mode. Auto-appends .aped/.DISABLED to
+//   .gitignore so the marker stays out of commits.
+//
+// enableAped() reads the marker mode and either consumes the snapshot
+// (full mode) or just removes the marker (local mode).
 //
 // All functions are pure file ops; the prompts/coloring lives in
 // subcommands.js. This separation makes the mechanism unit-testable
@@ -83,26 +92,134 @@ function snapshotPath(apedDirAbs) {
   return join(apedDirAbs, '.disable-snapshot.json');
 }
 
-export function disableAped(config, cwd = process.cwd()) {
+// 6.3.2 — parse the marker. Returns { mode, disabled_at } where mode is
+// 'local' | 'full' | 'legacy'. Legacy markers are pre-6.3.2 (single ISO
+// timestamp line, no `mode:` key) — kept readable so existing installs
+// upgrade gracefully.
+function readMarker(markerAbs) {
+  if (!existsSync(markerAbs)) return null;
+  const raw = readFileSync(markerAbs, 'utf-8');
+  const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean);
+  let mode = null;
+  let disabledAt = null;
+  for (const line of lines) {
+    const m = line.match(/^(disabled_at|mode):\s*(.+)$/);
+    if (m) {
+      if (m[1] === 'mode') mode = m[2];
+      else disabledAt = m[2];
+    } else if (!disabledAt && /^\d{4}-\d{2}-\d{2}T/.test(line)) {
+      // Legacy marker — single ISO line, no `mode:` key.
+      disabledAt = line;
+    }
+  }
+  if (!mode) mode = 'legacy';
+  return { mode, disabled_at: disabledAt };
+}
+
+function writeMarker(markerAbs, mode, disabledAt) {
+  const content =
+    `# APED disable marker — managed by aped-method (do not hand-edit).\n` +
+    `disabled_at: ${disabledAt}\n` +
+    `mode: ${mode}\n`;
+  writeFileSync(markerAbs, content, 'utf-8');
+}
+
+// 6.3.2 — append a single line to project root .gitignore. Idempotent.
+// Skips silently when the project isn't a git repo (no .git/ directory).
+// Returns { added, path, skipped } so the caller can surface the action.
+function appendToGitignore(cwd, line) {
+  const gitDir = join(cwd, '.git');
+  if (!existsSync(gitDir)) {
+    return { added: false, path: null, skipped: 'no-git' };
+  }
+
+  const gitignorePath = join(cwd, '.gitignore');
+  let existing = '';
+  if (existsSync(gitignorePath)) {
+    existing = readFileSync(gitignorePath, 'utf-8');
+    const lines = existing.split('\n').map((l) => l.trim());
+    if (lines.includes(line)) {
+      return { added: false, path: gitignorePath, skipped: 'already-present' };
+    }
+  }
+
+  const needsLeadingNewline = existing && !existing.endsWith('\n');
+  const block =
+    (existing ? (needsLeadingNewline ? '\n' : '') : '') +
+    (existing ? '' : '# Project gitignore\n') +
+    `\n# APED — local-only disable marker (per-developer, not team-wide)\n${line}\n`;
+  writeFileSync(gitignorePath, existing + block, 'utf-8');
+  return { added: true, path: gitignorePath, skipped: null };
+}
+
+export function disableAped(config, cwd = process.cwd(), options = {}) {
   const apedDirAbs = join(cwd, config.apedDir);
   if (!existsSync(apedDirAbs)) {
     throw new Error(`No APED installation at ${config.apedDir}`);
   }
 
-  // Idempotent path — already disabled.
-  if (existsSync(markerPath(apedDirAbs)) && existsSync(snapshotPath(apedDirAbs))) {
-    const snapshot = JSON.parse(readFileSync(snapshotPath(apedDirAbs), 'utf-8'));
+  const local = options.local === true;
+  const marker = readMarker(markerPath(apedDirAbs));
+  const snapshotExists = existsSync(snapshotPath(apedDirAbs));
+
+  // Mode-conflict refusal (6.3.2). If a marker is present, refuse the opposite
+  // mode without an explicit `enable` first — keeps state coherent and avoids
+  // half-flipped frontmatters.
+  if (marker) {
+    const currentMode = marker.mode === 'local' ? 'local' : 'full';
+    const requestedMode = local ? 'local' : 'full';
+    if (currentMode !== requestedMode) {
+      return {
+        action: 'mode-conflict',
+        currentMode,
+        requestedMode,
+        total: listSkills(apedDirAbs).length,
+      };
+    }
+    // Same mode — idempotent noop.
+    if (currentMode === 'full' && snapshotExists) {
+      const snapshot = JSON.parse(readFileSync(snapshotPath(apedDirAbs), 'utf-8'));
+      return {
+        action: 'noop',
+        already: true,
+        mode: 'full',
+        newlySuppressed: 0,
+        originallyFlagged: snapshot.originally_unflagged
+          ? listSkills(apedDirAbs).length - snapshot.originally_unflagged.length
+          : 0,
+        total: listSkills(apedDirAbs).length,
+      };
+    }
+    if (currentMode === 'local') {
+      return {
+        action: 'noop',
+        already: true,
+        mode: 'local',
+        total: listSkills(apedDirAbs).length,
+      };
+    }
+  }
+
+  const disabledAt = new Date().toISOString();
+
+  // 6.3.2 — local mode: marker only, no frontmatter touch, no snapshot.
+  // Auto-append `.aped/.DISABLED` to .gitignore so the marker stays out
+  // of commits (the whole point of local mode).
+  if (local) {
+    writeMarker(markerPath(apedDirAbs), 'local', disabledAt);
+    const ignoreEntry = `${config.apedDir}/.DISABLED`;
+    const gitignore = appendToGitignore(cwd, ignoreEntry);
     return {
-      action: 'noop',
-      already: true,
-      newlySuppressed: 0,
-      originallyFlagged: snapshot.originally_unflagged
-        ? listSkills(apedDirAbs).length - snapshot.originally_unflagged.length
-        : 0,
+      action: 'disabled',
+      mode: 'local',
+      already: false,
       total: listSkills(apedDirAbs).length,
+      gitignore,
+      disabled_at: disabledAt,
     };
   }
 
+  // Full mode (default — existing 6.2.0 behaviour).
   const skills = listSkills(apedDirAbs);
   const originallyUnflagged = [];
   let newlySuppressed = 0;
@@ -124,15 +241,16 @@ export function disableAped(config, cwd = process.cwd()) {
   }
 
   const snapshot = {
-    disabled_at: new Date().toISOString(),
+    disabled_at: disabledAt,
     version: SNAPSHOT_VERSION,
     originally_unflagged: originallyUnflagged,
   };
   writeFileSync(snapshotPath(apedDirAbs), JSON.stringify(snapshot, null, 2) + '\n', 'utf-8');
-  writeFileSync(markerPath(apedDirAbs), snapshot.disabled_at + '\n', 'utf-8');
+  writeMarker(markerPath(apedDirAbs), 'full', disabledAt);
 
   return {
     action: 'disabled',
+    mode: 'full',
     already: false,
     newlySuppressed,
     originallyFlagged: skills.length - originallyUnflagged.length,
@@ -150,8 +268,9 @@ export function enableAped(config, cwd = process.cwd()) {
   const marker = markerPath(apedDirAbs);
   const snapPath = snapshotPath(apedDirAbs);
   const skills = listSkills(apedDirAbs);
+  const markerInfo = readMarker(marker);
 
-  if (!existsSync(marker) && !existsSync(snapPath)) {
+  if (!markerInfo && !existsSync(snapPath)) {
     return {
       action: 'noop',
       already: true,
@@ -161,6 +280,22 @@ export function enableAped(config, cwd = process.cwd()) {
     };
   }
 
+  // 6.3.2 — local mode: just remove the marker. No snapshot to consume,
+  // no frontmatter to restore (none was flipped). The .gitignore line
+  // stays so a future `disable --local` doesn't risk a commit.
+  if (markerInfo && markerInfo.mode === 'local') {
+    unlinkSync(marker);
+    return {
+      action: 'enabled',
+      mode: 'local',
+      already: false,
+      restored: 0,
+      kept: skills.length,
+      total: skills.length,
+    };
+  }
+
+  // Full or legacy mode — consume snapshot, restore frontmatters.
   let snapshot = null;
   if (existsSync(snapPath)) {
     try {
@@ -202,6 +337,7 @@ export function enableAped(config, cwd = process.cwd()) {
 
   return {
     action: 'enabled',
+    mode: 'full',
     already: false,
     restored,
     kept: skills.length - restored,
@@ -220,11 +356,20 @@ export function statusAped(config, cwd = process.cwd()) {
   const marker = markerPath(apedDirAbs);
   const snapPath = snapshotPath(apedDirAbs);
 
-  const markerExists = existsSync(marker);
+  const markerInfo = readMarker(marker);
   const snapshotExists = existsSync(snapPath);
 
-  if (!markerExists && !snapshotExists) {
+  if (!markerInfo && !snapshotExists) {
     return { state: 'enabled', total: skills.length };
+  }
+
+  // 6.3.2 — local mode: marker says `mode: local`, no snapshot expected.
+  if (markerInfo && markerInfo.mode === 'local') {
+    return {
+      state: 'disabled-local',
+      total: skills.length,
+      lastToggle: markerInfo.disabled_at,
+    };
   }
 
   let snapshot = null;
@@ -236,18 +381,18 @@ export function statusAped(config, cwd = process.cwd()) {
     }
   }
 
-  if (markerExists && !snapshot) {
+  if (markerInfo && !snapshot) {
     return {
       state: 'disabled-stale',
       total: skills.length,
-      lastToggle: readFileSync(marker, 'utf-8').trim() || null,
+      lastToggle: markerInfo.disabled_at,
     };
   }
 
   return {
     state: 'disabled',
     total: skills.length,
-    lastToggle: snapshot?.disabled_at || null,
+    lastToggle: snapshot?.disabled_at || markerInfo?.disabled_at || null,
     newlySuppressed: snapshot?.originally_unflagged?.length ?? 0,
     originallyFlagged:
       skills.length - (snapshot?.originally_unflagged?.length ?? 0),

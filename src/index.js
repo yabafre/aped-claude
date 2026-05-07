@@ -139,9 +139,13 @@ SUBCOMMANDS
                           state for reversibility (.aped/.disable-snapshot.json
                           + .aped/.DISABLED marker). Use when a project should
                           run with Claude Code only, without APED auto-routing.
-  enable                  Restore APED routing by consuming the snapshot from
-                          \`disable\`. Originals stay flagged; only the
-                          newly-suppressed skills lose the line.
+                          Pass --local for a per-developer disable (marker only,
+                          no frontmatter flips, auto-gitignored — team unaffected
+                          on commit). 6.3.2+.
+  enable                  Restore APED routing — removes the marker and, in
+                          full mode, consumes the snapshot. Originals stay
+                          flagged; only the newly-suppressed skills lose the
+                          line. In local mode (6.3.2+), just removes the marker.
   status                  Print whether APED is currently enabled or disabled
                           + last toggle timestamp + skill counts.
   enable-mcp              Install the opt-in aped-state MCP companion server
@@ -293,6 +297,9 @@ function parseArgs(argv) {
     if (arg === '--uninstall') { args.uninstall = true; continue; }
     // Boolean flag for `sync-logs prune` — applies the deletion (default is dry-run).
     if (arg === '--apply') { args.apply = true; continue; }
+    // 6.3.2 — boolean flag for `disable` to opt into local-only mode (marker
+    // only, no frontmatter flips, gitignored). Reverses with `enable`.
+    if (arg === '--local') { args.local = true; continue; }
     const match = arg.match(/^--([a-z][a-z0-9-]*)=(.*)$/i);
     if (match) {
       const key = match[1].replace(/-([a-z])/g, (_, ch) => ch.toUpperCase());
