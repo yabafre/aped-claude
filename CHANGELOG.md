@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.3.0] - 2026-05-07
+
 ### Added — Artefact contracts (story / epics / epic-context)
 
 Markdown structural-schema DSL + first-cohort schemas + per-artefact validators. Producer-side gates **WARN-only** in 6.3.0 (rollout grace window, same playbook as the chantier S state.yaml schema in 6.2.0); ERROR escalation documented for 7.0.0.
