@@ -48,11 +48,11 @@ sprint:
   # Surfaces a clear error instead of fire-and-forget teardown.
   merge_poll_timeout_seconds: 120
 
-# Review-stage knobs (6.1.0). \`parallel_reviewers\` was referenced by
-# aped-review/steps/step-03 since 4.x but the block did not exist in
-# config.yaml — Stage 1.5 (Hannah/Eli/Aaron) silently never ran. This
-# entry makes the opt-in real. Default false to preserve historical
-# behaviour; flip to true to activate the trio.
+# Review-stage knobs.
+# \`parallel_reviewers\` (6.1.0) — flag for the Stage 1.5 opt-in trio
+# (Hannah / Eli / Aaron). **Deprecated in 6.2.0**: the slim review model
+# folds Edge & hallucination into the always-on auditor set, so this
+# flag is now inert. Kept in the seed for backwards-compat.
 review:
   parallel_reviewers: false
 

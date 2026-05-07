@@ -198,7 +198,7 @@ State the correction factually and move on.
 
 ### From aped-review (the APED specialist team)
 
-Treat as authoritative for the artefact under review (Eva, Marcus, Rex, Diego, Lucas, Aria, Kai, Sam ran with full context loaded). Still apply the 6-step pattern — verify each finding against the code before implementing — but the EVALUATE step usually short-circuits to "yes, this is correct for this codebase" because the specialists know it.
+Treat as authoritative for the artefact under review (Spec, Code, and Edge & hallucination auditors ran with full context loaded — plus Aria for visual on frontend stories). Still apply the 6-step pattern — verify each finding against the code before implementing — but the EVALUATE step usually short-circuits to "yes, this is correct for this codebase" because the auditors know it.
 
 ### From an external reviewer (PR comment, Slack, email)
 
