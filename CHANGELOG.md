@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0] - 2026-05-07
+
 ### Added — Sprint-mode config knobs (schema v3)
 
 `config.yaml` gains the blocks every sprint-mode skill assumed but the scaffolder never seeded:
