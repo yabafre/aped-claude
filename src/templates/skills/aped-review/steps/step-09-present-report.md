@@ -23,6 +23,8 @@ mutates_state: false
 
 Format the consolidated report as inline markdown and show it to the user. Wait for per-finding decisions.
 
+> **Writing discipline.** Read `{{APED_DIR}}/aped-skills/writing-discipline.md` before writing the report. Iron Law: lead with the verdict and the *one thing* that matters; per-finding lines stay one sentence (severity + file:line + rationale + fix-or-defer); no padding to hit a "minimum findings floor". If you genuinely have fewer findings, say so and stop.
+
 ## THE REPORT MUST NEVER BE PERSISTED AS A SEPARATE FILE
 
 The Review Record will be appended to the story file in step 11. **No file is created at `{{OUTPUT_DIR}}/reviews/...` or any other location.** The story file is the single canonical home for both Dev Agent Record and Review Record.

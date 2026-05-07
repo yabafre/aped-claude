@@ -41,6 +41,8 @@ Post the review report (the same content shown to the user in step 09) as a comm
 
 ### 2. PR / MR — STORY → SPRINT UMBRELLA
 
+> **Writing discipline.** Read `{{APED_DIR}}/aped-skills/writing-discipline.md` before composing the PR title or body, and before posting findings as PR comments below. Iron Law: short, sharp, slightly human; the diff proves the work; prose adds the *why*. Findings: severity + file:line + one-sentence rationale, no padding.
+
 If story → `done`:
 
 1. **Open (or update) the story PR — target = sprint umbrella, NOT base.** Read `sprint.umbrella_branch` from state.yaml; that's the PR base. The PR's job is to be the unit of review against the umbrella; the umbrella aggregates the sprint and PRs once into base via `aped-ship`.
