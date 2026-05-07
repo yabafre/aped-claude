@@ -118,6 +118,8 @@ Why: keeping each step file under ~250 lines means Claude only loads the slice r
 
 **Domain glossary (v6.0.0+, `aped-glossary`).** New skill maintaining `docs/aped/glossary.md` (canonical project-wide term dictionary). Iron Law: ONE WORD, ONE MEANING, ONE PLACE. Synonyms live under `_Avoid:_` so future skill checks can flag drift. Pocock CONTEXT.md analog.
 
+**Doc hygiene + INDEX (v6.2.0+, `aped-purge`).** Walks `docs/aped/`, classifies each entry as canonical / archived / allowlisted / unknown, regenerates `INDEX.md` as the single entry point. Per-file triage menu for orphan docs the agent might have written outside the APED canon: `[A]rchive` / `[I]nline into a canonical artefact` / `[K]eep+allowlist` / `[D]elete` / `[S]kip`. Read-only by default — moves and deletes only on explicit user choice.
+
 ### Migrating from 5.x
 
 The 5.x flat-file scaffolds (`.aped/aped-X.md`) still work — the loader handles both layouts. To pick up the v6.0.0 directory structure on an existing install:
@@ -197,17 +199,15 @@ Independent parallel work, no coordination needed.
 - **Derek** — Domain Expert. *"I know where the bodies are buried."*
 - **Tom** — Staff Engineer. *"Every choice has a tax."*
 
-### Review specialists — `aped-review`
-Plain subagents (no `TeamCreate`, no `SendMessage`), dispatched in parallel. Each specialist returns its findings to the Lead, who merges and cross-references manually. Keeps the workflow focused on validation, avoids tmux-pane rendering issues of the experimental agent-teams mode, and scales to N specialists without a parallelism cap.
+### Review auditors — `aped-review` (slim model since 6.2.0)
+Three method-driven auditors dispatched in a single parallel `Agent` message + Aria conditional. The Lead runs `git-audit.sh` inline.
 
-- **Eva** — AC Validator / QA Lead (always) — *"I trust nothing without proof in the code."*
-- **Marcus** — Code Quality / Staff Engineer (always) — *"Security and performance are non-negotiable."*
-- **Rex** — Git Auditor (always) — *"Every commit tells a story. Most lie."*
-- **Diego** — Backend (if backend files touched)
-- **Lucas** — Frontend (if frontend files touched)
-- **Aria** — Visual / Design Engineer (frontend + preview app)
-- **Kai** — Platform / DevOps (if infra files)
-- **Sam** — Fullstack Tech Lead (if story spans ≥ 2 layers)
+- **Spec auditor** (always) — *"Show me the AC in the test, verbatim."* Every AC has at least one test asserting it; every `[x]` task has code evidence at file:line.
+- **Code auditor** (always) — *"Security and performance are non-negotiable."* File-surface aware: backend / frontend / infra / cross-layer lenses adapt to what the story touched. Includes the 5 testing anti-patterns audit.
+- **Edge & hallucination auditor** (always) — *"What happens at the boundary? And does this identifier even exist?"* Boundary conditions + production identifiers absent from the diff context.
+- **Aria** — Visual / Design Engineer (frontend + preview app only) — validates dev's React Grab pass via MCP, doesn't redo it.
+
+The 11-specialist roster (Eva / Marcus / Rex / Diego / Lucas / Kai / Sam / Hannah / Eli / Aaron) is superseded — see `docs/aped-personas.md` for the lineage.
 
 ### Fullstack dev team — `aped-dev` (optional mode)
 Triggered when a story touches ≥ 2 layers. Contract-first coordination via `SendMessage`.
@@ -358,7 +358,7 @@ You run `aped-lead` in the main project whenever you want to process the batch. 
 │   ├── SKILL.md
 │   ├── scripts/run-tests.sh
 │   └── references/tdd-engine.md, ticket-git-workflow.md
-├── aped-review/                    # Review team (Eva/Marcus/Rex + specialists)
+├── aped-review/                    # Slim review (Spec / Code / Edge auditors + Aria conditional)
 │   ├── SKILL.md
 │   ├── scripts/git-audit.sh
 │   └── references/review-criteria.md
