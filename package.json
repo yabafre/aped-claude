@@ -23,6 +23,7 @@
     "src/templates/*.js",
     "src/templates/data/*.csv",
     "src/templates/data/*.json",
+    "src/templates/data/*.md",
     "src/templates/hooks/*.js",
     "src/templates/hooks/*.sh",
     "src/templates/providers/*.js",
