@@ -492,6 +492,14 @@ Verify: `bash .aped/scripts/validate-state.sh` exits 0 and `bash .aped/scripts/m
 
 **Fix.** v6.1.0 adds a real `review:` block to `config.yaml` with `parallel_reviewers: false` as the default. Run `aped-method --update` to scaffold it, then flip to `true`. Verify via `yq '.review.parallel_reviewers' .aped/config.yaml` — must return `true` (not `null`).
 
+## 28. I see broken external links / unfamiliar names in old skill bodies (6.2.0+)
+
+**Symptom.** Skills scaffolded before v6.2.0 mention "Pocock", "Adapted from", "Translation of", "Lifted from Superpowers", "BMAD pattern", or "Anthropic context-engineering". Claude tries to look up these references in your project and finds nothing.
+
+**Cause.** Pre-6.2.0 skill bodies preserved attribution prose from the upstream sources APED translated. Those sources don't ship with your project — Claude wastes context trying to resolve them. v6.2.0 purged the citations across the skill set and added `tests/no-external-attributions.test.js` to fail the build on any new occurrence.
+
+**Fix.** Run `npx aped-method --update` to refresh the scaffolded skills. The technical content is preserved; only the citation prose was removed. Reference docs under `.aped/aped-skills/` (e.g. `anthropic-best-practices.md`) keep their attribution intentionally — they are user-readable references, not skill bodies.
+
 ## Still stuck?
 
 Run with `--debug` to get a stack trace on error:

@@ -1,6 +1,6 @@
 # APED Debug — Disciplined Diagnosis Loop
 
-**Goal:** Apply a six-phase discipline for hard bugs and performance regressions: build the loop, reproduce, hypothesise, instrument, fix + regression test, cleanup + post-mortem. Translation of Pocock's `diagnose/SKILL.md` into APED voice; preserves the 3-failed-fixes rule, Invocation contexts contract, Defense-in-depth, and Condition-based waiting.
+**Goal:** Apply a six-phase discipline for hard bugs and performance regressions: build the loop, reproduce, hypothesise, instrument, fix + regression test, cleanup + post-mortem. Enforces the 3-failed-fixes rule, the Invocation contexts contract, defense-in-depth, and condition-based waiting.
 
 ---
 

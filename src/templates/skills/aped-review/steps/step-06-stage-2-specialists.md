@@ -66,7 +66,7 @@ Marcus must run the artefact through this 5-anti-pattern audit. Each anti-patter
 2. NEVER add test-only methods to production classes.
 3. NEVER mock without understanding dependencies.
 
-| # | Anti-pattern | Gate function (verbatim Superpowers) |
+| # | Anti-pattern | Gate function |
 |---|---|---|
 | 1 | **Mock-the-behavior** (testing mock existence, not real behavior) | "Am I testing real component behavior or just mock existence? If testing mock existence: STOP — delete the assertion or unmock the component." |
 | 2 | **Test-only methods in production** | "Is this method only used by tests? If yes: STOP — don't add it; put it in test utilities." |
