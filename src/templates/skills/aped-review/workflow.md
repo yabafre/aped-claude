@@ -1,3 +1,5 @@
+**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
 # APED Review — Adversarial Code Review
 
 **Goal:** Run a multi-stage adversarial review on a `review`-status story, surface a minimum of 3 findings, walk the user through fixes, and update the story file with a Review Record. The review report lives **inside the story file** — no separate review file is ever created.

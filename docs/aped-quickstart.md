@@ -133,7 +133,20 @@ review:
 aped-method doctor          # verifies scaffold, hooks, state, commands, symlinks
 aped-method symlink         # repairs cross-tool symlinks if needed
 aped-status                # sprint dashboard (inside Claude Code)
+aped-method status          # (6.2.0+) check whether APED routing is enabled
+aped-method disable         # (6.2.0+) suppress APED routing in this project
+aped-method enable          # (6.2.0+) restore APED routing
 ```
+
+### 6.1 Disabling APED (6.2.0+)
+
+If you want Claude Code without APED auto-routing in a project:
+
+```bash
+npx aped-method disable
+```
+
+Flips `disable-model-invocation: true` on every `.aped/aped-*/SKILL.md`, snapshots the originally-unflagged skill names to `.aped/.disable-snapshot.json`, writes a `.aped/.DISABLED` marker. Reversible — `aped-method enable` consumes the snapshot and restores routing exactly. Even if you type `/aped-X` explicitly, the activation guard at the top of every skill body reads the marker / `aped.enabled` config knob and HALTs silently when disabled.
 
 **Common symptoms**
 - *The hook blocks a phase I thought I'd completed* → check `docs/aped/state.yaml` (pipeline state source of truth)

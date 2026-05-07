@@ -1,3 +1,5 @@
+**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
 # APED Architecture — Collaborative Solution Design
 
 **Goal:** Create architecture decisions through step-by-step discovery so all downstream agents (`aped-dev`, `aped-review`, `aped-story`) implement consistently. Architecture is built **incrementally** — every gate writes its section into `architecture.md` before the next phase starts.

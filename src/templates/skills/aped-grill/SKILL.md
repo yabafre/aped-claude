@@ -13,6 +13,8 @@ metadata:
   version: {{CLI_VERSION}}
 ---
 
+**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
 # APED Grill — One-question-at-a-time alignment
 
 Pin down a half-formed product idea, plan, or refactor by asking ONE concrete question per turn. Each question targets an unstated decision the user hasn't made. Stop when the questions stop being meaningful.

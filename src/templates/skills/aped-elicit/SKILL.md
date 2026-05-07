@@ -14,6 +14,8 @@ metadata:
   version: {{CLI_VERSION}}
 ---
 
+**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
 # APED Elicit — Deep Critique Toolkit
 
 ## On Activation

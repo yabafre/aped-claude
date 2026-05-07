@@ -13,6 +13,8 @@ metadata:
   version: {{CLI_VERSION}}
 ---
 
+**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
 # APED Glossary — Project-wide Domain Dictionary
 
 Build and maintain `{{OUTPUT_DIR}}/glossary.md` — the canonical place where every domain term used across PRD, architecture, stories, and code is defined once. Eliminates the "different word, same concept" drift that costs every team tokens and clarity.

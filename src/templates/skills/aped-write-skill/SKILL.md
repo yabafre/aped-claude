@@ -11,6 +11,8 @@ metadata:
   version: {{CLI_VERSION}}
 ---
 
+**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
 # APED Write Skill — Meta-Skill for Writing APED-Style Skills
 
 Walk the user through writing a new Claude Code skill that follows APED conventions: description-routed invocation, fresh-read discipline, FR/NFR grounding, explicit ⏸ gates, no auto-chain, optional sub-agent dispatch.

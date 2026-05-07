@@ -12,6 +12,8 @@ metadata:
   version: {{CLI_VERSION}}
 ---
 
+**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
 # APED QA — E2E & Integration Test Generation
 
 Generate comprehensive end-to-end and integration tests for completed stories or epics. Complements the unit tests written during aped-dev TDD.

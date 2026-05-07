@@ -92,6 +92,18 @@ from_ticket:
 placeholder_lint:
   enabled: true
 
+# APED runtime activation (6.2.0). Defense-in-depth knob the activation
+# guard at the top of every skill body reads. When false, the guard
+# prints "APED disabled — run aped-method enable" and HALTs before the
+# skill does any work — even if the user explicitly typed /aped-X.
+# The frontmatter flag (disable-model-invocation: true) is the primary
+# suppression layer; this flag is the belt for that suspender.
+# Toggle via \`aped-method disable\` / \`aped-method enable\` — those
+# subcommands also flip the frontmatter flag and write a snapshot, so
+# editing this value by hand is rarely the right move.
+aped:
+  enabled: true
+
 # Skill-invocation discipline (Tier 4). Governs whether the
 # "## Skill Invocation Discipline" block is rendered into CLAUDE.md by the
 # scaffold/update flow. Defaults on — it carries the 1%-rule and the

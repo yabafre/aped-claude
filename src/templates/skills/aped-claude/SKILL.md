@@ -11,6 +11,8 @@ metadata:
   version: {{CLI_VERSION}}
 ---
 
+**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
 # APED Claude — CLAUDE.md Sync
 
 Inject and maintain APED working rules in the project's `CLAUDE.md`. Smart merge — never overwrites user customizations.

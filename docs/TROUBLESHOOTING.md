@@ -492,6 +492,47 @@ Verify: `bash .aped/scripts/validate-state.sh` exits 0 and `bash .aped/scripts/m
 
 **Fix.** v6.1.0 adds a real `review:` block to `config.yaml` with `parallel_reviewers: false` as the default. Run `aped-method --update` to scaffold it, then flip to `true`. Verify via `yq '.review.parallel_reviewers' .aped/config.yaml` — must return `true` (not `null`).
 
+## 26. APED skills auto-invoke even after I want Claude Code without APED (6.2.0+)
+
+**Symptom.** You shipped APED into a project, then changed your mind — but typing "let's create the prd" still routes Claude to `aped-prd`. You don't want APED to auto-trigger on natural-language phrases anymore, but uninstalling feels heavy.
+
+**Cause.** APED skills route via their `description:` frontmatter. Even if you stop *using* the skills, they still match.
+
+**Fix — `aped-method disable`** (6.2.0+).
+
+```bash
+cd <project>
+npx aped-method disable
+```
+
+This flips `disable-model-invocation: true` on every `.aped/aped-*/SKILL.md` and writes `.aped/.DISABLED` + `.aped/.disable-snapshot.json` recording which skills were originally unflagged. Claude Code will no longer auto-route to APED skills on the next session reload.
+
+**Reverse it any time:**
+
+```bash
+npx aped-method enable
+```
+
+The snapshot is consumed: only the originally-unflagged skills lose the flag; the 14 always-opt-out skills (e.g. `aped-arch`, `aped-grill`, `aped-zoom-out`) stay opt-out as they were before.
+
+**Check current state:**
+
+```bash
+npx aped-method status
+# → APED is enabled — 34 skills routing normally.
+# or
+# → APED is disabled — 34 skills (20 newly suppressed, 14 already opt-out).
+#   Last toggle: 2026-05-07T11:50:00.000Z
+```
+
+**Defense in depth.** Even if a user types `/aped-X` explicitly to bypass routing, every skill body now starts with an activation guard line:
+
+> Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+
+So the skill HALTs silently before doing any work when APED is disabled, regardless of how it was invoked.
+
+**Stale snapshot recovery.** If `.aped/.DISABLED` exists but `.aped/.disable-snapshot.json` is missing (manual edits, partial backup restore), `aped-method enable` falls back to a best-effort restore — strips the flag from all 34 skills. The 14 originals lose their pre-existing opt-out, but routing is restored. Re-edit the 14 SKILL.md frontmatters by hand if you need them opt-out again, or run `aped-method --update` to re-scaffold from the package defaults.
+
 ## 28. I see broken external links / unfamiliar names in old skill bodies (6.2.0+)
 
 **Symptom.** Skills scaffolded before v6.2.0 mention "Pocock", "Adapted from", "Translation of", "Lifted from Superpowers", "BMAD pattern", or "Anthropic context-engineering". Claude tries to look up these references in your project and finds nothing.
