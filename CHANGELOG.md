@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `--update` orphan cleanup no longer flags installed opt-in features
+
+`aped-method --update` (chantier U, 6.3.0) flagged legitimately-installed opt-in features as orphans because `getInstalledOptionalTemplates` only detected 3 of the 10 opt-in surfaces. Concrete impact on a real upgrade: hooks installed via `aped-method commit-gate` / `session-start` / `tdd-red-marker` / `worktree-scope`, the `aped-state` MCP server installed via `enable-mcp` (`mcp/aped-state-server.mjs` + `mcp/state-schema.mjs`), and `*.example` files under `.aped/` were all listed for deletion. Picking `[D]elete all` would have removed them from disk; the `.aped-backups/aped-{stamp}.tar.gz` tarball is the recovery path if anyone hit this.
+
+- `getInstalledOptionalTemplates` now probes for every opt-in: statusline, safe-bash, post-edit-typescript (already covered) **plus** verify-claims, session-start, worktree-scope, tdd-red-marker, commit-gate, enable-mcp (`mcp/`), visual-companion (`visual-companion/`).
+- Defense in depth: `computeOrphans` now treats `{{APED_DIR}}/hooks/`, `{{APED_DIR}}/mcp/`, `{{APED_DIR}}/visual-companion/`, and any `*.example` file as protected prefixes — never returned as orphans even if probe-detection misses an opt-in. The 12 stale `aped-review/steps/step-*.md` files from the 6.1→6.2 slim review redesign continue to be flagged correctly.
+
 ## [6.3.0] - 2026-05-07
 
 ### Added — Artefact contracts (story / epics / epic-context)
