@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.3.3] - 2026-05-08
+
 ### Changed — `disable --local` now also writes a gitignored `config.local.yaml` override
 
 Lived experience surfaced the gap immediately after 6.3.2 shipped: `disable --local` only wrote `.aped/.DISABLED` and left `aped.enabled: true` in `config.yaml`. The activation guard halted skill bodies (correct), but the user couldn't see APED's disabled state by grepping config files — they had to flip `aped.enabled` and `skill_invocation_discipline.enabled` manually, only to find the manual edits propagated to the team on commit.
