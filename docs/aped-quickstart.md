@@ -200,7 +200,7 @@ npx aped-method disable --local   # per-developer (gitignored, 6.3.2+)
 
 **Full mode (default).** Flips `disable-model-invocation: true` on every `.aped/aped-*/SKILL.md`, snapshots the originally-unflagged skill names to `.aped/.disable-snapshot.json`, writes a `.aped/.DISABLED` marker. ~37 files modified — committing propagates the disable to the team.
 
-**Local mode (`--local`, 6.3.2+).** Writes only `.aped/.DISABLED` (with `mode: local`), auto-appends `.aped/.DISABLED` to the project root `.gitignore`. **No frontmatter changes, no snapshot.** The activation guard `check-enabled.sh` HALTs every skill body on the marker regardless of mode, so the runtime UX is identical — only the file footprint differs (1 gitignored file vs ~37 committed).
+**Local mode (`--local`, 6.3.2+; extended in 6.3.3).** Writes two **gitignored** artefacts: `.aped/.DISABLED` (marker, `mode: local`) AND `.aped/config.local.yaml` (override with `aped.enabled: false` + `skill_invocation_discipline.enabled: false`). Auto-appends both paths to the project root `.gitignore`. **No frontmatter changes on `SKILL.md`, no snapshot.** The activation guard `check-enabled.sh` reads `config.local.yaml` **with precedence over `config.yaml`**, so the team-shared config can stay `enabled: true` while the per-developer override flips the runtime check. Two gitignored files vs ~37 committed in full mode.
 
 Both modes are reversible: `aped-method enable` reads the marker mode and either consumes the snapshot (full) or removes the marker (local). The `.gitignore` line is left in place so a future `disable --local` doesn't risk a commit. Even if you type `/aped-X` explicitly, the guard reads the marker / `aped.enabled` config knob and HALTs silently when disabled.
 

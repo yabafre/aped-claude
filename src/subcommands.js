@@ -178,15 +178,15 @@ function runDisableSubcommand(config, args = {}) {
     return;
   }
 
-  // 6.3.2 — local mode summary.
+  // 6.3.2 — local mode summary. 6.3.3 — also writes config.local.yaml.
   if (result.mode === 'local') {
-    p.log.success(`Disabled APED locally — marker only, no team-wide changes.`);
-    if (result.gitignore?.added) {
-      p.log.message(color.dim(`Added \`${config.apedDir}/.DISABLED\` to ${result.gitignore.path}.`));
+    p.log.success(`Disabled APED locally — marker + gitignored config.local.yaml override, no team-wide changes.`);
+    if (typeof result.gitignore?.added === 'number' && result.gitignore.added > 0) {
+      p.log.message(color.dim(`Added ${result.gitignore.added} entrie(s) to ${result.gitignore.path}: \`${config.apedDir}/.DISABLED\`, \`${config.apedDir}/config.local.yaml\`.`));
     } else if (result.gitignore?.skipped === 'no-git') {
-      p.log.message(color.dim(`Not a git repo — \`${config.apedDir}/.DISABLED\` won't be committed (no .git/).`));
+      p.log.message(color.dim(`Not a git repo — local artefacts won't be committed (no .git/).`));
     } else if (result.gitignore?.skipped === 'already-present') {
-      p.log.message(color.dim('Gitignore already excludes the marker.'));
+      p.log.message(color.dim('Gitignore already excludes the local artefacts.'));
     }
     p.outro(color.dim(`${result.total} skills total. Run \`aped-method enable\` to restore routing.`));
     return;

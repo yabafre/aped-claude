@@ -92,6 +92,28 @@ function snapshotPath(apedDirAbs) {
   return join(apedDirAbs, '.disable-snapshot.json');
 }
 
+// 6.3.3 — gitignored per-developer override of config.yaml. Written by
+// `disable --local`, removed by `enable`. Read by check-enabled.sh first
+// (takes precedence over config.yaml) so the runtime guard halts on the
+// local flag without committing the change to config.yaml.
+function configLocalPath(apedDirAbs) {
+  return join(apedDirAbs, 'config.local.yaml');
+}
+
+function writeConfigLocal(configLocalAbs, disabledAt) {
+  const content =
+    `# Local-only override of .aped/config.yaml — managed by aped-method.\n` +
+    `# Written at ${disabledAt} by \`aped-method disable --local\`.\n` +
+    `# Removed by \`aped-method enable\`. This file is gitignored so the\n` +
+    `# disable doesn't propagate to the team. Hand-edit at your own risk —\n` +
+    `# the next \`disable --local\` overwrites it; \`enable\` deletes it.\n` +
+    `aped:\n` +
+    `  enabled: false\n` +
+    `skill_invocation_discipline:\n` +
+    `  enabled: false\n`;
+  writeFileSync(configLocalAbs, content, 'utf-8');
+}
+
 // 6.3.2 — parse the marker. Returns { mode, disabled_at } where mode is
 // 'local' | 'full' | 'legacy'. Legacy markers are pre-6.3.2 (single ISO
 // timestamp line, no `mode:` key) — kept readable so existing installs
@@ -124,32 +146,40 @@ function writeMarker(markerAbs, mode, disabledAt) {
   writeFileSync(markerAbs, content, 'utf-8');
 }
 
-// 6.3.2 — append a single line to project root .gitignore. Idempotent.
-// Skips silently when the project isn't a git repo (no .git/ directory).
-// Returns { added, path, skipped } so the caller can surface the action.
-function appendToGitignore(cwd, line) {
+// 6.3.2 — append one or more lines to project root .gitignore. Idempotent
+// per-line. Skips silently when the project isn't a git repo (no .git/).
+// Returns { added, path, skipped } where `added` is the count of lines
+// actually appended. 6.3.3 — accepts string OR array.
+function appendToGitignore(cwd, lineOrLines) {
+  const lines = Array.isArray(lineOrLines) ? lineOrLines : [lineOrLines];
   const gitDir = join(cwd, '.git');
   if (!existsSync(gitDir)) {
-    return { added: false, path: null, skipped: 'no-git' };
+    return { added: 0, path: null, skipped: 'no-git' };
   }
 
   const gitignorePath = join(cwd, '.gitignore');
   let existing = '';
   if (existsSync(gitignorePath)) {
     existing = readFileSync(gitignorePath, 'utf-8');
-    const lines = existing.split('\n').map((l) => l.trim());
-    if (lines.includes(line)) {
-      return { added: false, path: gitignorePath, skipped: 'already-present' };
-    }
+  }
+  const presentLines = new Set(
+    existing.split('\n').map((l) => l.trim()).filter(Boolean),
+  );
+
+  const toAppend = lines.filter((l) => !presentLines.has(l));
+  if (toAppend.length === 0) {
+    return { added: 0, path: gitignorePath, skipped: 'already-present' };
   }
 
   const needsLeadingNewline = existing && !existing.endsWith('\n');
+  const header = existing ? '' : '# Project gitignore\n';
   const block =
-    (existing ? (needsLeadingNewline ? '\n' : '') : '') +
-    (existing ? '' : '# Project gitignore\n') +
-    `\n# APED — local-only disable marker (per-developer, not team-wide)\n${line}\n`;
+    (needsLeadingNewline ? '\n' : '') +
+    header +
+    `\n# APED — local-only disable artefacts (per-developer, not team-wide)\n` +
+    toAppend.join('\n') + '\n';
   writeFileSync(gitignorePath, existing + block, 'utf-8');
-  return { added: true, path: gitignorePath, skipped: null };
+  return { added: toAppend.length, path: gitignorePath, skipped: null };
 }
 
 export function disableAped(config, cwd = process.cwd(), options = {}) {
@@ -203,12 +233,17 @@ export function disableAped(config, cwd = process.cwd(), options = {}) {
   const disabledAt = new Date().toISOString();
 
   // 6.3.2 — local mode: marker only, no frontmatter touch, no snapshot.
-  // Auto-append `.aped/.DISABLED` to .gitignore so the marker stays out
-  // of commits (the whole point of local mode).
+  // 6.3.3 — also writes `.aped/config.local.yaml` (gitignored) so
+  // `aped.enabled: false` is visible to scripts and humans grepping config.
+  // Auto-appends both marker and config.local.yaml to .gitignore so neither
+  // propagates to the team.
   if (local) {
     writeMarker(markerPath(apedDirAbs), 'local', disabledAt);
-    const ignoreEntry = `${config.apedDir}/.DISABLED`;
-    const gitignore = appendToGitignore(cwd, ignoreEntry);
+    writeConfigLocal(configLocalPath(apedDirAbs), disabledAt);
+    const gitignore = appendToGitignore(cwd, [
+      `${config.apedDir}/.DISABLED`,
+      `${config.apedDir}/config.local.yaml`,
+    ]);
     return {
       action: 'disabled',
       mode: 'local',
@@ -267,10 +302,12 @@ export function enableAped(config, cwd = process.cwd()) {
 
   const marker = markerPath(apedDirAbs);
   const snapPath = snapshotPath(apedDirAbs);
+  const localCfg = configLocalPath(apedDirAbs);
   const skills = listSkills(apedDirAbs);
   const markerInfo = readMarker(marker);
 
-  if (!markerInfo && !existsSync(snapPath)) {
+  // Idempotent noop when no disable artefact remains.
+  if (!markerInfo && !existsSync(snapPath) && !existsSync(localCfg)) {
     return {
       action: 'noop',
       already: true,
@@ -281,10 +318,17 @@ export function enableAped(config, cwd = process.cwd()) {
   }
 
   // 6.3.2 — local mode: just remove the marker. No snapshot to consume,
-  // no frontmatter to restore (none was flipped). The .gitignore line
-  // stays so a future `disable --local` doesn't risk a commit.
-  if (markerInfo && markerInfo.mode === 'local') {
-    unlinkSync(marker);
+  // no frontmatter to restore (none was flipped).
+  // 6.3.3 — also remove .aped/config.local.yaml (the gitignored override).
+  // Triggered when the marker says local OR an orphan config.local.yaml is
+  // present without a snapshot (e.g. user deleted the marker by hand). The
+  // .gitignore line stays so a future `disable --local` doesn't risk a commit.
+  const localOnlyShape =
+    (markerInfo && markerInfo.mode === 'local') ||
+    (!markerInfo && existsSync(localCfg) && !existsSync(snapPath));
+  if (localOnlyShape) {
+    if (existsSync(marker)) unlinkSync(marker);
+    if (existsSync(localCfg)) unlinkSync(localCfg);
     return {
       action: 'enabled',
       mode: 'local',
@@ -334,6 +378,7 @@ export function enableAped(config, cwd = process.cwd()) {
 
   if (existsSync(marker)) unlinkSync(marker);
   if (existsSync(snapPath)) unlinkSync(snapPath);
+  if (existsSync(localCfg)) unlinkSync(localCfg);  // 6.3.3 — defensive cleanup
 
   return {
     action: 'enabled',
@@ -358,17 +403,20 @@ export function statusAped(config, cwd = process.cwd()) {
 
   const markerInfo = readMarker(marker);
   const snapshotExists = existsSync(snapPath);
+  const localCfgExists = existsSync(configLocalPath(apedDirAbs));
 
-  if (!markerInfo && !snapshotExists) {
+  if (!markerInfo && !snapshotExists && !localCfgExists) {
     return { state: 'enabled', total: skills.length };
   }
 
   // 6.3.2 — local mode: marker says `mode: local`, no snapshot expected.
-  if (markerInfo && markerInfo.mode === 'local') {
+  // 6.3.3 — also surface as disabled-local when only the gitignored
+  // config.local.yaml is present (orphan, e.g. marker hand-deleted).
+  if ((markerInfo && markerInfo.mode === 'local') || (!markerInfo && localCfgExists && !snapshotExists)) {
     return {
       state: 'disabled-local',
       total: skills.length,
-      lastToggle: markerInfo.disabled_at,
+      lastToggle: markerInfo?.disabled_at || null,
     };
   }
 
