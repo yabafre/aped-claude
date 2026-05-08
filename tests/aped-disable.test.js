@@ -6,10 +6,13 @@ import {
   writeFileSync,
   readFileSync,
   existsSync,
+  chmodSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { disableAped, enableAped, statusAped } from '../src/disable.js';
+import { scripts } from '../src/templates/scripts.js';
 
 // 6.2.0 contract — `aped-method disable / enable / status` must be
 // reversible, idempotent, and produce a snapshot that distinguishes
@@ -333,5 +336,157 @@ describe('statusAped — local mode (6.3.2)', () => {
     const s = statusAped(config, dir);
     expect(s.state).toBe('disabled-stale');
     expect(s.lastToggle).toBe('2026-04-01T10:00:00Z');
+  });
+});
+
+// 6.3.3 — local mode also writes a gitignored `.aped/config.local.yaml`
+// override so `aped.enabled: false` is visible to anyone (or any script)
+// reading config files. The activation guard reads the local file with
+// precedence over config.yaml.
+describe('disableAped --local — config.local.yaml override (6.3.3)', () => {
+  beforeEach(() => {
+    mkdirSync(join(dir, '.git'), { recursive: true });
+  });
+
+  it('writes config.local.yaml with aped.enabled and skill_invocation_discipline flipped', () => {
+    disableAped(config, dir, { local: true });
+    const localCfgPath = join(dir, '.aped', 'config.local.yaml');
+    expect(existsSync(localCfgPath)).toBe(true);
+    const yaml = readFileSync(localCfgPath, 'utf-8');
+    expect(yaml).toMatch(/^aped:$/m);
+    expect(yaml).toMatch(/^\s+enabled:\s+false$/m);
+    expect(yaml).toMatch(/^skill_invocation_discipline:$/m);
+  });
+
+  it('appends BOTH .DISABLED and config.local.yaml to .gitignore', () => {
+    disableAped(config, dir, { local: true });
+    const ignore = readFileSync(join(dir, '.gitignore'), 'utf-8');
+    expect(ignore).toMatch(/^\.aped\/\.DISABLED$/m);
+    expect(ignore).toMatch(/^\.aped\/config\.local\.yaml$/m);
+  });
+
+  it('enable removes both the marker AND config.local.yaml (gitignore line stays)', () => {
+    disableAped(config, dir, { local: true });
+    enableAped(config, dir);
+    expect(existsSync(join(dir, '.aped', '.DISABLED'))).toBe(false);
+    expect(existsSync(join(dir, '.aped', 'config.local.yaml'))).toBe(false);
+    // Gitignore lines are kept as future-proof guards.
+    const ignore = readFileSync(join(dir, '.gitignore'), 'utf-8');
+    expect(ignore).toMatch(/^\.aped\/\.DISABLED$/m);
+    expect(ignore).toMatch(/^\.aped\/config\.local\.yaml$/m);
+  });
+
+  it('enable cleans up an orphan config.local.yaml (marker hand-deleted)', () => {
+    disableAped(config, dir, { local: true });
+    rmSync(join(dir, '.aped', '.DISABLED'), { force: true });  // hand-clobber
+    expect(existsSync(join(dir, '.aped', 'config.local.yaml'))).toBe(true);
+    const result = enableAped(config, dir);
+    expect(result.action).toBe('enabled');
+    expect(result.mode).toBe('local');
+    expect(existsSync(join(dir, '.aped', 'config.local.yaml'))).toBe(false);
+  });
+
+  it('status reports disabled-local when only config.local.yaml remains (no marker)', () => {
+    disableAped(config, dir, { local: true });
+    rmSync(join(dir, '.aped', '.DISABLED'), { force: true });
+    const s = statusAped(config, dir);
+    expect(s.state).toBe('disabled-local');
+  });
+
+  it('full disable cleans up an orphan config.local.yaml left from a prior local run', () => {
+    // Simulate: user ran `disable --local`, hand-deleted the marker, then
+    // runs `enable` then `disable`. The full disable cleanup should remove
+    // any stale config.local.yaml at enable time.
+    disableAped(config, dir, { local: true });
+    rmSync(join(dir, '.aped', '.DISABLED'), { force: true });
+    enableAped(config, dir);
+    expect(existsSync(join(dir, '.aped', 'config.local.yaml'))).toBe(false);
+  });
+});
+
+// 6.3.3 — check-enabled.sh activation guard contract. The runtime guard
+// must HALT (exit 1) on any of: marker, config.local.yaml override,
+// config.yaml. The local override must take precedence over config.yaml
+// (so `aped.enabled: false` in config.local.yaml halts even when
+// config.yaml says `aped.enabled: true`).
+describe('check-enabled.sh — local override precedence (6.3.3)', () => {
+  const ALL_SCRIPTS = scripts({ apedDir: '.aped', outputDir: 'docs/aped' });
+  const guardScript = ALL_SCRIPTS.find((s) => s.path.endsWith('scripts/check-enabled.sh'));
+
+  function setupGuardSandbox() {
+    const root = mkdtempSync(join(tmpdir(), 'aped-check-enabled-'));
+    mkdirSync(join(root, '.aped', 'scripts'), { recursive: true });
+    const dest = join(root, guardScript.path);
+    writeFileSync(dest, guardScript.content);
+    chmodSync(dest, 0o755);
+    return root;
+  }
+
+  function runGuard(root) {
+    const r = spawnSync('bash', [join(root, '.aped', 'scripts', 'check-enabled.sh')], {
+      cwd: root,
+      env: { ...process.env, APED_DIR: '.aped' },
+      encoding: 'utf8',
+    });
+    return { code: r.status ?? -1, stderr: r.stderr ?? '' };
+  }
+
+  let guardSandbox;
+  beforeEach(() => { guardSandbox = setupGuardSandbox(); });
+  afterEach(() => { rmSync(guardSandbox, { recursive: true, force: true }); });
+
+  it('exits 0 when nothing is set', () => {
+    expect(runGuard(guardSandbox).code).toBe(0);
+  });
+
+  it('exits 1 on .DISABLED marker presence', () => {
+    writeFileSync(join(guardSandbox, '.aped', '.DISABLED'), 'mode: local\n', 'utf-8');
+    expect(runGuard(guardSandbox).code).toBe(1);
+  });
+
+  it('exits 1 on config.local.yaml with aped.enabled: false', () => {
+    writeFileSync(
+      join(guardSandbox, '.aped', 'config.local.yaml'),
+      'aped:\n  enabled: false\n',
+      'utf-8',
+    );
+    expect(runGuard(guardSandbox).code).toBe(1);
+  });
+
+  it('exits 1 on config.yaml with aped.enabled: false (legacy 6.2.0 contract)', () => {
+    writeFileSync(
+      join(guardSandbox, '.aped', 'config.yaml'),
+      'aped:\n  enabled: false\n',
+      'utf-8',
+    );
+    expect(runGuard(guardSandbox).code).toBe(1);
+  });
+
+  it('local override takes precedence: config.local.yaml false > config.yaml true', () => {
+    writeFileSync(
+      join(guardSandbox, '.aped', 'config.yaml'),
+      'aped:\n  enabled: true\n',
+      'utf-8',
+    );
+    writeFileSync(
+      join(guardSandbox, '.aped', 'config.local.yaml'),
+      'aped:\n  enabled: false\n',
+      'utf-8',
+    );
+    expect(runGuard(guardSandbox).code).toBe(1);
+  });
+
+  it('exits 0 when both files say enabled: true', () => {
+    writeFileSync(
+      join(guardSandbox, '.aped', 'config.yaml'),
+      'aped:\n  enabled: true\n',
+      'utf-8',
+    );
+    writeFileSync(
+      join(guardSandbox, '.aped', 'config.local.yaml'),
+      'aped:\n  enabled: true\n',
+      'utf-8',
+    );
+    expect(runGuard(guardSandbox).code).toBe(0);
   });
 });

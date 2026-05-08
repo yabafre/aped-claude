@@ -192,21 +192,21 @@ npx aped-method enable
 
 **Enable consumes the snapshot.** Only the originally-unflagged skills lose the `disable-model-invocation` line; the 14 always-opt-out skills (`aped-arch`, `aped-grill`, `aped-zoom-out`, etc.) stay opt-out. If the snapshot is missing, `enable` falls back to a best-effort restore (strips the flag from all 34) and warns.
 
-**Local-only disable (6.3.2+).** When you want APED off in your working copy without committing the change to your team's branch:
+**Local-only disable (6.3.2+; extended in 6.3.3).** When you want APED off in your working copy without committing the change to your team's branch:
 
 ```bash
 npx aped-method disable --local
-# → Disabled APED locally — marker only, no team-wide changes.
-#   Added `.aped/.DISABLED` to .gitignore.
+# → Disabled APED locally — marker + gitignored config.local.yaml override, no team-wide changes.
+#   Added 2 entries to .gitignore: `.aped/.DISABLED`, `.aped/config.local.yaml`.
 
 npx aped-method status
 # → APED is disabled (local) — marker only, 35 skills unchanged.
 
 npx aped-method enable
-# → Enabled APED — local marker removed.
+# → Enabled APED — local marker + override removed.
 ```
 
-Footprint: 1 gitignored file (`.aped/.DISABLED` with `mode: local`). No `SKILL.md` modifications, no snapshot, nothing to commit. The activation guard `check-enabled.sh` HALTs every skill body on the marker regardless of mode — runtime UX is identical to a full disable. Mode-conflict (running `--local` against a full-disabled install or vice-versa) exits with a clear "run `aped-method enable` first" message; no hybrid states.
+Footprint: 2 gitignored files. No `SKILL.md` modifications, no snapshot, nothing to commit. The activation guard `check-enabled.sh` reads `.aped/config.local.yaml` (with `aped.enabled: false`) **with precedence over `.aped/config.yaml`**, so the team-shared config can stay `enabled: true` while the per-developer override halts the runtime check. The `.DISABLED` marker is the binary signal for scripts that don't parse YAML; `config.local.yaml` is the human-grep-able signal that surfaces in any config dump. Mode-conflict (running `--local` against a full-disabled install or vice-versa) exits with a clear "run `aped-method enable` first" message; no hybrid states.
 
 ## Personas & teams
 
