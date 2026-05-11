@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.1] - 2026-05-11
+
 ### Fixed — MCP-first flip cleanup
 
 The v5.5.0 promise that "Prefer MCP" paths route through the APED MCP servers was doc-flipped: three coherent gaps made 60%+ of those paths fall through silently to file-edit fallback.
