@@ -21,6 +21,7 @@
     "src/bash-safety.js",
     "src/disable.js",
     "src/templates/*.js",
+    "src/templates/ethos.md",
     "src/templates/data/*.csv",
     "src/templates/data/*.json",
     "src/templates/data/*.md",

@@ -18,9 +18,7 @@ Classify and route incoming issues (bugs, feature requests, questions, regressio
 
 ## Iron Laws
 
-1. **Evidence before classification.** Never assign priority/severity until Steps 1-3 complete. "This feels like a P1" is a hallucination — cite the evidence.
-2. **Out-of-scope is a destination, not a waste bin.** Items routed to `.out-of-scope/` get a full triage record so they can be reconsidered later without re-investigation.
-3. **Scope verification precedes priority.** An issue outside the current sprint/epic scope is OUT regardless of severity. Check scope FIRST.
+See [`ETHOS.md` § aped-triage](../ETHOS.md#aped-triage) — three laws: evidence before classification; out-of-scope is a destination not a waste bin; scope verification precedes priority.
 
 ## Triage Pipeline
 

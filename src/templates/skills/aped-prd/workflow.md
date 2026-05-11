@@ -24,7 +24,7 @@ This skill uses **micro-file architecture**:
 
 ### Iron Law
 
-**NO PRD SHIPPED WITH PLACEHOLDERS.** FR sections must contain real `FR#: [Actor] can [capability]` lines (no FR-less FR section); Goals / Non-goals / NFRs / Success Metrics must contain real prose, not `TBD`, `TODO`, `<placeholder>`, lone ellipses, or `to be defined`. Placeholders fail the lint and block the user gate.
+**NO PRD SHIPPED WITH PLACEHOLDERS.** See [`ETHOS.md` § aped-prd](../ETHOS.md#aped-prd) for full rationale.
 
 ## Activation
 

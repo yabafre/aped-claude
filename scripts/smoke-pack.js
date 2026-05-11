@@ -5,13 +5,46 @@
 // `files` allowlist that plain `node bin/...` can't (since locally every
 // source file exists regardless of what would actually ship).
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, rmSync, symlinkSync, existsSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectDir = join(__dirname, '..');
+
+// 6.5.0 (B16): derive the must-be-in-tarball list from `package.json.files`
+// where possible. Walk `src/templates/skills/` and `src/templates/hooks/` for
+// every `.md` / `.sh` file — these are scaffolded into user projects, so any
+// file missed by the allowlist globs is a 3.7.2-class shipping bug.
+function walkExt(dir, exts) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walkExt(p, exts));
+    else if (entry.isFile() && exts.some((e) => entry.name.endsWith(e))) out.push(p);
+  }
+  return out;
+}
+
+function expandRequiredScaffold() {
+  const out = new Set();
+  const skillsDir = join(projectDir, 'src/templates/skills');
+  if (existsSync(skillsDir)) {
+    for (const p of walkExt(skillsDir, ['.md', '.sh', '.mjs', '.csv'])) {
+      out.add(relative(projectDir, p));
+    }
+  }
+  const hooksDir = join(projectDir, 'src/templates/hooks');
+  if (existsSync(hooksDir)) {
+    for (const p of walkExt(hooksDir, ['.sh', '.js'])) {
+      out.add(relative(projectDir, p));
+    }
+  }
+  const ethos = join(projectDir, 'src/templates/ethos.md');
+  if (existsSync(ethos)) out.add(relative(projectDir, ethos));
+  return [...out].sort();
+}
 
 function run(cmd, args, opts = {}) {
   const result = spawnSync(cmd, args, { encoding: 'utf8', ...opts });
@@ -41,13 +74,13 @@ try {
   // 2.5 Assert tarball contains files load-bearing for opt-in features. Catches
   //     non-recursive globs in package.json `files` (e.g. `skills/*.md` not
   //     covering `skills/aped-skills/*.md`, or visual-companion/ omitted).
+  //     6.5.0 (B16): the skills + hooks portions of the list are derived from
+  //     the source tree so adding a new skill/.md auto-extends coverage; only
+  //     visual-companion/ stays hand-curated (no .md extension to glob on).
   const requiredInTarball = [
-    'src/templates/skills/aped-skills/anthropic-best-practices.md',
-    'src/templates/skills/aped-skills/persuasion-principles.md',
-    'src/templates/skills/aped-skills/testing-skills-with-subagents.md',
+    ...expandRequiredScaffold(),
     'src/templates/visual-companion/start-server.sh',
     'src/templates/visual-companion/frame-template.html',
-    'src/templates/hooks/session-start.sh',
   ];
   const missingInTarball = requiredInTarball.filter((p) => !existsSync(join(extractDir, p)));
   if (missingInTarball.length) {

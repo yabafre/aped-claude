@@ -26,7 +26,7 @@ Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
 
 ### Iron Law
 
-**Classify FIRST, route SECOND.** Never skip the classification interview, even when the delta description seems to point at one specific skill. The user came here because they weren't sure — guessing past the question is exactly the failure mode this skill exists to prevent.
+**Classify FIRST, route SECOND.** See [`ETHOS.md` § aped-iterate](../ETHOS.md#aped-iterate) for full rationale.
 
 ### Red Flags
 

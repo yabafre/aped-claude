@@ -33,7 +33,7 @@ Read `{{APED_DIR}}/config.yaml` and resolve `{user_name}` / `{communication_lang
 
 ## Iron Law
 
-**ONE WORD, ONE MEANING, ONE PLACE.** If two skills use different words for the same thing, the glossary picks the winner and lists the loser as `_Avoid:_`. Drift compounds; clarity is cheap to sustain, expensive to retrofit.
+**ONE WORD, ONE MEANING, ONE PLACE.** See [`ETHOS.md` § aped-glossary](../ETHOS.md#aped-glossary) for full rationale.
 
 ## Inputs (consumed in this order)
 

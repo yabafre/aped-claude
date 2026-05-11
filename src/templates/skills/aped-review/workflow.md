@@ -19,7 +19,7 @@ Dispatched in a SINGLE Agent message, all parallel. The Lead inlines `git-audit.
 
 ## Iron Law
 
-**NO PASS WITHOUT FRESH EVIDENCE IN THIS MESSAGE.** *"Should work"*, *"looks good"*, *"probably fine"*, *"tests should pass"* are not evidence — they are the words of a reviewer who didn't run the verification. Re-run, capture the output, paste it.
+**NO PASS WITHOUT FRESH EVIDENCE IN THIS MESSAGE.** See [`ETHOS.md` § aped-review](../ETHOS.md#aped-review) for full rationale.
 
 ## Critical rules
 
