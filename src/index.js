@@ -431,8 +431,17 @@ export async function run() {
     const vInfo = existing.installedVersion !== '0.0.0' ? ` | v${existing.installedVersion}` : '';
     p.log.warn(`Existing APED installation detected ${color.dim(`(${existing.projectName}${vInfo})`)}`);
 
+    // 6.5.0 (B8): pre-select `update` when an upgrade was actually detected
+    // above, so the user can land in the right mode with a single Enter —
+    // drops a detected-upgrade install from 9 prompts to one keystroke.
+    // When versions match, default to `cancel` (nothing to do).
+    const upgradeAvailable =
+      existing.installedVersion &&
+      existing.installedVersion !== '0.0.0' &&
+      semverCompare(CLI_VERSION, existing.installedVersion) > 0;
     const choice = await p.select({
       message: 'What would you like to do?',
+      initialValue: upgradeAvailable ? 'update' : 'cancel',
       options: [
         { value: 'update', label: 'Update engine', hint: 'upgrade skills, scripts, hooks — preserve config & artifacts' },
         { value: 'fresh', label: 'Fresh install', hint: 'delete everything and start from zero' },
