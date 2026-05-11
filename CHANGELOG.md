@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `check-auto-approve.sh`, `checkin.sh`, `check-active-worktrees.sh`, and `sync-state.sh` awk fallbacks now accept double-quoted YAML keys (`    "3-5":`). State.yaml v3+ writes numeric-leading story keys with quotes; the previous pre-6.7.5 awk patterns matched `^    key:` literally and every `aped-lead` check-in escalated with "no worktree registered". 5 patterns patched, symmetric `"?` around the key.
+
+### Added
+- `sprint.post_dispatch_hook: []` config knob (6.7.5). When empty, `sprint-dispatch.sh` runs smart defaults after the worktree is created: detect package-runner via `detect-package-runner.sh` (pnpm/yarn/bun/npm from lockfile), run `<runner> install` in the worktree, and copy `.env` from project root if `.env.example` is present in the worktree and `.env` is missing. Set to a non-empty array to override — each entry runs in the worktree via `bash -c`, smart defaults skipped. Best-effort: failures log via `log.sh` but never block dispatch.
+- `sprint.mode: parallel|sequential` config knob (6.7.5, default `parallel`). `parallel` keeps the existing one-worktree-per-story behaviour. `sequential` (placeholder — full wiring lands later in this same release) requires `git-spice` at dispatch time and uses a single shared worktree where stories stack via `gs branch create`.
+
 ## [6.7.0] - 2026-05-11
 
 ### **The agent finally sees the gauge it was burning.**
