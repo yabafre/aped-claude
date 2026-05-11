@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### **APED's discipline gets a canonical home, and three install-time papercuts disappear.**
+
+The Iron Laws — the non-negotiable directives at the top of every disciplined skill — used to live verbatim inside 14 separate files. Editing one risked drift; reading them required hopping. 6.5.0 hoists them into a single `ETHOS.md` shipped alongside every scaffold, with each skill keeping a one-line citation to its anchor. A lint test imports the schema from source so the verdict text can never silently diverge again. Three smaller install-time wins ride along: upgrade detection now auto-selects `update` in the interactive prompt, the smoke-pack tarball check derives required-paths from the source tree (no more 3.7.2-class missing-file regressions), and the routing rubric grows anti-triggers so phrases like "pr comment" stop bleeding from `aped-receive-review` into `aped-review`.
+
+### The numbers that matter
+
+Source: `git diff v6.4.1..HEAD` on `packages/create-aped/`, plus the canonical artefacts now scaffolded.
+
+| Metric | Before (6.4.1) | After (6.5.0) | Δ |
+|---|---|---|---|
+| Iron Laws sources of truth | 14 (1 per skill) | 1 (`ETHOS.md`) + 14 citations | -13 drift surfaces |
+| Iron-Law verdict drift coverage | 0 tests | 3 tests (`ethos-citation-lint`) | new lint |
+| Tarball must-include checks | 7 (hand-curated) | ~60 (derived from `src/templates/skills/` + `hooks/`) | ~8× coverage, 0 hand-edits |
+| Upgrade keystrokes (interactive) | 9 prompts | 1 Enter (auto-picks `update`) | -8 |
+| Routing rubric assertions | 28 (positive only) | 33 (28 positive + 5 anti-triggers) | new failure class caught |
+
+### What this means for builders
+
+The `ETHOS.md` hoist is the foundation move for the next cycle's skill template generator (B2 in the audit backlog) — once duplication has a single home, a `.tmpl` pipeline can pull from it cleanly. Today's win is editorial: when you change an Iron Law, you change it once, and CI catches every skill that forgot to follow. The install-prompt and smoke-pack wins are pure ergonomics — they cost one session each, they make the product feel less like a tool you have to remember and more like one that meets you where you are.
+
+### Itemized changes
+
+#### Added
+
+- `src/templates/ethos.md` ships into every scaffold at `<apedDir>/ETHOS.md`, sibling to skill dirs. Contains the canonical text + rationale of 13 skill Iron Laws plus a preamble on why APED has them.
+- `tests/ethos-citation-lint.test.js` (3 cases) — asserts every skill `### Iron Law` section cites a valid ETHOS.md anchor, the verdict text in skills matches the verdict in ETHOS.md, and the file exposes all expected anchors.
+- `tests/skill-routing-rubric.test.js` gains `ANTI_TRIGGERS` (5 cases) — assert phrases like `pr comment` / `review comment` / `audit` / `external ticket` / `review report` do NOT appear in `aped-review` / `aped-story` / `aped-prd` descriptions where they would over-match.
+
+#### Changed
+
+- 14 skill files (`aped-arch-audit`, `aped-debug`, `aped-design-twice`, `aped-dev`, `aped-glossary`, `aped-iterate`, `aped-prd`, `aped-pre-mortem`, `aped-receive-review`, `aped-review` × 2, `aped-skills/writing-discipline`, `aped-story`, `aped-triage`): Iron Law sections replaced with verdict + 1-line citation to `ETHOS.md`. `aped-review/steps/step-05-finalize.md` keeps its step-local Iron Laws sub-list inline (procedural, not skill-wide discipline) — this is documented in ETHOS.md and allowlisted in the lint.
+- `src/index.js` interactive upgrade prompt now pre-selects `update` when a real upgrade is available (`semverCompare(CLI_VERSION, installed) > 0`); pre-selects `cancel` when versions match. Detected upgrade → one Enter to land in the right mode.
+- `scripts/smoke-pack.js` derives the must-be-in-tarball list from a walk of `src/templates/skills/` + `src/templates/hooks/` + the ethos.md sentinel. New skills and hooks auto-extend coverage; only `visual-companion/` stays hand-curated.
+- `package.json` `files` allowlist adds `src/templates/ethos.md` so the canonical doc actually ships.
+- CHANGELOG format: this entry adopts a release-summary header (bold-verdict headline + lead + numbers table + audience close) for MINOR/MAJOR releases. PATCH entries continue in the previous compact `### Fixed — <prose>` form. The convention is documented in workspace `CLAUDE.md`.
+
 ## [6.4.1] - 2026-05-11
 
 ### Fixed — MCP-first flip cleanup
