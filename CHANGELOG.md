@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Generator placeholder regex requires ≥2 uppercase chars to avoid colliding with user-prose tokens like `{{N}}` / `{{M}}` that some skills emit verbatim in example output.
 - 5 guard-only SKILL.md (aped-checkpoint, aped-design-twice, aped-pre-mortem, aped-triage, aped-zoom-out) source from `.tmpl` with `{{ACTIVATION_GUARD}}` — every skill in the tree now flows through the generator.
 - `docs/dev/discovery-pattern.md` gains a "Boilerplate authoring (v6.6.0+)" section pointing future contributors at the `.tmpl` workflow and resolver list.
+- Adversarial-review patches: frontmatter detection is now CRLF-safe and anchored at file head so a mid-file `---` markdown HR can't shift the marker; empty inline args and scaffold-time placeholders with args throw with `file:line`; the generator collects per-file errors and prints a diff for every stale `.md` (not just the first); new `tests/gen-skill-docs-unit.test.js` pins the canonical resolver bodies and covers unknown-placeholder rejection.
 
 ## [6.5.0] - 2026-05-11
 

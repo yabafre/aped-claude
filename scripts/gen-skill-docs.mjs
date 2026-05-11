@@ -60,6 +60,11 @@ export const RESOLVERS = {
   CONFIG_PREAMBLE_INLINE: (args, ctx) => {
     arity('CONFIG_PREAMBLE_INLINE', 1, args.length, ctx);
     const artefact = args[0];
+    if (!artefact) {
+      throw new Error(
+        `${ctx.file}:${ctx.line}: CONFIG_PREAMBLE_INLINE arg must be a non-empty artefact name`,
+      );
+    }
     return (
       'Read `{{APED_DIR}}/config.yaml` and resolve `{user_name}` / ' +
       '`{communication_language}` / `{document_output_language}`. ' +
@@ -86,18 +91,27 @@ function lineOf(content, idx) {
   return line;
 }
 
+// Anchored at file head; lazy body match stops at the first closing `---`
+// fence so a markdown HR mid-file can't shift the marker. CRLF-safe.
+const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
+
 function frontmatterEndOf(content) {
-  if (!content.startsWith('---\n')) return -1;
-  const closeIdx = content.indexOf('\n---\n', 4);
-  if (closeIdx === -1) return -1;
-  return closeIdx + 5; // past the trailing \n
+  const m = FRONTMATTER_RE.exec(content);
+  return m ? m[0].length : -1;
 }
 
 export function renderTemplate(content, filePath) {
   const rendered = content.replace(PLACEHOLDER_RE, (match, name, argString, matchIdx) => {
-    if (SCAFFOLD_TIME_ALLOWLIST.has(name)) return match;
-    const resolver = RESOLVERS[name];
     const line = lineOf(content, matchIdx);
+    if (SCAFFOLD_TIME_ALLOWLIST.has(name)) {
+      if (argString !== undefined) {
+        throw new Error(
+          `${filePath}:${line}: scaffold-time placeholder {{${name}}} does not accept args`,
+        );
+      }
+      return match;
+    }
+    const resolver = RESOLVERS[name];
     if (!resolver) {
       throw new Error(`Unknown placeholder {{${name}}} at ${filePath}:${line}`);
     }
@@ -148,41 +162,53 @@ function main() {
   }
 
   let drift = 0;
+  let errors = 0;
+  let written = 0;
   for (const tmplPath of tmplFiles) {
-    const content = readFileSync(tmplPath, 'utf-8');
     const relPath = relative(REPO_ROOT, tmplPath);
-    const rendered = renderTemplate(content, relPath);
     const mdPath = tmplPath.replace(/\.tmpl$/, '');
     const relMd = relative(REPO_ROOT, mdPath);
+    let rendered;
+    try {
+      const content = readFileSync(tmplPath, 'utf-8');
+      rendered = renderTemplate(content, relPath);
+    } catch (e) {
+      errors++;
+      console.error(`error: ${relPath}\n  ${e.message}`);
+      continue;
+    }
 
     if (checkMode) {
       const current = existsSync(mdPath) ? readFileSync(mdPath, 'utf-8') : null;
       if (current === rendered) continue;
       drift++;
       console.error(`stale: ${relMd}`);
-      if (drift === 1) {
-        if (current === null) {
-          console.error('  (file missing — run `npm run gen:skill-docs`)');
-        } else {
-          const d = firstDiffLine(current, rendered);
-          if (d) {
-            console.error(`  first diff at line ${d.line}:`);
-            console.error(`    expected: ${d.expected ?? '<EOF>'}`);
-            console.error(`    actual:   ${d.actual ?? '<EOF>'}`);
-          }
+      if (current === null) {
+        console.error('  (file missing — run `npm run gen:skill-docs`)');
+      } else {
+        const d = firstDiffLine(current, rendered);
+        if (d) {
+          console.error(`  first diff at line ${d.line}:`);
+          console.error(`    expected: ${d.expected ?? '<EOF>'}`);
+          console.error(`    actual:   ${d.actual ?? '<EOF>'}`);
         }
       }
     } else {
       writeFileSync(mdPath, rendered);
+      written++;
     }
   }
 
+  if (errors > 0) {
+    console.error(`\n${errors} file(s) failed to render.`);
+    process.exit(1);
+  }
   if (checkMode && drift > 0) {
     console.error(`\n${drift} stale generated file(s). Fix: npm run gen:skill-docs`);
     process.exit(1);
   }
   if (!checkMode) {
-    console.log(`[gen-skill-docs] regenerated ${tmplFiles.length} file(s).`);
+    console.log(`[gen-skill-docs] regenerated ${written} file(s).`);
   }
 }
 

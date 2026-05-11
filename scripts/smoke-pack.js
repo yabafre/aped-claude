@@ -90,9 +90,12 @@ try {
   }
 
   // 2.6 Assert no .tmpl files in tarball. Generator sources live alongside
-  //     their generated .md, but the `files` allowlist enumerates extensions
-  //     explicitly so .tmpl is excluded. A regression in package.json could
-  //     let them slip — catch it here.
+  //     their generated .md, but the `files` allowlist enumerates specific
+  //     filenames per pattern (`SKILL.md`, `workflow.md`, `steps/*.md`) — so
+  //     `.tmpl` is excluded by omission, not by a deny rule. This assertion
+  //     is the load-bearing safeguard: a careless edit to package.json
+  //     (e.g. switching to `src/templates/skills/aped-*/**`) would otherwise
+  //     ship the templates silently.
   const tmplsInTarball = walkExt(extractDir, ['.tmpl']);
   if (tmplsInTarball.length) {
     console.error('[smoke:pack] tarball contains .tmpl files (must be excluded):');
