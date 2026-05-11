@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `check-auto-approve.sh` AC-format regex now accepts the canonical APED 6.x story conventions: `- **AC1 (label)** — **Given** ...` and `- **AC1.** **Given** ...` and `- **Given** ...`, alongside the legacy `- Given ...`. Pre-6.7.6 the regex required `Given` immediately after the list marker, so every well-formed APED 6.x story (Epic 0 stories 0-13+, draft 3-5a) false-failed with "no Given/When/Then-formatted Acceptance Criteria". Latent bug surfaced by 6.7.5's quoted-key fix that finally let the script reach the AC-check phase.
+
 ## [6.7.5] - 2026-05-11
 
 ### **Sprint mode actually works now — and it ships with a second gear.**

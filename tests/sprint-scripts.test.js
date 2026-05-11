@@ -1000,6 +1000,83 @@ sprint:
   });
 });
 
+describe('check-auto-approve AC format detection (6.7.6 fix)', () => {
+  // Pre-6.7.6 regex only matched `- Given ...` immediately after the bullet.
+  // APED 6.x story templates use `- **AC1 (label)** — **Given** ...` —
+  // dispatch_story_ready then false-failed with "no Given/When/Then-formatted
+  // Acceptance Criteria" on every well-formed story file.
+  const stateWith = (worktreePath) => `schema_version: 4
+sprint:
+  active_epic: 1
+  stories:
+    "1-1":
+      status: ready-for-dev
+      worktree: ${worktreePath}
+      ticket: KON-1
+      depends_on: []
+`;
+
+  function setupStoryWithAC(acLine) {
+    installScript(sandbox, 'check-auto-approve.sh');
+    const wt = join(sandbox, 'fake-worktree');
+    mkdirSync(wt, { recursive: true });
+    // Fake git repo so the `git -C $WORKTREE log` call doesn't crash.
+    mkdirSync(join(wt, '.git'), { recursive: true });
+    mkdirSync(join(wt, 'aped-output', 'stories'), { recursive: true });
+    writeFileSync(
+      join(wt, 'aped-output', 'stories', '1-1.md'),
+      `# Story 1-1\n\n## Acceptance Criteria\n\n${acLine}\n`,
+    );
+    writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), stateWith(wt));
+    return wt;
+  }
+
+  it('accepts the minimal `- Given ...` form (legacy)', () => {
+    setupStoryWithAC('- Given a user, when they click X, then Y happens.');
+    const r = run(
+      `bash ${sandbox}/${APED_DIR}/scripts/check-auto-approve.sh story-ready "1-1"`,
+      { CLAUDE_PROJECT_DIR: sandbox },
+    );
+    expect(r.stderr).not.toMatch(/no Given\/When\/Then/);
+  });
+
+  it('accepts the bold-only `- **Given** ...` form', () => {
+    setupStoryWithAC('- **Given** a user, when they click X, then Y happens.');
+    const r = run(
+      `bash ${sandbox}/${APED_DIR}/scripts/check-auto-approve.sh story-ready "1-1"`,
+      { CLAUDE_PROJECT_DIR: sandbox },
+    );
+    expect(r.stderr).not.toMatch(/no Given\/When\/Then/);
+  });
+
+  it('accepts the numbered-bold `- **AC1.** **Given** ...` form', () => {
+    setupStoryWithAC('- **AC1.** **Given** a user, when they click X, then Y.');
+    const r = run(
+      `bash ${sandbox}/${APED_DIR}/scripts/check-auto-approve.sh story-ready "1-1"`,
+      { CLAUDE_PROJECT_DIR: sandbox },
+    );
+    expect(r.stderr).not.toMatch(/no Given\/When\/Then/);
+  });
+
+  it('accepts the canonical APED 6.x `- **AC1 (label)** — **Given** ...` form', () => {
+    setupStoryWithAC('- **AC1 (login)** — **Given** a user, when they click X, then Y.');
+    const r = run(
+      `bash ${sandbox}/${APED_DIR}/scripts/check-auto-approve.sh story-ready "1-1"`,
+      { CLAUDE_PROJECT_DIR: sandbox },
+    );
+    expect(r.stderr).not.toMatch(/no Given\/When\/Then/);
+  });
+
+  it('still rejects a story file with no AC at all', () => {
+    setupStoryWithAC('This story has no acceptance criteria block.');
+    const r = run(
+      `bash ${sandbox}/${APED_DIR}/scripts/check-auto-approve.sh story-ready "1-1"`,
+      { CLAUDE_PROJECT_DIR: sandbox },
+    );
+    expect(r.stderr).toMatch(/no Given\/When\/Then/);
+  });
+});
+
 describe('quoted-key parsing (6.7.5 fix)', () => {
   // state.yaml v3+ writes story keys with double quotes (`    "3-5":`) so
   // numeric-leading keys like "3-5" don't get reinterpreted as YAML strings.

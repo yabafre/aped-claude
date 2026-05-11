@@ -3460,7 +3460,13 @@ check_story_ready() {
   [[ -f "\$STORY_FILE" ]] || { fail "story file missing at \$STORY_FILE"; return; }
 
   # ACs use Given/When/Then, either numbered ("1. Given …") or bulleted ("- Given …").
-  if ! grep -qE '^[[:space:]]*([0-9]+\\.|-)[[:space:]]+(Given|GIVEN)' "\$STORY_FILE"; then
+  # APED 6.x canonical AC formats:
+  #   - Given <state> when ...                         (minimal)
+  #   - **Given** <state> when ...                     (bold-only)
+  #   - **AC1.** **Given** <state> when ...            (numbered + bold)
+  #   - **AC1 (label)** — **Given** <state> when ...   (labelled, em-dash sep)
+  # The pre-6.7.6 regex only accepted the minimal form and rejected the rest.
+  if ! grep -qE '^[[:space:]]*([0-9]+\\.|-)[[:space:]]+(\\*\\*[^*]+\\*\\*[[:space:]]+(—|-)?[[:space:]]*)?\\*?\\*?(Given|GIVEN)' "\$STORY_FILE"; then
     fail "no Given/When/Then-formatted Acceptance Criteria in story file"
   fi
 
