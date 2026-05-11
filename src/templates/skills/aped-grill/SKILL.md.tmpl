@@ -12,9 +12,8 @@ metadata:
   author: yabafre
   version: {{CLI_VERSION}}
 ---
-<!-- AUTO-GENERATED from SKILL.md.tmpl. Edits will be overwritten. Run: npm run gen:skill-docs -->
 
-**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+{{ACTIVATION_GUARD}}
 
 # APED Grill — One-question-at-a-time alignment
 
@@ -22,7 +21,7 @@ Pin down a half-formed product idea, plan, or refactor by asking ONE concrete qu
 
 ## On Activation
 
-Read `{{APED_DIR}}/config.yaml` and resolve `{user_name}` / `{communication_language}` / `{document_output_language}`. ✅ YOU MUST speak in `{communication_language}` and write `grill-summary.md` in `{document_output_language}`. HALT if config is missing.
+{{CONFIG_PREAMBLE_INLINE:grill-summary.md}}
 
 ## Inputs (consumed in this order)
 
