@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Skill template generator (`scripts/gen-skill-docs.mjs`) — pure-Node `.tmpl → .md` pipeline with four resolvers (`ACTIVATION_GUARD`, `CONFIG_PREAMBLE`, `CONFIG_PREAMBLE_INLINE:artefact`, `LANGUAGE_DIRECTIVE`). Scaffold-time placeholders (`{{APED_DIR}}`, `{{OUTPUT_DIR}}`, `{{CLI_VERSION}}`) pass through untouched. Unknown placeholders fail with file:line.
+- Freshness gate — `tests/gen-skill-docs-freshness.test.js` re-runs the generator in-process and byte-compares every committed `.md` against its `.tmpl`. `prepublishOnly` runs the same check (`gen:skill-docs:check`) so stale output can't reach npm.
+- Smoke-pack `.tmpl` exclusion assertion — confirms the `files` allowlist (extension-based) keeps generator sources out of the tarball.
+
+### Changed
+- Boilerplate-bearing SKILL.md files now ship with a `<!-- AUTO-GENERATED -->` marker immediately after frontmatter; body text is byte-identical to 6.5.0.
+
 ## [6.5.0] - 2026-05-11
 
 ### **APED's discipline gets a canonical home, and three install-time papercuts disappear.**
