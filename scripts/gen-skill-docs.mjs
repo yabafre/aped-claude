@@ -76,7 +76,9 @@ export const RESOLVERS = {
 
 const SCAFFOLD_TIME_ALLOWLIST = new Set(['APED_DIR', 'OUTPUT_DIR', 'CLI_VERSION']);
 
-const PLACEHOLDER_RE = /\{\{([A-Z_]+)(?::([^}]*))?\}\}/g;
+// At least 2 uppercase chars to avoid colliding with user-prose template
+// tokens like {{N}} / {{M}} that some skills emit verbatim in example output.
+const PLACEHOLDER_RE = /\{\{([A-Z_]{2,})(?::([^}]*))?\}\}/g;
 
 function lineOf(content, idx) {
   let line = 1;
