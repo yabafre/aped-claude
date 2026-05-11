@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.7.5] - 2026-05-11
+
 ### **Sprint mode actually works now — and it ships with a second gear.**
 
 6.7.5 is a single release shipping three coordinated fixes for the sprint flow. **(1)** Five awk patterns across four scripts (`check-auto-approve`, `checkin`, `check-active-worktrees`, `sync-state` fallback) now accept double-quoted YAML keys — state.yaml v3+ writes `    "3-5":` for numeric-leading story keys, and every `aped-lead` check-in was escalating with "no worktree registered" because the awk matched `^    key:` literally. **(2)** `sprint-dispatch.sh` now bootstraps the new worktree out of the box: detect the package-runner from the lockfile and run install, copy `.env` from the project root when `.env.example` sits in the worktree and `.env` is absent. Override via `sprint.post_dispatch_hook` for non-standard bootstraps. **(3)** State.yaml schema bumps to v4 with `sprint.mode: parallel|sequential` — sequential mode uses [git-spice](https://github.com/abhinav/git-spice) to stack stories inside ONE shared worktree instead of N parallel ones. The umbrella branch and `aped-ship` topology stay identical; only the assembly inside differs.
