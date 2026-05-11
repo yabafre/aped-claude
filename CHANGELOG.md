@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — MCP-first flip cleanup
+
+The v5.5.0 promise that "Prefer MCP" paths route through the APED MCP servers was doc-flipped: three coherent gaps made 60%+ of those paths fall through silently to file-edit fallback.
+
+- `aped-ticket-server.mjs` `getProvider()` now normalizes `github-issues` → `github` and `gitlab-issues` → `gitlab` before its `KNOWN` check. Projects scaffolded with either long-form value no longer hit `UNKNOWN_PROVIDER` on every ticket call. Server-side only; the rest of the codebase keeps the long-form vocabulary (full unification is breaking 7.0 work).
+- `aped_ticket.add_comment(ticket_id, body)` is now a registered MCP tool. It was called by `aped-dev` / `aped-story` / `aped-review` finalizers without existing in the server. GitHub impl runs `gh issue comment`; linear/jira/gitlab throw `PROVIDER_ERROR: not yet implemented` matching today's stub convention.
+- `state-schema.mjs` `PHASES` now includes `ux` (passed by `aped-ux/step-07` against a schema that previously rejected it). `STATUSES` is EXPANDed with `done` (alias for `complete`), `review`, and `ready-for-dev` to admit the downstream-signal vocabulary skills already emit. `LEGAL_TRANSITIONS` extended accordingly. CANONICALIZE — picking one canonical name per state and rewriting the 5 skill call-sites — is scheduled for 6.5+.
+- New `tests/mcp-vocab-roundtrip.test.js` scans skill files and asserts every `aped_state.advance` and `mcp__aped_ticket__*` call uses a vocab the live server schemas accept. Imports the constants from source (never hardcoded), so future schema changes auto-propagate to the lint.
+
+Scope-out: A4 `ticket_sync` discriminated-union schema (breaking config change — deferred to 6.6/7.0 with `migrate-state.sh` v3→v4). ClickUp MCP adapter — separate cycle.
+
 ## [6.4.0] - 2026-05-11
 
 ### Added — ClickUp as a ticket_system option
