@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.0] - 2026-05-11
+
 ### Added — ClickUp as a ticket_system option
 
 - `--tickets=clickup` (and the matching install prompt option) wire a new BEFORE/DURING/AFTER block into `references/ticket-git-workflow.md`. Teams on ClickUp no longer have to scaffold with `ticket_system: none` and patch the guidance by hand.
