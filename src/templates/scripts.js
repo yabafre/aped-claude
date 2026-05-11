@@ -1724,13 +1724,13 @@ set_story_field() {
   key_re=\$(printf '%s' "\$key" | sed 's/[][\\\\/.^\$*+?(){}|]/\\\\&/g')
   awk -v k_re="\$key_re" -v f="\$field" -v v="\$value" '
     function is_story_header(s) {
-      # "<indent>WORD:" with optional trailing whitespace and nothing else
-      return match(s, "^[[:space:]]+[A-Za-z0-9_-]+:[[:space:]]*\$")
+      # "<indent>WORD:" or "<indent>\"WORD\":" with optional trailing space.
+      return match(s, "^[[:space:]]+\\"?[A-Za-z0-9_-]+\\"?:[[:space:]]*\$")
     }
     BEGIN { in_story = 0 }
     {
       line = \$0
-      if (match(line, "^([[:space:]]+)" k_re ":[[:space:]]*\$")) {
+      if (match(line, "^([[:space:]]+)\\"?" k_re "\\"?:[[:space:]]*\$")) {
         in_story = 1
         print line
         next
@@ -3200,9 +3200,9 @@ else
     in_sprint && /^[a-zA-Z]/ { in_sprint=0 }
     in_sprint && /^  stories:/ { in_stories=1; next }
     in_stories && /^  [a-zA-Z]/ { in_stories=0 }
-    in_stories && /^    [a-zA-Z0-9_-]+:[[:space:]]*\$/ {
+    in_stories && /^    "?[a-zA-Z0-9_-]+"?:[[:space:]]*\$/ {
       if (key != "") print key "|" status "|" worktree
-      k=\$0; sub(/:[[:space:]]*\$/, "", k); sub(/^[[:space:]]+/, "", k)
+      k=\$0; sub(/:[[:space:]]*\$/, "", k); sub(/^[[:space:]]+/, "", k); gsub(/"/, "", k)
       key=k; status=""; worktree="null"
       next
     }
@@ -3297,8 +3297,8 @@ fail() { REASONS+=("- \$1"); }
 field_for_story() {
   local key="\$1" field="\$2"
   awk -v k="\$key" -v f="\$field" '
-    \$0 ~ "^    " k ":" { in_story=1; next }
-    in_story && /^    [a-zA-Z0-9_-]+:/ { in_story=0 }
+    \$0 ~ "^    \\"?" k "\\"?:" { in_story=1; next }
+    in_story && /^    "?[a-zA-Z0-9_-]+"?:/ { in_story=0 }
     in_story && \$1 == f ":" { gsub(/"/, "", \$2); print \$2; exit }
   ' "\$STATE_FILE"
 }
@@ -3331,8 +3331,8 @@ check_story_ready() {
   # depends_on all done.
   local deps
   deps=\$(awk -v k="\$KEY" '
-    \$0 ~ "^    " k ":" { in_story=1; next }
-    in_story && /^    [a-zA-Z0-9_-]+:/ && !/depends_on:/ { if (!in_deps) in_story=0 }
+    \$0 ~ "^    \\"?" k "\\"?:" { in_story=1; next }
+    in_story && /^    "?[a-zA-Z0-9_-]+"?:/ && !/depends_on:/ { if (!in_deps) in_story=0 }
     in_story && /^[[:space:]]+depends_on:/ { in_deps=1; next }
     in_deps && /^[[:space:]]+-[[:space:]]/ { gsub(/^[[:space:]]+-[[:space:]]+/, ""); gsub(/"/, ""); print }
     in_deps && /^[[:space:]]+[a-zA-Z]/ { in_deps=0 }
@@ -3550,8 +3550,8 @@ field_for_story() {
   local key="\$1" field="\$2"
   [[ -f "\$STATE_FILE" ]] || return 1
   awk -v k="\$key" -v f="\$field" '
-    \$0 ~ "^    " k ":" { in_story=1; next }
-    in_story && /^    [a-zA-Z0-9_-]+:/ { in_story=0 }
+    \$0 ~ "^    \\"?" k "\\"?:" { in_story=1; next }
+    in_story && /^    "?[a-zA-Z0-9_-]+"?:/ { in_story=0 }
     in_story && \$1 == f ":" {
       gsub(/"/, "", \$2); print \$2; exit
     }
