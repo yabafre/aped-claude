@@ -7,15 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- `aped-method context-monitor` opt-in PostToolUse advisory hook (`src/templates/hooks/context-monitor.js`). Reads the transcript after each tool call, computes used/limit/remaining from the last assistant turn's usage record (input + cache_read + cache_creation), and injects `CONTEXT WARNING` (remaining ≤35%) / `CONTEXT CRITICAL` (≤25%) advisories to the agent. Statusline shows the user; this hook shows the agent. Debounced 5 calls; severity escalation bypasses debounce. 10s stdin timeout; rejects session_id with path-traversal chars. Disable via `hooks.context_monitor: false` in `config.local.yaml` (per-developer, read first) or `config.yaml` (team).
-- `tests/context-monitor-install.test.js` + `tests/context-monitor-runtime.test.js` — 5 install-shape contracts + 11 runtime tests (threshold/debounce/severity-escalation/disable-via-config/path-traversal-reject/malformed-input).
+## [6.7.0] - 2026-05-11
 
-### Changed
-- `docs/aped-workflow.md` "Latest stable" badge advanced from v6.3.3 (drift since 6.4.0) to v6.7.0 with summary of 6.4–6.7 line.
-- `docs/skills-classification.md` count line corrected (33 → 35, matched the rest of the doc) + brief note about the v6.6.0 `.tmpl` generator.
-- `docs/TROUBLESHOOTING.md` adds entries 33 (stale generated SKILL.md fix) and 34 (context-monitor disable knobs).
-- `README.md` Optional hooks section lists `aped-method context-monitor` with its disable knobs.
+### **The agent finally sees the gauge it was burning.**
+
+The statusline has shown context usage for releases — but only to the user. The agent itself had no signal, so it would happily start a deep-dive at 92% used. 6.7.0 ports `gsd-context-monitor` as an opt-in `PostToolUse` hook that reads the same transcript the statusline reads, computes used / limit / remaining from the last assistant turn's usage record, and injects `CONTEXT WARNING` (≤35% remaining) or `CONTEXT CRITICAL` (≤25%) directly into the conversation as `additionalContext`. Debounced 5 tool calls so it doesn't spam; severity escalation bypasses debounce so the upgrade from WARNING to CRITICAL fires instantly. The 6.6.0 generator pipeline pays off too — the standardization rolled the 6.4–6.7 doc drift back into alignment in one batch.
+
+### The numbers that matter
+
+Source: `git diff v6.6.0..HEAD` on `packages/create-aped/`.
+
+| Metric | Before (6.6.0) | After (6.7.0) | Δ |
+|---|---|---|---|
+| Context-awareness channels for the agent | 0 (statusline = user-only) | 1 (advisory hook) | new channel |
+| Optional hooks | 10 | 11 | +1 |
+| Hook runtime tests | 0 dedicated | 11 (threshold + debounce + escalation + disable + reject + edges) | new gate |
+| Docs out of sync with shipped version | 4 (workflow, classification, troubleshooting, README) | 0 | full catch-up |
+
+### What this means for builders
+
+Installing the hook is a one-liner: `aped-method context-monitor`. Disabling per-developer without touching the team config is another one-liner: drop `hooks.context_monitor: false` into `.aped/config.local.yaml` (gitignored, read with precedence over the team `config.yaml`). When the agent sees `CONTEXT CRITICAL`, it knows to surface the situation to the human and stop starting new complex work — the hook never blocks tool execution, it just delivers the missing signal.
+
+### Itemized changes
+
+#### Added
+- `aped-method context-monitor` opt-in PostToolUse advisory hook (`src/templates/hooks/context-monitor.js`, ~175 LOC). Reads `transcript_path` from the hook payload, computes used = `input_tokens + cache_read_input_tokens + cache_creation_input_tokens` from the last assistant `usage` record, detects 1M context window when `model.id` contains `[1m]` (200k otherwise), emits WARNING ≤35% / CRITICAL ≤25%. Debounced 5 tool calls via `/tmp/aped-ctx-{sessionId}-warned.json` (treated stale after 60s). Severity escalation bypasses debounce. 10s stdin timeout. Rejects `session_id` containing path-traversal chars. Disable via `hooks.context_monitor: false` in `config.local.yaml` (per-developer, gitignored, read first) or `config.yaml` (team).
+- `tests/context-monitor-install.test.js` — 5 install-shape contracts (template shape, path substitution, broad `.*` matcher, disable-via-config gate ordering, 1M context-window detection).
+- `tests/context-monitor-runtime.test.js` — 11 runtime tests spawning the actual hook with synthetic transcripts: silent below threshold, WARNING at 65% used, CRITICAL at 75%, APED-aware message when `state.yaml` exists, 1M window detection, debounce, severity escalation, disable-via-config, path-traversal rejection, missing transcript, malformed JSON input.
+
+#### Changed
+- `docs/aped-workflow.md` "Latest stable" badge advanced from v6.3.3 (drift since 6.4.0) to v6.7.0 with a summary line covering the 6.4–6.7 cycle.
+- `docs/skills-classification.md` count line corrected (`count (33)` → `count (35)`, matched the rest of the doc which already said 35 at line 85) + brief note about the v6.6.0 `.tmpl` generator.
+- `docs/TROUBLESHOOTING.md` adds entries 33 (stale generated SKILL.md fix: edit the `.tmpl`, run `npm run gen:skill-docs`) and 34 (context-monitor disable knobs: per-developer via `config.local.yaml`, team via `config.yaml`, uninstall via `--uninstall`).
+- `README.md` Optional hooks section lists `aped-method context-monitor` with its disable knobs and the 6.7.0+ marker.
 
 ## [6.6.0] - 2026-05-11
 
