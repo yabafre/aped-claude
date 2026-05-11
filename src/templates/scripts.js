@@ -1319,6 +1319,47 @@ PROJECT_NAME=\$(basename "\$PROJECT_ROOT")
 WORKTREE_PATH="\$(dirname "\$PROJECT_ROOT")/\${PROJECT_NAME}-\${TICKET_ID}-\${STORY_KEY}"
 BRANCH_NAME="feature/\${TICKET_ID}-\${STORY_KEY}"
 
+# ── Sprint mode detection (6.7.5) ──
+# Read sprint.mode from state.yaml (preferred) or config.yaml. Default
+# "parallel" preserves pre-6.7.5 behavior.
+SPRINT_MODE="parallel"
+SHARED_WORKTREE=""
+if command -v yq >/dev/null 2>&1; then
+  STATE_FILE_TMP="\$PROJECT_ROOT/${o}/state.yaml"
+  CONFIG_FILE_TMP="\$PROJECT_ROOT/${a}/config.yaml"
+  if [[ -f "\$STATE_FILE_TMP" ]]; then
+    m=\$(yq eval '.sprint.mode // ""' "\$STATE_FILE_TMP" 2>/dev/null || echo "")
+    [[ -n "\$m" && "\$m" != "null" ]] && SPRINT_MODE="\$m"
+    s=\$(yq eval '.sprint.shared_worktree // ""' "\$STATE_FILE_TMP" 2>/dev/null || echo "")
+    [[ -n "\$s" && "\$s" != "null" ]] && SHARED_WORKTREE="\$s"
+  fi
+  if [[ "\$SPRINT_MODE" == "parallel" && -f "\$CONFIG_FILE_TMP" ]]; then
+    m=\$(yq eval '.sprint.mode // ""' "\$CONFIG_FILE_TMP" 2>/dev/null || echo "")
+    [[ -n "\$m" && "\$m" != "null" ]] && SPRINT_MODE="\$m"
+  fi
+fi
+
+if [[ "\$SPRINT_MODE" == "sequential" ]]; then
+  # Sequential mode requires git-spice for stack management. \`gs\` collides
+  # with GhostScript on macOS (/usr/bin/gs) — verify it's actually git-spice
+  # by sniffing the --version output.
+  if ! command -v gs >/dev/null 2>&1 || ! gs --version 2>&1 | grep -qiE 'git[ -]spice'; then
+    echo "ERROR: sprint.mode=sequential requires git-spice (\\\`gs\\\`). Install: https://github.com/abhinav/git-spice" >&2
+    exit 5
+  fi
+  if [[ -z "\$SHARED_WORKTREE" ]]; then
+    echo "ERROR: sprint.mode=sequential but sprint.shared_worktree is not set in state.yaml. \\\`aped-sprint\\\` must create the shared worktree at sprint start." >&2
+    exit 5
+  fi
+  if [[ ! -d "\$SHARED_WORKTREE" ]]; then
+    echo "ERROR: shared worktree \$SHARED_WORKTREE does not exist on disk. Recreate via aped-sprint or reset state.yaml." >&2
+    exit 5
+  fi
+  # Override the per-story worktree path: every sequential story lives in
+  # the shared worktree. The branch still stacks via gs.
+  WORKTREE_PATH="\$SHARED_WORKTREE"
+fi
+
 # ── Fleet-lock keyed on the worktree path (sanitised for filesystem use) ─
 LOCK_KEY=\$(printf '%s' "\$WORKTREE_PATH" | tr '/ ' '__')
 SPRINT_LOCK_DIR="\$PROJECT_ROOT/${a}/.sprint-locks/\$LOCK_KEY"
@@ -1352,26 +1393,41 @@ done
 # exists" check below is the next safety net for replays.
 trap "rm -rf '\$SPRINT_LOCK_DIR' 2>/dev/null || true" EXIT INT TERM
 
-if [[ -d "\$WORKTREE_PATH" ]]; then
-  echo "ERROR: worktree path already exists: \$WORKTREE_PATH" >&2
-  exit 2
-fi
-
-cd "\$PROJECT_ROOT"
-
-# Resolve base-ref up-front so a typo fails loud instead of silently
-# branching from an unrelated commit.
-if [[ "\$BASE_REF" != "HEAD" ]]; then
-  if ! git rev-parse --verify "\$BASE_REF" >/dev/null 2>&1; then
-    echo "ERROR: base-ref '\$BASE_REF' does not resolve. In sprint mode the umbrella must be created by /aped-sprint before dispatch." >&2
-    exit 4
+if [[ "\$SPRINT_MODE" == "sequential" ]]; then
+  # Shared worktree already exists; stack the branch via git-spice.
+  # gs branch create stacks on top of the currently-checked-out branch
+  # inside the shared worktree. The aped-sprint skill is responsible for
+  # ordering: prior story must be checked out (or the umbrella for story 1)
+  # before invoking dispatch.
+  if (cd "\$SHARED_WORKTREE" && gs branch create "\$BRANCH_NAME" >&2); then
+    : # stacked successfully
+  else
+    echo "ERROR: \\\`gs branch create \$BRANCH_NAME\\\` failed inside \$SHARED_WORKTREE. Check the shared worktree's state with \\\`gs ls\\\` from there." >&2
+    exit 6
   fi
-fi
-
-if git rev-parse --verify "\$BRANCH_NAME" >/dev/null 2>&1; then
-  git worktree add "\$WORKTREE_PATH" "\$BRANCH_NAME" >&2
 else
-  git worktree add -b "\$BRANCH_NAME" "\$WORKTREE_PATH" "\$BASE_REF" >&2
+  # Parallel mode (default): create an independent worktree per story.
+  if [[ -d "\$WORKTREE_PATH" ]]; then
+    echo "ERROR: worktree path already exists: \$WORKTREE_PATH" >&2
+    exit 2
+  fi
+
+  cd "\$PROJECT_ROOT"
+
+  # Resolve base-ref up-front so a typo fails loud instead of silently
+  # branching from an unrelated commit.
+  if [[ "\$BASE_REF" != "HEAD" ]]; then
+    if ! git rev-parse --verify "\$BASE_REF" >/dev/null 2>&1; then
+      echo "ERROR: base-ref '\$BASE_REF' does not resolve. In sprint mode the umbrella must be created by /aped-sprint before dispatch." >&2
+      exit 4
+    fi
+  fi
+
+  if git rev-parse --verify "\$BRANCH_NAME" >/dev/null 2>&1; then
+    git worktree add "\$WORKTREE_PATH" "\$BRANCH_NAME" >&2
+  else
+    git worktree add -b "\$BRANCH_NAME" "\$WORKTREE_PATH" "\$BASE_REF" >&2
+  fi
 fi
 
 mkdir -p "\$WORKTREE_PATH/${a}"
@@ -1381,6 +1437,7 @@ story_key: \$STORY_KEY
 ticket: \$TICKET_ID
 branch: \$BRANCH_NAME
 project_root: \$PROJECT_ROOT
+sprint_mode: \$SPRINT_MODE
 created_at: \$(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
 
@@ -2136,7 +2193,7 @@ fi
 # runtime state). Skill readers fall back to state.yaml for v2 scaffolds.
 # Schema versions beyond KNOWN_SCHEMA_VERSIONS — refuse with a clear hint
 # instead of silently best-effort-parsing a future shape.
-KNOWN_SCHEMA_VERSIONS="1 2 3"
+KNOWN_SCHEMA_VERSIONS="1 2 3 4"
 schema_version="1"
 if command -v yq >/dev/null 2>&1; then
   schema_version=\$(yq eval '.schema_version // 1' "\$STATE_FILE" 2>/dev/null || echo "1")
@@ -2161,7 +2218,9 @@ fi
 KNOWN_TOP_LEVEL_BLOCKS_V1="schema_version pipeline sprint ticket_sync backlog_future_scope corrections"
 KNOWN_TOP_LEVEL_BLOCKS_V2="schema_version pipeline sprint ticket_sync backlog_future_scope corrections_pointer corrections_count"
 KNOWN_TOP_LEVEL_BLOCKS_V3="\$KNOWN_TOP_LEVEL_BLOCKS_V2"
+KNOWN_TOP_LEVEL_BLOCKS_V4="\$KNOWN_TOP_LEVEL_BLOCKS_V3"
 case "\$schema_version" in
+  4) KNOWN_TOP_LEVEL_BLOCKS="\$KNOWN_TOP_LEVEL_BLOCKS_V4" ;;
   3) KNOWN_TOP_LEVEL_BLOCKS="\$KNOWN_TOP_LEVEL_BLOCKS_V3" ;;
   2) KNOWN_TOP_LEVEL_BLOCKS="\$KNOWN_TOP_LEVEL_BLOCKS_V2" ;;
   *) KNOWN_TOP_LEVEL_BLOCKS="\$KNOWN_TOP_LEVEL_BLOCKS_V1" ;;
@@ -2173,7 +2232,7 @@ esac
 # top-level \`corrections:\` after migration means manual editing or a botched
 # migration; either way the audit invariant ("one source of truth for
 # corrections") is broken. Surface it loudly.
-if [[ "\$schema_version" == "2" || "\$schema_version" == "3" ]] && grep -qE '^corrections:' "\$STATE_FILE" 2>/dev/null; then
+if [[ "\$schema_version" == "2" || "\$schema_version" == "3" || "\$schema_version" == "4" ]] && grep -qE '^corrections:' "\$STATE_FILE" 2>/dev/null; then
   echo "ERROR: state.yaml schema_version=\$schema_version but a top-level \\\`corrections:\\\` block is still present. In v2+ corrections live in the file pointed to by \\\`corrections_pointer\\\`. Run \\\`bash ${a}/scripts/migrate-state.sh\\\` to migrate, or remove the residual top-level block manually." >&2
   exit 4
 fi
@@ -2182,7 +2241,7 @@ fi
 # config.yaml, not state.yaml. A residual mention here points at an
 # incomplete v2→v3 migration; the migration tool moves them to config.yaml
 # and deletes them from state.yaml in lock-step.
-if [[ "\$schema_version" == "3" ]] && command -v yq >/dev/null 2>&1; then
+if [[ "\$schema_version" == "3" || "\$schema_version" == "4" ]] && command -v yq >/dev/null 2>&1; then
   for runtime_pref in parallel_limit review_limit; do
     val=\$(yq eval ".sprint.\$runtime_pref // \\"\\"" "\$STATE_FILE" 2>/dev/null || echo "")
     if [[ -n "\$val" && "\$val" != "null" ]]; then
@@ -2198,7 +2257,7 @@ fi
 # while active_epic is set means the sprint was started before the
 # umbrella convention or someone hand-edited state.yaml. Surface it
 # rather than letting aped-ship blow up later with a cryptic null.
-if [[ "\$schema_version" == "3" ]] && command -v yq >/dev/null 2>&1; then
+if [[ "\$schema_version" == "3" || "\$schema_version" == "4" ]] && command -v yq >/dev/null 2>&1; then
   active_epic=\$(yq eval '.sprint.active_epic // ""' "\$STATE_FILE" 2>/dev/null || echo "")
   if [[ -n "\$active_epic" && "\$active_epic" != "null" ]]; then
     umbrella=\$(yq eval '.sprint.umbrella_branch // ""' "\$STATE_FILE" 2>/dev/null || echo "")
@@ -3151,6 +3210,46 @@ migrate_v2_to_v3() {
   return 0
 }
 
+migrate_v3_to_v4() {
+  if ! command -v yq >/dev/null 2>&1; then
+    echo "ERROR: v3 → v4 migration requires \\\`yq\\\` to manipulate YAML structurally. Install yq (\\\`brew install yq\\\` or \\\`npm i -g yq\\\`) and re-run." >&2
+    return 3
+  fi
+
+  local backup="\$PROJECT_ROOT/${o}/state.yaml.pre-v4-migration.bak"
+  echo "Migrating state.yaml schema 3 → 4 (seeding sprint.mode, sprint.stack_order)..." >&2
+
+  if ! cp -f "\$STATE_FILE" "\$backup"; then
+    echo "ERROR: failed to write backup at \$backup — aborting migration." >&2
+    return 1
+  fi
+
+  local state_tmp
+  state_tmp=\$(mktemp "\$(dirname "\$STATE_FILE")/.state.XXXXXX")
+  cp -f "\$STATE_FILE" "\$state_tmp"
+
+  # Seed defaults — only when absent so a hand-edited preview value survives.
+  local cur_mode cur_stack
+  cur_mode=\$(yq eval '.sprint.mode // ""' "\$state_tmp" 2>/dev/null || echo "")
+  cur_stack=\$(yq eval '.sprint.stack_order // ""' "\$state_tmp" 2>/dev/null || echo "")
+  if [[ -z "\$cur_mode" || "\$cur_mode" == "null" ]]; then
+    yq eval -i '.sprint.mode = "parallel"' "\$state_tmp"
+  fi
+  if [[ -z "\$cur_stack" || "\$cur_stack" == "null" ]]; then
+    yq eval -i '.sprint.stack_order = []' "\$state_tmp"
+  fi
+  yq eval -i '.schema_version = 4' "\$state_tmp"
+
+  if ! yq eval 'true' "\$state_tmp" >/dev/null 2>&1; then
+    echo "ERROR: produced state.yaml is not valid YAML. State unchanged. Backup at \$backup; produced file at \$state_tmp." >&2
+    return 1
+  fi
+  mv -f "\$state_tmp" "\$STATE_FILE"
+
+  echo "Migration complete. sprint.mode=parallel, sprint.stack_order=[] seeded. Backup at \$backup." >&2
+  return 0
+}
+
 # Chain migrations so a single run brings legacy 3.x scaffolds all the way
 # up to the latest schema. Avoid bash-4-only \`;;&\` fall-through: we use a
 # while loop that re-reads schema_version after each step. Each migrator is
@@ -3166,6 +3265,10 @@ while true; do
       schema_version=3
       ;;
     3)
+      migrate_v3_to_v4 || exit \$?
+      schema_version=4
+      ;;
+    4)
       # Reached the head of the migration chain.
       exit 0
       ;;
