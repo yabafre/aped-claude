@@ -23,7 +23,7 @@ This skill uses **micro-file architecture**:
 
 ### Iron Law
 
-**THE FEEDBACK LOOP IS THE SKILL.** Everything else is mechanical. If you have a fast, deterministic, agent-runnable pass/fail signal for the bug, you will find the cause — bisection, hypothesis-testing, and instrumentation all just consume that signal. Spend disproportionate effort on step 03.
+**THE FEEDBACK LOOP IS THE SKILL.** See [`ETHOS.md` § aped-debug](../ETHOS.md#aped-debug) for full rationale.
 
 ### 3-failed-fixes rule (cross-skill)
 

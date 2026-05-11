@@ -26,7 +26,7 @@ This skill uses **micro-file architecture** for disciplined execution:
 
 ### Iron Law
 
-**NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST.** Code written before its test must be deleted, not adapted — sunk cost is the strongest force pulling toward "tests after". Watching the test fail is irreplaceable: if you didn't see RED, you don't know the test exercises the right path.
+**NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST.** See [`ETHOS.md` § aped-dev](../ETHOS.md#aped-dev) for full rationale.
 
 ## Activation
 

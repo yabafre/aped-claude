@@ -26,7 +26,7 @@ Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
 
 ### Iron Law
 
-**SURFACE CANDIDATES, NEVER AUTO-REFACTOR.** The skill's job is identification + grilling. Implementation belongs to the user's downstream choice — typically a story drafted via `aped-story` and built via `aped-dev`. Never write code in this skill, never modify the modules under audit, never open files outside the report path.
+**SURFACE CANDIDATES, NEVER AUTO-REFACTOR.** See [`ETHOS.md` § aped-arch-audit](../ETHOS.md#aped-arch-audit) for full rationale.
 
 ### Red Flags
 

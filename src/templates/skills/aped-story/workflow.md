@@ -28,7 +28,7 @@ This skill uses **micro-file architecture** for disciplined execution:
 
 ### Iron Law
 
-**NO STORY WITHOUT EXACT FILE PATHS, FULL CODE BLOCKS, EXACT TEST COMMANDS.** The persona reading this story is the *enthusiastic junior with poor taste*. If the story leaves room for interpretation, that junior will pick the wrong path. Verbosity in the story is cheaper by an order of magnitude than ambiguity in the implementation.
+**NO STORY WITHOUT EXACT FILE PATHS, FULL CODE BLOCKS, EXACT TEST COMMANDS.** See [`ETHOS.md` § aped-story](../ETHOS.md#aped-story) for full rationale.
 
 ## Activation
 

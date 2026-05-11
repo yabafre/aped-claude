@@ -18,9 +18,7 @@ Generate two genuinely different designs for the same requirement BEFORE committ
 
 ## Iron Laws
 
-1. **Two designs minimum.** One design is a decision. Two designs is a choice. Never skip Design B.
-2. **Design B must be structurally different.** Not "same thing with a different name" — different trade-off axis (e.g. Design A optimises for read speed, Design B for write simplicity).
-3. **Decision is explicit.** The user picks. The agent does not default to Design A.
+See [`ETHOS.md` § aped-design-twice](../ETHOS.md#aped-design-twice) — three laws: two designs minimum; Design B must be structurally different; decision is explicit.
 
 ## Pipeline
 

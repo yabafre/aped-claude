@@ -1,8 +1,6 @@
 # Writing Discipline — Commits, PRs, Comments, Reviews, Tickets
 
-**Iron Law.** Short, sharp, slightly human. The diff proves the work — prose adds the *why*, never re-narrates the *what*.
-
-If a sentence repeats what the diff already shows, it's noise. If a section feels like it's there to *prove* the work happened, cut it.
+**Iron Law.** Short, sharp, slightly human. The diff proves the work — prose adds the *why*, never re-narrates the *what*. See [`ETHOS.md` § aped-skills-writing-discipline](../ETHOS.md#aped-skills-writing-discipline) for full rationale.
 
 ## What this applies to
 

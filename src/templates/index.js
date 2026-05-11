@@ -5,10 +5,12 @@ import { configFiles } from './config.js';
 import { guardrail } from './guardrail.js';
 import { symlinks } from './symlinks.js';
 import { checklists } from './checklists.js';
+import { ethos } from './ethos.js';
 
 export function getTemplates(config) {
   return [
     ...configFiles(config),
+    ...ethos(config),
     ...skills(config),
     ...symlinks(config),
     ...scripts(config),
