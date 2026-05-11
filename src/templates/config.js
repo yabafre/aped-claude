@@ -187,7 +187,7 @@ state:
 # automatically on \`aped-method --update\` to bump v1 → v2 → v3.
 # Missing schema_version is treated as implicit 1 (backwards compat with
 # pre-3.12 scaffolds).
-schema_version: 3
+schema_version: 4
 
 # Corrections pointer (4.1.0+, schema v2). Append-only log of artefact
 # corrections lives in the file below; \`corrections_count\` is a length
@@ -262,6 +262,12 @@ pipeline:
 sprint:
   project: ""
   active_epic: null
+  # Sprint topology (v4, 6.7.5+):
+  #   mode ∈ {parallel, sequential} — see config.yaml.sprint.mode for semantics
+  #   stack_order — ordered list of story keys (sequential mode only)
+  #   shared_worktree — path to the shared worktree (sequential mode only)
+  mode: parallel
+  stack_order: []
   stories: {}
 
 # Optional top-level blocks (Tier 6, 3.12.0). Skills populate these as
