@@ -671,6 +671,48 @@ Audit log lands at `.aped/.update-orphans-{ISO}.log` before any rm, and the pre-
 
 The hook is advisory only — it never blocks tool execution. Debounce state in `/tmp/aped-ctx-{sessionId}-warned.json` is treated as fresh after 60s of inactivity, so leftover state from a previous session never persists across restarts.
 
+## 35. `aped-lead` check-ins always escalate with "no worktree registered" (≤ 6.7.4)
+
+**Symptom.** Every `aped-lead` `[A]uto` action escalates to manual review, with stderr ending `ERROR: no worktree registered for <story-key> in state.yaml`, even though `state.yaml` shows the story has a `worktree:` path set.
+
+**Cause.** State.yaml v3+ writes numeric-leading story keys with double quotes — `    "3-5":` — because `3-5` is not a valid YAML bare scalar. Pre-6.7.5 the awk patterns inside `check-auto-approve.sh`, `checkin.sh`, and `check-active-worktrees.sh` matched `^    <key>:` literally and stepped over the quoted-key line. The story block was therefore "invisible" to the script — every field-lookup returned empty.
+
+**Fix.** Upgrade to 6.7.5+ (`npm install aped-method@latest && npx aped-method --update`). The five affected awk patterns are symmetric across quoted and unquoted keys (`"?key"?:`). No state.yaml change required.
+
+## 36. `aped-method context-monitor` was disabled but warnings still show (6.7.0)
+
+**Symptom.** Set `hooks.context_monitor: false` in `config.local.yaml`, but the hook still emits `CONTEXT WARNING`. Or set `hooks.context_monitor: true` and nothing fires.
+
+**Cause.** The hook reads `config.local.yaml` first (per-developer override, gitignored) then `config.yaml`. Whichever file matches first wins. If you set the key in `config.yaml` but `config.local.yaml` also has `hooks.context_monitor:` (with the opposite value), the local override beats the team setting silently.
+
+**Fix.** Grep both files for `context_monitor:` and reconcile. If you want the team setting to apply, delete the line from `config.local.yaml`.
+
+## 37. Sequential sprint mode HALTs with "requires git-spice" (6.7.5+)
+
+**Symptom.** Set `sprint.mode: sequential` in config, ran `aped-sprint`, got `ERROR: sprint.mode=sequential requires git-spice` and an install link.
+
+**Cause.** Sequential mode stacks stories via `git-spice` (`gs branch create`). The dispatch script sniffs `gs --version` for a git-spice signature to disambiguate from GhostScript (`/usr/bin/gs` on macOS) — both share the same binary name.
+
+**Fix.** Install git-spice:
+
+```bash
+# macOS
+brew install abhinav/tap/git-spice
+# Linux / other — see https://github.com/abhinav/git-spice#installation
+```
+
+Then re-run `aped-sprint`. If you don't want sequential mode after all, set `sprint.mode: parallel` (or remove the key entirely — parallel is the default).
+
+## 38. Sequential sprint marker reflects the wrong story after `gs branch checkout` (6.7.5)
+
+**Symptom.** In sequential mode, you dispatched story 1-1, then dispatched 1-2. The `.aped/WORKTREE` marker now says `story_key: 1-2`. You `gs branch checkout feature/KON-1-1-1` to revisit story 1, but `aped-dev`'s step-01 reads the marker and thinks you're on 1-2.
+
+**Cause.** The marker is rewritten on every dispatch and lives at a single path in the shared worktree. `gs branch checkout` switches the active git branch but doesn't touch the marker (it's untracked). Initial 6.7.5 limitation — branch-aware marker resolution lands in a follow-up.
+
+**Fix.** Two workarounds:
+1. Re-run `sprint-dispatch.sh <story-key> <ticket-id>` on the older story — it overwrites the marker with the right key. The `gs branch create` call will fail (branch exists) but the marker write succeeds.
+2. Edit `.aped/WORKTREE` by hand to set `story_key` + `branch` to the active branch. Untracked file, no commit needed.
+
 ## Still stuck?
 
 Run with `--debug` to get a stack trace on error:

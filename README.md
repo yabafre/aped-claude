@@ -75,6 +75,8 @@ aped-sprint     # DAG resolver + capacity check + dispatch
 
 For the best experience, install [workmux](https://github.com/raine/workmux) (`brew install raine/workmux/workmux`) — APED detects it and will auto-create a tmux window with Claude Code pre-launched per story. Without workmux, `aped-sprint` prints the exact `cd` + `claude` + `aped-dev` commands to run in new terminals.
 
+**Two sprint modes since 6.7.5.** `sprint.mode: parallel` (default) is the workmux flow above. `sprint.mode: sequential` (opt-in, requires [git-spice](https://github.com/abhinav/git-spice)) creates ONE shared worktree and stacks stories on top of each other — `gs branch checkout` switches the active story in place. Lighter on disk + `node_modules` install, ideal when stories naturally depend on each other. `sprint-dispatch.sh` HALTs at sprint start if `gs --version` doesn't surface a git-spice signature.
+
 ### Maintenance & optional add-ons
 
 ```bash

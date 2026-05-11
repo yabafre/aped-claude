@@ -7,12 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- `check-auto-approve.sh`, `checkin.sh`, `check-active-worktrees.sh`, and `sync-state.sh` awk fallbacks now accept double-quoted YAML keys (`    "3-5":`). State.yaml v3+ writes numeric-leading story keys with quotes; the previous pre-6.7.5 awk patterns matched `^    key:` literally and every `aped-lead` check-in escalated with "no worktree registered". 5 patterns patched, symmetric `"?` around the key.
+### **Sprint mode actually works now — and it ships with a second gear.**
 
-### Added
-- `sprint.post_dispatch_hook: []` config knob (6.7.5). When empty, `sprint-dispatch.sh` runs smart defaults after the worktree is created: detect package-runner via `detect-package-runner.sh` (pnpm/yarn/bun/npm from lockfile), run `<runner> install` in the worktree, and copy `.env` from project root if `.env.example` is present in the worktree and `.env` is missing. Set to a non-empty array to override — each entry runs in the worktree via `bash -c`, smart defaults skipped. Best-effort: failures log via `log.sh` but never block dispatch.
-- `sprint.mode: parallel|sequential` config knob (6.7.5, default `parallel`). `parallel` keeps the existing one-worktree-per-story behaviour. `sequential` (placeholder — full wiring lands later in this same release) requires `git-spice` at dispatch time and uses a single shared worktree where stories stack via `gs branch create`.
+6.7.5 is a single release shipping three coordinated fixes for the sprint flow. **(1)** Five awk patterns across four scripts (`check-auto-approve`, `checkin`, `check-active-worktrees`, `sync-state` fallback) now accept double-quoted YAML keys — state.yaml v3+ writes `    "3-5":` for numeric-leading story keys, and every `aped-lead` check-in was escalating with "no worktree registered" because the awk matched `^    key:` literally. **(2)** `sprint-dispatch.sh` now bootstraps the new worktree out of the box: detect the package-runner from the lockfile and run install, copy `.env` from the project root when `.env.example` sits in the worktree and `.env` is absent. Override via `sprint.post_dispatch_hook` for non-standard bootstraps. **(3)** State.yaml schema bumps to v4 with `sprint.mode: parallel|sequential` — sequential mode uses [git-spice](https://github.com/abhinav/git-spice) to stack stories inside ONE shared worktree instead of N parallel ones. The umbrella branch and `aped-ship` topology stay identical; only the assembly inside differs.
+
+Shipped as **PATCH per explicit user override** of the CLAUDE.md SemVer rule. Single PR, six commits including this release prep. The MINOR-worthy features (post-dispatch hook + sequential mode) ride along under the PATCH label this once; future similar deliveries land as MINOR.
+
+### The numbers that matter
+
+Source: `git diff v6.7.0..HEAD` on `packages/create-aped/`.
+
+| Metric | Before (6.7.0) | After (6.7.5) | Δ |
+|---|---|---|---|
+| `aped-lead` check-in auto-approve success rate on quoted-key state.yaml | 0% (everything escalated) | gated by real reasons only | unblocked |
+| Awk patterns that handle quoted YAML keys | 0/5 in state.yaml-aware scripts | 5/5 | full coverage |
+| Worktree bootstrap after dispatch | manual `npm install` + `.env` copy | smart defaults or `post_dispatch_hook` | zero-step |
+| Sprint topology options | parallel only | parallel + sequential (git-spice) | +1 |
+| State.yaml schema versions | 1, 2, 3 | 1, 2, 3, 4 (v3→v4 idempotent migration) | +1 |
+| Tests | 1882 | 1895 | +13 |
+
+### What this means for builders
+
+Sprint mode stops fighting you. If you cut a worktree manually (no `aped-sprint`), the check-in scripts no longer false-fail on the quoted keys you'd produce. If you let `aped-sprint dispatch` create the worktree, `npm install` + `.env` are already in place by the time you `cd` in. If your stories naturally depend on each other (frontend builds on backend, refactor builds on extraction), set `sprint.mode: sequential` and git-spice stacks them — one `node_modules`, one IDE workspace, `gs branch checkout` to switch active story. Both modes still PR to a single umbrella, and `aped-ship` is unchanged.
+
+### Itemized changes
+
+#### Fixed
+- `check-auto-approve.sh`, `checkin.sh`, `check-active-worktrees.sh`, and `sync-state.sh` awk fallbacks now accept double-quoted YAML keys (`    "3-5":`). State.yaml v3+ writes numeric-leading story keys with quotes; the previous awk patterns matched `^    key:` literally and every `aped-lead` check-in escalated with "no worktree registered". 5 patterns patched, symmetric `"?` around the key.
+
+#### Added
+- `sprint.post_dispatch_hook: []` config knob. When empty, `sprint-dispatch.sh` runs smart defaults after the worktree is created: detect package-runner via `detect-package-runner.sh` (pnpm/yarn/bun/npm from lockfile), run `<runner> install` in the worktree, and copy `.env` from project root if `.env.example` is present in the worktree and `.env` is missing. Set to a non-empty array to override — each entry runs in the worktree via `bash -c`, smart defaults skipped. Best-effort: failures log via `log.sh` but never block dispatch.
+- `sprint.mode: parallel|sequential` config knob (default `parallel`). `sequential` requires `git-spice` at dispatch time (verified by `gs --version | grep git-spice` so GhostScript at `/usr/bin/gs` on macOS doesn't false-match) and uses a single shared worktree where stories stack via `gs branch create`. HALTs with exit 5 + install link if `gs` is missing or not git-spice.
+- State.yaml schema v4 (`src/templates/data/state.yaml.schema.v4.json`) adds `sprint.mode`, `sprint.stack_order`, `sprint.shared_worktree`. `migrate-state.sh` chains v3→v4 idempotently, seeds defaults (`mode: parallel`, `stack_order: []`) when absent, preserves any hand-set values. Backups land at `state.yaml.pre-v4-migration.bak` before mutation.
+- WORKTREE marker now carries `sprint_mode:` (parallel or sequential) so future step-01 logic can disambiguate.
+- `tests/sprint-dispatch-post-create.test.js` (5 cases) — smart-defaults run, pnpm picked from lockfile, `.env` copy, override bypasses smart defaults, failing install non-blocking.
+- `tests/sprint-mode-sequential.test.js` (5 cases) — v3→v4 seeds defaults, v3→v4 preserves user values, HALT on missing/wrong `gs`, stack with `gs branch create`, parallel fallback when mode absent.
+- `tests/sprint-scripts.test.js` quoted-key regression (3 cases): `check-auto-approve` worktree resolution, `check-auto-approve` deps extraction, `checkin` field_for_story.
+
+#### Changed
+- `aped-sprint/workflow.md` documents the two modes and the sprint-start branch — sequential mode creates the shared worktree + `gs init` once before any dispatch; per-story dispatch routes through `sprint-dispatch.sh` which reads `sprint.mode` itself.
+- `docs/aped-workflow.md` "Latest stable" advances to v6.7.5 with the 6.7.0→6.7.5 summary line.
+- `docs/aped-workflow.md` "Parallel sprint mode" section renamed to "Sprint mode (parallel + sequential, optional)" with both modes documented.
+- `docs/TROUBLESHOOTING.md` adds entries 35 (quoted-key escalation), 36 (context-monitor disable knob precedence), 37 (git-spice install for sequential), 38 (marker-vs-current-branch in sequential).
+- `README.md` sprint section mentions the two modes and the git-spice requirement for sequential.
+- `validate-state.sh` recognizes schema v4 (KNOWN_SCHEMA_VERSIONS extends to "1 2 3 4"; top-level blocks, parallel_limit checks, umbrella checks all extended to v4).
 
 ## [6.7.0] - 2026-05-11
 
