@@ -89,6 +89,17 @@ try {
     process.exit(1);
   }
 
+  // 2.6 Assert no .tmpl files in tarball. Generator sources live alongside
+  //     their generated .md, but the `files` allowlist enumerates extensions
+  //     explicitly so .tmpl is excluded. A regression in package.json could
+  //     let them slip — catch it here.
+  const tmplsInTarball = walkExt(extractDir, ['.tmpl']);
+  if (tmplsInTarball.length) {
+    console.error('[smoke:pack] tarball contains .tmpl files (must be excluded):');
+    tmplsInTarball.forEach((p) => console.error('  - ' + relative(extractDir, p)));
+    process.exit(1);
+  }
+
   // 3. Point node_modules at the project's own — `npm install` on the
   //    extracted tree would work too but adds a network round-trip for no
   //    extra signal. A symlink gives runtime resolution identical to a
