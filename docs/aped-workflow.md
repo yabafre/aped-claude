@@ -6,7 +6,7 @@ tags: [aped, workflow, process]
 # APED — Workflow
 **APED** (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) is a disciplined dev pipeline for [Claude Code](https://claude.ai/download). Every phase produces an **artifact**, requires **explicit user validation**, and hands off via a **coherence hook** that warns on skipped steps.
 
-> 📦 Product: `npx aped-method` — scaffolds **35 skills** + hooks into any Claude Code project. Latest stable: **v6.7.0** (2026-05-11) — `aped-method context-monitor` opt-in PostToolUse hook surfaces `CONTEXT WARNING` (≤35%) / `CONTEXT CRITICAL` (≤25%) advisories to the agent (statusline shows the user); 1M context window auto-detected from model id `[1m]`. Builds on v6.6.0 (skill template generator: 4 resolvers, freshness gate, 35/35 skills routed through `.tmpl`), v6.5.0 (Iron Laws hoisted to canonical `ETHOS.md`), v6.4.1 (MCP-first cleanup: ux phase, EXPANDed STATUSES, round-trip vocab lint), v6.4.0 (ClickUp ticket_system option), v6.3.x cycle (artefact contracts, `--update` orphan cleanup, `disable --local` with `config.local.yaml` precedence), v6.2.0 (review slim model + `aped-purge` 35th skill), and v6.1.0 (sprint mode schema v3).
+> 📦 Product: `npx aped-method` — scaffolds **35 skills** + hooks into any Claude Code project. Latest stable: **v6.7.5** (2026-05-11) — fixes the quoted-key parsing bug that made every `aped-lead` check-in escalate, adds smart post-dispatch bootstrap (auto `<runner> install` + `.env` copy), and introduces opt-in `sprint.mode: sequential` via [git-spice](https://github.com/abhinav/git-spice) (stories stack inside one shared worktree). State.yaml schema bumps to v4; v3 migrates idempotently. Builds on v6.7.0 (`context-monitor` advisory hook), v6.6.0 (skill template generator), v6.5.0 (`ETHOS.md` hoist), v6.4.x cycle (ClickUp ticket option + MCP-first cleanup), v6.3.x cycle (artefact contracts, `--update` orphan cleanup, `disable --local` override), and v6.2.0 (review slim model + `aped-purge`).
 > 🔗 See also: [APED — Phases](.aped-phases.md), [APED — Personas & Teams](.aped-personas.md), [APED — Team Quickstart](.aped-quickstart.md)
 
 > ℹ️ **Slash commands removed in 4.0.0** — the 3.x `/aped-X` shells (scaffolded as `.claude/commands/aped-*.md`) were retired. Skills are the only invocation surface — use the **Skill tool** directly or rely on **natural-language triggers** that match each skill's `description:` (say *"create the prd"*, *"run an architecture review"*, etc.).
@@ -87,9 +87,14 @@ flowchart LR
 
 ---
 
-## Parallel sprint mode (optional)
+## Sprint mode (parallel + sequential, optional)
 
-Once `aped-epics` is done, multiple stories can run in parallel via `git worktree`. Two-tier architecture: **Lead Dev** (you, in the main project) ↔ **Story Leaders** (Claude sessions inside each worktree). Since v3.10.0 the sprint integrates via a **sprint umbrella branch** (`sprint/epic-{N}`) so production teams with branch protection on the base branch can ship safely.
+Once `aped-epics` is done, stories ship through a sprint. Two modes are supported (since 6.7.5):
+
+- **Parallel** (default — `sprint.mode: parallel` in `.aped/config.yaml`): one git worktree per story, branches cut from the umbrella, dispatched concurrently via `workmux` or hand-launched terminals. Two-tier architecture: **Lead Dev** (you, in the main project) ↔ **Story Leaders** (Claude sessions inside each worktree).
+- **Sequential** (opt-in — `sprint.mode: sequential`): ONE shared worktree at sprint start. Stories stack on top of each other via [git-spice](https://github.com/abhinav/git-spice) (`gs branch create`). The user works one story at a time; `gs branch checkout <name>` switches the active branch in place. Lighter on disk + `node_modules`. Requires `gs --version` to surface a git-spice signature at sprint start (HALT with install link if missing).
+
+Both modes share the same **sprint umbrella branch** (`sprint/epic-{N}`) cut from the base branch at sprint start. `aped-ship` opens one final PR from umbrella to the base branch regardless of mode — the difference is purely how stories are assembled inside the umbrella. Production teams with branch protection on the base branch ship safely either way.
 
 ```mermaid
 flowchart TB
