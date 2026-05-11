@@ -7,9 +7,8 @@ allowed-paths:
   write: ["{{OUTPUT_DIR}}/**", "{{APED_DIR}}/**"]
   read-only: ["src/**", "tests/**", "package.json"]
 ---
-<!-- AUTO-GENERATED from SKILL.md.tmpl. Edits will be overwritten. Run: npm run gen:skill-docs -->
 
-**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+{{ACTIVATION_GUARD}}
 
 # aped-pre-mortem — Structured Pre-Mortem
 
