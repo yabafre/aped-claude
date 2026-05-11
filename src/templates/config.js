@@ -261,7 +261,7 @@ sprint:
 # # Provider-agnostic ticket sync metadata, written by aped-epics
 # # Ticket System Setup. Re-syncs append to modified_tickets.
 # ticket_sync:
-#   provider: "linear"        # linear | github | gitlab | jira
+#   provider: "linear"        # linear | github | gitlab | jira | clickup
 #   sync_id: "<from sync-log>"
 #   synced_at: "<ISO>"
 #   sync_log: "docs/sync-logs/<file>.json"

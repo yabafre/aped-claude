@@ -29,7 +29,8 @@ function renderWorkflow(ts, gp) {
 }
 
 // Strategic combos covering every ticket_system value and every git_provider
-// value at least once. 5 combos, every variant exercised.
+// value at least once. Every variant exercised; every non-self ticket marker
+// is forbidden in each combo to ratchet cross-leakage.
 const COMBOS = [
   {
     ts: 'linear',
@@ -40,6 +41,7 @@ const COMBOS = [
       /ticket_system = "jira"/,
       /ticket_system = "github-issues"/,
       /ticket_system = "gitlab-issues"/,
+      /ticket_system = "clickup"/,
       /git_provider = "gitlab"/,
       /git_provider = "bitbucket"/,
     ],
@@ -53,6 +55,7 @@ const COMBOS = [
       /ticket_system = "linear"/,
       /ticket_system = "github-issues"/,
       /ticket_system = "gitlab-issues"/,
+      /ticket_system = "clickup"/,
       /git_provider = "github"$|git_provider = "github"\n/m,
       /git_provider = "bitbucket"/,
     ],
@@ -66,6 +69,7 @@ const COMBOS = [
       /ticket_system = "linear"/,
       /ticket_system = "jira"/,
       /ticket_system = "gitlab-issues"/,
+      /ticket_system = "clickup"/,
       /git_provider = "gitlab"/,
       /git_provider = "bitbucket"/,
     ],
@@ -79,7 +83,22 @@ const COMBOS = [
       /ticket_system = "linear"/,
       /ticket_system = "jira"/,
       /ticket_system = "github-issues"/,
+      /ticket_system = "clickup"/,
       /git_provider = "github"$|git_provider = "github"\n/m,
+      /git_provider = "bitbucket"/,
+    ],
+  },
+  {
+    ts: 'clickup',
+    gp: 'github',
+    expectedTsMarker: /ticket_system = "clickup"/,
+    expectedGpMarker: /git_provider = "github"/,
+    forbiddenMarkers: [
+      /ticket_system = "linear"/,
+      /ticket_system = "jira"/,
+      /ticket_system = "github-issues"/,
+      /ticket_system = "gitlab-issues"/,
+      /git_provider = "gitlab"/,
       /git_provider = "bitbucket"/,
     ],
   },
@@ -93,6 +112,7 @@ const COMBOS = [
       /ticket_system = "jira"/,
       /ticket_system = "github-issues"/,
       /ticket_system = "gitlab-issues"/,
+      /ticket_system = "clickup"/,
       /git_provider = "gitlab"/,
       /git_provider = "github"$|git_provider = "github"\n/m,
     ],

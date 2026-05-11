@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — ClickUp as a ticket_system option
+
+- `--tickets=clickup` (and the matching install prompt option) wire a new BEFORE/DURING/AFTER block into `references/ticket-git-workflow.md`. Teams on ClickUp no longer have to scaffold with `ticket_system: none` and patch the guidance by hand.
+- Scope is intentionally minimal: scaffold guidance + interactive prompt + CLI flag + README integrations row + cross-leakage ratchet in `tests/provider-variants.test.js`. No MCP adapter, no `ticket_sync` schema slot, no `aped-from-ticket` URL parser — runtime fetch/auto-link automations stay where they are.
+- The block tells the user to reference the ClickUp task ID in commits (`feat(abc12345): …`) and paste the PR URL back as a task comment. An MCP-driven adapter will follow in a later release.
+
 ## [6.3.3] - 2026-05-08
 
 ### Changed — `disable --local` now also writes a gitignored `config.local.yaml` override

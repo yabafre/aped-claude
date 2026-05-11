@@ -444,6 +444,7 @@ Re-run `aped-method symlink` at any time to repair or rebuild the symlink trees 
 | `jira` | curl to Jira API | `feat(PROJ-XX): …` | Smart commits |
 | `github-issues` | `gh issue view` | `feat(#XX): …` | `Closes #XX` / `Fixes #XX` |
 | `gitlab-issues` | `glab issue view` | `feat(#XX): …` | `Closes #XX` |
+| `clickup` | manual (paste URL) | `feat(abc12345): …` | Paste PR URL as task comment |
 | `none` | — | `feat: …` | — |
 
 Flow: `aped-epics` seeds milestones + issues with labels (🆕 / 🔄 / 🔁) and sizes (S/M/L). `aped-story` fetches the ticket (the team may have edited it — the ticket wins). `aped-dev` fetches again before implementation; any divergence HALTs until resolved. `aped-review` posts the review report as a comment and updates status.
