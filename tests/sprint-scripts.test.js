@@ -992,6 +992,77 @@ sprint:
   });
 });
 
+describe('quoted-key parsing (6.7.5 fix)', () => {
+  // state.yaml v3+ writes story keys with double quotes (`    "3-5":`) so
+  // numeric-leading keys like "3-5" don't get reinterpreted as YAML strings.
+  // Pre-6.7.5 the awk patterns in check-auto-approve.sh, checkin.sh,
+  // check-active-worktrees.sh, and sync-state.sh fallback didn't accept the
+  // quotes — every check escalated with "no worktree registered".
+  const QUOTED_STATE = `schema_version: 3
+sprint:
+  active_epic: 3
+  stories:
+    "3-5":
+      status: ready-for-dev
+      worktree: __WORKTREE__
+      ticket: bon-427
+      depends_on: ["3-4"]
+    "3-4":
+      status: done
+      worktree: null
+`;
+
+  it('check-auto-approve.sh reads worktree from a quoted key', () => {
+    installScript(sandbox, 'check-auto-approve.sh');
+    const wt = join(sandbox, 'fake-worktree');
+    mkdirSync(wt, { recursive: true });
+    writeFileSync(
+      join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      QUOTED_STATE.replace('__WORKTREE__', wt),
+    );
+    const r = run(
+      `bash ${sandbox}/${APED_DIR}/scripts/check-auto-approve.sh story-ready "3-5"`,
+      { CLAUDE_PROJECT_DIR: sandbox },
+    );
+    // Pre-6.7.5: exit 3 with "no worktree registered". Post-fix: anything but
+    // that precondition error (real reasons like missing story file are fine).
+    expect(r.stderr).not.toMatch(/no worktree registered/);
+    expect(r.code).not.toBe(3);
+  });
+
+  it('check-auto-approve.sh extracts depends_on from quoted keys', () => {
+    installScript(sandbox, 'check-auto-approve.sh');
+    const wt = join(sandbox, 'fake-worktree');
+    mkdirSync(wt, { recursive: true });
+    writeFileSync(
+      join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      QUOTED_STATE.replace('__WORKTREE__', wt),
+    );
+    const r = run(
+      `bash ${sandbox}/${APED_DIR}/scripts/check-auto-approve.sh story-ready "3-5"`,
+      { CLAUDE_PROJECT_DIR: sandbox },
+    );
+    // dep "3-4" has status "done" → must NOT appear in failure reasons.
+    expect(r.stderr).not.toMatch(/dependency 3-4/);
+  });
+
+  it('checkin.sh field_for_story resolves quoted-key worktree', () => {
+    installScript(sandbox, 'checkin.sh');
+    const wt = join(sandbox, 'fake-worktree');
+    mkdirSync(wt, { recursive: true });
+    writeFileSync(
+      join(sandbox, OUTPUT_DIR, 'state.yaml'),
+      QUOTED_STATE.replace('__WORKTREE__', wt),
+    );
+    const r = run(
+      `bash ${sandbox}/${APED_DIR}/scripts/checkin.sh dev-blocked "3-5" --reason="test"`,
+      { CLAUDE_PROJECT_DIR: sandbox },
+    );
+    expect(r.stderr).not.toMatch(/story not in state.yaml/);
+    expect(r.stderr).not.toMatch(/no worktree/);
+  });
+});
+
 describe('log.sh', () => {
   it('writes a parseable JSON line per call', () => {
     installScript(sandbox, 'log.sh');
