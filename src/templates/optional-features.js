@@ -266,6 +266,39 @@ export function tddRedMarkerTemplates(c) {
   ];
 }
 
+export function contextMonitorTemplates(c) {
+  const a = c.apedDir;
+  return [
+    {
+      path: `${a}/hooks/context-monitor.js`,
+      executable: true,
+      content: substitute(loadTemplate('hooks/context-monitor.js'), c),
+    },
+    {
+      path: '.claude/settings.local.json',
+      content: stringifySettings({
+        hooks: {
+          PostToolUse: [
+            {
+              matcher: '.*',
+              hooks: [
+                {
+                  type: 'command',
+                  command: `\${CLAUDE_PROJECT_DIR}/${a}/hooks/context-monitor.js`,
+                  // 10 s — Node cold-start + transcript tail read + JSON parse
+                  // of the most recent usage record. Advisory; on timeout the
+                  // hook self-exits silently, never blocks the tool call.
+                  timeout: 10,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    },
+  ];
+}
+
 export function commitGateTemplates(c) {
   const a = c.apedDir;
   return [
