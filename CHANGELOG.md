@@ -7,19 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Skill template generator (`scripts/gen-skill-docs.mjs`) — pure-Node `.tmpl → .md` pipeline with four resolvers (`ACTIVATION_GUARD`, `CONFIG_PREAMBLE`, `CONFIG_PREAMBLE_INLINE:artefact`, `LANGUAGE_DIRECTIVE`). Scaffold-time placeholders (`{{APED_DIR}}`, `{{OUTPUT_DIR}}`, `{{CLI_VERSION}}`) pass through untouched. Unknown placeholders fail with file:line.
-- Freshness gate — `tests/gen-skill-docs-freshness.test.js` re-runs the generator in-process and byte-compares every committed `.md` against its `.tmpl`. `prepublishOnly` runs the same check (`gen:skill-docs:check`) so stale output can't reach npm.
-- Smoke-pack `.tmpl` exclusion assertion — confirms the `files` allowlist (extension-based) keeps generator sources out of the tarball.
+## [6.6.0] - 2026-05-11
 
-### Changed
-- Boilerplate-bearing SKILL.md and workflow.md files now ship with a `<!-- AUTO-GENERATED -->` marker immediately after frontmatter (or at file head for workflow.md with no frontmatter).
-- 8 workflow.md files (analyze, arch, brainstorm, debug, epics, prd, review, ux) had their telegraphic 1-line config preamble replaced by the canonical 9-line expanded form — same intent, ✅ YOU MUST shape across the board. Drift surface gone.
-- 2 SKILL.md files (aped-grill, aped-purge) standardized to the same inline-preamble shape as aped-glossary (drop "upfront" insert, name the canonical artefact).
-- Generator placeholder regex requires ≥2 uppercase chars to avoid colliding with user-prose tokens like `{{N}}` / `{{M}}` that some skills emit verbatim in example output.
+### **Boilerplate gets a generator, drift gets a gate.**
+
+The four blocks that every disciplined APED skill repeats — activation guard, config preamble, language directive, halt-on-missing-config — used to live verbatim across 35 skill files. Edit one, hope the other 34 stayed in sync; the only enforcement was eyeballs. 6.6.0 hoists the canonical bodies into a `.tmpl → .md` generator (`scripts/gen-skill-docs.mjs`), gates regeneration with a freshness test on every `npm test`, and re-gates it again at `prepublishOnly`. Every skill in the tree now flows through the pipeline; the 8 workflow.md files that had drifted to a telegraphic shape get pulled back to the canonical 9-line block. Iron Law sections stay hand-written — the 6.5.0 ethos-citation lint already covers them.
+
+### The numbers that matter
+
+Source: `git diff v6.5.0..HEAD` on `packages/create-aped/`, plus the new test surface.
+
+| Metric | Before (6.5.0) | After (6.6.0) | Δ |
+|---|---|---|---|
+| Sources of truth for boilerplate | 65+ inline copies across 35 files | 4 resolvers in one .mjs | -61 drift surfaces |
+| Skills routed through generator | 0 | 35 | full coverage |
+| Telegraphic preamble variants | 5+ in workflow.md | 0 | unified shape |
+| Generator unit tests | 0 | 17 (`gen-skill-docs-unit.test.js`) | new gate |
+| Freshness assertions (file-level) | 0 | 70+ (`gen-skill-docs-freshness.test.js`) | drift caught in CI |
+| Total tests | 1789 | 1866 | +77 |
+
+### What this means for builders
+
+Editing an Iron-Law-adjacent block (the kind that ends every skill's `## On Activation`) is now a one-file change. Pick the resolver in `scripts/gen-skill-docs.mjs`, edit the body string, run `npm run gen:skill-docs`, commit the regenerated `.md`s. The freshness test catches anyone who edits a `.md` directly. `prepublishOnly` catches anyone who forgets to regenerate before publish. Three layers of "you can't drift this anymore", paid for once.
+
+### Itemized changes
+
+#### Added
+- Skill template generator (`scripts/gen-skill-docs.mjs`) — pure-Node `.tmpl → .md` pipeline with four resolvers (`ACTIVATION_GUARD`, `CONFIG_PREAMBLE`, `CONFIG_PREAMBLE_INLINE:artefact`, `LANGUAGE_DIRECTIVE`). Scaffold-time placeholders (`{{APED_DIR}}`, `{{OUTPUT_DIR}}`, `{{CLI_VERSION}}`) pass through untouched. Unknown placeholders fail with `file:line`.
+- Freshness gate — `tests/gen-skill-docs-freshness.test.js` re-runs the generator in-process and byte-compares every committed `.md` against its `.tmpl`. `prepublishOnly` runs the same check (`gen:skill-docs:check`) so stale output can't reach npm.
+- Unit suite — `tests/gen-skill-docs-unit.test.js` pins the canonical resolver bodies, covers arity rejection (zero/empty/multi-arg), unknown-placeholder rejection with `file:line`, and frontmatter detection edges (CRLF, mid-file markdown HR).
+- Smoke-pack `.tmpl` exclusion assertion (`scripts/smoke-pack.js`) — load-bearing safeguard since the `files` allowlist enumerates specific filenames per pattern; a careless `package.json` edit could otherwise ship `.tmpl` sources.
+
+#### Changed
+- Every boilerplate-bearing SKILL.md and workflow.md now ships with an `<!-- AUTO-GENERATED -->` marker immediately after frontmatter (or at file head when there is none). Body content is byte-identical to 6.5.0 for skills that already used the canonical shape.
+- 8 workflow.md files (analyze, arch, brainstorm, debug, epics, prd, review, ux) had their telegraphic 1-line config preamble replaced by the canonical 9-line expanded form — same intent, `✅ YOU MUST` shape across the board.
+- 2 SKILL.md files (aped-grill, aped-purge) standardized to the same inline-preamble shape as aped-glossary (drop the "upfront" insert; name the canonical artefact, `grill-summary.md` / `INDEX.md`).
 - 5 guard-only SKILL.md (aped-checkpoint, aped-design-twice, aped-pre-mortem, aped-triage, aped-zoom-out) source from `.tmpl` with `{{ACTIVATION_GUARD}}` — every skill in the tree now flows through the generator.
+- Generator placeholder regex requires ≥2 uppercase chars to avoid colliding with user-prose tokens like `{{N}}` / `{{M}}` that some skills emit verbatim in example output.
+- Frontmatter detection is now CRLF-safe and anchored at file head so a mid-file `---` markdown HR can't shift the marker. Empty inline args and scaffold-time placeholders with args throw with `file:line`. The generator collects per-file errors and prints a diff for every stale `.md` (not just the first).
 - `docs/dev/discovery-pattern.md` gains a "Boilerplate authoring (v6.6.0+)" section pointing future contributors at the `.tmpl` workflow and resolver list.
-- Adversarial-review patches: frontmatter detection is now CRLF-safe and anchored at file head so a mid-file `---` markdown HR can't shift the marker; empty inline args and scaffold-time placeholders with args throw with `file:line`; the generator collects per-file errors and prints a diff for every stale `.md` (not just the first); new `tests/gen-skill-docs-unit.test.js` pins the canonical resolver bodies and covers unknown-placeholder rejection.
 
 ## [6.5.0] - 2026-05-11
 
