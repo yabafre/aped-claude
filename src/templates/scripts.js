@@ -1388,6 +1388,44 @@ bash "\$PROJECT_ROOT/${a}/scripts/log.sh" worktree_created \\
   story="\$STORY_KEY" ticket="\$TICKET_ID" branch="\$BRANCH_NAME" worktree="\$WORKTREE_PATH" \\
   2>/dev/null || true
 
+# ── Post-dispatch bootstrap (6.7.5) ──
+# Override > smart defaults. All commands are best-effort: failures log and
+# continue so a flaky network or missing tool never breaks dispatch.
+post_dispatch_log() {
+  bash "\$PROJECT_ROOT/${a}/scripts/log.sh" post_dispatch_step \\
+    story="\$STORY_KEY" step="\$1" status="\$2" \\
+    2>/dev/null || true
+}
+
+HOOK_CMDS=()
+if command -v yq >/dev/null 2>&1 && [[ -f "\$PROJECT_ROOT/${a}/config.yaml" ]]; then
+  while IFS= read -r cmd; do
+    [[ -n "\$cmd" && "\$cmd" != "null" ]] && HOOK_CMDS+=("\$cmd")
+  done < <(yq eval '.sprint.post_dispatch_hook[]? // ""' "\$PROJECT_ROOT/${a}/config.yaml" 2>/dev/null || true)
+fi
+
+if (( \${#HOOK_CMDS[@]} > 0 )); then
+  # User override — run each command, skip smart defaults entirely.
+  for cmd in "\${HOOK_CMDS[@]}"; do
+    (cd "\$WORKTREE_PATH" && bash -c "\$cmd") \\
+      && post_dispatch_log "hook:\$cmd" ok \\
+      || post_dispatch_log "hook:\$cmd" failed
+  done
+else
+  # Smart defaults — try them all, log each independently.
+  if [[ -f "\$WORKTREE_PATH/package.json" ]]; then
+    RUNNER=\$(bash "\$PROJECT_ROOT/${a}/scripts/detect-package-runner.sh" "\$WORKTREE_PATH" 2>/dev/null || echo "npm")
+    (cd "\$WORKTREE_PATH" && "\$RUNNER" install 2>&1 | tail -5 >&2) \\
+      && post_dispatch_log "install:\$RUNNER" ok \\
+      || post_dispatch_log "install:\$RUNNER" failed
+  fi
+  if [[ -f "\$WORKTREE_PATH/.env.example" && ! -f "\$WORKTREE_PATH/.env" && -f "\$PROJECT_ROOT/.env" ]]; then
+    cp "\$PROJECT_ROOT/.env" "\$WORKTREE_PATH/.env" \\
+      && post_dispatch_log "env:copy" ok \\
+      || post_dispatch_log "env:copy" failed
+  fi
+fi
+
 printf '%s\\n' "\$WORKTREE_PATH"
 `,
     },
