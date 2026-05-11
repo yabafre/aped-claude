@@ -13,7 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Smoke-pack `.tmpl` exclusion assertion — confirms the `files` allowlist (extension-based) keeps generator sources out of the tarball.
 
 ### Changed
-- Boilerplate-bearing SKILL.md files now ship with a `<!-- AUTO-GENERATED -->` marker immediately after frontmatter; body text is byte-identical to 6.5.0.
+- Boilerplate-bearing SKILL.md and workflow.md files now ship with a `<!-- AUTO-GENERATED -->` marker immediately after frontmatter (or at file head for workflow.md with no frontmatter).
+- 8 workflow.md files (analyze, arch, brainstorm, debug, epics, prd, review, ux) had their telegraphic 1-line config preamble replaced by the canonical 9-line expanded form — same intent, ✅ YOU MUST shape across the board. Drift surface gone.
+- 2 SKILL.md files (aped-grill, aped-purge) standardized to the same inline-preamble shape as aped-glossary (drop "upfront" insert, name the canonical artefact).
+- Generator placeholder regex requires ≥2 uppercase chars to avoid colliding with user-prose tokens like `{{N}}` / `{{M}}` that some skills emit verbatim in example output.
 
 ## [6.5.0] - 2026-05-11
 

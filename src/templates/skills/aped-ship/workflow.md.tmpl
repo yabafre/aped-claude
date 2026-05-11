@@ -1,6 +1,4 @@
-<!-- AUTO-GENERATED from workflow.md.tmpl. Edits will be overwritten. Run: npm run gen:skill-docs -->
-
-**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+{{ACTIVATION_GUARD}}
 
 
 # APED Ship — Sprint Umbrella → Base PR
@@ -11,15 +9,7 @@ The end-of-sprint counterpart to `aped-sprint`. The umbrella branch (`sprint/epi
 
 ## On Activation
 
-Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
-- `{user_name}` — for greeting and direct address
-- `{communication_language}` — for ALL conversation with the user
-- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
-- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
-
-✅ YOU MUST speak `{communication_language}` in every message to the user.
-✅ YOU MUST write artefact content in `{document_output_language}`.
-✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
+{{CONFIG_PREAMBLE}}
 
 ## Critical Rules
 
