@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `aped-method context-monitor` opt-in PostToolUse advisory hook (`src/templates/hooks/context-monitor.js`). Reads the transcript after each tool call, computes used/limit/remaining from the last assistant turn's usage record (input + cache_read + cache_creation), and injects `CONTEXT WARNING` (remaining ≤35%) / `CONTEXT CRITICAL` (≤25%) advisories to the agent. Statusline shows the user; this hook shows the agent. Debounced 5 calls; severity escalation bypasses debounce. 10s stdin timeout; rejects session_id with path-traversal chars. Disable via `hooks.context_monitor: false` in `config.local.yaml` (per-developer, read first) or `config.yaml` (team).
+- `tests/context-monitor-install.test.js` + `tests/context-monitor-runtime.test.js` — 5 install-shape contracts + 11 runtime tests (threshold/debounce/severity-escalation/disable-via-config/path-traversal-reject/malformed-input).
+
+### Changed
+- `docs/aped-workflow.md` "Latest stable" badge advanced from v6.3.3 (drift since 6.4.0) to v6.7.0 with summary of 6.4–6.7 line.
+- `docs/skills-classification.md` count line corrected (33 → 35, matched the rest of the doc) + brief note about the v6.6.0 `.tmpl` generator.
+- `docs/TROUBLESHOOTING.md` adds entries 33 (stale generated SKILL.md fix) and 34 (context-monitor disable knobs).
+- `README.md` Optional hooks section lists `aped-method context-monitor` with its disable knobs.
+
 ## [6.6.0] - 2026-05-11
 
 ### **Boilerplate gets a generator, drift gets a gate.**

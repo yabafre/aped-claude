@@ -14,6 +14,7 @@ import {
   mcpStateTemplates,
   tddRedMarkerTemplates,
   commitGateTemplates,
+  contextMonitorTemplates,
 } from './templates/optional-features.js';
 import { runSubcommand } from './subcommands.js';
 
@@ -62,6 +63,7 @@ const SUBCOMMANDS = new Set([
   'worktree-scope',
   'tdd-red-marker',
   'commit-gate',
+  'context-monitor',
   'enable-mcp',
   'disable',
   'enable',
@@ -134,6 +136,13 @@ SUBCOMMANDS
   commit-gate             Install the opt-in commit-gate PostToolUse advisory
                           hook (warns after 5+ uncommitted file changes — enforces
                           one commit per GREEN gate). Pass --uninstall to remove.
+  context-monitor         Install the opt-in context-monitor PostToolUse advisory
+                          hook. Reads the transcript after each tool call,
+                          surfaces WARNING (≤35%) and CRITICAL (≤25%) context
+                          messages to the agent (statusline is for the user).
+                          Debounced 5 tool calls; CRITICAL bypasses debounce.
+                          Disable via hooks.context_monitor: false in config.yaml.
+                          Pass --uninstall to remove. 6.7.0+.
   disable                 Suppress all APED skills from natural-language routing
                           by flipping disable-model-invocation: true on every
                           .aped/aped-*/SKILL.md, with a snapshot of the original
@@ -1110,6 +1119,9 @@ function getInstalledOptionalTemplates(config, cwd = process.cwd()) {
   }
   if (probe(`${a}/hooks/commit-gate.js`, '/hooks/commit-gate.js')) {
     templates.push(...commitGateTemplates(config));
+  }
+  if (probe(`${a}/hooks/context-monitor.js`, '/hooks/context-monitor.js')) {
+    templates.push(...contextMonitorTemplates(config));
   }
   if (probe(`${a}/mcp/aped-state-server.mjs`, '/mcp/aped-state-server.mjs')) {
     templates.push(...mcpStateTemplates(config));

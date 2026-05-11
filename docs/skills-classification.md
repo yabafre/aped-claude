@@ -2,7 +2,7 @@
 
 This matrix classifies every shipped APED skill by its dependence on `aped/config.yaml` keys and `aped/state.yaml` machinery. The distinction tells the agent (and the human reader) which skills run anywhere vs which need APED's pipeline state to be initialized first.
 
-**v6.0.0+:** every skill is a directory (`aped-X/SKILL.md` ± `workflow.md` ± `steps/`). The classification below is structural — neither the count (33) nor the dep tier changes between v5.x and v6.0.0. The hard-dep "setup pointer" line lives in each skill's `SKILL.md`.
+**v6.0.0+:** every skill is a directory (`aped-X/SKILL.md` ± `workflow.md` ± `steps/`). The classification below is structural — neither the count (35 since 6.2.0's `aped-purge`) nor the dep tier changes between v5.x and v6.x. The hard-dep "setup pointer" line lives in each skill's `SKILL.md`. Since v6.6.0, skill bodies that share boilerplate are generated from `.tmpl` sources via `scripts/gen-skill-docs.mjs` — the classification is unchanged, only the source layout.
 
 > Inspired by [Matt Pocock's ADR 0001](https://github.com/mattpocock/skills/blob/main/docs/adr/0001-explicit-setup-pointer-only-for-hard-dependencies.md): hard-deps carry an explicit setup pointer; soft-deps stay token-light and reference config in vague prose only.
 

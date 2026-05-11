@@ -36,6 +36,7 @@ import {
   worktreeScopeTemplates,
   tddRedMarkerTemplates,
   commitGateTemplates,
+  contextMonitorTemplates,
   mcpStateTemplates,
 } from './templates/optional-features.js';
 import {
@@ -105,6 +106,11 @@ export async function runSubcommand(command, args) {
 
   if (command === 'commit-gate') {
     await installFeature('commit-gate', commitGateTemplates(config));
+    return;
+  }
+
+  if (command === 'context-monitor') {
+    await installFeature('context-monitor', contextMonitorTemplates(config));
     return;
   }
 
