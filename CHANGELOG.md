@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.0] - 2026-05-11
+
 ### **APED's discipline gets a canonical home, and three install-time papercuts disappear.**
 
 The Iron Laws — the non-negotiable directives at the top of every disciplined skill — used to live verbatim inside 14 separate files. Editing one risked drift; reading them required hopping. 6.5.0 hoists them into a single `ETHOS.md` shipped alongside every scaffold, with each skill keeping a one-line citation to its anchor. A lint test imports the schema from source so the verdict text can never silently diverge again. Three smaller install-time wins ride along: upgrade detection now auto-selects `update` in the interactive prompt, the smoke-pack tarball check derives required-paths from the source tree (no more 3.7.2-class missing-file regressions), and the routing rubric grows anti-triggers so phrases like "pr comment" stop bleeding from `aped-receive-review` into `aped-review`.
