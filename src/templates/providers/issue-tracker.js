@@ -63,12 +63,27 @@ export const ISSUE_TRACKER_GITLAB_ISSUES = `### If ticket_system = "gitlab-issue
 - \`glab mr create --title "feat: Story X.Y" --description "Closes #XX"\`
 - Issue auto-closes when MR merges`;
 
+export const ISSUE_TRACKER_CLICKUP = `### If ticket_system = "clickup"
+
+**BEFORE:** Find the ClickUp task (Workspace → Space → List → Task). Move status to **in progress**. Branch: \`feature/{task_id}-description\`.
+
+**DURING:**
+- Reference the task ID in every commit: \`feat(abc12345): description\`
+- ClickUp does not auto-link from commit text — paste the commit/PR URL into a task comment
+- Task URL: \`https://app.clickup.com/t/{task_id}\`
+
+**AFTER:**
+- PR title: \`feat(abc12345): Story X.Y - Description\`
+- Paste the PR URL as a task comment; transition to **in review**
+- After merge: transition to **closed** and update state.yaml`;
+
 const ISSUE_TRACKER_BLOCKS = {
   none: ISSUE_TRACKER_NONE,
   linear: ISSUE_TRACKER_LINEAR,
   jira: ISSUE_TRACKER_JIRA,
   'github-issues': ISSUE_TRACKER_GITHUB_ISSUES,
   'gitlab-issues': ISSUE_TRACKER_GITLAB_ISSUES,
+  clickup: ISSUE_TRACKER_CLICKUP,
 };
 
 // Defensive default: unrecognised ticket_system values render the "none"

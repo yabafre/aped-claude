@@ -38,6 +38,7 @@ const TICKET_OPTIONS = [
   { value: 'linear', label: 'Linear' },
   { value: 'github-issues', label: 'GitHub Issues' },
   { value: 'gitlab-issues', label: 'GitLab Issues' },
+  { value: 'clickup', label: 'ClickUp' },
 ];
 
 const GIT_OPTIONS = [
@@ -173,7 +174,7 @@ NON-INTERACTIVE FLAGS (with --yes)
   --doc-lang=LANG          Document output language
   --aped=DIR               APED engine directory (default: .aped)
   --output=DIR             Output artifacts directory (default: docs/aped)
-  --tickets=SYSTEM         Ticket system (none|linear|jira|github-issues|gitlab-issues)
+  --tickets=SYSTEM         Ticket system (none|linear|jira|github-issues|gitlab-issues|clickup)
   --git=PROVIDER           Git provider (github|gitlab|bitbucket)
 
 ENVIRONMENT
