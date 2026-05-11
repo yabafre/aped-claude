@@ -12,9 +12,8 @@ metadata:
   author: yabafre
   version: {{CLI_VERSION}}
 ---
-<!-- AUTO-GENERATED from SKILL.md.tmpl. Edits will be overwritten. Run: npm run gen:skill-docs -->
 
-**Activation guard (6.2.0):** Before any other action, run `bash {{APED_DIR}}/scripts/check-enabled.sh`. If it exits non-zero, print "APED disabled — run aped-method enable" and HALT.
+{{ACTIVATION_GUARD}}
 
 # APED Glossary — Project-wide Domain Dictionary
 
@@ -22,7 +21,7 @@ Build and maintain `{{OUTPUT_DIR}}/glossary.md` — the canonical place where ev
 
 ## On Activation
 
-Read `{{APED_DIR}}/config.yaml` and resolve `{user_name}` / `{communication_language}` / `{document_output_language}`. ✅ YOU MUST speak in `{communication_language}` and write `glossary.md` in `{document_output_language}`. HALT if config is missing.
+{{CONFIG_PREAMBLE_INLINE:glossary.md}}
 
 ## Critical Rules
 
