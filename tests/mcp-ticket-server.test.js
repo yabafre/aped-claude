@@ -30,11 +30,12 @@ describe('aped-ticket MCP server — provider routing (4.17.0)', () => {
     expect(res.result.serverInfo.name).toBe('aped-ticket');
   });
 
-  it('lists 4 tools via tools/list', async () => {
+  it('lists registered tools via tools/list', async () => {
     const dispatch = await loadDispatch();
     const res = dispatch({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
     const names = res.result.tools.map((t) => t.name).sort();
     expect(names).toEqual([
+      'aped_ticket.add_comment',
       'aped_ticket.create_issue',
       'aped_ticket.get_status',
       'aped_ticket.link_pr',

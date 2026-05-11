@@ -45,11 +45,23 @@ function getProvider() {
   if (p === 'none' || !p) {
     throw new ToolError('Ticket system is "none" in config.yaml. Set ticket_system to github/linear/jira/gitlab.', 'TICKETS_DISABLED');
   }
+  // Installer writes long-form values (github-issues, gitlab-issues) into
+  // config.yaml; the server uses short-form keys internally. Normalize here so
+  // the rest of the server (PROVIDERS lookup, TOOLS dispatch) sees one
+  // canonical key. Full vocab unification across installer + config + scripts
+  // + skills (audit Tier C3) is breaking 7.0 work.
+  const ALIASES = { 'github-issues': 'github', 'gitlab-issues': 'gitlab' };
+  const canonical = ALIASES[p] || p;
   const KNOWN = ['github', 'linear', 'jira', 'gitlab'];
-  if (!KNOWN.includes(p)) {
+  if (!KNOWN.includes(canonical)) {
+    // clickup is a valid installer value (6.4.0+) but has no MCP adapter yet —
+    // surface that explicitly instead of the generic "Unknown provider" message.
+    if (p === 'clickup') {
+      throw new ToolError(`ClickUp MCP adapter is not yet implemented. Use manual workflow (paste task URL in commit/PR comments) or switch to a supported provider: ${KNOWN.join(', ')}.`, 'PROVIDER_ERROR');
+    }
     throw new ToolError(`Unknown provider "${p}". Supported: ${KNOWN.join(', ')}`, 'UNKNOWN_PROVIDER');
   }
-  return p;
+  return canonical;
 }
 
 function requireEnv(name) {
@@ -58,8 +70,8 @@ function requireEnv(name) {
   return v;
 }
 
-function gh(args) {
-  const r = spawnSync('gh', args, { encoding: 'utf-8', timeout: 30000 });
+function gh(args, options = {}) {
+  const r = spawnSync('gh', args, { encoding: 'utf-8', timeout: 30000, ...options });
   if (r.status !== 0) {
     const msg = (r.stderr || r.stdout || '').trim();
     throw new ToolError(`gh command failed: ${msg}`, 'PROVIDER_ERROR', { args });
@@ -105,24 +117,33 @@ const PROVIDERS = {
       gh(['issue', 'comment', ticket_id, '--body', `Linked PR: ${pr_url}`]);
       return { provider: 'github', ok: true };
     },
+    add_comment: ({ ticket_id, body }) => {
+      // --body-file - reads from stdin: safe when body starts with `-`
+      // (would otherwise be parsed as a gh flag) or exceeds ARG_MAX.
+      gh(['issue', 'comment', ticket_id, '--body-file', '-'], { input: body });
+      return { provider: 'github', ok: true };
+    },
   },
   linear: {
     create_issue: () => { throw new ToolError('Linear provider not yet implemented. Coming in v4.18.0.', 'PROVIDER_ERROR'); },
     get_status: () => { throw new ToolError('Linear provider not yet implemented.', 'PROVIDER_ERROR'); },
     list_open: () => { throw new ToolError('Linear provider not yet implemented.', 'PROVIDER_ERROR'); },
     link_pr: () => { throw new ToolError('Linear provider not yet implemented.', 'PROVIDER_ERROR'); },
+    add_comment: () => { throw new ToolError('Linear provider not yet implemented.', 'PROVIDER_ERROR'); },
   },
   jira: {
     create_issue: () => { throw new ToolError('Jira provider not yet implemented.', 'PROVIDER_ERROR'); },
     get_status: () => { throw new ToolError('Jira provider not yet implemented.', 'PROVIDER_ERROR'); },
     list_open: () => { throw new ToolError('Jira provider not yet implemented.', 'PROVIDER_ERROR'); },
     link_pr: () => { throw new ToolError('Jira provider not yet implemented.', 'PROVIDER_ERROR'); },
+    add_comment: () => { throw new ToolError('Jira provider not yet implemented.', 'PROVIDER_ERROR'); },
   },
   gitlab: {
     create_issue: () => { throw new ToolError('GitLab provider not yet implemented.', 'PROVIDER_ERROR'); },
     get_status: () => { throw new ToolError('GitLab provider not yet implemented.', 'PROVIDER_ERROR'); },
     list_open: () => { throw new ToolError('GitLab provider not yet implemented.', 'PROVIDER_ERROR'); },
     link_pr: () => { throw new ToolError('GitLab provider not yet implemented.', 'PROVIDER_ERROR'); },
+    add_comment: () => { throw new ToolError('GitLab provider not yet implemented.', 'PROVIDER_ERROR'); },
   },
 };
 
@@ -190,6 +211,21 @@ const TOOLS = {
     handler: (args) => {
       const p = getProvider();
       return PROVIDERS[p].link_pr(args);
+    },
+  },
+  'aped_ticket.add_comment': {
+    description: 'Post a markdown comment on a ticket. Used by aped-dev/story/review finalizers.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ticket_id: { type: 'string', minLength: 1, description: 'Ticket ID or number.' },
+        body: { type: 'string', minLength: 1, description: 'Comment body (markdown).' },
+      },
+      required: ['ticket_id', 'body'],
+    },
+    handler: (args) => {
+      const p = getProvider();
+      return PROVIDERS[p].add_comment(args);
     },
   },
 };
