@@ -48,6 +48,22 @@ const ROUTING_RUBRIC = [
   { phrase: 'small change', expectedSkill: 'aped-quick' },
 ];
 
+// 6.5.0 (B13): anti-triggers. Assert that a phrase does NOT appear in the
+// description of a skill it should never route to. Catches over-matching
+// caused by weak skill descriptions. Add a new entry whenever a routing
+// regression is reported.
+const ANTI_TRIGGERS = [
+  // PR/review-comment intake belongs to aped-receive-review, never aped-review.
+  { phrase: 'pr comment', forbiddenSkill: 'aped-review' },
+  { phrase: 'review comment', forbiddenSkill: 'aped-review' },
+  // "Story-level review" is aped-review's job; "draft story" stays on aped-story.
+  { phrase: 'review report', forbiddenSkill: 'aped-story' },
+  // Architecture audit / triage are NOT story drafting.
+  { phrase: 'audit', forbiddenSkill: 'aped-story' },
+  // "from-ticket" is the external intake bridge, not the planning prd skill.
+  { phrase: 'external ticket', forbiddenSkill: 'aped-prd' },
+];
+
 describe('NL routing rubric (4.14.0)', () => {
   it('every expected skill exists', () => {
     const expectedSkills = [...new Set(ROUTING_RUBRIC.map((r) => r.expectedSkill))];
@@ -65,6 +81,18 @@ describe('NL routing rubric (4.14.0)', () => {
         target.description.includes(phrase.toLowerCase()),
         `${expectedSkill} description does not contain "${phrase}". Description: "${target.description}"`,
       ).toBe(true);
+    });
+  }
+
+  // 6.5.0 (B13): anti-triggers — forbidden phrase × skill combos.
+  for (const { phrase, forbiddenSkill } of ANTI_TRIGGERS) {
+    it(`"${phrase}" does NOT route to ${forbiddenSkill}`, () => {
+      const target = SKILLS.find((s) => s.name === forbiddenSkill);
+      expect(target, `${forbiddenSkill} not found`).toBeDefined();
+      expect(
+        target.description.includes(phrase.toLowerCase()),
+        `${forbiddenSkill} description SHOULD NOT contain "${phrase}" (anti-trigger). Description: "${target.description}"`,
+      ).toBe(false);
     });
   }
 });
