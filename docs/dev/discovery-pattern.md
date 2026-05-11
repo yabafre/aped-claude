@@ -212,6 +212,10 @@ Every skill longer than 250 lines must include a `## Completion Gate` section wi
 
 When creating a new skill, add a completion gate if the skill body exceeds 250 lines. For shorter skills the gate is optional but encouraged.
 
+## Boilerplate authoring (v6.6.0+)
+
+Activation guard + config preamble + language directives are hoisted out of skill bodies and emitted by `scripts/gen-skill-docs.mjs` from `.tmpl` sources. If you're touching a skill that has a `SKILL.md.tmpl` or `workflow.md.tmpl` sibling, edit the `.tmpl` and run `npm run gen:skill-docs` — never edit the generated `.md` directly. The `<!-- AUTO-GENERATED -->` marker after frontmatter is the signal. Four resolvers are available: `{{ACTIVATION_GUARD}}`, `{{CONFIG_PREAMBLE}}` (the 9-line expanded shape), `{{CONFIG_PREAMBLE_INLINE:<artefact>}}` (the compact one-line shape naming the canonical output file), `{{LANGUAGE_DIRECTIVE}}` (the two `✅ YOU MUST speak / write` lines, standalone). Scaffold-time placeholders (`{{APED_DIR}}`, `{{OUTPUT_DIR}}`, `{{CLI_VERSION}}`) pass through untouched. Unknown placeholders fail the build. The freshness test in `tests/gen-skill-docs-freshness.test.js` and `npm run prepublishOnly` both gate against stale committed output.
+
 ## Reference implementation already in tree
 
 `aped-from-ticket.md` lines 87–89 already implements a lightweight version of this pattern:
