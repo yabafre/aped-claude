@@ -1431,7 +1431,23 @@ else
 fi
 
 mkdir -p "\$WORKTREE_PATH/${a}"
-cat > "\$WORKTREE_PATH/${a}/WORKTREE" <<EOF
+# 6.8.0 — sequential mode dispatches multiple stories into ONE shared worktree;
+# writing the same WORKTREE file each time would let the last story overwrite
+# the first. Per-story markers in sequential mode; legacy single marker stays
+# in parallel mode (one worktree per story, no collision risk).
+if [[ "\$SPRINT_MODE" == "sequential" ]]; then
+  # STORY_KEY becomes part of the marker filename — reject any character outside
+  # [a-zA-Z0-9._-] so a key like \`1-1/../evil\` cannot escape the marker dir.
+  case "\$STORY_KEY" in
+    "" | *[!a-zA-Z0-9._-]* | *..* )
+      echo "ERROR: invalid STORY_KEY '\$STORY_KEY' for sequential marker — allowed chars: [a-zA-Z0-9._-]" >&2
+      exit 7 ;;
+  esac
+  MARKER_PATH="\$WORKTREE_PATH/${a}/WORKTREE.\$STORY_KEY.yaml"
+else
+  MARKER_PATH="\$WORKTREE_PATH/${a}/WORKTREE"
+fi
+cat > "\$MARKER_PATH" <<EOF
 schema_version: 1
 story_key: \$STORY_KEY
 ticket: \$TICKET_ID
@@ -1534,9 +1550,20 @@ if [[ ! -d "\$WORKTREE_PATH" ]]; then
   exit 0
 fi
 
-BRANCH_NAME=""
+BRANCH_NAMES=()
+# Sequential mode (6.8.0+) writes per-story markers WORKTREE.<key>.yaml.
+# Parallel mode writes a single WORKTREE file. We read BOTH unconditionally:
+# a worktree migrated mid-flight may carry one legacy WORKTREE alongside the
+# new per-story markers; without reading both, the legacy branch leaks.
+shopt -s nullglob
+for marker in "\$WORKTREE_PATH/${a}"/WORKTREE.*.yaml; do
+  b=\$(grep '^branch:' "\$marker" 2>/dev/null | sed 's/.*:[[:space:]]*//')
+  [[ -n "\$b" ]] && BRANCH_NAMES+=("\$b")
+done
+shopt -u nullglob
 if [[ -f "\$WORKTREE_PATH/${a}/WORKTREE" ]]; then
-  BRANCH_NAME=\$(grep '^branch:' "\$WORKTREE_PATH/${a}/WORKTREE" | sed 's/.*:[[:space:]]*//')
+  b=\$(grep '^branch:' "\$WORKTREE_PATH/${a}/WORKTREE" | sed 's/.*:[[:space:]]*//')
+  [[ -n "\$b" ]] && BRANCH_NAMES+=("\$b")
 fi
 
 # Try a clean remove first.
@@ -1564,8 +1591,10 @@ else
   git worktree remove --force "\$WORKTREE_PATH"
 fi
 
-if [[ "\$DELETE_BRANCH" == "true" && -n "\$BRANCH_NAME" ]]; then
-  git branch -D "\$BRANCH_NAME" 2>&1 || echo "Branch \$BRANCH_NAME already gone or not fully merged"
+if [[ "\$DELETE_BRANCH" == "true" && \${#BRANCH_NAMES[@]} -gt 0 ]]; then
+  for b in "\${BRANCH_NAMES[@]}"; do
+    git branch -D "\$b" 2>&1 || echo "Branch \$b already gone or not fully merged"
+  done
 fi
 
 git worktree prune
