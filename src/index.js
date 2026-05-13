@@ -15,6 +15,7 @@ import {
   tddRedMarkerTemplates,
   commitGateTemplates,
   contextMonitorTemplates,
+  promptInjectionTemplates,
 } from './templates/optional-features.js';
 import { runSubcommand } from './subcommands.js';
 
@@ -64,6 +65,7 @@ const SUBCOMMANDS = new Set([
   'tdd-red-marker',
   'commit-gate',
   'context-monitor',
+  'prompt-injection',
   'enable-mcp',
   'disable',
   'enable',
@@ -143,6 +145,13 @@ SUBCOMMANDS
                           Debounced 5 tool calls; CRITICAL bypasses debounce.
                           Disable via hooks.context_monitor: false in config.yaml.
                           Pass --uninstall to remove. 6.7.0+.
+  prompt-injection        Install the opt-in prompt-injection L1 PostToolUse
+                          advisory hook. Scans Read tool output for injection
+                          patterns (override phrases, role-switch verbs, tag
+                          blocks, invisible-unicode); emits LOW (1-2 hits) or
+                          HIGH (3+) advisory. Debounced per (session × file).
+                          Disable via hooks.prompt_injection: false in config.
+                          Pass --uninstall to remove. 6.8.0+.
   disable                 Suppress all APED skills from natural-language routing
                           by flipping disable-model-invocation: true on every
                           .aped/aped-*/SKILL.md, with a snapshot of the original
@@ -1122,6 +1131,9 @@ function getInstalledOptionalTemplates(config, cwd = process.cwd()) {
   }
   if (probe(`${a}/hooks/context-monitor.js`, '/hooks/context-monitor.js')) {
     templates.push(...contextMonitorTemplates(config));
+  }
+  if (probe(`${a}/hooks/prompt-injection.js`, '/hooks/prompt-injection.js')) {
+    templates.push(...promptInjectionTemplates(config));
   }
   if (probe(`${a}/mcp/aped-state-server.mjs`, '/mcp/aped-state-server.mjs')) {
     templates.push(...mcpStateTemplates(config));

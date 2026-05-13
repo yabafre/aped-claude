@@ -299,6 +299,39 @@ export function contextMonitorTemplates(c) {
   ];
 }
 
+export function promptInjectionTemplates(c) {
+  const a = c.apedDir;
+  return [
+    {
+      path: `${a}/hooks/prompt-injection.js`,
+      executable: true,
+      content: substitute(loadTemplate('hooks/prompt-injection.js'), c),
+    },
+    {
+      path: '.claude/settings.local.json',
+      content: stringifySettings({
+        hooks: {
+          PostToolUse: [
+            {
+              matcher: '.*',
+              hooks: [
+                {
+                  type: 'command',
+                  command: `\${CLAUDE_PROJECT_DIR}/${a}/hooks/prompt-injection.js`,
+                  // 5 s — Node cold-start + content scan against ~18 regex.
+                  // Advisory; on timeout the hook self-exits silently, never
+                  // blocks the tool call.
+                  timeout: 5,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    },
+  ];
+}
+
 export function commitGateTemplates(c) {
   const a = c.apedDir;
   return [
