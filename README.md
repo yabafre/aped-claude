@@ -504,6 +504,7 @@ These are installed explicitly when you want them:
 - `aped-method allowed-paths-scope` adds a `PreToolUse` advisory hook (5.1.0+) that reads the active skill's `allowed-paths` frontmatter and warns when Write/Edit targets a file outside scope.
 - `aped-method commit-gate` adds a `PostToolUse` advisory hook (5.5.0+) that warns after 5+ uncommitted file changes. Structural enforcement of the "one commit per GREEN gate" discipline. Advisory only.
 - `aped-method context-monitor` adds a `PostToolUse` advisory hook (6.7.0+) that reads the transcript after each tool call and emits `CONTEXT WARNING` (remaining ≤35%) / `CONTEXT CRITICAL` (≤25%) advisories to the agent. Statusline shows the user; this hook shows the agent. Debounced 5 calls; severity escalation bypasses debounce. Disable via `hooks.context_monitor: false` in `config.yaml` (team) or `config.local.yaml` (per-developer, gitignored, read first).
+- `aped-method prompt-injection` adds a `PostToolUse` L1 advisory hook (6.8.0+) that scans `Read` tool output for known prompt-injection patterns: 18 imperative-override regex (`ignore previous`, `<system>`, `[INST]`, summarisation-survival phrases), invisible-unicode (zero-width, RTL marks, soft hyphen), Unicode tag-block (`U+E0000–U+E007F`). Emits `[LOW]` (1–2 hits) or `[HIGH]` (3+) advisory via `additionalContext`. Never blocks. Debounced per (session × file-path), 60s; severity escalation LOW→HIGH bypasses. Disable via `hooks.prompt_injection: false` in `config.yaml` or `config.local.yaml`.
 
 ## Install / Update / Fresh
 

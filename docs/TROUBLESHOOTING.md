@@ -707,11 +707,29 @@ Then re-run `aped-sprint`. If you don't want sequential mode after all, set `spr
 
 **Symptom.** In sequential mode, you dispatched story 1-1, then dispatched 1-2. The `.aped/WORKTREE` marker now says `story_key: 1-2`. You `gs branch checkout feature/KON-1-1-1` to revisit story 1, but `aped-dev`'s step-01 reads the marker and thinks you're on 1-2.
 
-**Cause.** The marker is rewritten on every dispatch and lives at a single path in the shared worktree. `gs branch checkout` switches the active git branch but doesn't touch the marker (it's untracked). Initial 6.7.5 limitation — branch-aware marker resolution lands in a follow-up.
+**Cause.** Pre-6.8.0, the marker was rewritten on every dispatch and lived at a single path in the shared worktree. `gs branch checkout` switches the active git branch but didn't touch the marker (untracked file).
 
-**Fix.** Two workarounds:
-1. Re-run `sprint-dispatch.sh <story-key> <ticket-id>` on the older story — it overwrites the marker with the right key. The `gs branch create` call will fail (branch exists) but the marker write succeeds.
-2. Edit `.aped/WORKTREE` by hand to set `story_key` + `branch` to the active branch. Untracked file, no commit needed.
+**Fix.** Upgrade to 6.8.0+. Sequential mode now writes per-story markers `.aped/WORKTREE.<story-key>.yaml` — story 1-1 keeps its own file, story 1-2 gets a separate one. `worktree-cleanup.sh --delete-branch` globs all markers and iterates their `branch:` lines. Parallel mode is unchanged (legacy `.aped/WORKTREE` single file). For projects upgrading from 6.7.5, the legacy `WORKTREE` file stays where it is until the next dispatch — first new sequential dispatch on 6.8.0 starts the per-story shape.
+
+## 39. `prompt-injection` hook flagged a doc I trust (6.8.0+)
+
+**Symptom.** `aped-method prompt-injection` is installed and you Read a known-good markdown file — the agent gets a `READ INJECTION SCAN [LOW]` advisory about `ignore previous instructions` or `<system>`. The file is a security cheat-sheet or an LLM evals fixture quoting these patterns intentionally.
+
+**Cause.** L1 detection is regex-based with no semantic context. Any file that quotes an injection pattern as documentation (security notes, eval datasets, BLOG posts about attacks) trips the hook at `[LOW]`. By design — the hook is a canary, not a filter.
+
+**Fix.** Three options, in order of preference:
+
+1. **Trust the canary.** `[LOW]` means single-pattern match; the message tells the agent the doc may be quoting the pattern legitimately. The agent stays aware but doesn't pivot. This is the intended UX.
+2. **Add the path to the excluded fragments.** Edit `.aped/hooks/prompt-injection.js`'s `EXCLUDED_PATH_FRAGMENTS` array — add a substring that matches your fixture/doc path (e.g. `/evals/injection-corpus/`). Reinstall preserves your edit only if it's outside the regenerable template — the engine treats the hook as opt-in, so the file stays untouched on `--update` unless you re-run `aped-method prompt-injection`.
+3. **Disable per session.** `hooks.prompt_injection: false` in `.aped/config.local.yaml` (per-developer, gitignored). Re-enable when you're done.
+
+## 40. `prompt-injection` advisory keeps firing on the same file (6.8.0+)
+
+**Symptom.** Same file Read twice in a session, both times trigger the advisory.
+
+**Cause.** Severity escalation — first Read matched 1 pattern (LOW), second Read matched 3+ (HIGH). The debounce intentionally lets HIGH through after LOW so a coordinated attack isn't muffled.
+
+**Fix.** Inspect the file. If the second match is a real escalation (more patterns appeared, e.g. a fetched doc grew or got rewritten), trust the canary and react. If both Reads see identical content and the count grew because of how `tool_response` is structured (object form vs string form), report it — the hook should be deterministic per file content.
 
 ## Still stuck?
 
