@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### **A second hook for the Read tool, and sequential sprints stop losing markers.**
+
+6.8.0 closes two unrelated rough edges that arrived in the same window, plus a validator over-strictness that surfaced during pre-ship review. The B4 prompt-injection L1 advisory hook gives the agent a canary when a hostile file lands in its context — pattern matches, invisible-unicode, tag-block markers. Opt-in, mirrors the B3 context-monitor architecture down to the disable knob. The sequential-sprint cleanup retires three residuals from 6.7.5: per-story `WORKTREE` markers so the shared worktree no longer overwrites itself on each dispatch, an explicit Path C in `aped-sprint` so the Lead doesn't have to infer how sequential dispatch routes, and an e2e that cristalises `aped-ship`'s implicit compatibility with stacked branches. The story validator's `lines_match` walker now only enforces the bullet pattern on **top-level** list items — multi-paragraph prose, fenced code blocks, and sub-bullets are now allowed body content, ending the "~220 lines of 'does not match expected pattern'" noise on richly-explained stories.
+
+### The numbers that matter
+
+| Metric | Before (6.7.6) | After (6.8.0) | Δ |
+|---|---|---|---|
+| Defense-in-depth hooks (opt-in) on `Read` tool output | 0 | 1 (prompt-injection) | +1 |
+| Injection patterns scanned per `Read` | 0 | 18 regex + invisible-unicode + tag-block | new |
+| Sequential dispatch markers per shared worktree | 1 (last story wins) | N (one per story) | collision-free |
+| Sequential-mode skill prose (Path C) | implicit, in setup only | explicit, in Dispatch | named |
+| `aped-ship` sequential-mode coverage | 0 e2e tests | 4 e2e cases | ratchet |
+| Story validator false-positive lines per richly-explained AC | ~220 (prose + code blocks + sub-bullets all flagged) | 0 (only top-level bullets validated) | unblocked |
+| Tests | 1895 | 1932 | +37 |
+
+### What this means for builders
+
+If you read a hostile file, the agent gets a `[LOW]` or `[HIGH]` advisory in the next turn — never a block. Install with `aped-method prompt-injection`; disable with `hooks.prompt_injection: false` in `{{APED_DIR}}/config.local.yaml`. If you run sequential sprints, every dispatched story now keeps its own marker file, `worktree-cleanup.sh --delete-branch` iterates all of them, and the Lead skill body actually documents the dispatch loop instead of leaving it implicit.
+
+### Itemized changes
+
+#### Added
+- `aped-method prompt-injection` opt-in subcommand installs a PostToolUse advisory hook scanning `Read` output for known prompt-injection patterns (override phrases, role-switch verbs, tag-block markers, invisible-unicode). LOW (1–2 hits) / HIGH (3+ hits). Per-(session × file-path) debounce, 60s. Severity escalation LOW→HIGH bypasses debounce. Disable via `hooks.prompt_injection: false`.
+- `src/templates/skills/aped-sprint/workflow.md.tmpl` — new "Path C — sequential mode" subsection inside Dispatch. Names the loop, the stack-order discipline, and the per-story marker file.
+- `src/templates/skills/aped-ship/workflow.md.tmpl` — one paragraph documenting that sprint mode is transparent to ship (umbrella → base topology is identical between parallel and sequential).
+- `tests/prompt-injection-install.test.js` (5 cases) + `tests/prompt-injection-runtime.test.js` (13 cases) — install-shape contracts + runtime spawn coverage (clean, LOW, HIGH, invisible-unicode, tag-block, non-Read skip, short content skip, excluded path skip, debounce, severity escalation, disable-via-config, path-traversal reject, malformed JSON).
+- `tests/sprint-dispatch-marker.test.js` (4 cases) — parallel keeps `WORKTREE`, sequential writes `WORKTREE.<key>.yaml`, second dispatch preserves first marker, `worktree-cleanup.sh --delete-branch` iterates all per-story markers.
+- `tests/aped-ship-sequential.test.js` (4 cases) — stacked-branch merge detection, umbrella ahead-range, `validate-state.sh` accepts schema v4 + sequential mode, PR command shape.
+
+#### Changed
+- `sprint-dispatch.sh` writes `${WORKTREE_PATH}/${APED_DIR}/WORKTREE.${STORY_KEY}.yaml` in sequential mode (per-story marker) instead of overwriting a single `WORKTREE` file. Parallel mode keeps the legacy `WORKTREE` path — zero migration for existing projects.
+- `worktree-cleanup.sh` now reads BOTH per-story markers (`WORKTREE.*.yaml` glob) AND the legacy `WORKTREE` file when present. `--delete-branch` iterates every recovered `branch:` line. Mid-flight migrations (one legacy marker + new per-story markers) no longer leak the legacy branch.
+- `markdown-schema-walk.mjs` (story validator backend) only enforces the `lines_match` regex on top-level list-item lines. Lines inside fenced code blocks, prose continuations, sub-bullets, blockquotes, and tables are now exempt body content. Pre-6.8.0 the walker validated every non-empty, non-heading line under a section, producing hundreds of false-positives on stories that elaborated their ACs.
+
+#### Fixed
+- `STORY_KEY` is validated against `[a-zA-Z0-9._-]+` before being interpolated into the sequential marker filename (`exit 7` on rejection). Closes a path-traversal vector where a malicious or fat-fingered story key (`1-1/../evil`) could escape the marker directory.
+
 ## [6.7.6] - 2026-05-11
 
 ### Fixed

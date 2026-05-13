@@ -181,4 +181,63 @@ describe('validate-story.sh', () => {
     const r = run(sandbox, target);
     expect(r.code, `stderr: ${r.stderr}`).toBe(0);
   });
+
+  it('accepts multi-paragraph prose under an Acceptance Criteria bullet (6.8.0)', () => {
+    const enriched = CONFORMANT_STORY.replace(
+      '- AC2: Given the input is invalid, when I submit, then I see an error.',
+      '- AC2: Given the input is invalid, when I submit, then I see an error.\n' +
+        '  This paragraph elaborates on AC2 and wraps to multiple lines\n' +
+        '  to explain the rationale and edge cases the dev should care about.\n' +
+        '  Continuation prose is body content, not a new AC, so it must not be\n' +
+        '  validated against the bullet-shape regex.',
+    );
+    const target = join(OUTPUT_DIR, 'stories', '1-1-foo.md');
+    writeFileSync(join(sandbox, target), enriched);
+    const r = run(sandbox, target);
+    expect(r.code, `stderr: ${r.stderr}`).toBe(0);
+  });
+
+  it('accepts fenced code blocks under an Acceptance Criteria bullet (6.8.0)', () => {
+    const enriched = CONFORMANT_STORY.replace(
+      '- AC2: Given the input is invalid, when I submit, then I see an error.',
+      '- AC2: Given the input is invalid, when I submit, then I see an error.\n' +
+        '\n' +
+        '  ```js\n' +
+        '  // expected error shape\n' +
+        '  { code: "INVALID", message: "..." }\n' +
+        '  ```',
+    );
+    const target = join(OUTPUT_DIR, 'stories', '1-1-foo.md');
+    writeFileSync(join(sandbox, target), enriched);
+    const r = run(sandbox, target);
+    expect(r.code, `stderr: ${r.stderr}`).toBe(0);
+  });
+
+  it('accepts sub-bullets under Tasks without enforcing the bullet regex on them (6.8.0)', () => {
+    const enriched = CONFORMANT_STORY.replace(
+      '- [ ] Add validation [AC: AC2]',
+      '- [ ] Add validation [AC: AC2]\n' +
+        '  - Reject empty strings\n' +
+        '  - Reject strings longer than 200 chars\n' +
+        '  - Surface the error code INVALID',
+    );
+    const target = join(OUTPUT_DIR, 'stories', '1-1-foo.md');
+    writeFileSync(join(sandbox, target), enriched);
+    const r = run(sandbox, target);
+    expect(r.code, `stderr: ${r.stderr}`).toBe(0);
+  });
+
+  it('still flags a malformed TOP-LEVEL Acceptance Criteria bullet (6.8.0 regression guard)', () => {
+    // Relaxation must not loosen the actual contract: a top-level AC bullet
+    // without Given/When/Then must still fail.
+    const broken = CONFORMANT_STORY.replace(
+      '- AC1: Given I am logged in, when I click submit, then the form is submitted.',
+      '- AC1: this bullet describes some behaviour with no AC markers',
+    );
+    const target = join(OUTPUT_DIR, 'stories', '1-1-foo.md');
+    writeFileSync(join(sandbox, target), broken);
+    const r = run(sandbox, target);
+    expect(r.code).toBe(1);
+    expect(r.stderr).toMatch(/line does not match expected pattern under 'Acceptance Criteria'/);
+  });
 });
