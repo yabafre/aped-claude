@@ -37,6 +37,7 @@ import {
   tddRedMarkerTemplates,
   commitGateTemplates,
   contextMonitorTemplates,
+  promptInjectionTemplates,
   mcpStateTemplates,
 } from './templates/optional-features.js';
 import {
@@ -111,6 +112,11 @@ export async function runSubcommand(command, args) {
 
   if (command === 'context-monitor') {
     await installFeature('context-monitor', contextMonitorTemplates(config));
+    return;
+  }
+
+  if (command === 'prompt-injection') {
+    await installFeature('prompt-injection', promptInjectionTemplates(config));
     return;
   }
 
