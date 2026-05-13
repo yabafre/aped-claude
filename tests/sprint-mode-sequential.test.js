@@ -167,8 +167,8 @@ sprint:
     const gsLog = readFileSync(join(sandbox, 'GS_RAN'), 'utf8');
     expect(gsLog).toContain('branch create feature/KON-1-1-1');
     expect(gsLog).toContain(`pwd=${shared}`);
-    // Marker carries sprint_mode: sequential.
-    const marker = readFileSync(join(shared, APED_DIR, 'WORKTREE'), 'utf8');
+    // 6.8.0: sequential mode writes per-story markers WORKTREE.<key>.yaml.
+    const marker = readFileSync(join(shared, APED_DIR, 'WORKTREE.1-1.yaml'), 'utf8');
     expect(marker).toContain('sprint_mode: sequential');
     expect(marker).toContain('story_key: 1-1');
   });

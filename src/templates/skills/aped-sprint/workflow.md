@@ -273,6 +273,17 @@ The helper creates the worktree, the branch (cut from `$UMBRELLA`), and the `{{A
 
 If you omit the umbrella arg, sprint-dispatch.sh falls back to HEAD — only acceptable in solo/non-sprint mode where there is no umbrella.
 
+### Path C — sequential mode (6.7.5+)
+
+Sequential dispatch **reuses Path B's loop** — the same `sprint-dispatch.sh <story> <ticket> "$UMBRELLA"` call. The script reads `sprint.mode` from state.yaml, overrides `WORKTREE_PATH` to the recorded `sprint.shared_worktree`, and replaces `git worktree add` with `gs branch create "$BRANCH" >&2` inside the shared worktree (stacking on top of whichever branch is currently checked out there).
+
+Two consequences for the Lead:
+
+1. **Stack order is dispatch order.** The branch checked out in the shared worktree when you call `sprint-dispatch.sh` becomes the parent of the new branch. For story 1, that's the umbrella (`gs init` did the right `--trunk`). For story 2+, it's the previous story's branch — `gs branch checkout {{prev-branch}}` inside the shared worktree before invoking dispatch.
+2. **Per-story marker file (6.8.0+).** Each successful sequential dispatch writes `{{APED_DIR}}/WORKTREE.{story-key}.yaml` inside the shared worktree (parallel mode keeps the legacy single `{{APED_DIR}}/WORKTREE`). `worktree-cleanup.sh` globs both shapes when iterating branches to delete; you don't need to track markers manually.
+
+You still only need to do the setup steps from "Sprint Mode" above (`gs --version` + `git worktree add` + `gs init`) once per sprint. After that, the dispatch loop is identical between modes — the conditional logic lives inside `sprint-dispatch.sh`, not here.
+
 ### Shared post-dispatch
 
 If any command exits non-zero, halt the whole dispatch — do not create a half-populated state. Report the error.
