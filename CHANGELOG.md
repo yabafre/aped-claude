@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.8.0] - 2026-05-13
+
 ### **A second hook for the Read tool, and sequential sprints stop losing markers.**
 
 6.8.0 closes two unrelated rough edges that arrived in the same window, plus a validator over-strictness that surfaced during pre-ship review. The B4 prompt-injection L1 advisory hook gives the agent a canary when a hostile file lands in its context — pattern matches, invisible-unicode, tag-block markers. Opt-in, mirrors the B3 context-monitor architecture down to the disable knob. The sequential-sprint cleanup retires three residuals from 6.7.5: per-story `WORKTREE` markers so the shared worktree no longer overwrites itself on each dispatch, an explicit Path C in `aped-sprint` so the Lead doesn't have to infer how sequential dispatch routes, and an e2e that cristalises `aped-ship`'s implicit compatibility with stacked branches. The story validator's `lines_match` walker now only enforces the bullet pattern on **top-level** list items — multi-paragraph prose, fenced code blocks, and sub-bullets are now allowed body content, ending the "~220 lines of 'does not match expected pattern'" noise on richly-explained stories.
