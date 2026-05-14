@@ -5,7 +5,8 @@ one validator script per manifest; one shared Node walker behind them.
 
 Designed for "walk markdown headings + check section content" — narrow on purpose.
 Extensions land in a future MINOR after a design pass. Field set locked in 6.3.0;
-6.9.0 added recursive `sub_sections` for level-3+ contracts (cohort-2).
+6.9.0 added recursive `sub_sections` for level-3+ contracts (cohort-2);
+6.10.0 ships cohort-3 `prd.schema.json` on the existing field set (no new fields).
 
 JSON parity with `state.yaml.schema.v3.json` (chantier S, 6.2.0). Walker is
 `scripts/lib/markdown-schema-walk.mjs` (Node companion — Node is already required

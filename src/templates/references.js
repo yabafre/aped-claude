@@ -115,6 +115,13 @@ export function references(c) {
       path: `${a}/data/epic-context.schema.json`,
       content: loadDataFile('epic-context.schema.json'),
     },
+    // 6.10.0 — cohort-3 PRD schema. Same walker, level-2 sections only
+    // (no sub_sections in this iteration). lines_match on FR / NFR bullets
+    // accepts legacy `FR1:` + canonical `FR-1:` + bold-wrapped forms.
+    {
+      path: `${a}/data/prd.schema.json`,
+      content: loadDataFile('prd.schema.json'),
+    },
   ];
 }
 
