@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.10.0] - 2026-05-15
+
 ### **Cohort-3 PRD schemas land, and the README finally reads like a landing page.**
 
 6.10.0 ships two complementary tracks that the artefact-side bundle in 6.9.0 left at the door. **Cohort-3 PRD** brings the markdown-schema discipline of cohorts 1 and 2 to `prd.md` — same Node walker, same WARN-only producer-side gate, same playbook, no DSL extensions needed. Seven required level-2 sections (Executive Summary, Success Criteria, Product Scope, Out of Scope, User Journeys, Functional Requirements, Non-Functional Requirements) are now structurally enforced; `lines_match` on FR and NFR bullets catches the malformed entries that drift past the legacy oracle. The new `scripts/validate-prd.sh` coexists with the legacy `aped-prd/scripts/validate-prd.sh` (same filename, different dir, different job — the legacy keeps owning FR count + anti-pattern words, the new one owns structural drift). **README + docs cleanup** is the other half: the README slims from 558 to 449 lines by extracting 5.x and 3.x migration prose to a new `MIGRATING.md`, replacing the 80-line Design principles block with a 3-line pointer to `docs/aped-workflow.md` (which already owned the canonical 23-item list), and adding three Mermaid diagrams that turn "what is this CLI?" into a 30-second scan: the pipeline graph, a "where to use what" decision tree, and an "optimize your APED setup" cheat sheet. `heading_pattern` regex stays deferred to 6.11.0 cohort-3-architecture where `### ADR-N: <title>` patterns actually need it.
