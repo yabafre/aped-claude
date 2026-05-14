@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### **Cohort-3 PRD schemas land, and the README finally reads like a landing page.**
+
+6.10.0 ships two complementary tracks that the artefact-side bundle in 6.9.0 left at the door. **Cohort-3 PRD** brings the markdown-schema discipline of cohorts 1 and 2 to `prd.md` — same Node walker, same WARN-only producer-side gate, same playbook, no DSL extensions needed. Seven required level-2 sections (Executive Summary, Success Criteria, Product Scope, Out of Scope, User Journeys, Functional Requirements, Non-Functional Requirements) are now structurally enforced; `lines_match` on FR and NFR bullets catches the malformed entries that drift past the legacy oracle. The new `scripts/validate-prd.sh` coexists with the legacy `aped-prd/scripts/validate-prd.sh` (same filename, different dir, different job — the legacy keeps owning FR count + anti-pattern words, the new one owns structural drift). **README + docs cleanup** is the other half: the README slims from 558 to 449 lines by extracting 5.x and 3.x migration prose to a new `MIGRATING.md`, replacing the 80-line Design principles block with a 3-line pointer to `docs/aped-workflow.md` (which already owned the canonical 23-item list), and adding three Mermaid diagrams that turn "what is this CLI?" into a 30-second scan: the pipeline graph, a "where to use what" decision tree, and an "optimize your APED setup" cheat sheet. `heading_pattern` regex stays deferred to 6.11.0 cohort-3-architecture where `### ADR-N: <title>` patterns actually need it.
+
+### The numbers that matter
+
+Source: `git diff v6.9.0..HEAD` on `packages/create-aped/`.
+
+| Metric | Before (6.9.0) | After (6.10.0) | Δ |
+|---|---|---|---|
+| Artefact contracts (schema-validated) | 3 (story, epics, epic-context) | 4 (+ prd) | +1 |
+| Cohort-3 coverage of canonical artefacts | 0/2 (PRD + arch pending) | 1/2 (PRD shipped; arch → 6.11.0) | 50% |
+| README length (lines) | 558 | 449 | −20% |
+| README Mermaid diagrams | 0 | 3 (pipeline, where-to-use, optimize) | new |
+| Skills missing from "What gets scaffolded" tree | 12 | 0 | full coverage |
+| Migration prose location | inline in README | dedicated `MIGRATING.md` | extracted |
+| `Design principles` duplication (README ↔ docs) | 15 sub-sections duplicated in README | 0 (README defers to docs/aped-workflow.md §157) | de-duplicated |
+| Tests | 1959 | 1968 | +9 |
+
+### What this means for builders
+
+Run `bash .aped/scripts/validate-prd.sh docs/aped/prd.md` to catch invented sections (`### Risks` under `## Functional Requirements`), malformed FR bullets (no `FR-?N:` prefix), or a missing `## Out of Scope` block. `aped-prd/step-05` invokes it automatically as a WARN-only gate alongside the oracle. The README now opens with the install command, a pipeline diagram, and a decision tree before any prose — new readers can pick the right skill without reading the operational details. Existing users can keep the manual `validate-prd.sh` workflow they had with the legacy script; that still works.
+
+### Itemized changes
+
+#### Added
+- `src/templates/data/prd.schema.json` — cohort-3 schema. 7 required level-2 sections (Executive Summary, Success Criteria, Product Scope, Out of Scope, User Journeys, Functional Requirements, Non-Functional Requirements), all `forbid_invented_sub_headings: true`. `lines_match` regex on Functional / Non-Functional Requirements accepts legacy `FR1:`, canonical `FR-1:`, and bold-wrapped `**FR-1:**` forms (mirrors `oracle-prd.sh`).
+- `scripts/validate-prd.sh` (shared dir) — thin Node-walker launcher, same shape as cohort-1 `validate-story.sh` / `validate-epics.sh` / `validate-epic-context.sh`. Coexists with the legacy `aped-prd/scripts/validate-prd.sh` (same filename, different parent dir).
+- `aped-prd/step-05` invokes the new validator as a WARN-only producer-side gate alongside `oracle-prd.sh`. Oracle remains the HALT-bearing gate.
+- `tests/artefact-schema-prd.test.js` (8 cases) — conformant PRD, missing required section, invented top-level, invented L3 under FR, malformed FR bullet, legacy `FR1:` + bold-wrapped form accepted, conformant NFR, missing `## Out of Scope`.
+- `MIGRATING.md` — new file. `## From 5.x` and `## From 3.x` sections moved verbatim from the README. Pointer to `CHANGELOG.md` for everything pre-3.x.
+- README — three Mermaid diagrams: pipeline graph (8 phases + sprint loop + optional skills), "where to use what" decision tree (greenfield / brownfield / quick fix / debug / external ticket), "optimize your APED setup" decision tree (MCP server, opt-in hook stack, sprint mode).
+- `docs/implementation-artifacts/deferred-work.md` — appended entry: `heading_pattern` regex still deferred to cohort-3-architecture (6.11.0); legacy `aped-prd/scripts/validate-prd.sh` retirement scheduled for 7.0.0.
+
+#### Changed
+- README — slimmed from 558 to 449 lines (~20% reduction). Migration prose extracted; the 15-section Design principles block removed in favour of a 3-line pointer to the canonical list at `docs/aped-workflow.md` §157; the 4.1.0 lifecycle hygiene paragraph cut; the second `## Requirements` section deduped into the first (which now corrects Node ≥ 18 → ≥ 20 to match `package.json` engines); the Skill catalog detail block collapsed to a one-paragraph summary + doc pointers.
+- README — Requirements is now a single table (Tool / Status / What breaks without it) instead of a bullet list with mixed status nouns.
+- README — Operational commands list collapsed to 3 lines (doctor / symlink / disable-enable-status) — the 12 hook subcommands moved into the `Optional hooks` table where they belong.
+- README — `Optional hooks` rewritten as a table (Command / What it does / Notes), dropping ~30 lines of repetitive descriptive prose.
+- README — Personas & teams collapsed from 5 sub-sections (~50 lines) to a single bullet block (~15 lines) listing the 5 teams + their named personas + a pointer to `docs/aped-personas.md` for the full lineage including the 11-specialist roster folded into the slim review model.
+- README — Disable APED section slimmed from 40 lines (3 explanatory sub-blocks + two code blocks) to one code block + one explanatory paragraph.
+- README — "What gets scaffolded" tree completed with the 12 skills that were missing (`aped-debug`, `aped-discuss-epic`, `aped-arch-audit`, `aped-iterate`, `aped-pre-mortem`, `aped-design-twice`, `aped-grill`, `aped-write-skill`, `aped-triage`, `aped-receive-review`, `aped-zoom-out`, `aped-purge`). Tree now lists all 36.
+- `docs/dev/discovery-pattern.md` — stamp `v6.0.0` → `v6.10.0`; the customization table now includes `aped-discuss-epic` (6.9.0 optional epic-level skill) and `aped-debug` (was missing); "nine pipeline-phase skills" wording corrected to "the ten pipeline-phase skills"; the `aped-from-ticket.md lines 87–89` reference replaced with `aped-from-ticket/SKILL.md` (v6.0.0+ directory layout).
+- `docs/aped-workflow.md` — line 178 inline-skill count corrected from "the other 24 skills" to "the other 26 skills" (drift from 6.9.0).
+- `markdown-schema.dsl.md` — version banner updated: cohort-3 PRD ships in 6.10.0 on the existing 6.9.0 DSL (no field additions).
+- `SECURITY.md` — adds 6.10.x to the supported versions table.
+
+#### Fixed
+- README Requirements duplicated section (lines 34 + 532 in 6.9.0) collapsed to a single source of truth. The duplicate had drifted: Node version (≥ 18 vs ≥ 20 — `package.json` says ≥ 20), Claude Code link presence, and the Unix-like shell note. Consolidated and corrected.
+
 ## [6.9.0] - 2026-05-14
 
 ### **The middle layer between architecture and stories finally has a home — and Review Records stop drifting.**
