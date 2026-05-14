@@ -4361,13 +4361,19 @@ exit 0
 // Usage: node markdown-schema-walk.mjs <schema.json> <target.md>
 // Exit 0 conformant, 1 drift, 2 schema/target unreadable.
 // Failure shapes (stable — pinned by tests):
-//   path: missing required heading 'NAME'
+//   path: missing required heading 'NAME'                       (level-2)
+//   path: missing required heading 'NAME' under 'PARENT'        (level-3+, 6.9.0)
 //   path:LN — invented top-level heading 'NAME' not in schema
 //   path:LN — invented heading 'NAME' not in schema
 //   path:LN — heading 'NAME' out of order (expected after 'PREV')
 //   path:LN — line does not match expected pattern under 'NAME'
 //   schema: REASON         (exit 2)
 //   path: file not found   (exit 2)
+//
+// 6.9.0 — schemas may declare \`sub_sections[]\` on any section (recursive shape:
+// same fields as \`sections[]\`, nested). The walker walks the heading tree
+// depth-first; each section validates only its declared sub_sections
+// (parent-scoped allowlist) instead of the legacy flat declaredHeadings set.
 
 import { readFileSync } from 'node:fs';
 
@@ -4418,7 +4424,6 @@ for (let i = 0; i < lines.length; i++) {
 const topLevel = Array.isArray(schema.top_level) ? schema.top_level : [];
 const sections = Array.isArray(schema.sections) ? schema.sections : [];
 const allowedTop = new Set(topLevel);
-const declaredHeadings = new Set(sections.map((s) => s.heading));
 
 let exitCode = 0;
 const fail = (msg) => {
@@ -4459,7 +4464,7 @@ if (topLevel.length > 0) {
   }
 }
 
-// 3. Required level-2 missing
+// 3. Required level-2 missing (top-level uses the legacy un-suffixed shape).
 for (const sec of sections) {
   if (sec.level !== 2) continue;
   if (sec.required === false) continue;
@@ -4470,61 +4475,100 @@ for (const sec of sections) {
   }
 }
 
-// 4. Per-section: forbid_invented_sub_headings + lines_match
-for (const sec of sections) {
-  if (sec.level !== 2) continue;
-  const idx = headings.findIndex((h) => h.level === 2 && h.text === sec.heading);
-  if (idx < 0) continue;
-  const startLine = headings[idx].line;
-  let endLine = lines.length + 1;
-  for (let j = idx + 1; j < headings.length; j++) {
-    if (headings[j].level <= sec.level) {
-      endLine = headings[j].line;
+// 4. Recursive per-section walk. 6.9.0 — each section validates ONLY its
+//    declared sub_sections (parent-scoped allowlist) instead of using a
+//    flat global declaredHeadings set. lines_match still applies on the
+//    section body. Cohort-1 schemas without sub_sections behave identically:
+//    sub_sections=[] + forbid_invented_sub_headings:true means "no child
+//    headings expected here" — any L3 under the section is flagged.
+function processSection(section, secIdx) {
+  const myLevel = section.level;
+  const myLine = headings[secIdx].line;
+
+  // Compute byte-line range: section heading line → next sibling-or-higher.
+  let endByteLine = lines.length + 1;
+  for (let j = secIdx + 1; j < headings.length; j++) {
+    if (headings[j].level <= myLevel) {
+      endByteLine = headings[j].line;
       break;
     }
   }
 
-  if (sec.forbid_invented_sub_headings !== false) {
-    for (let j = idx + 1; j < headings.length; j++) {
-      const sub = headings[j];
-      if (sub.line >= endLine) break;
-      if (sub.level <= sec.level) break;
-      if (!declaredHeadings.has(sub.text)) {
-        fail(\`\${targetPath}:\${sub.line} — invented heading '\${sub.text}' not in schema\`);
+  // Direct children = headings inside the section's range with level = myLevel + 1.
+  const directChildren = [];
+  for (let j = secIdx + 1; j < headings.length; j++) {
+    const h = headings[j];
+    if (h.level <= myLevel) break;
+    if (h.level === myLevel + 1) directChildren.push({ h, idx: j });
+  }
+
+  const subs = Array.isArray(section.sub_sections) ? section.sub_sections : [];
+  const declared = new Set(subs.map((s) => s.heading));
+  const forbid = section.forbid_invented_sub_headings !== false;
+
+  // 4a. Missing required sub_sections.
+  for (const sub of subs) {
+    if (sub.required === false) continue;
+    const present = directChildren.some((c) => c.h.text === sub.heading);
+    if (!present) {
+      process.stderr.write(
+        \`\${targetPath}: missing required heading '\${sub.heading}' under '\${section.heading}'\\n\`,
+      );
+      exitCode = 1;
+    }
+  }
+
+  // 4b. Invented direct children (forbid: true; default).
+  if (forbid) {
+    for (const c of directChildren) {
+      if (!declared.has(c.h.text)) {
+        fail(\`\${targetPath}:\${c.h.line} — invented heading '\${c.h.text}' not in schema\`);
       }
     }
   }
 
-  if (sec.lines_match) {
+  // 4c. lines_match — 6.8.0 semantics preserved (only top-level bullets at col 0,
+  //     inside fences exempt, continuation prose exempt).
+  if (section.lines_match) {
     let rx;
     try {
-      rx = new RegExp(sec.lines_match);
+      rx = new RegExp(section.lines_match);
     } catch (err) {
-      process.stderr.write(\`schema: invalid lines_match regex for '\${sec.heading}': \${err.message}\\n\`);
+      process.stderr.write(
+        \`schema: invalid lines_match regex for '\${section.heading}': \${err.message}\\n\`,
+      );
       process.exit(2);
     }
-    // 6.8.0 — only validate TOP-LEVEL list-item-starting lines. Continuation
-    // prose, fenced code blocks, sub-bullets, blockquotes, tables — all exempt.
-    // The schema's lines_match describes what an item header looks like, not
-    // every line of body content under it. Pre-6.8.0 the walker validated
-    // every non-empty / non-heading line, which produced hundreds of false
-    // positives on stories that explained ACs with prose or code examples.
-    let inFence = false;
-    for (let j = startLine; j < endLine - 1; j++) {
+    let inFenceLocal = false;
+    for (let j = myLine; j < endByteLine - 1; j++) {
       const ln = lines[j];
       if (ln === undefined) continue;
-      if (/^\\s*\`\`\`/.test(ln)) { inFence = !inFence; continue; }
-      if (inFence) continue;
+      if (/^\\s*\`\`\`/.test(ln)) { inFenceLocal = !inFenceLocal; continue; }
+      if (inFenceLocal) continue;
       if (ln.trim() === '') continue;
       if (HEADING.test(ln)) continue;
-      // Only enforce lines_match on bullets that start at column 0 (top-level
-      // list items). Anything indented or prose-shaped is allowed body content.
       if (!/^[-*]\\s/.test(ln)) continue;
       if (!rx.test(ln)) {
-        fail(\`\${targetPath}:\${j + 1} — line does not match expected pattern under '\${sec.heading}'\`);
+        fail(\`\${targetPath}:\${j + 1} — line does not match expected pattern under '\${section.heading}'\`);
       }
     }
   }
+
+  // 4d. Recurse into matched sub_sections (declared AND present in the doc).
+  for (const sub of subs) {
+    if (sub.level !== myLevel + 1) continue;
+    const childMatch = directChildren.find((c) => c.h.text === sub.heading);
+    if (!childMatch) continue;
+    processSection(sub, childMatch.idx);
+  }
+}
+
+// Process each level-2 section that actually appears in the target.
+for (const sec of sections) {
+  if (sec.level !== 2) continue;
+  const idx = headings.findIndex((h) => h.level === 2 && h.text === sec.heading);
+  if (idx < 0) continue;
+  processSection(sec, idx);
 }
 
 process.exit(exitCode);
