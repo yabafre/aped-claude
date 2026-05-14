@@ -154,9 +154,9 @@ v6.2.0 ships a draft 2020-12 JSON Schema for `state.yaml v3` at `.aped/data/stat
 
 See `docs/TROUBLESHOOTING.md` §27 for fix patterns.
 
-### 6.2 Artefact contracts (6.3.0 cohort-1; 6.9.0 cohort-2, WARN-only — ERROR in 7.0.0)
+### 6.2 Artefact contracts (6.3.0 cohort-1; 6.9.0 cohort-2; 6.10.0 cohort-3, WARN-only — ERROR in 7.0.0)
 
-v6.3.0 extended the structural-validation pattern from `state.yaml` (chantier S, 6.2.0) to three pipeline-critical markdown artefacts: `story.md`, `epics.md`, and `epics-context/epic-{N}-context.md`. v6.9.0 adds **cohort-2** — recursive `sub_sections` in the DSL — so `## Review Record` and `## Dev Agent Record` inside `story.md` now enforce a parent-scoped level-3 allowlist (`### Findings`, `### Verification`, `### Ticket sync` under Review Record; `### Summary`, `### Files changed`, `### Deviations`, `### Test output` under Dev Agent Record). JSON schemas ship at `.aped/data/{artefact}.schema.json`; the DSL spec is at `.aped/data/markdown-schema.dsl.md`.
+v6.3.0 extended the structural-validation pattern from `state.yaml` (chantier S, 6.2.0) to three pipeline-critical markdown artefacts: `story.md`, `epics.md`, and `epics-context/epic-{N}-context.md`. v6.9.0 added **cohort-2** — recursive `sub_sections` in the DSL — so `## Review Record` and `## Dev Agent Record` inside `story.md` now enforce a parent-scoped level-3 allowlist (`### Findings`, `### Verification`, `### Ticket sync` under Review Record; `### Summary`, `### Files changed`, `### Deviations`, `### Test output` under Dev Agent Record). v6.10.0 ships **cohort-3 PRD** (`prd.schema.json` with 7 required level-2 sections + `lines_match` regex on FR / NFR bullet shapes) — the architecture cohort follows in 6.11.0 once `heading_pattern` regex lands for `### ADR-N: <title>` patterns. JSON schemas ship at `.aped/data/{artefact}.schema.json`; the DSL spec is at `.aped/data/markdown-schema.dsl.md`.
 
 **Producer-side gates run automatically:**
 
