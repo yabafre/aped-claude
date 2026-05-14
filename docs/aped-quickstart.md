@@ -154,9 +154,9 @@ v6.2.0 ships a draft 2020-12 JSON Schema for `state.yaml v3` at `.aped/data/stat
 
 See `docs/TROUBLESHOOTING.md` §27 for fix patterns.
 
-### 6.2 Artefact contracts (6.3.0+, WARN-only — ERROR in 7.0.0)
+### 6.2 Artefact contracts (6.3.0 cohort-1; 6.9.0 cohort-2, WARN-only — ERROR in 7.0.0)
 
-v6.3.0 extends the structural-validation pattern from `state.yaml` (chantier S, 6.2.0) to three pipeline-critical markdown artefacts: `story.md`, `epics.md`, and `epics-context/epic-{N}-context.md`. JSON schemas ship at `.aped/data/{artefact}.schema.json`; the DSL spec is at `.aped/data/markdown-schema.dsl.md`.
+v6.3.0 extended the structural-validation pattern from `state.yaml` (chantier S, 6.2.0) to three pipeline-critical markdown artefacts: `story.md`, `epics.md`, and `epics-context/epic-{N}-context.md`. v6.9.0 adds **cohort-2** — recursive `sub_sections` in the DSL — so `## Review Record` and `## Dev Agent Record` inside `story.md` now enforce a parent-scoped level-3 allowlist (`### Findings`, `### Verification`, `### Ticket sync` under Review Record; `### Summary`, `### Files changed`, `### Deviations`, `### Test output` under Dev Agent Record). JSON schemas ship at `.aped/data/{artefact}.schema.json`; the DSL spec is at `.aped/data/markdown-schema.dsl.md`.
 
 **Producer-side gates run automatically:**
 
@@ -437,9 +437,9 @@ Informed by BMAD, Superpowers, Pocock, and Anthropic engineering:
 - **commit-gate hook** — PostToolUse advisory after 5+ uncommitted changes. Structural enforcement: compliance detectable by artifact, not honor system.
 - **session-start CLAUDE.md check** — warns when `CLAUDE.md` is missing the `<!-- APED:START -->` block (catches worktree visibility issue with gitignored `CLAUDE.local.md`).
 
-### 35 skills (was 25 at 3.12)
+### 36 skills (was 25 at 3.12)
 
-New since 3.12: `aped-grill` (4.8.0, Pocock-style alignment), `aped-write-skill` (4.6.0, meta), `aped-triage` (4.19.0, issue triage state machine), `aped-pre-mortem` (5.4.0), `aped-design-twice` (5.4.0), `aped-arch-audit` (4.5.0), `aped-iterate` (4.4.0), `aped-zoom-out` (4.6.0). v6.0.0 keeps the count at 33 — the change is structural (BMAD layout), not additive.
+New since 3.12: `aped-grill` (4.8.0, Pocock-style alignment), `aped-write-skill` (4.6.0, meta), `aped-triage` (4.19.0, issue triage state machine), `aped-pre-mortem` (5.4.0), `aped-design-twice` (5.4.0), `aped-arch-audit` (4.5.0), `aped-iterate` (4.4.0), `aped-zoom-out` (4.6.0), `aped-discuss-epic` (6.9.0, SPIDR-led per-epic decisions). v6.0.0 keeps the count at 33 — the change is structural (BMAD layout), not additive.
 
 ### Pipeline hardening (4.14.0)
 
@@ -451,7 +451,7 @@ New since 3.12: `aped-grill` (4.8.0, Pocock-style alignment), `aped-write-skill`
 
 ### v5.0.0 MAJOR — allowed-paths
 
-All 35 skills now declare `allowed-paths` frontmatter with `write` and `read-only` scopes. v5.1.0 added the advisory PreToolUse hook (`aped-method allowed-paths-scope`).
+All 36 skills now declare `allowed-paths` frontmatter with `write` and `read-only` scopes. v5.1.0 added the advisory PreToolUse hook (`aped-method allowed-paths-scope`).
 
 ### 813 tests (was ~100 at 4.0)
 

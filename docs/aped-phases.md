@@ -5,7 +5,7 @@ tags: [aped, workflow, phases, reference]
 
 # APED — Phases
 
-Detail of every phase in the pipeline: **command**, **persona(s) involved**, **expected input**, **produced output**, **validation gate**. APED ships **35 skills** as of v6.0.0. Since v6.0.0, every phase skill is a directory (`aped-X/SKILL.md` + `workflow.md` + `steps/step-NN-*.md`) — Claude only loads the slice relevant to the active step.
+Detail of every phase in the pipeline: **command**, **persona(s) involved**, **expected input**, **produced output**, **validation gate**. APED ships **36 skills** as of v6.9.0. Since v6.0.0, every phase skill is a directory (`aped-X/SKILL.md` + `workflow.md` + `steps/step-NN-*.md`) — Claude only loads the slice relevant to the active step.
 
 > 🔗 Overview: [APED — Workflow](.aped-workflow.md) · Personas: [APED — Personas & Teams](.aped-personas.md)
 
@@ -189,6 +189,15 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Purpose**: prospective failure analysis on any APED artifact (PRD, architecture, epic plan, story spec) before it reaches the next gate
 - Enumerates the top failure modes ("how could this go wrong?"), assigns likelihood and impact, and produces mitigations
 - Complements `aped-elicit` (which is broader) — `aped-pre-mortem` is specifically structured around risk registers
+
+### `aped-discuss-epic [epic-number]` (since 6.9.0)
+- **Purpose**: lock per-epic implementation decisions BEFORE `aped-story` starts spawning story files — fills the gap between `aped-arch` (system-level) and `aped-story` (per-story)
+- **Slot**: optional, between phases 5 (Epics) and 6 (Story). Runs once per epic, ideally right after `aped-epics` and before the first `aped-story` of that epic
+- **SPIDR axes**: walks Spike / Paths / Interfaces / Data / Rules as a 5-line checklist — each axis gets one decision or `N/A — <reason>`
+- **Output**: appends `## Implementation decisions` to `docs/aped/epics-context/epic-{N}-context.md`. Downstream skills (`aped-story`, `aped-dev`, `aped-review`) consume the cache as today — zero new wiring
+- **Iron Laws** (3): decisions are concrete (not aspirational); SPIDR walks all five axes; runs BEFORE `aped-story` for the target epic
+- **Spec-reviewer dispatch**: mirrors `aped-epics/step-06` — verifies decisions are concrete, consistent with `architecture.md`, and cross-cutting (≥2 stories)
+- Triggers: "discuss epic", "lock decisions for epic", "epic implementation decisions", "SPIDR for epic"
 
 ### `aped-design-twice [topic]`
 - **Purpose**: generates two competing designs for the same problem, then evaluates trade-offs
