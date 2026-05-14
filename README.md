@@ -5,7 +5,7 @@
 [![Node](https://img.shields.io/node/v/aped-method.svg?style=flat-square)](https://nodejs.org)
 [![License](https://img.shields.io/npm/l/aped-method.svg?style=flat-square)](./LICENSE)
 
-CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — **35 skills** invoked via the Skill tool or natural-language triggers, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, **parallel sprint** mode via `git worktree` with a Lead Dev coordinator, sprint **umbrella branch convention** so parallel sprints integrate via one reviewable PR per sprint, an **external ticket intake** for tickets that bypass the planning flow, a **post-ship router** (`aped-iterate`) that classifies new deltas into the right downstream skill, an **architecture audit** (`aped-arch-audit`) that surfaces deepening candidates in the existing codebase, and **cross-tool skill distribution** via symlinks so OpenCode, Codex CLI, and any `agents.md` reader see the same skills as Claude Code.
+CLI that scaffolds a complete, user-driven dev pipeline into any [Claude Code](https://claude.ai/download) project — **36 skills** invoked via the Skill tool or natural-language triggers, two hooks (coherence guardrail + upstream-lock), named agent personas, coordinated teams, **parallel sprint** mode via `git worktree` with a Lead Dev coordinator, sprint **umbrella branch convention** so parallel sprints integrate via one reviewable PR per sprint, an **external ticket intake** for tickets that bypass the planning flow, a **post-ship router** (`aped-iterate`) that classifies new deltas into the right downstream skill, an **architecture audit** (`aped-arch-audit`) that surfaces deepening candidates in the existing codebase, and **cross-tool skill distribution** via symlinks so OpenCode, Codex CLI, and any `agents.md` reader see the same skills as Claude Code.
 
 > **Upgrading from 5.x?** v6.0.0 restructured every skill into a BMAD-style directory (`aped-X/SKILL.md` + `workflow.md` + `steps/*`). The Claude Code skill loader has handled both layouts since 4.4.0, so existing scaffolds keep working — `aped-method --update` migrates in place. See [Migrating from 5.x](#migrating-from-5x).
 >
@@ -106,11 +106,11 @@ Each opt-in subcommand also accepts `--uninstall` to remove its installed bits.
 
 ## Skill catalog
 
-APED ships **35 skills**. Invoke them by name via Claude Code's Skill tool, or — recommended — let the runtime route automatically by using a phrase that matches the skill's `description:` (e.g. "create the prd", "run an architecture review", "kick off dev"). The phases of the pipeline (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) plus the utility, ideation, post-ship-routing, and architecture-audit skills are listed inline throughout this README; their full descriptions live in `src/templates/skills/aped-*/SKILL.md` (BMAD directory layout, v6.0.0+) in this repo.
+APED ships **36 skills**. Invoke them by name via Claude Code's Skill tool, or — recommended — let the runtime route automatically by using a phrase that matches the skill's `description:` (e.g. "create the prd", "run an architecture review", "kick off dev"). The phases of the pipeline (Analyze → PRD → UX → Arch → Epics → Story → Dev → Review) plus the utility, ideation, post-ship-routing, and architecture-audit skills are listed inline throughout this README; their full descriptions live in `src/templates/skills/aped-*/SKILL.md` (BMAD directory layout, v6.0.0+) in this repo.
 
 ### BMAD micro-file architecture (v6.0.0+)
 
-Every skill is a directory with at least a `SKILL.md` (entry point — the file Claude Code reads first), and optionally a `workflow.md` (high-level phases) plus `steps/step-NN-*.md` (one micro-step per file). The 10 phase skills (`aped-story`, `aped-dev`, `aped-review`, `aped-epics`, `aped-arch`, `aped-ux`, `aped-prd`, `aped-debug`, `aped-brainstorm`, `aped-analyze`) are fully decomposed into 6–12 steps each; the other 24 skills carry their content inline in `SKILL.md` (with `workflow.md` for the medium ones).
+Every skill is a directory with at least a `SKILL.md` (entry point — the file Claude Code reads first), and optionally a `workflow.md` (high-level phases) plus `steps/step-NN-*.md` (one micro-step per file). The 10 phase skills (`aped-story`, `aped-dev`, `aped-review`, `aped-epics`, `aped-arch`, `aped-ux`, `aped-prd`, `aped-debug`, `aped-brainstorm`, `aped-analyze`) are fully decomposed into 6–12 steps each; the other 26 skills carry their content inline in `SKILL.md` (with `workflow.md` for the medium ones).
 
 Why: keeping each step file under ~250 lines means Claude only loads the slice relevant to the current operation, instead of paging through a 600-line monolith. Validates the same thesis as Anthropic's [code-execution-with-MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) (progressive disclosure of typed tools) and [building a C compiler](https://www.anthropic.com/engineering/building-c-compiler) (decomposition for the model, not the human).
 
@@ -174,10 +174,10 @@ Want Claude Code without APED auto-routing? `aped-method disable` is a reversibl
 ```bash
 cd <project>
 npx aped-method disable
-# → Disabled APED — 20 newly suppressed, 14 already opt-out.
+# → Disabled APED — 21 newly suppressed, 15 already opt-out.
 
 npx aped-method status
-# → APED is disabled — 35 skills (20 newly suppressed, 14 already opt-out).
+# → APED is disabled — 36 skills (21 newly suppressed, 15 already opt-out).
 #   Last toggle: 2026-05-07T...
 
 # Change your mind any time:
@@ -192,7 +192,7 @@ npx aped-method enable
 
 **Defense in depth.** Every skill body now starts with an activation guard that runs `bash {{APED_DIR}}/scripts/check-enabled.sh`. Even if a user types `/aped-X` explicitly to bypass routing, the guard reads the marker / `aped.enabled: false` in `config.yaml` and HALTs the skill silently with a one-liner. No skill work happens while APED is disabled.
 
-**Enable consumes the snapshot.** Only the originally-unflagged skills lose the `disable-model-invocation` line; the 14 always-opt-out skills (`aped-arch`, `aped-grill`, `aped-zoom-out`, etc.) stay opt-out. If the snapshot is missing, `enable` falls back to a best-effort restore (strips the flag from all 34) and warns.
+**Enable consumes the snapshot.** Only the originally-unflagged skills lose the `disable-model-invocation` line; the 15 always-opt-out skills (`aped-arch`, `aped-grill`, `aped-zoom-out`, etc.) stay opt-out. If the snapshot is missing, `enable` falls back to a best-effort restore (strips the flag from all 36) and warns.
 
 **Local-only disable (6.3.2+; extended in 6.3.3).** When you want APED off in your working copy without committing the change to your team's branch:
 
@@ -202,7 +202,7 @@ npx aped-method disable --local
 #   Added 2 entries to .gitignore: `.aped/.DISABLED`, `.aped/config.local.yaml`.
 
 npx aped-method status
-# → APED is disabled (local) — marker only, 35 skills unchanged.
+# → APED is disabled (local) — marker only, 36 skills unchanged.
 
 npx aped-method enable
 # → Enabled APED — local marker + override removed.

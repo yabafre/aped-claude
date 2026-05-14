@@ -227,7 +227,7 @@ A provider-agnostic ticket abstraction. Skills call `aped-ticket` methods (`crea
 
 #### Skill count
 
-APED ships **35 skills** as of v6.0.0.
+APED ships **36 skills** as of v6.9.0.
 
 ### 6.0.0 — BMAD-style skill decomposition
 

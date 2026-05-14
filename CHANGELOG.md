@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### **The middle layer between architecture and stories finally has a home — and Review Records stop drifting.**
+
+6.9.0 ships the artefact-side bundle: a new optional skill for the unowned layer between `aped-arch` (system) and `aped-story` (per-story), plus cohort-2 of the markdown-schema contracts so the structured sub-sections of `story.md` finally validate. `aped-discuss-epic` walks SPIDR (Spike / Paths / Interfaces / Data / Rules) as a 5-line checklist, dispatches a spec-reviewer, and appends `## Implementation decisions` to `epic-{N}-context.md` — downstream skills consume it via the existing cache, zero new wiring. The markdown-schema DSL gains recursive `sub_sections`, so `## Review Record` and `## Dev Agent Record` now enforce parent-scoped level-3 allowlists: `### Verdict` placed where the schema expects `### Findings` is flagged as invented, and a Dev Agent Record without `### Summary` surfaces "missing required heading 'Summary' under 'Dev Agent Record'". `aped-dev/step-08` produces the four required sub-sections by default. `heading_pattern` regex is deferred to cohort-3 (6.10.0) when PRD / architecture schemas actually need it for `### FR-N: <title>` shapes.
+
+### The numbers that matter
+
+Source: `git diff v6.8.0..HEAD` on `packages/create-aped/`.
+
+| Metric | Before (6.8.0) | After (6.9.0) | Δ |
+|---|---|---|---|
+| Skills | 35 | 36 | +1 (`aped-discuss-epic`) |
+| Pipeline layers with structured decision-locking | 2 (system, story) | 3 (system, **epic**, story) | gap closed |
+| markdown-schema DSL section fields | 6 | 7 (+`sub_sections`) | recursive |
+| Walker scoping for invented sub-headings | flat global allowlist | parent-scoped recursive | tighter |
+| story.md sub-sections under contract | 0 (L2 only) | 7 L3 + 3 L4 | first L3+ coverage |
+| Failure-line shape | `path: missing required heading 'X'` only | `… 'X' under 'PARENT'` for L3+ | parent-aware |
+| Tests | 1932 | 1959 | +27 |
+
+### What this means for builders
+
+Per-epic implementation decisions are now an artefact, not a verbal handoff that drifts across the stories of an epic. Invoke `aped-discuss-epic 3` after `aped-epics` for epic 3 — SPIDR forces all five axes (empty axes are `N/A — <reason>`, never omitted), the spec-reviewer enforces concreteness, and the block lands in the cache that `aped-story` / `aped-dev` / `aped-review` already discover. The story-validator side: agents that invent `### Verdict` or skip `### Summary` in the Dev Agent Record now generate a WARN at story save — same WARN-only contract as cohort-1, ERROR escalation still locked for 7.0.0. Legacy stories from 6.8.0 with flat-bullet Dev Agent Records will surface WARN until re-touched by `aped-dev` — acceptable noise per the WARN-only design.
+
+### Itemized changes
+
+#### Added
+- `aped-discuss-epic` skill (single-file utility, slots between `aped-epics` and `aped-story`). Routes on "discuss epic", "lock decisions for epic", "epic implementation decisions", "SPIDR for epic". Walks the 5 SPIDR axes (Spike / Paths / Interfaces / Data / Rules) as a checklist, dispatches a spec-reviewer mirroring `aped-epics/step-06`, appends `## Implementation decisions` to `docs/aped/epics-context/epic-{N}-context.md`.
+- Three Iron Laws for `aped-discuss-epic` in `src/templates/ethos.md`: decisions are concrete (not aspirational); SPIDR walks all five axes (empty axis = `N/A — <reason>`); runs BEFORE `aped-story` for the target epic.
+- Markdown-schema DSL `sub_sections` field — recursive nested allowlist on any section object. Same shape as top-level `sections`. Walker descends depth-first; parent-scoped allowlist per section replaces the flat global declaredHeadings set.
+- `story.schema.json` cohort-2 sub-sections — `## Review Record` declares L3 children (Findings / Verification / Ticket sync) with L4 nested under Findings (Resolved / Dismissed / Unresolved); `## Dev Agent Record` declares four required L3 children (Summary / Files changed / Deviations / Test output). Bumped `version: 2`.
+- `epic-context.schema.json` optional `## Implementation decisions` level-2 section. Bumped `version: 2`. Legacy 6.8.0 caches without the section validate clean.
+- `tests/artefact-schema-story-cohort-2.test.js` (6 cases) — conformant Review Record + Dev Agent Record, invented L3 (`### Verdict`), missing required L3 (`### Summary`), parent-scoping (`### Findings` placed under `## User Story` is invented), optional L2 absent, empty Findings block tolerated.
+- `tests/aped-discuss-epic-skill.test.js` (6 cases) — description routing on the 4 trigger phrases, SKILL.md ↔ .tmpl sync, ETHOS.md anchor present, SPIDR axes in body, schema accepts legacy 6.8.0 cache, schema accepts 6.9.0 cache with the new section.
+
+#### Changed
+- `markdown-schema-walk.mjs` (story / epics / epic-context walker) — Section 4 of the algorithm becomes a recursive `processSection()` that descends `section.sub_sections` depth-first. Each section validates only its declared children. Cohort-1 schemas without `sub_sections` behave identically to 6.8.0 — no migration required.
+- Walker failure shape gains an `'X' under 'PARENT'` suffix for missing required L3+ headings so producers see which section's contract was breached. Top-level L2 missing keeps the legacy un-suffixed shape — tests pin this.
+- `aped-dev/step-08-completion.md` — Dev Agent Record is now emitted as four `###` sub-sections (Summary / Files changed / Deviations / Test output) instead of a flat bullet list. Matches the new schema exactly.
+- `markdown-schema.dsl.md` — `sub_sections` field documented; `forbid_invented_sub_headings` semantics updated to reflect parent-scoping; Out-of-scope section now lists `heading_pattern` as deferred to cohort-3 / 6.10.0 (replaces the obsolete "No nested sections" line).
+- README skill count (4 places) and the disable-mechanism breakdown (15 always-opt-out, 21 newly suppressed, 36 total). Inline-vs-phase count corrected from "24 inline" to "26 inline" (drift from earlier cycles, surfaced during pre-merge audit).
+- `docs/skills-classification.md`, `docs/aped-phases.md`, `docs/aped-workflow.md`, `docs/aped-quickstart.md`, `docs/aped-personas.md`, `docs/TROUBLESHOOTING.md` — all skill-count references advanced to 36 with the 6.9.0 context.
+- `SECURITY.md` adds `6.9.x` to the supported-versions table.
+
 ## [6.8.0] - 2026-05-13
 
 ### **A second hook for the Read tool, and sequential sprints stop losing markers.**
