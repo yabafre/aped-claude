@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.9.0] - 2026-05-14
+
 ### **The middle layer between architecture and stories finally has a home — and Review Records stop drifting.**
 
 6.9.0 ships the artefact-side bundle: a new optional skill for the unowned layer between `aped-arch` (system) and `aped-story` (per-story), plus cohort-2 of the markdown-schema contracts so the structured sub-sections of `story.md` finally validate. `aped-discuss-epic` walks SPIDR (Spike / Paths / Interfaces / Data / Rules) as a 5-line checklist, dispatches a spec-reviewer, and appends `## Implementation decisions` to `epic-{N}-context.md` — downstream skills consume it via the existing cache, zero new wiring. The markdown-schema DSL gains recursive `sub_sections`, so `## Review Record` and `## Dev Agent Record` now enforce parent-scoped level-3 allowlists: `### Verdict` placed where the schema expects `### Findings` is flagged as invented, and a Dev Agent Record without `### Summary` surfaces "missing required heading 'Summary' under 'Dev Agent Record'". `aped-dev/step-08` produces the four required sub-sections by default. `heading_pattern` regex is deferred to cohort-3 (6.10.0) when PRD / architecture schemas actually need it for `### FR-N: <title>` shapes.
