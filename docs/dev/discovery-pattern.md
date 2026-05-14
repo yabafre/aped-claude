@@ -3,9 +3,9 @@
 **Audience:** APED skill authors editing files under `packages/create-aped/src/templates/skills/`.
 **Status:** Canonical pattern. Copy-paste when creating or refactoring any pipeline-phase skill.
 **Related decisions:** `project_aped_doc_consumption` memory (2026-04-25 — drop inter-phase gates, adopt BMAD-style consume-everything-found).
-**Last updated:** v6.0.0.
+**Last updated:** v6.10.0.
 
-> **v6.0.0 layout note.** Since v6.0.0, every skill is a directory (`aped-X/SKILL.md` + optional `workflow.md` + `steps/step-NN-*.md`). For phase skills with full BMAD decomposition, the discovery pattern lives in `aped-X/steps/step-NN-input-discovery.md` (typically step 02). For skills that ship `SKILL.md` only, it remains the first runtime section of `SKILL.md` as documented below. Either way, the pattern is identical — only the file location differs.
+> **Layout (v6.0.0+).** Every skill is a directory (`aped-X/SKILL.md` + optional `workflow.md` + `steps/step-NN-*.md`). For phase skills with full BMAD decomposition, the discovery pattern lives in `aped-X/steps/step-NN-input-discovery.md` (typically step 02). For skills that ship `SKILL.md` only, it remains the first runtime section of `SKILL.md` as documented below. Either way, the pattern is identical — only the file location differs.
 
 ## Step I/O contract frontmatter (v6.0.0+)
 
@@ -178,21 +178,23 @@ Loaded artefacts inform every subsequent phase of this skill:
   "Brief states the MVP scope is X, so…".
 ```
 
-## Customization checklist per Tier-1 skill
+## Customization checklist per pipeline-phase skill
 
-For the nine pipeline-phase skills that need this pattern, the customization is:
+For the ten pipeline-phase skills + the optional `aped-discuss-epic`, the customization is:
 
-| Skill            | Globs to keep                              | Required (✱)    | Notes                                              |
-|------------------|--------------------------------------------|-----------------|----------------------------------------------------|
-| `aped-analyze`   | brief, context, research                   | none            | Greenfield is fine with nothing; sniff context.md  |
-| `aped-context`   | none — it's the producer                   | none            | Skip the discovery section. Only fix description.  |
-| `aped-prd`       | brief, context, research                   | brief ✱         | Or none if a more permissive policy is preferred   |
-| `aped-ux`        | brief, context, prd, research              | **prd ✱**       | Fixes the long-standing PRD-not-loaded bug         |
-| `aped-arch`      | brief, context, prd, ux, research          | **prd ✱**       | Adds the missing context.md load                   |
-| `aped-epics`     | brief, context, prd, ux, arch              | prd ✱           | Already partial — harmonise it                     |
-| `aped-story`     | brief, context, prd, ux, arch, epics       | epics ✱         | Story-level, lighter discovery                     |
-| `aped-dev`       | all of the above + epic-context cache      | story file ✱    | The cache stays; discovery enriches it             |
-| `aped-review`    | all of the above + epic-context cache      | story + arch ✱  | Same shape as `aped-dev`                           |
+| Skill                | Globs to keep                              | Required (✱)         | Notes                                              |
+|----------------------|--------------------------------------------|----------------------|----------------------------------------------------|
+| `aped-analyze`       | brief, context, research                   | none                 | Greenfield is fine with nothing; sniff context.md  |
+| `aped-context`       | none — it's the producer                   | none                 | Skip the discovery section. Only fix description.  |
+| `aped-prd`           | brief, context, research                   | brief ✱              | Or none if a more permissive policy is preferred   |
+| `aped-ux`            | brief, context, prd, research              | **prd ✱**            | Fixes the long-standing PRD-not-loaded bug         |
+| `aped-arch`          | brief, context, prd, ux, research          | **prd ✱**            | Adds the missing context.md load                   |
+| `aped-epics`         | brief, context, prd, ux, arch              | prd ✱                | Already partial — harmonise it                     |
+| `aped-discuss-epic`  | prd, arch, epics, epic-context cache, sibling epics' decisions | epic-context cache ✱ | Optional skill (6.9.0+) — runs between epics + story when an epic has cross-cutting decisions to lock. SPIDR axes |
+| `aped-story`         | brief, context, prd, ux, arch, epics, decisions block (6.9.0+) | epics ✱     | Story-level, lighter discovery                     |
+| `aped-dev`           | all of the above + epic-context cache      | story file ✱         | The cache stays; discovery enriches it             |
+| `aped-review`        | all of the above + epic-context cache      | story + arch ✱       | Same shape as `aped-dev`                           |
+| `aped-debug`         | story, lessons, code paths around the bug  | bug repro ✱          | The repro is the load-bearing input                |
 
 ## What stays the same
 
@@ -220,7 +222,7 @@ Activation guard + config preamble + language directives are hoisted out of skil
 
 ## Reference implementation already in tree
 
-`aped-from-ticket.md` lines 87–89 already implements a lightweight version of this pattern:
+`aped-from-ticket/SKILL.md` (v6.0.0+ directory layout) already implements a lightweight version of this pattern:
 
 ```
 1. PRD — read if it exists. Identify FRs/NFRs that semantically overlap…
