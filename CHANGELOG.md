@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.11.0] - 2026-05-15
+
 ### **Cohort-3 architecture closes the 5/5 promise — and the markdown-schema DSL grows two regex slots without breaking a thing.**
 
 6.11.0 ships the last artefact-contract that 6.3.0 promised. `architecture.md` joins story, epics, epic-context, and prd under the same WARN-only Node walker — but architecture is the one shape that has both fixed and variable structure on the same level, so the markdown-schema DSL grows to match. **Two new optional fields** land in the field reference: `top_level_patterns` (regex allowlist for L2 names alongside the fixed `top_level`, used here for `## ADR-N: <title>` entries that may appear in any position, in any count) and `sub_sections_heading_pattern` (per-section regex allowlist for direct children, used here for `### Component: <name>` entries under Phase 4 alongside the 4 fixed L3 sub-sections). Existing cohort-1/2/3a schemas validate unmodified — both fields are strictly additive. **A second drift gets fixed in the same pass**: the `aped-arch` skeleton from `step-01-init.md` has emitted six Phase L2 sections since 6.0.0, but `step-09-finalize.md` references `§6 Watch Items / §7 Residual Gaps / §8 Epic Zero` to count W-/G-/E0.x items into `state.yaml`. Those sections didn't exist — counters always returned 0. The skeleton now emits Phase 6/7/8 too, the new schema requires them, and step-09 finds what it has been looking for all along.
