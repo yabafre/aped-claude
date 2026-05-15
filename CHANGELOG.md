@@ -7,8 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- `docs/aped-quickstart.md` skill count drifted to `35` since v6.9.0 when `aped-discuss-epic` brought the total to 36 — corrected. The §6.2 cohort heading and prose still framed cohort-3 architecture as a future deliverable contingent on a `heading_pattern` regex landing; now rewritten to reflect what actually shipped in 6.11.0 (cohort-3a PRD + cohort-3b architecture, 5/5 closed, two narrow DSL fields instead of a generic `heading_pattern`). `docs/dev/discovery-pattern.md` last-updated stamp bumped to v6.11.0.
+### **Hygiene + polish — the safety net that would have caught yesterday's `35 skills` drift, plus three Tier B items the backlog has been carrying since 6.7.0.**
+
+6.12.0 is a deliberate pause between cohort cycles. **Hygiene:** `check-pre-merge.sh` now scans four docs (aped-quickstart, aped-personas, skills-classification, dev/discovery-pattern) for skill-count parity against the source tree, not just README + skills-classification. The lived-experience drift that survived 7 days post-6.9.0 because no test enforced it surfaces at PR time instead. **Polish:** `aped-method state` (B9) renders `aped/state.yaml` as a human-readable Markdown digest (current phase, subphase, completed_subphases count, watch/gap/E0 counts, corrections total) — default stdout, `--write` persists to `STATE.md` at project root. `docs/GLOSSARY.md` (B12) lands as the canonical source for 30 terms across pipeline structure, artefacts, validation, process, modes, and discipline — README and aped-workflow.md now point at it instead of re-defining vocabulary inline. The `aped-context` skill (B17) is rebranded as the explicit brownfield entry-point: description leads with "Brownfield entry-point", README "Where to use what" gets a "Coming from an existing codebase?" first call-out, and the cheat sheet promotes the brownfield row above bootstrapping.
+
+### The numbers that matter
+
+Source: `git diff v6.11.0..HEAD` on `packages/create-aped/`.
+
+| Metric | Before (6.11.0) | After (6.12.0) | Δ |
+|---|---|---|---|
+| Docs scanned for skill-count drift | 2 (README, skills-classification) | 5 (+ aped-quickstart, aped-personas, dev/discovery-pattern) | +3 |
+| CLI subcommands | 17 | 18 (+ `state`) | +1 |
+| Canonical term sources | 7 docs cross-defining inline | 1 (`docs/GLOSSARY.md`) + cross-links | de-duplicated |
+| `aped-context` description routing | 4 phrases | 7 phrases (+ "existing codebase", "legacy project", "onboarding to a codebase") | +3 |
+| Tests | 1989 | 1996 | +7 (5 state-subcommand + 1 hygiene + 1 misc) |
+
+### What this means for builders
+
+`aped-method state` is the human escape hatch when you want a quick read on where the pipeline is without opening `state.yaml`. The brownfield rebrand makes the description-router fire `aped-context` on phrases people actually type when joining a codebase (instead of the previous narrow trigger list). `docs/GLOSSARY.md` is the place to look up unfamiliar APED terms — every doc that used to define `cohort` / `oracle` / `chantier` / `W-item` / `slip-in` inline now points at the glossary, so a single edit propagates. The hygiene gate quietly does its job at PR time: the next time someone forgets to bump a skill count in one of the four newly-scanned docs, the script catches it the same day, not a week later.
+
+### Itemized changes
+
+#### Added
+- `aped-method state` subcommand. Default: print Markdown digest of pipeline state to stdout (current phase, status, subphase, completed_subphases count, output path, last_updated, watch/gap/E0 counts under `architecture`, corrections total). `--write`: persist to `STATE.md` at project root. Thin wrapper around the new `${a}/scripts/digest-state.sh` (yq preferred, grep/awk fallback for canonical schema-v3/v4 shapes — no new runtime deps).
+- `docs/GLOSSARY.md` — 30 terms across pipeline structure (phase, subphase, skill, BMAD micro-file, discovery pattern), artefacts (artefact, skeleton, council dispatch, ADR, FR/NFR, E0.x, W-/G-item), validation (cohort, oracle, structural validator, `lines_match`, `sub_sections`, `top_level_patterns`, `sub_sections_heading_pattern`), process (gate, NACK, chantier, slip-in, ticket sync), modes (sprint mode, worktree, brownfield/greenfield/hybrid, sequential mode), and discipline (ETHOS.md, Iron Law, completion-gate checklist, `allowed-paths`, hook).
+- README "Where to use what" gains a "Coming from an existing codebase?" lead pointing at `aped-context` as the brownfield entry-point; the cheat sheet promotes the brownfield row to first position. README "where to use what" footer adds a one-line pointer to `docs/GLOSSARY.md`.
+- `tests/aped-method-state-subcommand.test.js` (5 cases) — missing state.yaml exits 1 with HINT, fresh project renders `current_phase: none`, mid-pipeline renders all 5 sections, `--write` persists to STATE.md with empty stdout, yq absent triggers grep/awk fallback for `current_phase`.
+- `tests/cut-release-script.test.js` (+1 case) — regression guard that pollutes `docs/aped-quickstart.md` with `35 skills`, runs `check-pre-merge.sh`, asserts exit 1 with stable failure message.
+
+#### Changed
+- `scripts/check-pre-merge.sh` section 5a generalised: instead of checking only `docs/skills-classification.md`, it now loops over five docs (`docs/aped-quickstart.md`, `docs/aped-personas.md`, `docs/skills-classification.md`, `docs/dev/discovery-pattern.md`, plus README via the existing section 3). Per-doc first-match heuristic mirrors the existing README check; historical mentions deeper down (e.g. `### 25 skills, slash commands removed in 4.0.0`) intentionally exempt.
+- `src/templates/skills/aped-context/SKILL.md.tmpl` description rewritten — opens with "Brownfield entry-point", trigger phrase list grows from 4 to 7 keywords (+ "existing codebase", "legacy project", "onboarding to a codebase"). Body opener restructured to lead with the brownfield use case before the hybrid-project note.
+- `docs/aped-workflow.md` design-principles section gains a one-line pointer to `docs/GLOSSARY.md` for the canonical term definitions.
+- `docs/aped-quickstart.md` skill count corrected (35 → 36) and §6.2 cohort heading + prose rewritten to reflect what shipped in 6.10.0 + 6.11.0 (cohort-3a PRD + cohort-3b architecture, 5/5 closed, two narrow DSL fields).
+- `docs/dev/discovery-pattern.md` last-updated stamp bumped to v6.11.0.
+
+#### Fixed
+- The `35 skills` drift in `docs/aped-quickstart.md` that survived 7 days post-6.9.0 — caught by the new section-5a scan and corrected in the same release.
 
 ## [6.11.0] - 2026-05-15
 

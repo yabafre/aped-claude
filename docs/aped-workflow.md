@@ -156,6 +156,8 @@ flowchart TB
 
 ## Design principles
 
+> Terminology canonicalised in [GLOSSARY.md](./GLOSSARY.md): phase, artefact, cohort, oracle vs structural validator, council dispatch, ADR, W-/G-/E0.x items, sprint mode, worktree, ETHOS.md, allowed-paths, completion-gate checklist.
+
 1. **User controls the pace** — no auto-chaining, each phase ends with "Run `aped-X` when ready".
 2. **A/P/C menu at every load-bearing gate** — `[A]` invokes `aped-elicit` (advanced critique toolkit), `[P]` dispatches a multi-specialist sub-team, `[C]` continues. Direct user feedback always accepted as a fallback.
 3. **Skill-first invocation** — primary (and, since 4.0.0, only) invocation is the Skill tool or natural language matching `description:` triggers. The CLAUDE.md template ships the **1% rule** + a 12-row rationalization table to make skill invocation reflexive.

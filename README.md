@@ -168,6 +168,8 @@ For the full persona catalogue including the 11-specialist Stage-1.5 reviewers (
 
 ## Where to use what
 
+**Coming from an existing codebase?** Start with **`aped-context`** — the brownfield entry-point. It walks the repo, generates `project-context.md`, and sets the `brownfield`/`greenfield`/`hybrid` verdict that every downstream APED skill discovers and adapts to. Then `aped-analyze` (or skip straight to `aped-prd` if the discovery already answered the strategy questions). For a true greenfield (empty directory), start with `aped-brainstorm` or `aped-analyze`.
+
 ```mermaid
 flowchart TD
   start([What kind of work?])
@@ -190,8 +192,8 @@ A short cheat sheet for the most common decisions:
 
 | Situation | Run | Why |
 |---|---|---|
+| Joining an existing codebase | `aped-context` first, then `aped-analyze` (hybrid mode) | Brownfield entry-point — sniff `type` (brownfield/greenfield/hybrid), load conventions, then plan. |
 | Bootstrapping a new product | `aped-brainstorm` → `aped-analyze` | Diverge then converge before locking the PRD. |
-| Joining an existing codebase | `aped-context` first, then `aped-analyze` (hybrid mode) | Sniff `type` (brownfield/greenfield/hybrid), load conventions, then plan. |
 | Epic has cross-cutting decisions | `aped-discuss-epic <N>` between Epics and Story | SPIDR checklist locks per-epic decisions so stories don't re-derive them. |
 | Production bug | `aped-debug` first, `aped-dev` for the fix-with-test | The TDD red marker is enforced at commit; the debug skill structures the bisect. |
 | Ticket arrived mid-sprint | `aped-from-ticket <ticket-id-or-url>` | Compiles project context, drafts a story, registers it out-of-sprint by default. |
@@ -200,7 +202,7 @@ A short cheat sheet for the most common decisions:
 | Need a second opinion on a finished artefact | `aped-grill` | Adversarial stress-test: tries to break assumptions, find contradictions. |
 | Reviewer feedback to address | `aped-receive-review` | Verifies the claim before agreeing — no performative "you're absolutely right". |
 
-For the full design rationale, the 23-item principles list, and the parallel-sprint architecture (umbrella branch, two-tier Lead Dev ↔ Story Leader, dispatch paths), see [docs/aped-workflow.md](./docs/aped-workflow.md).
+For the full design rationale, the 23-item principles list, and the parallel-sprint architecture (umbrella branch, two-tier Lead Dev ↔ Story Leader, dispatch paths), see [docs/aped-workflow.md](./docs/aped-workflow.md). For terminology (phase / artefact / cohort / oracle / W-item / E0.x / etc.), see [docs/GLOSSARY.md](./docs/GLOSSARY.md).
 
 ## Optimize your APED setup
 
