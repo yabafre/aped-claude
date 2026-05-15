@@ -57,7 +57,8 @@ Detail of every phase in the pipeline: **command**, **persona(s) involved**, **e
 - **Normal mode**: 5 collaborative phases, decisions consistent with the PRD
 - **"Architecture Council" mode** (high-stakes decisions): **Winston, Lena, Raj, Nina, Maya** dispatched in parallel, each thinks independently and returns a structured verdict. Trigger for: primary DB, auth model, API paradigm, frontend framework, infra platform.
 - **Output**: `docs/aped/architecture.md` (rolling decisions + patterns + structure) + `docs/aped/adr/000N-{slug}.md` (sharded ADRs since 6.0.0 — Pocock pattern: short, citable, written when a decision passes hard-to-reverse + surprising + real-trade-off)
-- **Oracle**: `oracle-arch.sh` — validates architecture decisions against PRD constraints, checks ADR consistency
+- **Oracle**: `oracle-arch.sh` — HALT-bearing; validates that every PRD FR is referenced in architecture decisions, checks ADR field completeness (Status / Context / Decision / Consequences) and Component metadata (Owner / Tech stack)
+- **Structural validator** (since 6.11.0): `scripts/validate-architecture.sh` — WARN-only; cohort-3b schema checks the 9 Phase L2 sections, fixed L3 sub-sections under Phase 2/3/4, plus regex allowlists for `## ADR-N: <title>` at L2 and `### Component: <name>` at L3 under Phase 4. Runs in step-08 self-review before the oracle.
 - **Gate** ⏸: architecture validated before `aped-epics`
 
 ## 5. Epics — `aped-epics`

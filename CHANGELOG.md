@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### **Cohort-3 architecture closes the 5/5 promise — and the markdown-schema DSL grows two regex slots without breaking a thing.**
+
+6.11.0 ships the last artefact-contract that 6.3.0 promised. `architecture.md` joins story, epics, epic-context, and prd under the same WARN-only Node walker — but architecture is the one shape that has both fixed and variable structure on the same level, so the markdown-schema DSL grows to match. **Two new optional fields** land in the field reference: `top_level_patterns` (regex allowlist for L2 names alongside the fixed `top_level`, used here for `## ADR-N: <title>` entries that may appear in any position, in any count) and `sub_sections_heading_pattern` (per-section regex allowlist for direct children, used here for `### Component: <name>` entries under Phase 4 alongside the 4 fixed L3 sub-sections). Existing cohort-1/2/3a schemas validate unmodified — both fields are strictly additive. **A second drift gets fixed in the same pass**: the `aped-arch` skeleton from `step-01-init.md` has emitted six Phase L2 sections since 6.0.0, but `step-09-finalize.md` references `§6 Watch Items / §7 Residual Gaps / §8 Epic Zero` to count W-/G-/E0.x items into `state.yaml`. Those sections didn't exist — counters always returned 0. The skeleton now emits Phase 6/7/8 too, the new schema requires them, and step-09 finds what it has been looking for all along.
+
+### The numbers that matter
+
+Source: `git diff v6.10.0..HEAD` on `packages/create-aped/`.
+
+| Metric | Before (6.10.0) | After (6.11.0) | Δ |
+|---|---|---|---|
+| Artefact contracts (schema-validated) | 4 (story, epics, epic-context, prd) | 5 (+ architecture) | +1 — **5/5 promise from 6.3.0 closed** |
+| markdown-schema DSL fields (schema + section) | 5 + 6 | 6 + 7 | +1 schema (`top_level_patterns`), +1 section (`sub_sections_heading_pattern`) |
+| Phase L2 sections in `aped-arch` skeleton | 6 (Phase 1, 2, 2b, 3, 4, 5) | 9 (+ Watch Items, Residual Gaps, Epic Zero) | +3 — closes the step-09 counter drift |
+| `state.yaml` counters with a real source section | `watch_items`/`residual_gaps`/`epic_zero_stories` = always 0 | counters now find their sections | drift killed |
+| Tests | 1968 | 1989 | +21 |
+
+### What this means for builders
+
+Run `bash .aped/scripts/validate-architecture.sh docs/aped/architecture.md` to catch invented Phase headings (a producer that emits `## Tech Stack` instead of `## Phase 2 — Technology Decisions`), missing required L3 under Phase 2/3/4, or invented L3 where the pattern doesn't allow it. `aped-arch/step-08-validation-and-final-gate.md` self-review checklist invokes it as a WARN-only structural gate before the oracle. ADR entries can be written anywhere in the document (`## ADR-7: Use Postgres over MongoDB`) and `### Component: <name>` entries under Phase 4 are now first-class — both are validated structurally without the schema having to list them. Legacy `architecture.md` files (scaffolded before 6.11.0) will WARN about missing Phase 6/7/8 at the next `aped-arch` run; add three empty sections or accept the drift signal until the architect re-touches the file. The new DSL fields unlock future cohort work that needs variable-named sections — they are not architecture-specific.
+
+### Itemized changes
+
+#### Added
+- `src/templates/data/architecture.schema.json` — cohort-3b schema. 9 required Phase L2 headings (Phase 1, 2, 2b, 3, 4, 5, 6, 7, 8) with Phase 2b `required: false`. `top_level_patterns: ["^ADR-\\d+:\\s+.+$"]` accepts `## ADR-N: <title>` at L2 in any position, any count. Phase 2 / Phase 3 / Phase 4 declare their fixed L3 sub-sections (Data Layer / Auth & Security / API Design / Frontend / Infrastructure, Naming Conventions / Code Structure / Communication Patterns / Process Rules, Directory Tree / FR → File Mapping / Integration Boundaries / Shared Code Inventory). Phase 4 also carries `sub_sections_heading_pattern: "^Component:\\s+.+$"` so `### Component: <name>` entries coexist with the fixed L3. Phase 2b uses `forbid_invented_sub_headings: false` (Council Dispatch names are project-specific). ADR field-content (Status / Context / Decision / Consequences) and Component Owner / Tech-stack stay `oracle-arch.sh`'s domain.
+- `scripts/validate-architecture.sh` (shared dir) — thin Node-walker launcher, same shape as the four cohort siblings.
+- `aped-arch/step-08-validation-and-final-gate.md` self-review checklist now opens with a structural-drift bullet that calls the validator WARN-only before the oracle (which keeps owning HALT).
+- `markdown-schema.dsl.md` field-reference table grows two rows: `top_level_patterns` (schema-level, regex source array — L2 allowlist alongside fixed `top_level`, pattern-matched headings skip the order cursor) and `sub_sections_heading_pattern` (section-level, regex source — direct-child allowlist coexisting with `sub_sections[]`).
+- `tests/artefact-schema-architecture.test.js` (12 cases) — conformant skeleton, missing required L2, invented L2 not pattern-matched, ADR pattern at L2 between Phase 3 and Phase 4, multiple ADRs in any position, Phase 2b absent OK, Phase 2b open L3 OK, Component pattern at L3 under Phase 4 alongside 4 fixed, invented L3 under Phase 3, missing required L3 under Phase 2, legacy `architecture.md` without Phase 6/7/8 → three missing-required lines, Component-name does not trip the invented-heading check.
+- `tests/artefact-schema-script-runtime.test.js` — `prd` and `architecture` added to the launcher-runtime matrix (now 5 validators × 3 base cases = 15) plus two schema-error cases pinning the new fields' failure shapes: `schema: invalid top_level_patterns regex at index N` and `schema: invalid sub_sections_heading_pattern regex for 'NAME'`.
+
+#### Changed
+- `aped-arch/step-01-init.md` skeleton gains `## Phase 6 — Watch Items`, `## Phase 7 — Residual Gaps`, `## Phase 8 — Epic Zero` (each with a placeholder HTML comment matching the W-/G-/E0.x semantics referenced by step-09). The `phases_planned` frontmatter list grows from 6 to 9 entries (`watch-items`, `residual-gaps`, `epic-zero`).
+- Walker (`scripts/lib/markdown-schema-walk.mjs`) parses `top_level_patterns` once at load time (exit 2 on invalid regex), accepts pattern-matched L2 in the invented-top check, skips them from the fixed-order cursor. In `processSection`, parses `sub_sections_heading_pattern` per section (exit 2 on invalid regex), accepts pattern-matched children alongside declared sub_sections in the invented-direct-child check. Required-missing check still applies only to declared fixed entries.
+- `markdown-schema.dsl.md` — header note bumps cohort coverage to "6.11.0 ships cohort-3b architecture + two new optional DSL fields". The "Out of scope" line on `heading_pattern` is retired (replaced by the two concrete fields). Failure-shape table gains the two new schema-error rows.
+
+#### Fixed
+- `state.yaml` counters `watch_items` / `residual_gaps` / `epic_zero_stories` were derived from `architecture.md §6 / §7 / §8` per `aped-arch/step-09-finalize.md` lines 79–81, but the skeleton from step-01 never emitted those sections — the counters always returned 0. With Phase 6/7/8 added to the skeleton and the cohort-3b schema requiring them, step-09 now finds what it has been counting against since 6.0.0.
+
 ## [6.10.0] - 2026-05-15
 
 ### **Cohort-3 PRD schemas land, and the README finally reads like a landing page.**

@@ -127,7 +127,7 @@ Each skill is a directory: `SKILL.md` (entry), optional `workflow.md` (phases), 
 
 Why decompose: Claude only loads the slice relevant to the current step instead of paging through a 600-line monolith. Same thesis as Anthropic's [code-execution-with-MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) (progressive disclosure of typed tools).
 
-For the full taxonomy (small / medium / phase-decomposed, opt-in defaults, hard vs soft dependencies), see [docs/skills-classification.md](./docs/skills-classification.md). For ADR sharding, domain glossary, doc hygiene, and the schema-based artefact contracts (cohort-1 since 6.3.0, cohort-2 since 6.9.0, cohort-3 PRD since 6.10.0), see [docs/aped-workflow.md](./docs/aped-workflow.md).
+For the full taxonomy (small / medium / phase-decomposed, opt-in defaults, hard vs soft dependencies), see [docs/skills-classification.md](./docs/skills-classification.md). For ADR sharding, domain glossary, doc hygiene, and the schema-based artefact contracts (cohort-1 since 6.3.0, cohort-2 since 6.9.0, cohort-3 PRD since 6.10.0, cohort-3b architecture since 6.11.0 — 5/5 coverage closed), see [docs/aped-workflow.md](./docs/aped-workflow.md).
 
 ## Operational commands
 

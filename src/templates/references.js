@@ -122,6 +122,15 @@ export function references(c) {
       path: `${a}/data/prd.schema.json`,
       content: loadDataFile('prd.schema.json'),
     },
+    // 6.11.0 — cohort-3b architecture schema. Closes 5/5 artefact-contract
+    // coverage. Uses the new DSL fields top_level_patterns (ADR pattern at
+    // L2) and sub_sections_heading_pattern (Component pattern at L3 under
+    // Phase 4). Phase 6/7/8 sections added to the skill skeleton align with
+    // step-09-finalize.md's state.yaml counters.
+    {
+      path: `${a}/data/architecture.schema.json`,
+      content: loadDataFile('architecture.schema.json'),
+    },
   ];
 }
 
