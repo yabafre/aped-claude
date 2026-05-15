@@ -8,6 +8,7 @@ Security patches are issued for the latest `6.x` minor release only.
 
 | Version  | Supported          |
 | -------- | ------------------ |
+| 6.12.x  | :white_check_mark: |
 | 6.11.x  | :white_check_mark: |
 | 6.10.x  | :white_check_mark: |
 | 6.9.x   | :white_check_mark: |

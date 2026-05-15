@@ -59,6 +59,60 @@ describe('release scripts (4.14.0)', () => {
     expect(violations).toHaveLength(0);
   });
 
+  it('check-pre-merge.sh catches skill-count drift in aped-quickstart.md (6.12.0)', () => {
+    // 6.12.0 hardening — the 35-skill drift in aped-quickstart.md survived
+    // 7 days post-6.9.0 because no test enforced it. This regression guard
+    // pollutes a copy of the file with the wrong count and confirms the
+    // script exits 1 with a stable message naming the offending doc.
+    const { mkdtempSync, copyFileSync, readFileSync, writeFileSync, mkdirSync, rmSync } = require('node:fs');
+    const { tmpdir } = require('node:os');
+    const sandbox = mkdtempSync(join(tmpdir(), 'aped-precheck-drift-'));
+    try {
+      // Mirror the repo files the script actually reads.
+      mkdirSync(join(sandbox, 'scripts'), { recursive: true });
+      mkdirSync(join(sandbox, 'docs', 'dev'), { recursive: true });
+      mkdirSync(join(sandbox, 'src', 'templates', 'skills'), { recursive: true });
+      copyFileSync(join(ROOT, 'scripts', 'check-pre-merge.sh'), join(sandbox, 'scripts', 'check-pre-merge.sh'));
+      copyFileSync(join(ROOT, 'README.md'), join(sandbox, 'README.md'));
+      copyFileSync(join(ROOT, 'SECURITY.md'), join(sandbox, 'SECURITY.md'));
+      copyFileSync(join(ROOT, 'CHANGELOG.md'), join(sandbox, 'CHANGELOG.md'));
+      copyFileSync(join(ROOT, 'package.json'), join(sandbox, 'package.json'));
+      for (const doc of ['aped-quickstart.md', 'aped-personas.md', 'aped-workflow.md', 'aped-phases.md', 'skills-classification.md', 'TROUBLESHOOTING.md']) {
+        copyFileSync(join(ROOT, 'docs', doc), join(sandbox, 'docs', doc));
+      }
+      copyFileSync(join(ROOT, 'docs', 'dev', 'discovery-pattern.md'), join(sandbox, 'docs', 'dev', 'discovery-pattern.md'));
+      // Mirror the skills tree so the count expression resolves.
+      const { readdirSync, statSync } = require('node:fs');
+      const skillsRoot = join(ROOT, 'src', 'templates', 'skills');
+      for (const entry of readdirSync(skillsRoot)) {
+        const src = join(skillsRoot, entry);
+        const st = statSync(src);
+        const dst = join(sandbox, 'src', 'templates', 'skills', entry);
+        if (st.isDirectory()) {
+          mkdirSync(dst, { recursive: true });
+          if (existsSync(join(src, 'SKILL.md'))) {
+            copyFileSync(join(src, 'SKILL.md'), join(dst, 'SKILL.md'));
+          }
+        } else if (entry.endsWith('.md')) {
+          copyFileSync(src, dst);
+        }
+      }
+      // Pollute the quickstart with the wrong count.
+      const quickPath = join(sandbox, 'docs', 'aped-quickstart.md');
+      const polluted = readFileSync(quickPath, 'utf-8').replace(/\*\*36 skills\*\*/, '**35 skills**');
+      writeFileSync(quickPath, polluted);
+      // Initialize a tiny git repo so `git describe --tags` in section 1 doesn't fail.
+      spawnSync('git', ['init', '-q'], { cwd: sandbox });
+      spawnSync('git', ['add', '.'], { cwd: sandbox });
+      spawnSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init'], { cwd: sandbox });
+      const r = spawnSync('bash', ['scripts/check-pre-merge.sh'], { encoding: 'utf8', cwd: sandbox });
+      expect(r.status, `expected exit 1 but got ${r.status}\nstdout:\n${r.stdout}`).toBe(1);
+      expect(r.stdout).toMatch(/docs\/aped-quickstart\.md cites 35 skills, actual count is 36/);
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+
   it('cut-release.sh skill counter handles both flat and BMAD layouts (6.0.0+)', () => {
     // Regression guard: prior to 6.0.0 the script counted only flat
     // src/templates/skills/aped-*.md. The BMAD migration moved every skill

@@ -70,6 +70,7 @@ const SUBCOMMANDS = new Set([
   'disable',
   'enable',
   'status',
+  'state',
 ]);
 
 // Subcommands that take a second positional action (e.g. `sync-logs prune`).
@@ -109,6 +110,8 @@ const VALID_ARG_KEYS = new Set([
   'git', 'gitProvider',
   // Subcommand-scoped (sync-logs prune): --provider=NAME scopes the prune to one provider.
   'provider',
+  // Subcommand-scoped (state): --write persists the digest to STATE.md.
+  'write',
 ]);
 
 const HELP_TEXT = `aped-method — Scaffold and operate the APED pipeline in Claude Code
@@ -172,6 +175,11 @@ SUBCOMMANDS
                           validate.phase). Registers under .claude/settings
                           .local.json mcpServers. Eliminates the state.yaml
                           hallucination class. Requires yq.
+  state [--write]         Render aped/state.yaml as a human-readable
+                          Markdown digest of pipeline state (current phase,
+                          subphase, watch/gap/E0 counts, corrections total).
+                          Default: stdout. --write: persist to STATE.md at
+                          project root.
   sync-logs prune         One-shot retention sweep over docs/sync-logs/. Reads the
                           \`sync_logs.retention\` block in .aped/config.yaml. Default
                           is dry-run; pass --apply to actually delete. Optional

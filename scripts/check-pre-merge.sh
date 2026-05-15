@@ -130,16 +130,29 @@ for doc in "${REQUIRED_DOCS[@]}"; do
   fi
 done
 
-# 5a. skills-classification.md skill count
-if [[ -f docs/skills-classification.md ]]; then
-  CLASSIF_COUNT=$({ grep -oE '\b[0-9]+ skills?\b' docs/skills-classification.md || true; } \
-    | head -1 | { grep -oE '[0-9]+' || echo 0; })
-  CLASSIF_COUNT=${CLASSIF_COUNT:-0}
-  if [[ "$CLASSIF_COUNT" -gt 0 && "$CLASSIF_COUNT" != "$SKILL_COUNT" ]]; then
-    echo "FAIL: docs/skills-classification.md cites $CLASSIF_COUNT skills, actual count is $SKILL_COUNT"
+# 5a. Skill-count parity across the docs that introduce APED with a
+# headline count. The first `N skills?` match in each doc is treated as
+# the LEAD claim and must equal SKILL_COUNT; deeper mentions (historical
+# sections like "### 25 skills, slash commands removed in 4.0.0") are
+# intentionally not checked — they reference prior versions. Caught the
+# `35 skills` drift in aped-quickstart.md that survived 7 days post-6.9.0
+# because no test enforced it.
+DOCS_WITH_SKILL_COUNT=(
+  "docs/aped-quickstart.md"
+  "docs/aped-personas.md"
+  "docs/skills-classification.md"
+  "docs/dev/discovery-pattern.md"
+)
+for doc in "${DOCS_WITH_SKILL_COUNT[@]}"; do
+  [[ -f "$doc" ]] || continue
+  DOC_COUNT=$({ grep -oE '\b[0-9]+[[:space:]]*\**[[:space:]]*skills?\b' "$doc" 2>/dev/null || true; } \
+    | head -1 | { grep -oE '[0-9]+' || echo 0; } | head -1)
+  DOC_COUNT=${DOC_COUNT:-0}
+  if [[ "$DOC_COUNT" -gt 0 && "$DOC_COUNT" != "$SKILL_COUNT" ]]; then
+    echo "FAIL: $doc cites $DOC_COUNT skills, actual count is $SKILL_COUNT"
     ERRORS=$((ERRORS + 1))
   fi
-fi
+done
 
 # 5b. aped-quickstart.md must mention a version >= current minor.
 # Heuristic: the doc cites `vX.Y` or `X.Y.Z` somewhere. We check that the

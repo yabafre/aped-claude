@@ -167,6 +167,29 @@ export async function runSubcommand(command, args) {
     runStatusSubcommand(config);
     return;
   }
+
+  if (command === 'state') {
+    runStateSubcommand(config, args);
+    return;
+  }
+}
+
+function runStateSubcommand(config, args = {}) {
+  // 6.12.0 — B9 STATE.md digest. Thin wrapper around digest-state.sh:
+  // resolve the script path inside the scaffold, exec it, pipe stdout
+  // through to the user's terminal. --write persists to STATE.md at
+  // project root (the script handles it).
+  const scriptPath = join(process.cwd(), config.apedDir, 'scripts', 'digest-state.sh');
+  if (!existsSync(scriptPath)) {
+    throw new UserError(
+      `digest-state.sh not found at ${scriptPath}. Run \`npx aped-method --update\` to install it.`,
+    );
+  }
+  const scriptArgs = args.write === true ? ['--write'] : [];
+  const r = spawnSync('bash', [scriptPath, ...scriptArgs], { stdio: 'inherit' });
+  if (r.status !== 0) {
+    process.exitCode = r.status ?? 1;
+  }
 }
 
 function runDisableSubcommand(config, args = {}) {
