@@ -19,7 +19,7 @@ A disciplined dev pipeline for [Claude Code](https://claude.ai/download), scaffo
 
 **The flow**: `Analyze → PRD → UX → Arch → Epics → Story → Dev → Review`
 
-**35 skills** cover it all: ideation, critique, parallel sprint, external ticket intake, retrospective, pre-mortem, design exploration, issue triage, and maintenance. Invoked via natural-language triggers or the Skill tool. Since v6.0.0, every skill is a directory with at least a `SKILL.md` (the entry the loader reads) — the 10 phase skills also carry `workflow.md` + `steps/step-NN-*.md` files so Claude only loads the slice relevant to the current operation.
+**36 skills** cover it all: ideation, critique, parallel sprint, external ticket intake, retrospective, pre-mortem, design exploration, issue triage, and maintenance. Invoked via natural-language triggers or the Skill tool. Since v6.0.0, every skill is a directory with at least a `SKILL.md` (the entry the loader reads) — the 10 phase skills also carry `workflow.md` + `steps/step-NN-*.md` files so Claude only loads the slice relevant to the current operation.
 
 ---
 
@@ -154,9 +154,9 @@ v6.2.0 ships a draft 2020-12 JSON Schema for `state.yaml v3` at `.aped/data/stat
 
 See `docs/TROUBLESHOOTING.md` §27 for fix patterns.
 
-### 6.2 Artefact contracts (6.3.0 cohort-1; 6.9.0 cohort-2; 6.10.0 cohort-3, WARN-only — ERROR in 7.0.0)
+### 6.2 Artefact contracts (6.3.0 cohort-1; 6.9.0 cohort-2; 6.10.0 cohort-3a PRD; 6.11.0 cohort-3b architecture — 5/5 closed, WARN-only — ERROR in 7.0.0)
 
-v6.3.0 extended the structural-validation pattern from `state.yaml` (chantier S, 6.2.0) to three pipeline-critical markdown artefacts: `story.md`, `epics.md`, and `epics-context/epic-{N}-context.md`. v6.9.0 added **cohort-2** — recursive `sub_sections` in the DSL — so `## Review Record` and `## Dev Agent Record` inside `story.md` now enforce a parent-scoped level-3 allowlist (`### Findings`, `### Verification`, `### Ticket sync` under Review Record; `### Summary`, `### Files changed`, `### Deviations`, `### Test output` under Dev Agent Record). v6.10.0 ships **cohort-3 PRD** (`prd.schema.json` with 7 required level-2 sections + `lines_match` regex on FR / NFR bullet shapes) — the architecture cohort follows in 6.11.0 once `heading_pattern` regex lands for `### ADR-N: <title>` patterns. JSON schemas ship at `.aped/data/{artefact}.schema.json`; the DSL spec is at `.aped/data/markdown-schema.dsl.md`.
+v6.3.0 extended the structural-validation pattern from `state.yaml` (chantier S, 6.2.0) to three pipeline-critical markdown artefacts: `story.md`, `epics.md`, and `epics-context/epic-{N}-context.md`. v6.9.0 added **cohort-2** — recursive `sub_sections` in the DSL — so `## Review Record` and `## Dev Agent Record` inside `story.md` now enforce a parent-scoped level-3 allowlist (`### Findings`, `### Verification`, `### Ticket sync` under Review Record; `### Summary`, `### Files changed`, `### Deviations`, `### Test output` under Dev Agent Record). v6.10.0 ships **cohort-3a PRD** (`prd.schema.json` with 7 required level-2 sections + `lines_match` regex on FR / NFR bullet shapes). v6.11.0 ships **cohort-3b architecture** (`architecture.schema.json` validates 9 Phase L2 headings + fixed L3 sub-sections under Phase 2/3/4) and grows the DSL with two optional regex slots: `top_level_patterns` (`^ADR-\d+:\s+.+$` at L2 in any position / count) and `sub_sections_heading_pattern` (`^Component:\s+.+$` at L3 under Phase 4 alongside the 4 fixed L3). **5/5 artefact-contract coverage closed.** JSON schemas ship at `.aped/data/{artefact}.schema.json`; the DSL spec is at `.aped/data/markdown-schema.dsl.md`.
 
 **Producer-side gates run automatically:**
 
