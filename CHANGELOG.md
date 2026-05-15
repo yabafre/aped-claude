@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.12.0] - 2026-05-15
+
 ### **Hygiene + polish — the safety net that would have caught yesterday's `35 skills` drift, plus three Tier B items the backlog has been carrying since 6.7.0.**
 
 6.12.0 is a deliberate pause between cohort cycles. **Hygiene:** `check-pre-merge.sh` now scans four docs (aped-quickstart, aped-personas, skills-classification, dev/discovery-pattern) for skill-count parity against the source tree, not just README + skills-classification. The lived-experience drift that survived 7 days post-6.9.0 because no test enforced it surfaces at PR time instead. **Polish:** `aped-method state` (B9) renders `aped/state.yaml` as a human-readable Markdown digest (current phase, subphase, completed_subphases count, watch/gap/E0 counts, corrections total) — default stdout, `--write` persists to `STATE.md` at project root. `docs/GLOSSARY.md` (B12) lands as the canonical source for 30 terms across pipeline structure, artefacts, validation, process, modes, and discipline — README and aped-workflow.md now point at it instead of re-defining vocabulary inline. The `aped-context` skill (B17) is rebranded as the explicit brownfield entry-point: description leads with "Brownfield entry-point", README "Where to use what" gets a "Coming from an existing codebase?" first call-out, and the cheat sheet promotes the brownfield row above bootstrapping.
