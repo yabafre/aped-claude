@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `docs/aped-quickstart.md` skill count drifted to `35` since v6.9.0 when `aped-discuss-epic` brought the total to 36 — corrected. The §6.2 cohort heading and prose still framed cohort-3 architecture as a future deliverable contingent on a `heading_pattern` regex landing; now rewritten to reflect what actually shipped in 6.11.0 (cohort-3a PRD + cohort-3b architecture, 5/5 closed, two narrow DSL fields instead of a generic `heading_pattern`). `docs/dev/discovery-pattern.md` last-updated stamp bumped to v6.11.0.
+
 ## [6.11.0] - 2026-05-15
 
 ### **Cohort-3 architecture closes the 5/5 promise — and the markdown-schema DSL grows two regex slots without breaking a thing.**
