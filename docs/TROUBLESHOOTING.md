@@ -731,6 +731,48 @@ Then re-run `aped-sprint`. If you don't want sequential mode after all, set `spr
 
 **Fix.** Inspect the file. If the second match is a real escalation (more patterns appeared, e.g. a fetched doc grew or got rewritten), trust the canary and react. If both Reads see identical content and the count grew because of how `tool_response` is structured (object form vs string form), report it — the hook should be deterministic per file content.
 
+## 41. `validate-architecture.sh` says my `architecture.md` is missing `Phase 6 — Watch Items` (6.11.0+)
+
+**Symptom.** During `aped-arch` step-08 self-review, the structural-drift WARN bullet prints three lines:
+
+```
+docs/aped/architecture.md: missing required heading 'Phase 6 — Watch Items'
+docs/aped/architecture.md: missing required heading 'Phase 7 — Residual Gaps'
+docs/aped/architecture.md: missing required heading 'Phase 8 — Epic Zero'
+```
+
+**Cause.** Pre-6.11.0 the `aped-arch` skeleton emitted only `Phase 1 → Phase 5`, but `step-09-finalize.md` referenced `§6 Watch Items / §7 Residual Gaps / §8 Epic Zero` to count W-/G-/E0.x items into `state.yaml`. The counters always returned 0 because the sections didn't exist. 6.11.0 closed that drift: the skeleton now emits Phase 6/7/8 and the cohort-3b schema requires them. Legacy `architecture.md` files (scaffolded before 6.11.0) surface this WARN at the next `aped-arch` run — by design.
+
+**Fix.** Append three sections to your `architecture.md`. Each can stay empty until the architect records W/G/E0.x items in the next iteration:
+
+```markdown
+## Phase 6 — Watch Items
+
+<!-- W-items: assumptions, risks, monitoring obligations. -->
+
+## Phase 7 — Residual Gaps
+
+<!-- G-items: open questions blocking nothing but needing follow-up. -->
+
+## Phase 8 — Epic Zero
+
+<!-- E0.x stories: foundation work surfaced by the arch process. -->
+```
+
+The validator stays WARN-only — leaving them missing does **not** HALT the pipeline. But once you add them, `step-09` finds its sources and the `watch_items / residual_gaps / epic_zero_stories` counters in `state.yaml` start reflecting real numbers.
+
+## 42. `validate-architecture.sh` flagged a section name I want to keep (6.11.0+)
+
+**Symptom.** Your `architecture.md` has a section like `## Tech Stack` (instead of `## Phase 2 — Technology Decisions`) or a renamed sub-section under Phase 3, and the validator prints:
+
+```
+docs/aped/architecture.md:LN — invented top-level heading 'Tech Stack' not in schema
+```
+
+**Cause.** The cohort-3b schema locks the canonical Phase L2 names emitted by the `aped-arch/step-01-init.md` skeleton. ADR-style entries (`## ADR-N: <title>`) and Components (`### Component: <name>` under Phase 4) are explicitly pattern-matched and accepted; everything else under a fixed-name section needs to use the canonical name.
+
+**Fix.** Rename the section to the canonical name. If you legitimately need an additional L2 section that isn't an ADR, run `aped-arch` again to regenerate the canonical skeleton — divergent project conventions belong in a downstream phase (e.g. `## Phase 4 — Structure & Mapping` sub-sections) rather than as new L2 headings. If you have a real recurring need for a new section type, raise it as a schema-DSL extension; ad-hoc renaming defeats the structural contract.
+
 ## Still stuck?
 
 Run with `--debug` to get a stack trace on error:

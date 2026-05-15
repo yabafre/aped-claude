@@ -4374,6 +4374,14 @@ exit 0
 // same fields as \`sections[]\`, nested). The walker walks the heading tree
 // depth-first; each section validates only its declared sub_sections
 // (parent-scoped allowlist) instead of the legacy flat declaredHeadings set.
+//
+// 6.11.0 — schemas may declare \`top_level_patterns: string[]\` (regex allowlist
+// for L2 names alongside fixed \`top_level\`) and \`sub_sections_heading_pattern\`
+// per section (regex allowlist for direct children, coexists with fixed
+// \`sub_sections[]\`). Pattern-matched L2 entries are accepted as valid but DO
+// NOT advance the fixed-order cursor — they may appear in any position, in
+// any count (including zero). Both fields are optional; cohort-1/2/3a schemas
+// behave identically without them.
 
 import { readFileSync } from 'node:fs';
 
@@ -4425,6 +4433,24 @@ const topLevel = Array.isArray(schema.top_level) ? schema.top_level : [];
 const sections = Array.isArray(schema.sections) ? schema.sections : [];
 const allowedTop = new Set(topLevel);
 
+// 6.11.0 — \`top_level_patterns\` (string[] of regex source) compiled once.
+// Schema error → exit 2 with a stable message. Pattern-matched L2 headings
+// are accepted but skipped from the fixed-order cursor.
+const topLevelPatterns = Array.isArray(schema.top_level_patterns)
+  ? schema.top_level_patterns
+  : [];
+const topLevelRegexes = topLevelPatterns.map((pat, i) => {
+  try {
+    return new RegExp(pat);
+  } catch (err) {
+    process.stderr.write(
+      \`schema: invalid top_level_patterns regex at index \${i}: \${err.message}\\n\`,
+    );
+    process.exit(2);
+  }
+});
+const matchesTopPattern = (text) => topLevelRegexes.some((r) => r.test(text));
+
 let exitCode = 0;
 const fail = (msg) => {
   process.stderr.write(msg + '\\n');
@@ -4437,16 +4463,17 @@ const fail = (msg) => {
 // "## Epic 1: ..." / "## Epic 2: ..." headings whose count varies per
 // project; only "## FR Coverage Map" is universally required).
 const targetTop = headings.filter((h) => h.level === 2);
-if (topLevel.length > 0) {
+if (topLevel.length > 0 || topLevelRegexes.length > 0) {
   for (const h of targetTop) {
-    if (!allowedTop.has(h.text)) {
-      fail(\`\${targetPath}:\${h.line} — invented top-level heading '\${h.text}' not in schema\`);
-    }
+    if (allowedTop.has(h.text)) continue;
+    if (matchesTopPattern(h.text)) continue;
+    fail(\`\${targetPath}:\${h.line} — invented top-level heading '\${h.text}' not in schema\`);
   }
 
   let ptr = 0;
   let prev = '<start>';
   for (const h of targetTop) {
+    // Pattern-only matches skip the order cursor (free position, free count).
     if (!allowedTop.has(h.text)) continue;
     let moved = false;
     while (ptr < topLevel.length) {
@@ -4506,6 +4533,22 @@ function processSection(section, secIdx) {
   const declared = new Set(subs.map((s) => s.heading));
   const forbid = section.forbid_invented_sub_headings !== false;
 
+  // 6.11.0 — \`sub_sections_heading_pattern\` (regex source on the parent) is
+  // an additional allowlist for direct children. Coexists with fixed
+  // \`sub_sections[]\`: a child is OK if it matches a declared name OR matches
+  // the pattern. Pattern-matched children are not subject to required-missing.
+  let subPatternRx = null;
+  if (section.sub_sections_heading_pattern) {
+    try {
+      subPatternRx = new RegExp(section.sub_sections_heading_pattern);
+    } catch (err) {
+      process.stderr.write(
+        \`schema: invalid sub_sections_heading_pattern regex for '\${section.heading}': \${err.message}\\n\`,
+      );
+      process.exit(2);
+    }
+  }
+
   // 4a. Missing required sub_sections.
   for (const sub of subs) {
     if (sub.required === false) continue;
@@ -4521,9 +4564,9 @@ function processSection(section, secIdx) {
   // 4b. Invented direct children (forbid: true; default).
   if (forbid) {
     for (const c of directChildren) {
-      if (!declared.has(c.h.text)) {
-        fail(\`\${targetPath}:\${c.h.line} — invented heading '\${c.h.text}' not in schema\`);
-      }
+      if (declared.has(c.h.text)) continue;
+      if (subPatternRx && subPatternRx.test(c.h.text)) continue;
+      fail(\`\${targetPath}:\${c.h.line} — invented heading '\${c.h.text}' not in schema\`);
     }
   }
 
@@ -4693,6 +4736,39 @@ TARGET="\$1"
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 APED_DIR_GUESS="\$(cd "\$SCRIPT_DIR/.." && pwd)"
 SCHEMA="\$APED_DIR_GUESS/data/prd.schema.json"
+WALKER="\$SCRIPT_DIR/lib/markdown-schema-walk.mjs"
+
+if [[ ! -f "\$WALKER" ]]; then
+  echo "schema: walker not found at \$WALKER (validators unavailable)" >&2
+  exit 2
+fi
+
+exec node "\$WALKER" "\$SCHEMA" "\$TARGET"
+`,
+    },
+    {
+      // 6.11.0 — cohort-3b architecture structural validator. WARN-only
+      // invocation from aped-arch step-08 self-review (alongside oracle-arch.sh
+      // — oracle stays the HALT-bearing gate; this one surfaces structural
+      // drift only). Closes 5/5 artefact-contract coverage from 6.3.0.
+      path: `${a}/scripts/validate-architecture.sh`,
+      executable: true,
+      content: `#!/usr/bin/env bash
+# Validate APED architecture.md against the cohort-3b structural schema.
+# Usage: validate-architecture.sh <architecture-file>
+# Exit 0 conformant, 1 drift, 2 unreadable schema/target.
+
+set -uo pipefail
+
+if [[ \$# -ne 1 ]]; then
+  echo "Usage: \$0 <architecture-file>" >&2
+  exit 2
+fi
+
+TARGET="\$1"
+SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+APED_DIR_GUESS="\$(cd "\$SCRIPT_DIR/.." && pwd)"
+SCHEMA="\$APED_DIR_GUESS/data/architecture.schema.json"
 WALKER="\$SCRIPT_DIR/lib/markdown-schema-walk.mjs"
 
 if [[ ! -f "\$WALKER" ]]; then
