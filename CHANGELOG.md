@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.12.1] - 2026-05-16
+
 ### Changed
 
 - ClickUp `ticket_system` now routes through the ClickUp MCP server (`mcp-remote https://mcp.clickup.com/mcp`) instead of the manual paste-URL fallback shipped in 6.4.0. Scaffolded ticket-git-workflow block + `aped-from-ticket` (Critical Rules, Refusal Gate, Provider Readiness Check, Argument Parsing, Ticket Fetch, Comment Back) route through `mcp__clickup__*` — same pattern as Linear and Jira.
