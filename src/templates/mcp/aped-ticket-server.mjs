@@ -3,6 +3,8 @@
 //
 // Provider-routed ticket adapter. Reads tickets.provider from config.yaml
 // and dispatches to the correct backend (github, linear, jira, gitlab).
+// ClickUp is intentionally NOT served in-tree — `getProvider()` redirects
+// `clickup` projects to the external ClickUp MCP server. See line 57 below.
 // Closes H4 "wrong-backend invention" — skills call typed atoms instead
 // of branching on provider and inventing CLI flags.
 //
@@ -43,7 +45,7 @@ class ToolError extends Error {
 function getProvider() {
   const p = readConfigField('ticket_system', 'none');
   if (p === 'none' || !p) {
-    throw new ToolError('Ticket system is "none" in config.yaml. Set ticket_system to github/linear/jira/gitlab.', 'TICKETS_DISABLED');
+    throw new ToolError('Ticket system is "none" in config.yaml. Set ticket_system to github/linear/jira/gitlab/clickup.', 'TICKETS_DISABLED');
   }
   // Installer writes long-form values (github-issues, gitlab-issues) into
   // config.yaml; the server uses short-form keys internally. Normalize here so
@@ -54,10 +56,12 @@ function getProvider() {
   const canonical = ALIASES[p] || p;
   const KNOWN = ['github', 'linear', 'jira', 'gitlab'];
   if (!KNOWN.includes(canonical)) {
-    // clickup is a valid installer value (6.4.0+) but has no MCP adapter yet —
-    // surface that explicitly instead of the generic "Unknown provider" message.
+    // clickup (6.4.0+) is routed through the ClickUp MCP server
+    // (`mcp-remote https://mcp.clickup.com/mcp`), not this in-tree adapter.
+    // Skill prose (`aped-from-ticket`, `issue-tracker.js`) calls `mcp__clickup__*`
+    // directly. Surface that explicitly instead of the generic UNKNOWN_PROVIDER.
     if (p === 'clickup') {
-      throw new ToolError(`ClickUp MCP adapter is not yet implemented. Use manual workflow (paste task URL in commit/PR comments) or switch to a supported provider: ${KNOWN.join(', ')}.`, 'PROVIDER_ERROR');
+      throw new ToolError(`ClickUp is routed through the ClickUp MCP server — call \`mcp__clickup__*\` tools directly via the skill prose, not this server. In-tree adapter is intentionally not implemented; supported in-tree providers: ${KNOWN.join(', ')}.`, 'PROVIDER_ERROR');
     }
     throw new ToolError(`Unknown provider "${p}". Supported: ${KNOWN.join(', ')}`, 'UNKNOWN_PROVIDER');
   }

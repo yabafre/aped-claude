@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- ClickUp `ticket_system` now routes through the ClickUp MCP server (`mcp-remote https://mcp.clickup.com/mcp`) instead of the manual paste-URL fallback shipped in 6.4.0. Scaffolded ticket-git-workflow block + `aped-from-ticket` (Critical Rules, Refusal Gate, Provider Readiness Check, Argument Parsing, Ticket Fetch, Comment Back) route through `mcp__clickup__*` — same pattern as Linear and Jira.
+- `aped-ticket-server.mjs` ClickUp branch redirects callers to the external MCP route instead of telling them to paste URLs by hand. In-tree adapter remains intentionally absent.
+- No config shape change. Existing `ticket_system: clickup` projects pick this up on `aped-method --update`.
+
 ## [6.12.0] - 2026-05-15
 
 ### **Hygiene + polish — the safety net that would have caught yesterday's `35 skills` drift, plus three Tier B items the backlog has been carrying since 6.7.0.**

@@ -10,7 +10,6 @@ const root = join(__dirname, '..');
 describe('clickup is a first-class ticket_system option', () => {
   it('exports a non-empty ISSUE_TRACKER_CLICKUP block', () => {
     expect(ISSUE_TRACKER_CLICKUP).toMatch(/ticket_system = "clickup"/);
-    expect(ISSUE_TRACKER_CLICKUP).toMatch(/Workspace.*Space.*List.*Task/);
   });
 
   it('issueTrackerSection("clickup") returns the ClickUp block, not the none fallback', () => {
@@ -28,5 +27,22 @@ describe('clickup is a first-class ticket_system option', () => {
     const indexSrc = readFileSync(join(root, 'src/index.js'), 'utf-8');
     const helpLine = indexSrc.match(/--tickets=SYSTEM.*$/m)?.[0] ?? '';
     expect(helpLine).toContain('clickup');
+  });
+
+  it('routes ClickUp through the ClickUp MCP, not a paste-URL fallback', () => {
+    expect(ISSUE_TRACKER_CLICKUP).toMatch(/mcp__clickup__/);
+    expect(ISSUE_TRACKER_CLICKUP).toMatch(/ClickUp MCP/);
+    expect(ISSUE_TRACKER_CLICKUP).not.toMatch(/paste the commit\/PR URL/i);
+    expect(ISSUE_TRACKER_CLICKUP).not.toMatch(/paste the PR URL as a task comment/i);
+  });
+
+  it('aped-from-ticket workflow.md.tmpl declares the ClickUp MCP readiness check', () => {
+    const tmpl = readFileSync(
+      join(root, 'src/templates/skills/aped-from-ticket/workflow.md.tmpl'),
+      'utf-8'
+    );
+    expect(tmpl).toMatch(/`clickup`:.*ClickUp MCP must be available/);
+    expect(tmpl).toMatch(/`clickup`: use the ClickUp MCP tool to fetch the task by id/);
+    expect(tmpl).toMatch(/`clickup`: ClickUp MCP comment tool/);
   });
 });

@@ -65,17 +65,22 @@ export const ISSUE_TRACKER_GITLAB_ISSUES = `### If ticket_system = "gitlab-issue
 
 export const ISSUE_TRACKER_CLICKUP = `### If ticket_system = "clickup"
 
-**BEFORE:** Find the ClickUp task (Workspace → Space → List → Task). Move status to **in progress**. Branch: \`feature/{task_id}-description\`.
+ClickUp is routed through the ClickUp MCP server (\`mcp-remote https://mcp.clickup.com/mcp\`). Every fetch, status transition, and comment goes through \`mcp__clickup__*\` tools — never the web UI, never a paste-URL fallback.
 
-**DURING:**
-- Reference the task ID in every commit: \`feat(abc12345): description\`
-- ClickUp does not auto-link from commit text — paste the commit/PR URL into a task comment
-- Task URL: \`https://app.clickup.com/t/{task_id}\`
+**BEFORE starting a story:**
+1. Fetch the task via the ClickUp MCP by task id (e.g. \`abc12345\`).
+2. Move task status to **in progress** via the ClickUp MCP.
+3. Branch: \`feature/{task_id}-description\`.
 
-**AFTER:**
+**DURING development:**
+- Reference the task id in every commit: \`feat(abc12345): description\`
+- Post progress comments on the task via the ClickUp MCP — do not paste commit URLs by hand
+- Task URL: \`https://app.clickup.com/t/{task_id}\` (read-only reference)
+
+**AFTER completing:**
 - PR title: \`feat(abc12345): Story X.Y - Description\`
-- Paste the PR URL as a task comment; transition to **in review**
-- After merge: transition to **closed** and update state.yaml`;
+- Post the PR URL as a task comment via the ClickUp MCP; transition status to **in review**
+- After merge: transition to **closed** via the ClickUp MCP and update state.yaml`;
 
 const ISSUE_TRACKER_BLOCKS = {
   none: ISSUE_TRACKER_NONE,
