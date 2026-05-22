@@ -67,6 +67,7 @@ function setupRepo({ mode = 'parallel', sharedWorktree } = {}) {
   }
   writeFileSync(join(root, OUTPUT_DIR, 'state.yaml'), stateYaml);
   installScript(root, 'sprint-dispatch.sh');
+  installScript(root, 'write-worktree-marker.sh');
   installScript(root, 'worktree-cleanup.sh');
   installScript(root, 'detect-package-runner.sh');
   installScript(root, 'log.sh');
