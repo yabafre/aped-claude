@@ -61,6 +61,7 @@ function setupRepo() {
   // Empty state.yaml so dispatch can resolve umbrella to HEAD.
   writeFileSync(join(root, OUTPUT_DIR, 'state.yaml'), 'schema_version: 3\nsprint:\n  stories: {}\n');
   installScript(root, 'sprint-dispatch.sh');
+  installScript(root, 'write-worktree-marker.sh');
   installScript(root, 'detect-package-runner.sh');
   installScript(root, 'log.sh');
   return root;

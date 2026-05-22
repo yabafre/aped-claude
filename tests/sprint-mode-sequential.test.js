@@ -116,6 +116,7 @@ sprint:
 describe('sprint-dispatch sequential mode (6.7.5)', () => {
   it('HALTs with exit 5 when sprint.mode=sequential but `gs` is missing', () => {
     installScript(sandbox, 'sprint-dispatch.sh');
+    installScript(sandbox, 'write-worktree-marker.sh');
     installScript(sandbox, 'log.sh');
     writeFileSync(join(sandbox, APED_DIR, 'config.yaml'), 'sprint:\n  mode: sequential\n');
     writeFileSync(
@@ -142,6 +143,7 @@ sprint:
 
   it('stacks the branch via `gs branch create` when sequential + gs available', () => {
     installScript(sandbox, 'sprint-dispatch.sh');
+    installScript(sandbox, 'write-worktree-marker.sh');
     installScript(sandbox, 'log.sh');
     const shared = join(sandbox, 'shared-wt');
     mkdirSync(shared, { recursive: true });
@@ -175,6 +177,7 @@ sprint:
 
   it('falls back to parallel behavior when sprint.mode is absent', () => {
     installScript(sandbox, 'sprint-dispatch.sh');
+    installScript(sandbox, 'write-worktree-marker.sh');
     installScript(sandbox, 'log.sh');
     installScript(sandbox, 'detect-package-runner.sh');
     writeFileSync(join(sandbox, APED_DIR, 'config.yaml'), 'project_name: test\n');
