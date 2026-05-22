@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.12.2] - 2026-05-22
+
 ### Fixed
 
 - **Path A worktrees finally get a `.aped/WORKTREE` marker.** Before 6.12.2 `aped-sprint` Path A called `workmux add -p "aped-story <key>"` and never wrote the marker — only `sprint-dispatch.sh` (Path B/C) did. `/aped-story` inside the workmux-created worktree then silently fell through to solo mode (step-01-init step 1), losing the sprint link and forcing the Story Leader to re-discover its story/ticket/branch from `state.yaml`. Fix: extracted marker writing into `.aped/scripts/write-worktree-marker.sh` (idempotent, validates inputs, refuses to clobber a different story's marker), refactored `sprint-dispatch.sh` to call it, and rewrote Path A as three explicit steps — `workmux add` → `write-worktree-marker.sh` → `workmux send "aped-story <key>"`. Dropping `-p` is what makes the marker-before-prompt ordering enforceable; with `-p` the prompt was queued before claude even started, so there was nowhere to slot the marker write. Defence in depth: `/aped-story` step-01-init now detects "inside a linked git worktree with no marker" (via `git rev-parse --git-dir` ≠ `--git-common-dir` + `/worktrees/` segment) and HALTs with the exact recovery command instead of falling through. Existing scaffolds pick this up on `aped-method --update`.
