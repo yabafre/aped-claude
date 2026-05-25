@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.12.3] - 2026-05-25
+
+### Fixed
+
+- **`append-correction` now accepts v2, v3, and v4 state.yaml schemas (was v2 only).** The 4.1.2 guard in `sync-state.sh` hardcoded `schema_v != "2"`, refusing any post-v2 schema even though the v2→v3 (6.7.5) and v3→v4 migrations didn't touch corrections semantics — `corrections_pointer` + sister-file layout has been stable since v2. Every caller on a current scaffold (v4 since 6.7.5) was hitting `ERROR: append-correction requires state.yaml schema v2 (current: v4)` and falling back to the skill's manual Edit path, bypassing the helper's JSON validation, atomic write, and `corrections_count` mirror. Fix: widen the guard to refuse v1 only (the legacy top-level-array case where writing the pointer would orphan entries); any v2+ in `KNOWN_SCHEMA_VERSIONS` now uses the same writer. Added `it.each([3, 4])` acceptance tests in `tests/sprint-scripts.test.js` next to the existing v2 coverage; v1 refusal test untouched.
+
 ## [6.12.2] - 2026-05-22
 
 ### Fixed

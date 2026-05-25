@@ -261,12 +261,12 @@ sprint:
     });
   });
 
-  // ── append-correction (4.1.0, schema v2) ──
+  // ── append-correction (4.1.0, schema v2; widened to v2+ in 6.12.3) ──
   describe('append-correction', () => {
-    function setupV2(initialCorrections = '[]') {
+    function setupSchema(version, initialCorrections = '[]') {
       installScript(sandbox, 'sync-state.sh');
       writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
-        `schema_version: 2
+        `schema_version: ${version}
 corrections_pointer: "${OUTPUT_DIR}/state-corrections.yaml"
 corrections_count: 0
 sprint:
@@ -274,6 +274,9 @@ sprint:
 `);
       writeFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'),
         `corrections: ${initialCorrections}\n`);
+    }
+    function setupV2(initialCorrections = '[]') {
+      setupSchema(2, initialCorrections);
     }
 
     it('appends a valid entry and bumps corrections_count', () => {
@@ -435,6 +438,30 @@ sprint:
       expect(corrections).toContain('entry-1');
       expect(corrections).toContain('entry-2');
       expect(corrections).toContain('entry-3');
+    });
+
+    // 6.12.3 — the pre-fix guard hardcoded `!= "2"`, refusing v3 and v4 even
+    // though the migrations didn't touch corrections semantics. The bug
+    // forced /aped-correct-course (and any caller on a current-schema repo)
+    // into a fallback Edit-direct path that bypassed validation.
+    it.each([3, 4])('accepts a v%i state (corrections semantics unchanged since v2)', (v) => {
+      setupSchema(v);
+      const blob = JSON.stringify({
+        date: '2026-05-25',
+        type: 'minor',
+        reason: `v${v}-accepts-append`,
+        artifacts_updated: [],
+        affected_stories: [],
+      });
+      const r = run(
+        `echo 'append-correction ${blob}' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox },
+      );
+      expect(r.code, r.stderr).toBe(0);
+      const corrections = readFileSync(join(sandbox, OUTPUT_DIR, 'state-corrections.yaml'), 'utf8');
+      expect(corrections).toMatch(new RegExp(`reason:\\s*"?v${v}-accepts-append"?`));
+      const state = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+      expect(state).toMatch(/corrections_count:\s*1/);
     });
   });
 });
