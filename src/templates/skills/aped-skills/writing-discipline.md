@@ -24,10 +24,41 @@ PRDs, stories, architecture docs, retros, project-context. Those are structured 
 
 ### PRs
 
-- **Title:** short and recognizable. Same rules as commit subject.
-- **Body:** 3–6 short bullets max, one sentence each. Lead with the human framing — *what changed for the reader, what's the lever this pulls*.
-- **Test plan:** 2–4 bullets max. What was actually verified, not a script-by-script inventory.
-- Drop "Migration notes", "Boundaries respected", per-commit tables. Unless the user asks.
+- **Always open as draft.** Pass `--draft` to `gh pr create` (or `--draft` to `glab mr create`). Mark ready (`gh pr ready <n>` / `glab mr update --ready`) only once the validation block in the body has been re-run and is green.
+- **Title:** short and recognizable. Same rules as commit subject. ≤ 70 chars.
+- **No project-internal jargon in the body.** A reviewer who doesn't know this codebase must grasp the change. Avoid `/aped-X` slash names, internal phase names, sprint-mode labels — describe what the *code* does ("the parallel sprint dispatcher writes a worktree marker"), not which internal command runs ("Path A").
+- **Body shape — substantive PRs** (multi-file change, sprint umbrella, feature work):
+
+  ```markdown
+  ## Summary
+
+  <2–3 short paragraphs. First: which surface, what was the situation before this diff.
+  Then: before vs after, in concrete user/system terms. Plain prose, no bullets here.
+  If it stacks on another PR, name it.>
+
+  ## <Theme 1>
+
+  - Bullets of WHAT shipped (one concrete behaviour per bullet). The why is in Summary.
+
+  ## <Theme 2>
+  ...
+
+  ## Refactors
+
+  - Internal extractions, file splits, helper moves. Include only when meaningful.
+
+  ## Tests
+
+  - Coverage added/updated. Reference file or area, not full paths.
+
+  ## Validation
+
+  <Exact commands a reviewer can copy-paste to verify locally.>
+  ```
+
+- **Body shape — trivial PRs** (typo, one-liner, dep bump): the structured shape is overkill. Use 2–4 short bullets max and a Validation section if any command was run.
+- **Test plan**: replace the legacy "Test plan" section with `## Tests` (what coverage moved) and `## Validation` (the actual commands). Both stay short.
+- Drop "Migration notes", "Boundaries respected", per-commit tables, file lists, test counts. Unless the user asks.
 
 ### Code comments
 
