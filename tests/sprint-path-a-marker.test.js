@@ -166,24 +166,40 @@ describe('aped-sprint Path A wiring (6.12.2)', () => {
     expect(wf).toMatch(/scripts\/write-worktree-marker\.sh/);
   });
 
-  it('workflow.md Path A no longer uses `workmux add -p` (the bug shape)', () => {
+  it('workflow.md Path A queues the prompt via `workmux add -p` (6.12.4)', () => {
     const wf = readTpl('aped-sprint/workflow.md');
-    // The fresh dispatch block uses `workmux add` + `workmux send`, not `add -p`.
-    // The string "workmux add -p" must not appear as an executable command anywhere
-    // in the file — only inside historical-context narration (which references
-    // "before 6.12.2 we used `workmux add -p`"). We allow the narration but not
-    // a code-fence invocation.
-    const codeBlocks = wf.match(/```bash\s+([\s\S]*?)```/g) ?? [];
-    for (const block of codeBlocks) {
-      expect(block, 'no Path A code block re-introduces `workmux add -p`').not.toMatch(
-        /workmux add\s+"?\$BRANCH"?\s+-p/,
-      );
-    }
+    // 6.12.4 reverted the 6.12.2 `add` + `send` split. Reason: `send` is
+    // tmux send-keys under the hood and races Claude Code's TUI init —
+    // keypresses arriving during init are swallowed. `-p` writes a prompt
+    // file Claude Code reads at startup, before the TUI takes over.
+    expect(wf).toMatch(/workmux add\s+-p\s+"aped-story \{story-key\}"\s+"\$BRANCH"/);
   });
 
-  it('workflow.md Path A pushes the prompt via `workmux send` (replaces -p)', () => {
+  function findDispatchBlock(wf) {
+    // Walk every ```bash fenced block and return the one that
+    // both opens with the umbrella-resolve preamble (`BRANCH="feature/`)
+    // and contains `workmux add -p`. The narrative paragraph above the
+    // block has `workmux add -p` in inline backticks — we don't want that.
+    const blocks = wf.match(/```bash[\s\S]*?```/g) ?? [];
+    return blocks.find(
+      (b) => /BRANCH="feature\//.test(b) && /workmux add\s+-p/.test(b),
+    );
+  }
+
+  it('workflow.md Path A writes the marker inside the dispatch block', () => {
     const wf = readTpl('aped-sprint/workflow.md');
-    expect(wf).toMatch(/workmux send\s+"?\$HANDLE"?\s+"aped-story \{story-key\}"/);
+    const block = findDispatchBlock(wf);
+    expect(block, 'dispatch code block with `workmux add -p` exists').toBeTruthy();
+    expect(block).toMatch(/scripts\/write-worktree-marker\.sh/);
+  });
+
+  it('workflow.md Path A no longer relies on `workmux send` for first-prompt delivery', () => {
+    const wf = readTpl('aped-sprint/workflow.md');
+    const block = findDispatchBlock(wf);
+    // `workmux send` may appear in the recovery snippet (close+open) and
+    // in monitoring tips — both are fine. The fresh-dispatch block must
+    // not use it because the TUI race makes it unreliable.
+    expect(block).not.toMatch(/workmux send/);
   });
 
   it('step-01-init HALTs when running inside a worktree with no marker', () => {
