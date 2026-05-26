@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [6.12.4] - 2026-05-26
-
 ### Fixed
 
 - **Parallel sprint dispatch no longer races the TUI for first-prompt delivery.** 6.12.2 had split workmux dispatch into `workmux add` → write marker → `workmux send`, on the reasoning that the marker file had to land on disk before `/aped-story` could read it. The split fixed a silent solo-mode fallthrough (no marker → solo mode) but introduced a worse failure mode: `workmux send` is `tmux send-keys` under the hood, and keypresses sent while Claude Code is initialising the TUI are swallowed by the input-not-ready window (~2–5 seconds). The result was a quiet hang — claude up, marker present, but no `aped-story <key>` ever queued. Revert to `workmux add -p "aped-story <key>" "$BRANCH"`: the `-p` flag writes a prompt file Claude Code reads at startup, before the TUI takes over the pane, so no keypress can be lost. The marker write still happens immediately after `workmux add` returns and finishes in milliseconds — `/aped-story` step-01 reads the marker only after Claude Code has booted, queried the LLM, and resolved the tool call (multi-second), so the ordering is safe in practice. The step-01-init HALT guard from 6.12.2 stays as defence in depth.
+
+### Changed
+
+- **PR creation flow opens drafts and follows a structured body shape.** Every skill that prints or runs `gh pr create` / `glab mr create` now passes `--draft` (4 sites: `aped-quick`, `aped-dev/step-08`, `aped-review/step-05`, `aped-ship`); the user marks ready (`gh pr ready <n>` / `glab mr update --ready`) once they have re-run the validation block locally. `aped-skills/writing-discipline.md` § PRs documents the substantive-PR body shape (`## Summary` → themed sections → `## Tests` → `## Validation`), keeps the compact 2–4-bullet shape for trivial PRs, and adds an explicit "no project-internal jargon" rule so a reviewer unfamiliar with the codebase can read the body without a glossary. Sentinel test `tests/pr-draft-discipline.test.js` pins both invocations and the discipline doc against regression.
 
 ## [6.12.3] - 2026-05-25
 
