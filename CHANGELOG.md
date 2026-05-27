@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.12.5] - 2026-05-27
+
 ### Fixed
 
 - **`sync-state.sh set-story-field` no longer chokes on caller-quoted string values.** Pre-6.12.5 the handler wrapped `raw_value` in literal quotes unconditionally; `read_cmd`'s default-case word-split (`set -- $line`) preserves any quotes the caller typed verbatim in `$3` because bash does not interpret quotes inside an expanded variable. A line like `set-story-field <key> ticket "BON-550"` therefore reached yq as `… = ""BON-550""`, which the lexer refuses with `invalid input text`. `set_story_field`'s yq path strips only one layer of quotes, so the double wrap was never recoverable downstream. Fix: strip one caller-supplied layer (same idempotent shape as `set-sprint-field`) before the wrap, so both `ticket BON-550` and `ticket "BON-550"` land as the same YAML scalar. The `null` / `true` / `false` typed-literal shortcut is untouched. Sentinel tests in `tests/sprint-scripts.test.js` pin all three shapes; the regression test asserts both `exit 0` and the absence of `lexer / invalid input text` from stderr. The only call sites in the tree (`aped-lead` retry bookkeeping, `aped-sprint` ticket-sync failure marking) were either on the null/true/false path or shipping unquoted prose, so no behaviour change for canonical callers — the fix unbreaks the manual escape-hatch path the docstring already advertises.
