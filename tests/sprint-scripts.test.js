@@ -464,6 +464,64 @@ sprint:
       expect(state).toMatch(/corrections_count:\s*1/);
     });
   });
+
+  // ── set-story-field (6.12.5 — caller-quote stripping) ──────────────────
+  describe('set-story-field', () => {
+    function setup() {
+      installScript(sandbox, 'sync-state.sh');
+      writeFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'),
+        `schema_version: 4
+sprint:
+  stories:
+    3-3q-w1-extract-hook:
+      status: pending
+      ticket: null
+      worktree: null
+`);
+    }
+
+    it('accepts an unquoted string value', () => {
+      setup();
+      const r = run(
+        `echo 'set-story-field 3-3q-w1-extract-hook ticket BON-550' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox },
+      );
+      expect(r.code, r.stderr).toBe(0);
+      const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+      expect(after).toMatch(/ticket:\s*"?BON-550"?/);
+    });
+
+    it('accepts a caller-quoted string value without double-wrapping (6.12.5 regression)', () => {
+      // Pre-6.12.5 the handler wrapped raw_value in literal quotes
+      // unconditionally; a caller-quoted value like `ticket "BON-550"` flowed
+      // through read_cmd's word-split with the quotes intact and produced
+      // a yq expression of the shape `… = ""BON-550""`, which the yq lexer
+      // refuses with "invalid input text". This test pins the strip.
+      setup();
+      const r = run(
+        `echo 'set-story-field 3-3q-w1-extract-hook ticket "BON-550"' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox },
+      );
+      expect(r.code, r.stderr).toBe(0);
+      expect(r.stderr).not.toMatch(/lexer|invalid input text/i);
+      const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+      expect(after).toMatch(/ticket:\s*"?BON-550"?/);
+      // The value must NOT round-trip with literal double quotes inside.
+      expect(after).not.toMatch(/ticket:\s*'?""/);
+    });
+
+    it('still routes null/true/false through the typed-literal shortcut', () => {
+      setup();
+      const r = run(
+        `echo 'set-story-field 3-3q-w1-extract-hook ticket null' | bash ${sandbox}/${APED_DIR}/scripts/sync-state.sh`,
+        { CLAUDE_PROJECT_DIR: sandbox },
+      );
+      expect(r.code, r.stderr).toBe(0);
+      const after = readFileSync(join(sandbox, OUTPUT_DIR, 'state.yaml'), 'utf8');
+      // null must land as a bare YAML null, not the string "null"
+      expect(after).toMatch(/ticket:\s*(null|~)\s*\n/);
+    });
+  });
 });
 
 describe('validate-state.sh', () => {
