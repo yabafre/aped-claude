@@ -684,6 +684,23 @@ sprint:
       { CLAUDE_PROJECT_DIR: sandbox });
     expect(r.code, r.stderr).toBe(0);
   });
+
+  // ── strict-validation schema selection (gating fix) ──
+  // The ajv block requires yq + npx + network (ajv-cli download), so the
+  // suite can't exercise it deterministically. Pin the version-keyed schema
+  // selection statically instead: before this fix the gate was `== "3"` with
+  // a hardcoded v3 file, so every v4 scaffold skipped strict validation.
+  it('runs the strict ajv block for schema v3 OR v4 (not v3 only)', () => {
+    const tpl = findScript('validate-state.sh').content;
+    expect(tpl).toMatch(/schema_version" == "3" \|\| "\$schema_version" == "4"/);
+  });
+
+  it('selects the schema file by the state file own schema_version', () => {
+    const tpl = findScript('validate-state.sh').content;
+    expect(tpl).toMatch(/data\/state\.yaml\.schema\.v\$schema_version\.json/);
+    // The old hardcoded v3 path must be gone from the strict block.
+    expect(tpl).not.toMatch(/schema_file="[^"]*state\.yaml\.schema\.v3\.json"/);
+  });
 });
 
 describe('migrate-state.sh', () => {

@@ -343,14 +343,19 @@ Three reference docs callable on demand from any skill:
 
 - **Oracle**: `oracle-state.sh` — validates state.yaml integrity, checks for schema conformance, detects stale entries and orphaned references
 
-Existing scaffolds keep working without changes (missing `schema_version` is treated as implicit 1). `validate-state.sh` accepts `1`, `2`, and `3`. Migration is **automatic and idempotent** — `aped-method --update` runs `migrate-state.sh` which chains v1 → v2 → v3 in a single pass as a Phase-3 task, writing per-step backups (`state.yaml.pre-v2-migration.bak`, `state.yaml.pre-v3-migration.bak`) before any mutation.
+Existing scaffolds keep working without changes (missing `schema_version` is treated as implicit 1). `validate-state.sh` accepts `1`, `2`, `3`, and `4`. Migration is **automatic and idempotent** — `aped-method --update` runs `migrate-state.sh` which chains v1 → v2 → v3 → v4 in a single pass as a Phase-3 task, writing per-step backups (`state.yaml.pre-v2-migration.bak` … `state.yaml.pre-v4-migration.bak`) before any mutation.
 
 #### Schema v3 (6.1.0+)
 
 - `schema_version: 3` at top.
 - `sprint.parallel_limit` and `sprint.review_limit` move out of state.yaml to `config.yaml.sprint.*`. State.yaml retains only runtime sprint state (active_epic, umbrella_branch, stories with their per-story fields).
-- `validate-state.sh` refuses v3 state files that still contain those fields (incomplete migration) or that have `sprint.active_epic` set without a `sprint.umbrella_branch`.
+- `validate-state.sh` refuses v3/v4 state files that still contain those fields (incomplete migration) or that have `sprint.active_epic` set without a `sprint.umbrella_branch`.
 - The migration also seeds `base_branch:`, `sprint.push_umbrella_on_create`, `sprint.merge_poll_timeout_seconds`, and `review.parallel_reviewers` in `config.yaml` if absent.
+
+#### Schema v4 (6.7.5+)
+
+- `schema_version: 4` at top. `migrate-state.sh` v3 → v4 seeds `sprint.mode: parallel` and `sprint.stack_order: []` (sequential-mode metadata; ignored when mode is parallel). The current scaffold seeds v4 directly.
+- The strict JSON Schema (`state.yaml.schema.v4.json`) allow-lists the runtime-written transient story fields — `completed_at` (mark-story-done), `ticket_sync_status` + `ticket_sync_error` (aped-sprint deferred-sync bookkeeping) — so the engine's own output validates clean. Invented fields (e.g. `review_requested_at`, `note`) still error as drift. `validate-state.sh` picks the v4 schema by `schema_version`.
 
 #### Schema v1 (3.12.0 → 4.0.x)
 

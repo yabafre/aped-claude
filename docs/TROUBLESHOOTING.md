@@ -460,7 +460,7 @@ The directory layout's payoff is token economy: the 10 phase skills now ship 6�
 
 **Symptom.** You set `sprint.parallel_limit: 5` in `state.yaml.sprint.parallel_limit`, but `aped-sprint` still dispatches max 3.
 
-**Cause.** v6.1.0 schema v3 moved `parallel_limit` and `review_limit` out of state.yaml into `{{APED_DIR}}/config.yaml.sprint.*` (preferences, not runtime state). Readers prefer config; only fall back to state.yaml for v2 scaffolds. If your scaffold has `schema_version: 3` AND a stale `sprint.parallel_limit` in state.yaml, the value in state.yaml is ignored and `validate-state.sh` will refuse to operate.
+**Cause.** v6.1.0 schema v3 moved `parallel_limit` and `review_limit` out of state.yaml into `{{APED_DIR}}/config.yaml.sprint.*` (preferences, not runtime state). Readers prefer config; only fall back to state.yaml for v2 scaffolds. If your scaffold has `schema_version: 3` or `4` AND a stale `sprint.parallel_limit` in state.yaml, the value in state.yaml is ignored and `validate-state.sh` will refuse to operate.
 
 **Fix.** Either:
 - Run `aped-method --update` and let `migrate-state.sh` move the value to `config.yaml` automatically (idempotent on v3, so safe to re-run); or
@@ -538,13 +538,13 @@ So the skill HALTs silently before doing any work when APED is disabled, regardl
 **Symptom.** Running `bash .aped/scripts/validate-state.sh` (or any skill that calls it at Setup) emits stderr lines like:
 
 ```
-WARN: state.yaml does not match schema v3 (drift detected — see below).
-6.2.0 is WARN-only; 7.0.0 will refuse to operate.
+WARN: state.yaml does not match schema v4 (drift detected — see below).
+WARN-only today; 7.0.0 will refuse to operate.
 data/sprint/stories/1-2-auth must NOT have additional properties: dev_completed_at
 data/pipeline/phases/ux must NOT have additional properties: design_system
 ```
 
-**Cause.** v6.2.0 added a strict JSON Schema (draft 2020-12) for `state.yaml v3` shipped at `.aped/data/state.yaml.schema.v3.json`. `validate-state.sh` invokes `npx -y ajv-cli@^5` against the schema at the end of its checks. The schema rejects:
+**Cause.** v6.2.0 added a strict JSON Schema (draft 2019-09) for `state.yaml`, shipped as one file per schema version (`.aped/data/state.yaml.schema.v3.json`, `state.yaml.schema.v4.json`). `validate-state.sh` selects the file matching your `schema_version` and invokes `npx -y ajv-cli@^5` against it at the end of its checks. (The v4 strict path was authored in 6.7.5 but only wired up later — before that, v4 scaffolds skipped this check entirely.) The schema rejects:
 
 - Invented sub-blocks under `pipeline.phases.<phase>` (e.g. `design_system`, `style_direction`, `councils_retired`, `ramp_tiering`).
 - Free-form fields under `sprint.stories.<key>` (e.g. `verdict`, `review_notes`, `dev_completed_at` — those belong in the story file's Review Record, not state.yaml).
@@ -570,7 +570,7 @@ The script auto-skips with a single-line `WARN: schema check skipped (...)` if a
 **Force-refresh the schema:**
 
 ```bash
-npx aped-method --update    # ships the latest .aped/data/state.yaml.schema.v3.json
+npx aped-method --update    # ships the latest .aped/data/state.yaml.schema.v{3,4}.json
 ```
 
 ## 28. I see broken external links / unfamiliar names in old skill bodies (6.2.0+)

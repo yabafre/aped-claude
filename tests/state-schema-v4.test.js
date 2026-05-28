@@ -104,6 +104,57 @@ describe('state.yaml.schema.v4 — drift fields are rejected', () => {
     state.councils_retired = ['security'];
     expect(validate(state)).toBe(false);
   });
+
+  it('rejects invented story fields (review_requested_at, note) — hand-edit signal', () => {
+    const state = getSeededState();
+    state.sprint.stories['1-1-setup'] = {
+      status: 'done',
+      completed_at: '2026-05-25T01:40:00Z',
+      review_requested_at: '2026-05-25T12:00:00Z',
+      note: 'hand-written',
+    };
+    expect(validate(state)).toBe(false);
+  });
+
+  it('rejects an invented dev-phase tracking field (story_in_progress)', () => {
+    const state = getSeededState();
+    state.pipeline.phases.dev = { status: 'in-progress', story_in_progress: '1-2-auth' };
+    expect(validate(state)).toBe(false);
+  });
+});
+
+// The runtime-written transient story fields are deliberately allow-listed:
+// stripping them would make the schema reject the engine's own output. See
+// mark-story-done (completed_at) and aped-sprint deferred-sync bookkeeping
+// (ticket_sync_status / ticket_sync_error) in sync-state.sh.
+describe('state.yaml.schema.v4 — runtime-written story fields validate clean', () => {
+  it('accepts a done story carrying completed_at (mark-story-done output)', () => {
+    const state = getSeededState();
+    state.sprint.stories['1-1-setup'] = {
+      status: 'done',
+      ticket: 'LIN-123',
+      completed_at: '2026-05-25T01:40:00Z',
+    };
+    expect(validate(state), JSON.stringify(validate.errors, null, 2)).toBe(true);
+  });
+
+  it('accepts a story carrying ticket_sync_status: failed + ticket_sync_error', () => {
+    const state = getSeededState();
+    state.sprint.stories['1-1-setup'] = {
+      status: 'in-progress',
+      ticket: 'LIN-123',
+      worktree: '/tmp/wt',
+      ticket_sync_status: 'failed',
+      ticket_sync_error: 'linear API 429',
+    };
+    expect(validate(state), JSON.stringify(validate.errors, null, 2)).toBe(true);
+  });
+
+  it('rejects an out-of-enum ticket_sync_status', () => {
+    const state = getSeededState();
+    state.sprint.stories['1-1-setup'] = { status: 'in-progress', ticket_sync_status: 'pending' };
+    expect(validate(state)).toBe(false);
+  });
 });
 
 describe('state.yaml.schema.v4 — provider-shape latitude on ticket_sync', () => {

@@ -141,7 +141,7 @@ aped-method enable          # (6.2.0+) restore APED routing
 
 ### 6.1 Strict state.yaml schema (6.2.0+, WARN-only — ERROR in 7.0.0)
 
-v6.2.0 ships a draft 2020-12 JSON Schema for `state.yaml v3` at `.aped/data/state.yaml.schema.v3.json`. `validate-state.sh` runs it via `npx -y ajv-cli@^5` and surfaces drift as stderr `WARN` lines:
+APED ships a draft 2019-09 JSON Schema for `state.yaml` — one file per schema version (`.aped/data/state.yaml.schema.v3.json`, `state.yaml.schema.v4.json`). `validate-state.sh` selects the file matching your state file's own `schema_version` and runs it via `npx -y ajv-cli@^5`, surfacing drift as stderr `WARN` lines. (The current scaffold seeds v4; the v4 schema allow-lists the runtime-written story fields `completed_at`, `ticket_sync_status`, and `ticket_sync_error`.)
 
 - Invented sub-blocks under `pipeline.phases.<phase>` (e.g. `design_system`, `councils_retired`).
 - Free-form story fields (e.g. `verdict`, `review_notes`, `dev_completed_at`) — those belong in the story file's Review Record, not state.yaml.
@@ -258,9 +258,9 @@ Every ticket-system operation in `aped-epics`, `aped-from-ticket`, `aped-ship`, 
 
 Useful for: forensic audit when a sync goes wrong, postmortem analysis, cross-machine reproducibility, compliance trails.
 
-### state.yaml schema (v1 since 3.12.0; v2 since 4.1.0; v3 since 6.1.0)
+### state.yaml schema (v1 since 3.12.0; v2 since 4.1.0; v3 since 6.1.0; v4 since 6.7.5)
 
-`validate-state.sh` accepts `schema_version` 1, 2, or 3. **Migration is automatic** — `aped-method --update` runs `migrate-state.sh` which chains v1 → v2 → v3 in a single pass, idempotent on the head version, with per-step backups (`state.yaml.pre-v2-migration.bak`, `state.yaml.pre-v3-migration.bak`) before any mutation. Existing scaffolds without `schema_version` are treated as implicit 1.
+`validate-state.sh` accepts `schema_version` 1, 2, 3, or 4. **Migration is automatic** — `aped-method --update` runs `migrate-state.sh` which chains v1 → v2 → v3 → v4 in a single pass, idempotent on the head version, with per-step backups (`state.yaml.pre-v2-migration.bak`, … `state.yaml.pre-v4-migration.bak`) before any mutation. Existing scaffolds without `schema_version` are treated as implicit 1.
 
 Top-level slots:
 
@@ -334,9 +334,9 @@ npx aped-method enable       # restored 20 skills, 14 kept opt-out
 
 Architecture stays primordial (full load — patterns are LAW for dev). Only PRD / UX / project-context move into the cache.
 
-### Strict JSON Schema for state.yaml v3 (WARN-only)
+### Strict JSON Schema for state.yaml (WARN-only)
 
-`{{APED_DIR}}/data/state.yaml.schema.v3.json` ships with the scaffold. `validate-state.sh` invokes `npx -y ajv-cli@^5` against it, surfacing drift (invented sub-blocks, free-form story fields, out-of-taxonomy phase shapes) as stderr WARN lines. **WARN-only in 6.2.0; ERROR in 7.0.0.** Skips silently when yq/npx/network is missing.
+Both `{{APED_DIR}}/data/state.yaml.schema.v3.json` and `state.yaml.schema.v4.json` ship with the scaffold. `validate-state.sh` picks the file matching your `schema_version` and invokes `npx -y ajv-cli@^5` against it, surfacing drift (invented sub-blocks, free-form story fields, out-of-taxonomy phase shapes) as stderr WARN lines. **WARN-only; ERROR in 7.0.0.** Skips silently when yq/npx/network is missing.
 
 ### `aped-purge` (35th skill) — doc hygiene + INDEX
 
@@ -371,7 +371,7 @@ PRDs / stories / architecture / retros stay out of scope — those are structure
 - **B3 idempotent PR open** — `aped-review` step-11 now probes `gh pr view` first; on hit, it `gh pr edit`s the existing PR (and silently corrects the base if it points elsewhere). Re-review of a story no longer crashes on "PR already exists".
 - **B6 trap-protected git checkout** — `aped-ship`'s composite review (typecheck + lint + db-regen) now wraps the `git checkout "$UMBRELLA"` in a trap that returns to the base branch on any exit/interrupt. No more "stranded on the umbrella" after an interrupted run.
 - **B7 worktree path collision** — `sprint-dispatch.sh` now keys `WORKTREE_PATH` on `<project>-<ticket>-<story-key>` instead of `<project>-<ticket>`. Stories sharing a parent ticket no longer collide on disk.
-- **B8 structural validation** — `validate-state.sh` (v3) refuses state.yaml that has `sprint.parallel_limit`/`sprint.review_limit` (incomplete migration) or has `sprint.active_epic` set without a `sprint.umbrella_branch`. Surfaces broken state before downstream skills crash on it.
+- **B8 structural validation** — `validate-state.sh` refuses state.yaml that has `sprint.parallel_limit`/`sprint.review_limit` (incomplete migration) or has `sprint.active_epic` set without a `sprint.umbrella_branch`. Surfaces broken state before downstream skills crash on it.
 
 ### Audit script overhaul
 
