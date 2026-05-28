@@ -86,13 +86,22 @@ export function references(c) {
       path: `${a}/aped-dev/references/ticket-git-workflow.md`,
       content: buildTicketGitWorkflow(ts, gp),
     },
-    // 6.2.0 — JSON Schema v3 for state.yaml (draft 2020-12). Read by
-    // validate-state.sh via `npx -y ajv-cli@latest`; WARN-only on any
-    // mismatch. Shipping the schema in-tree (not via npm dependency)
-    // keeps `aped-method` itself dependency-free.
+    // 6.2.0 — JSON Schema for state.yaml (draft 2019-09). Read by
+    // validate-state.sh via `npx -y ajv-cli@^5`; WARN-only on any mismatch.
+    // Shipping the schema in-tree (not via npm dependency) keeps
+    // `aped-method` itself dependency-free. Both v3 and v4 ship: a scaffold
+    // mid-migration (or a hand-pinned project) may still carry either
+    // schema_version, and validate-state.sh selects the matching file by
+    // `.schema_version`. The v4 schema was authored in 6.7.5 (alongside the
+    // sprint.mode/stack_order migration) but never wired into the manifest;
+    // until then every v4 file silently skipped strict validation.
     {
       path: `${a}/data/state.yaml.schema.v3.json`,
       content: loadDataFile('state.yaml.schema.v3.json'),
+    },
+    {
+      path: `${a}/data/state.yaml.schema.v4.json`,
+      content: loadDataFile('state.yaml.schema.v4.json'),
     },
     // 6.3.0 — markdown structural-schema DSL spec + per-artefact schemas.
     // Read by validate-{artefact}.sh wrappers via the shared Node walker

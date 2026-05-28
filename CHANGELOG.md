@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### **Strict state.yaml validation finally runs on v4 — the check has been silently dead since 6.7.5.**
+
+The canonical state.yaml shape moved to schema v4 in 6.7.5 (sprint `mode` / `stack_order`), but the strict ajv gate in `validate-state.sh` stayed pinned to `schema_version == 3` against the v3 schema file — and the v4 schema, though authored at the time, was never added to the install manifest. Net effect: every scaffold created or migrated since 6.7.5 skipped strict validation outright. A drifted `state.yaml` — invented story fields, out-of-taxonomy phase shapes — sailed through with `exit 0`. This release wires v4 end to end: the v4 schema ships, `validate-state.sh` selects the schema file by the state's own `schema_version`, and the v4 `$defs/story` is completed so the engine's own output validates clean.
+
+The v4 story shape now allow-lists the three transient fields the engine actually writes — `completed_at` (mark-story-done), `ticket_sync_status` and `ticket_sync_error` (aped-sprint deferred-sync bookkeeping). Without that, turning the check on would have flagged every done story as drift. Genuinely invented fields (`review_requested_at`, `note`, `story_in_progress`, …) still error — that is the point of the gate, and it stays WARN-only until 7.0.0.
+
+### The numbers that matter
+
+Source: `git diff v6.12.5..HEAD` on `packages/create-aped/`.
+
+| Metric | Before | After | Δ |
+|---|---|---|---|
+| schema_versions strictly validated | 1 (v3) | 2 (v3, v4) | +1 |
+| state.yaml schemas shipped to scaffold | 1 (v3) | 2 (v3, v4) | +1 |
+| v4 `$defs/story` allow-listed fields | 7 | 10 (+completed_at, +ticket_sync_status, +ticket_sync_error) | +3 |
+| Scaffolds with live strict validation | 0 (every v4 skipped) | all | — |
+
+### What this means for builders
+
+If you are on a v4 scaffold (anything created or `--update`d since 6.7.5), `validate-state.sh` now actually checks your `state.yaml` instead of skipping. Run `aped-method --update` to pull the v4 schema + the fixed launcher; a clean state stays silent, a drifted one prints `WARN: state.yaml does not match schema v4` with the exact offending path. It is still WARN-only — nothing blocks — but the 6.x grace window is the time to clean drift before 7.0.0 turns it into an `exit` refusal. If your state was hand-edited with fields like `review_requested_at` or `note`, those will surface now; move them out of `state.yaml` (they are not written by any APED script).
+
+### Fixed
+
+- **`validate-state.sh` strict schema check now runs on v4, not v3 only.** The gate was `if [[ "$schema_version" == "3" ]]` with a hardcoded `state.yaml.schema.v3.json`; it now fires on `3 || 4` and selects `state.yaml.schema.v$schema_version.json`. The WARN message reports the matched version.
+- **The v4 JSON Schema is now shipped to scaffolds.** `references.js` only ever bundled the v3 schema, so even a correct v4 gate would have skipped with "schema file not found". Both v3 and v4 now install under `.aped/data/`.
+
+### Changed
+
+- **v4 `$defs/story` allow-lists the engine's transient fields.** Added `completed_at`, `ticket_sync_status` (enum `synced | skipped | failed | null`), and `ticket_sync_error` so mark-story-done and aped-sprint deferred-sync output validates clean. `additionalProperties: false` is unchanged — invented fields still error.
+- **Docs realign on v4** (`aped-quickstart`, `aped-phases`, `aped-workflow`, `TROUBLESHOOTING`): schema-version prose now reads 1–4, migration chains through v4, the strict-validation sections describe per-version schema selection, and the draft is corrected to 2019-09. A new "Schema v4 (6.7.5+)" section lands in `aped-phases`.
+
 ## [6.12.5] - 2026-05-27
 
 ### Fixed

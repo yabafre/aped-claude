@@ -133,6 +133,7 @@
     },
 
     "story": {
+      "description": "Per-story runtime state. Strict shape: invented fields (review_requested_at, note, verdict, …) error here — those are not written by any APED script and signal a hand-edited state.yaml. The runtime-written transient fields are explicitly allow-listed: completed_at (mark-story-done), ticket_sync_status + ticket_sync_error (aped-sprint deferred-sync bookkeeping, cleared by aped-lead on retry).",
       "type": "object",
       "additionalProperties": false,
       "required": ["status"],
@@ -146,7 +147,10 @@
         "branch":               { "type": ["string", "null"] },
         "depends_on":           { "type": "array", "items": { "type": "string" } },
         "started_at":           { "type": ["string", "null"] },
-        "merged_into_umbrella": { "type": "boolean" }
+        "completed_at":         { "type": ["string", "null"] },
+        "merged_into_umbrella": { "type": "boolean" },
+        "ticket_sync_status":   { "type": ["string", "null"], "enum": ["synced", "skipped", "failed", null] },
+        "ticket_sync_error":    { "type": ["string", "null"] }
       }
     },
 

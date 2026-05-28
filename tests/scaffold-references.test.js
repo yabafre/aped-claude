@@ -90,3 +90,18 @@ describe('scaffolded skill bodies reference real files (4.2.1 regression guard)'
     expect(offenders, 'skill body references templates not produced by scaffolder').toEqual([]);
   });
 });
+
+// Both state.yaml schemas must ship: validate-state.sh selects the file by the
+// state file's own schema_version. The v4 schema was authored in 6.7.5 but
+// left out of the manifest, so every v4 scaffold skipped strict validation.
+describe('state.yaml JSON schemas are shipped to the scaffold', () => {
+  for (const v of ['v3', 'v4']) {
+    it(`ships .aped/data/state.yaml.schema.${v}.json with valid JSON content`, () => {
+      const path = `.aped/data/state.yaml.schema.${v}.json`;
+      const file = all.find((t) => t.path === path);
+      expect(file, `${path} missing from scaffold manifest`).toBeTruthy();
+      expect(file.content.trim().length, `${path} ships empty`).toBeGreaterThan(0);
+      expect(() => JSON.parse(file.content), `${path} is not valid JSON`).not.toThrow();
+    });
+  }
+});
