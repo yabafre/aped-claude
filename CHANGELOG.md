@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.13.0] - 2026-05-28
+
 ### **Strict state.yaml validation finally runs on v4 — the check has been silently dead since 6.7.5.**
 
 The canonical state.yaml shape moved to schema v4 in 6.7.5 (sprint `mode` / `stack_order`), but the strict ajv gate in `validate-state.sh` stayed pinned to `schema_version == 3` against the v3 schema file — and the v4 schema, though authored at the time, was never added to the install manifest. Net effect: every scaffold created or migrated since 6.7.5 skipped strict validation outright. A drifted `state.yaml` — invented story fields, out-of-taxonomy phase shapes — sailed through with `exit 0`. This release wires v4 end to end: the v4 schema ships, `validate-state.sh` selects the schema file by the state's own `schema_version`, and the v4 `$defs/story` is completed so the engine's own output validates clean.
