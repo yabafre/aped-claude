@@ -22,7 +22,7 @@ Build and maintain `{{OUTPUT_DIR}}/glossary.md` — the canonical place where ev
 
 ## On Activation
 
-Read `{{APED_DIR}}/config.yaml` and resolve `{user_name}` / `{communication_language}` / `{document_output_language}`. ✅ YOU MUST speak in `{communication_language}` and write `glossary.md` in `{document_output_language}`. HALT if config is missing.
+Read `{{APED_DIR}}/config.yaml` and resolve `{user_name}` / `{communication_language}` / `{document_output_language}`. ✅ YOU MUST speak `{communication_language}` in every message to the user (including short progress lines — this overrides your English default) and write `glossary.md` in `{document_output_language}`. HALT if config is missing.
 
 ## Critical Rules
 

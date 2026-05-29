@@ -189,3 +189,56 @@ describe('session-start.sh banner (4.12.1)', () => {
     expect(() => JSON.parse(r.stdout)).not.toThrow();
   });
 });
+
+// communication_language directive (6.13.1) — the hook surfaces the configured
+// language as an explicit context directive so the model speaks it even for
+// terse progress narration, independent of whether the CLAUDE.md APED block is
+// present. Skipped when the language is unset or English (the default).
+describe('session-start.sh communication language directive (6.13.1)', () => {
+  it('injects the language directive into additionalContext when language is non-English', () => {
+    installHook(sandbox);
+    writeIndex(sandbox, ['aped-prd', 'aped-dev']);
+    writeConfig(sandbox, {
+      aped_version: '6.13.1',
+      ticket_system: 'linear',
+      git_provider: 'github',
+      communication_language: 'French',
+    });
+    const r = runHook(sandbox);
+    const payload = JSON.parse(r.stdout);
+    const ctx = payload.hookSpecificOutput.additionalContext;
+    expect(ctx).toMatch(/communication language/i);
+    expect(ctx).toMatch(/Speak French in every message/);
+    // The directive must come before the skill index so it reads first.
+    expect(ctx.indexOf('Speak French')).toBeLessThan(ctx.indexOf('# APED Skill Index'));
+  });
+
+  it('shows the language in the banner when set to a non-English language', () => {
+    installHook(sandbox);
+    writeIndex(sandbox, ['aped-prd']);
+    writeConfig(sandbox, { aped_version: '6.13.1', communication_language: 'French' });
+    const r = runHook(sandbox);
+    const payload = JSON.parse(r.stdout);
+    expect(payload.systemMessage).toMatch(/· lang: French/);
+  });
+
+  it('omits the directive and lang segment when language is English (the default)', () => {
+    installHook(sandbox);
+    writeIndex(sandbox, ['aped-prd']);
+    writeConfig(sandbox, { aped_version: '6.13.1', communication_language: 'english' });
+    const r = runHook(sandbox);
+    const payload = JSON.parse(r.stdout);
+    expect(payload.hookSpecificOutput.additionalContext).not.toMatch(/communication language/i);
+    expect(payload.systemMessage).not.toMatch(/lang:/);
+  });
+
+  it('omits the directive when communication_language is absent', () => {
+    installHook(sandbox);
+    writeIndex(sandbox, ['aped-prd']);
+    writeConfig(sandbox, { aped_version: '6.13.1', ticket_system: 'none' });
+    const r = runHook(sandbox);
+    const payload = JSON.parse(r.stdout);
+    expect(payload.hookSpecificOutput.additionalContext).not.toMatch(/communication language/i);
+    expect(payload.systemMessage).not.toMatch(/lang:/);
+  });
+});

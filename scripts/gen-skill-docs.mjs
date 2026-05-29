@@ -30,13 +30,13 @@ const CONFIG_PREAMBLE_BODY = [
   '- `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`',
   '- `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)',
   '',
-  '✅ YOU MUST speak `{communication_language}` in every message to the user.',
+  '✅ YOU MUST speak `{communication_language}` in EVERY message to the user — progress lines, tool preambles, summaries, and questions all included. This overrides your default; never narrate in English when `{communication_language}` is not English.',
   '✅ YOU MUST write artefact content in `{document_output_language}`.',
   '✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.',
 ].join('\n');
 
 const LANGUAGE_DIRECTIVE_BODY = [
-  '✅ YOU MUST speak `{communication_language}` in every message to the user.',
+  '✅ YOU MUST speak `{communication_language}` in EVERY message to the user — progress lines, tool preambles, summaries, and questions all included. This overrides your default; never narrate in English when `{communication_language}` is not English.',
   '✅ YOU MUST write artefact content in `{document_output_language}`.',
 ].join('\n');
 
@@ -68,7 +68,8 @@ export const RESOLVERS = {
     return (
       'Read `{{APED_DIR}}/config.yaml` and resolve `{user_name}` / ' +
       '`{communication_language}` / `{document_output_language}`. ' +
-      '✅ YOU MUST speak in `{communication_language}` and write `' +
+      '✅ YOU MUST speak `{communication_language}` in every message to the user ' +
+      '(including short progress lines — this overrides your English default) and write `' +
       artefact +
       '` in `{document_output_language}`. HALT if config is missing.'
     );

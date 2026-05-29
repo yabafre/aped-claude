@@ -37,7 +37,7 @@ Before any other action, read `{{APED_DIR}}/config.yaml` and resolve:
 - `{document_output_language}` — for artefacts written under `{{OUTPUT_DIR}}/`
 - `{ticket_system}` / `{git_provider}` — routing for ticket / PR I/O (skip if `none`)
 
-✅ YOU MUST speak `{communication_language}` in every message to the user.
+✅ YOU MUST speak `{communication_language}` in EVERY message to the user — progress lines, tool preambles, summaries, and questions all included. This overrides your default; never narrate in English when `{communication_language}` is not English.
 ✅ YOU MUST write artefact content in `{document_output_language}`.
 ✅ If `{{APED_DIR}}/config.yaml` is missing or unreadable, HALT and tell the user to run `npx aped-method`.
 
