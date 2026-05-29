@@ -16,10 +16,13 @@
 // {{APED_DIR}}, {{OUTPUT_DIR}}, {{CLI_VERSION}} placeholders are substituted
 // in every file (SKILL.md and any companion).
 //
-// The `aped-skills/` directory holds non-routable sub-skill reference docs
-// (anthropic-best-practices, persuasion-principles, testing-skills-with-subagents).
-// It ships via package.json `files` and is read at runtime by aped-claude
-// — it is NOT enumerated as a skill here.
+// The `aped-skills/` directory holds non-routable shared reference docs
+// (writing-discipline, anthropic-best-practices, persuasion-principles,
+// testing-skills-with-subagents). They are NOT routable skills, so the walker
+// below skips the folder. `writing-discipline.md` is Read at runtime by ~10
+// pipeline skills via `{{APED_DIR}}/aped-skills/writing-discipline.md`, so it
+// MUST be scaffolded to that path — see `sharedSkillDocs()`. The other docs
+// are skill-authoring references that ship in the npm package only.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -99,4 +102,19 @@ export function skillsFromDir(c, dir) {
 
 export function skills(c) {
   return skillsFromDir(c, SKILLS_DIR);
+}
+
+// Shared reference docs under aped-skills/ that pipeline skills Read by path at
+// runtime. Only writing-discipline.md is cited from skill bodies
+// (`{{APED_DIR}}/aped-skills/writing-discipline.md`, ~10 skills); it must land
+// at that exact path or every "Read writing-discipline.md" instruction
+// dangles. Emitted separately from skills() so the symlink walker (which keys
+// off `.../SKILL.md` in skills()) never mints a bogus `.claude/skills/aped-skills` link.
+const SHARED_SKILL_DOCS = ['writing-discipline.md'];
+
+export function sharedSkillDocs(c) {
+  return SHARED_SKILL_DOCS.map((name) => ({
+    path: `${c.apedDir}/aped-skills/${name}`,
+    content: substitute(readFileSync(join(SKILLS_DIR, 'aped-skills', name), 'utf-8'), c),
+  }));
 }

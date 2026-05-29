@@ -28,6 +28,7 @@ for (const t of all) {
   // are co-located docs the skill bodies link to.
   if (m[2].startsWith('references/') || m[2].startsWith('scripts/')) continue;
   const name = m[1];
+  if (name === 'aped-skills') continue; // shared-docs bucket, not a routable skill body
   if (!skillFilesByName.has(name)) skillFilesByName.set(name, []);
   skillFilesByName.get(name).push(t);
 }
@@ -94,6 +95,39 @@ describe('scaffolded skill bodies reference real files (4.2.1 regression guard)'
 // Both state.yaml schemas must ship: validate-state.sh selects the file by the
 // state file's own schema_version. The v4 schema was authored in 6.7.5 but
 // left out of the manifest, so every v4 scaffold skipped strict validation.
+// 6.13.2: the shared writing-discipline.md doc is Read by path from ~10 skill
+// bodies (`{{APED_DIR}}/aped-skills/writing-discipline.md`). It is not a
+// routable skill, so the walker skips it — before 6.13.2 it was never
+// scaffolded and every reference dangled. Lock both: the file ships, and every
+// `.aped/aped-skills/*` path cited in a skill body resolves. (The pre-existing
+// references/scripts guard above never matched the aped-skills/ path shape.)
+describe('shared aped-skills docs are scaffolded (6.13.2)', () => {
+  it('ships .aped/aped-skills/writing-discipline.md with the § PRs body shape', () => {
+    const path = '.aped/aped-skills/writing-discipline.md';
+    const file = all.find((t) => t.path === path);
+    expect(file, `${path} missing from scaffold manifest`).toBeTruthy();
+    expect(file.content).toMatch(/##\s*Summary/);
+    expect(file.content).toMatch(/##\s*Problems/);
+    expect(file.content).toMatch(/##\s*Solution/);
+    expect(file.content).toMatch(/##\s*Verification/);
+  });
+
+  it('every .aped/aped-skills/<file> referenced in a skill body exists in the scaffold', () => {
+    const PATTERN = /\.aped\/aped-skills\/[\w./-]+\.\w+/g;
+    const offenders = [];
+    for (const [, files] of skillFilesByName) {
+      for (const skill of files) {
+        const refs = new Set();
+        for (const m of skill.content.matchAll(PATTERN)) refs.add(m[0]);
+        for (const r of refs) {
+          if (!universe.has(r)) offenders.push(`${skill.path} -> ${r}`);
+        }
+      }
+    }
+    expect(offenders, 'skill body references aped-skills docs not produced by scaffolder').toEqual([]);
+  });
+});
+
 describe('state.yaml JSON schemas are shipped to the scaffold', () => {
   for (const v of ['v3', 'v4']) {
     it(`ships .aped/data/state.yaml.schema.${v}.json with valid JSON content`, () => {
