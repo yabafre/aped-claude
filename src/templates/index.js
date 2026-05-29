@@ -1,4 +1,4 @@
-import { skills } from './skills.js';
+import { skills, sharedSkillDocs } from './skills.js';
 import { scripts } from './scripts.js';
 import { references } from './references.js';
 import { configFiles } from './config.js';
@@ -12,6 +12,7 @@ export function getTemplates(config) {
     ...configFiles(config),
     ...ethos(config),
     ...skills(config),
+    ...sharedSkillDocs(config),
     ...symlinks(config),
     ...scripts(config),
     ...references(config),

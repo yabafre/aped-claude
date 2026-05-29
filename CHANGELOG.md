@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the shared `writing-discipline.md` doc is now scaffolded into projects
+
+About ten skills tell the agent to read `{{APED_DIR}}/aped-skills/writing-discipline.md`, but that file was never copied into a scaffolded project — the skill installer skips the whole `aped-skills/` bucket, so the doc shipped inside the npm package only. Every "read the discipline" instruction pointed at a path that did not exist, and the 6.13.1 update to that doc never reached an installed project. The scaffolder now emits `writing-discipline.md` to the exact path the skills cite, so the references resolve. Also fixed the one skill (`aped-dev`) that still inlined the pre-6.13.1 body shape, and the stale comment claiming the bucket was read by `aped-claude`.
+
 ## [6.13.1] - 2026-05-29
 
 ### Changed — PR bodies follow a fixed Summary / Problems / Solution / Verification / Notes shape
