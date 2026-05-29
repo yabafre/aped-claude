@@ -1,9 +1,10 @@
-// PR creation discipline (6.12.4):
+// PR creation discipline (6.12.4, body shape revised 6.13.1):
 // every `gh pr create` / `glab mr create` invocation that the skill prints
 // or runs MUST pass `--draft`, and `writing-discipline.md` MUST document the
-// substantive-PR body shape (Summary / themed sections / Tests / Validation)
-// + the "no project jargon" rule so a reviewer unfamiliar with this codebase
-// can read the body without a glossary.
+// five-section body shape (Summary / Problems / Solution / Verification / Notes)
+// + the "no project jargon" rule (including the banned words AC / story /
+// umbrella / baseline / FR) so a reviewer unfamiliar with this codebase can
+// read the body without a glossary.
 //
 // This sentinel prevents regressions where someone re-introduces a
 // non-draft PR creation, or strips the structured-body guidance back to a
@@ -59,7 +60,7 @@ describe('PR creation always opens as draft', () => {
   );
 });
 
-describe('writing-discipline documents the substantive-PR body shape', () => {
+describe('writing-discipline documents the five-section PR body shape', () => {
   const wd = read('aped-skills/writing-discipline.md');
 
   it('mentions --draft as the creation default', () => {
@@ -67,10 +68,17 @@ describe('writing-discipline documents the substantive-PR body shape', () => {
     expect(wd).toMatch(/\bgh pr ready\b/);
   });
 
-  it('describes the Summary / Tests / Validation shape', () => {
+  it('describes the Summary / Problems / Solution / Verification shape', () => {
     expect(wd).toMatch(/##\s*Summary/);
-    expect(wd).toMatch(/##\s*Tests/);
-    expect(wd).toMatch(/##\s*Validation/);
+    expect(wd).toMatch(/##\s*Problems/);
+    expect(wd).toMatch(/##\s*Solution/);
+    expect(wd).toMatch(/##\s*Verification/);
+    expect(wd).toMatch(/##\s*Notes/);
+  });
+
+  it('does not re-introduce the legacy themed / Tests / Validation shape', () => {
+    expect(wd).not.toMatch(/##\s*Tests\b/);
+    expect(wd).not.toMatch(/##\s*Validation\b/);
   });
 
   it('forbids project-internal jargon in PR bodies', () => {
@@ -78,5 +86,11 @@ describe('writing-discipline documents the substantive-PR body shape', () => {
     // equivalent ("reader unfamiliar"). We accept any text that names the
     // intent — this is a guard against the section being stripped.
     expect(wd).toMatch(/(project[-\s]internal jargon|unfamiliar.+codebase|grasp the change)/i);
+  });
+
+  it('names the banned jargon words (AC / story / umbrella / baseline / FR)', () => {
+    for (const term of ['AC', 'story', 'umbrella', 'baseline', 'FR']) {
+      expect(wd, `banned term not documented: ${term}`).toMatch(new RegExp(`\`${term}\``));
+    }
   });
 });

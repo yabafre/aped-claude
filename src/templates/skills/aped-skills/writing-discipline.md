@@ -26,39 +26,33 @@ PRDs, stories, architecture docs, retros, project-context. Those are structured 
 
 - **Always open as draft.** Pass `--draft` to `gh pr create` (or `--draft` to `glab mr create`). Mark ready (`gh pr ready <n>` / `glab mr update --ready`) only once the validation block in the body has been re-run and is green.
 - **Title:** short and recognizable. Same rules as commit subject. ≤ 70 chars.
-- **No project-internal jargon in the body.** A reviewer who doesn't know this codebase must grasp the change. Avoid `/aped-X` slash names, internal phase names, sprint-mode labels — describe what the *code* does ("the parallel sprint dispatcher writes a worktree marker"), not which internal command runs ("Path A").
-- **Body shape — substantive PRs** (multi-file change, sprint umbrella, feature work):
+- **No project-internal jargon in the body.** A reviewer who doesn't know this codebase must grasp the change without a glossary. Never let these terms reach the emitted body: `/aped-X` slash names, internal phase names, sprint-mode labels ("Path A"), and the words `AC`, `story`, `umbrella`, `baseline`, `FR`. Translate before writing: `AC` → describe the behaviour; `story` → "the change" / "the feature"; `umbrella` → "the integration branch"; `baseline` → "previous behaviour"; `FR` → name the requirement plainly. Describe what the *code* does ("the parallel sprint dispatcher writes a worktree marker"), not which internal command runs.
+- **Body shape.** Five sections, in this order. Plain prose, why + how. Omit any section that has nothing to say (usually Notes):
 
   ```markdown
   ## Summary
 
-  <2–3 short paragraphs. First: which surface, what was the situation before this diff.
-  Then: before vs after, in concrete user/system terms. Plain prose, no bullets here.
-  If it stacks on another PR, name it.>
+  <What shipped, in one or two plain sentences.>
 
-  ## <Theme 1>
+  ## Problems
 
-  - Bullets of WHAT shipped (one concrete behaviour per bullet). The why is in Summary.
+  <What was broken or missing — the why. Plain terms a reviewer recognizes.>
 
-  ## <Theme 2>
-  ...
+  ## Solution
 
-  ## Refactors
+  <What was done about it — the how. One concrete change per line if you list them.>
 
-  - Internal extractions, file splits, helper moves. Include only when meaningful.
+  ## Verification
 
-  ## Tests
+  <The exact commands a reviewer can copy-paste, and what coverage moved. Short.>
 
-  - Coverage added/updated. Reference file or area, not full paths.
+  ## Notes
 
-  ## Validation
-
-  <Exact commands a reviewer can copy-paste to verify locally.>
+  <Caveats, follow-ups, anything left for later. Omit this section if empty.>
   ```
 
-- **Body shape — trivial PRs** (typo, one-liner, dep bump): the structured shape is overkill. Use 2–4 short bullets max and a Validation section if any command was run.
-- **Test plan**: replace the legacy "Test plan" section with `## Tests` (what coverage moved) and `## Validation` (the actual commands). Both stay short.
-- Drop "Migration notes", "Boundaries respected", per-commit tables, file lists, test counts. Unless the user asks.
+- **Trivial PRs** (typo, one-liner, dep bump): the full shape is overkill — keep `## Summary` + `## Verification` and drop the rest.
+- Drop "Migration notes", "Boundaries respected", per-commit tables, file lists, test counts, themed per-area sections. Unless the user asks.
 
 ### Code comments
 
