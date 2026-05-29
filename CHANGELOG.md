@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.13.1] - 2026-05-29
+
 ### Changed — PR bodies follow a fixed Summary / Problems / Solution / Verification / Notes shape
 
 Skills that open a PR now produce a five-section body — Summary (what shipped), Problems (the why), Solution (the how), Verification (the commands to run), Notes (omit if empty) — replacing the older themed-sections-plus-Tests-plus-Validation layout. The "no project jargon" rule grows teeth: the words `AC`, `story`, `umbrella`, `baseline`, and `FR` are now banned from the emitted prose, each with a plain-language substitute, so a reviewer reads the change without a glossary. Canonical guidance stays in `aped-skills/writing-discipline.md`; `aped-ship` and the `pr-draft-discipline` test track the new shape.
