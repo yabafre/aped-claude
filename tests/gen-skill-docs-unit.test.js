@@ -26,14 +26,14 @@ describe('resolver bodies (canonical)', () => {
   it('CONFIG_PREAMBLE_INLINE names the artefact in the canonical shape', () => {
     const out = RESOLVERS.CONFIG_PREAMBLE_INLINE(['glossary.md'], CTX);
     expect(out).toBe(
-      'Read `{{APED_DIR}}/config.yaml` and resolve `{user_name}` / `{communication_language}` / `{document_output_language}`. ✅ YOU MUST speak in `{communication_language}` and write `glossary.md` in `{document_output_language}`. HALT if config is missing.',
+      'Read `{{APED_DIR}}/config.yaml` and resolve `{user_name}` / `{communication_language}` / `{document_output_language}`. ✅ YOU MUST speak `{communication_language}` in every message to the user (including short progress lines — this overrides your English default) and write `glossary.md` in `{document_output_language}`. HALT if config is missing.',
     );
   });
 
   it('LANGUAGE_DIRECTIVE emits the two ✅ YOU MUST lines', () => {
     const out = RESOLVERS.LANGUAGE_DIRECTIVE([], CTX);
     expect(out).toBe(
-      '✅ YOU MUST speak `{communication_language}` in every message to the user.\n✅ YOU MUST write artefact content in `{document_output_language}`.',
+      '✅ YOU MUST speak `{communication_language}` in EVERY message to the user — progress lines, tool preambles, summaries, and questions all included. This overrides your default; never narrate in English when `{communication_language}` is not English.\n✅ YOU MUST write artefact content in `{document_output_language}`.',
     );
   });
 });

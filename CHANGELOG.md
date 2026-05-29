@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Skills that open a PR now produce a five-section body — Summary (what shipped), Problems (the why), Solution (the how), Verification (the commands to run), Notes (omit if empty) — replacing the older themed-sections-plus-Tests-plus-Validation layout. The "no project jargon" rule grows teeth: the words `AC`, `story`, `umbrella`, `baseline`, and `FR` are now banned from the emitted prose, each with a plain-language substitute, so a reviewer reads the change without a glossary. Canonical guidance stays in `aped-skills/writing-discipline.md`; `aped-ship` and the `pr-draft-discipline` test track the new shape.
 
+### Fixed — `communication_language` is now honored in the agent's own narration
+
+The configured language drove artefacts but not the agent's conversation: progress lines, summaries, and questions kept defaulting to English even when `communication_language` said otherwise. The only always-on copy of the directive lived in the `CLAUDE.md` APED block — which is silently absent in un-injected projects and worktrees — so the model fell back to English for terse narration. The SessionStart hook now injects the language as an explicit directive into context every session, present regardless of the `CLAUDE.md` block, and the shared activation preamble was sharpened to cover short progress lines. The banner gains a `lang: <X>` segment so you can confirm the language was picked up. Skipped when the language is English (the default).
+
 ## [6.13.0] - 2026-05-28
 
 ### **Strict state.yaml validation finally runs on v4 — the check has been silently dead since 6.7.5.**
