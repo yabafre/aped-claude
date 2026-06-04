@@ -133,6 +133,7 @@ review:
 ```bash
 aped-method doctor          # verifies scaffold, hooks, state, commands, symlinks
 aped-method symlink         # repairs cross-tool symlinks if needed
+aped-method codex           # (6.14.0+) project the Codex surface (.agents/skills + .codex/config.toml + hooks.json + AGENTS.md)
 aped-status                # sprint dashboard (inside Claude Code)
 aped-method status          # (6.2.0+) check whether APED routing is enabled
 aped-method disable         # (6.2.0+) suppress APED routing in this project

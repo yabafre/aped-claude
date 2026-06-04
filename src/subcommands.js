@@ -25,6 +25,8 @@ import { join, dirname } from 'node:path';
 import color from 'picocolors';
 import { inspectInstallation } from './doctor.js';
 import { repairSkillSymlinks, summarizeSymlinkInspection } from './symlink-manager.js';
+import { projectCodexSurface } from './codex-manager.js';
+import { isCodexTargeted } from './templates/codex.js';
 import { disableAped, enableAped, statusAped } from './disable.js';
 import {
   statuslineTemplates,
@@ -74,54 +76,59 @@ export async function runSubcommand(command, args) {
       p.cancel('Statusline install cancelled.');
       return;
     }
-    await installFeature('statusline', statuslineTemplates(config), {
+    await installFeature('statusline', statuslineTemplates(config), config, {
       mergeSettingsOptions: { overwriteStatusLine },
     });
     return;
   }
 
   if (command === 'safe-bash') {
-    await installFeature('safe-bash', safeBashTemplates(config));
+    await installFeature('safe-bash', safeBashTemplates(config), config);
     return;
   }
 
   if (command === 'post-edit-typescript') {
-    await installFeature('post-edit-typescript', typeScriptQualityTemplates(config));
+    await installFeature('post-edit-typescript', typeScriptQualityTemplates(config), config);
     return;
   }
 
   if (command === 'verify-claims') {
-    await installFeature('verify-claims', verifyClaimsTemplates(config));
+    await installFeature('verify-claims', verifyClaimsTemplates(config), config);
     return;
   }
 
   if (command === 'worktree-scope') {
-    await installFeature('worktree-scope', worktreeScopeTemplates(config));
+    await installFeature('worktree-scope', worktreeScopeTemplates(config), config);
     return;
   }
 
   if (command === 'tdd-red-marker') {
-    await installFeature('tdd-red-marker', tddRedMarkerTemplates(config));
+    await installFeature('tdd-red-marker', tddRedMarkerTemplates(config), config);
     return;
   }
 
   if (command === 'commit-gate') {
-    await installFeature('commit-gate', commitGateTemplates(config));
+    await installFeature('commit-gate', commitGateTemplates(config), config);
     return;
   }
 
   if (command === 'context-monitor') {
-    await installFeature('context-monitor', contextMonitorTemplates(config));
+    await installFeature('context-monitor', contextMonitorTemplates(config), config);
     return;
   }
 
   if (command === 'prompt-injection') {
-    await installFeature('prompt-injection', promptInjectionTemplates(config));
+    await installFeature('prompt-injection', promptInjectionTemplates(config), config);
     return;
   }
 
   if (command === 'enable-mcp') {
-    await installFeature('enable-mcp', mcpStateTemplates(config));
+    await installFeature('enable-mcp', mcpStateTemplates(config), config);
+    return;
+  }
+
+  if (command === 'codex') {
+    runCodexSubcommand(config);
     return;
   }
 
@@ -130,7 +137,7 @@ export async function runSubcommand(command, args) {
       uninstallSessionStart(config);
       return;
     }
-    await installFeature('session-start', sessionStartTemplates(config));
+    await installFeature('session-start', sessionStartTemplates(config), config);
     return;
   }
 
@@ -139,7 +146,7 @@ export async function runSubcommand(command, args) {
       uninstallVisualCompanion(config);
       return;
     }
-    await installFeature('visual-companion', visualCompanionTemplates(config));
+    await installFeature('visual-companion', visualCompanionTemplates(config), config);
     return;
   }
 
@@ -451,12 +458,39 @@ function resolveCommandConfig(args) {
   };
 }
 
-async function installFeature(name, templates, options = {}) {
+async function installFeature(name, templates, config, options = {}) {
   p.intro(`${color.green(color.bold('APED Method'))} ${color.dim(`v${CLI_VERSION}`)}`);
   p.log.step(`Installing ${color.bold(name)}...`);
   const stats = applyTemplates(templates, options);
   p.log.success(`${name} installed  ${color.green(`+${stats.created}`)} created  ${color.yellow(`↑${stats.updated}`)} updated  ${color.dim(`=${stats.skipped}`)} kept`);
+
+  // Keep the Codex surface in sync after any opt-in feature that wired a hook
+  // or MCP server. Marker-gated single call — reading the just-merged
+  // settings.local.json reflects the new feature, so no per-handler threading.
+  if (isCodexTargeted()) {
+    const codex = projectCodexSurface(config);
+    if (codex.written?.length) {
+      p.log.message(color.dim(`Codex surface synced (${codex.written.join(', ')}).`));
+    }
+  }
+
   p.outro(color.dim(`Run \`aped-method doctor\` to verify the scaffold after installing ${name}.`));
+}
+
+// On-demand projection of the Codex surface (`aped-method codex`). When no Codex
+// marker exists, tells the user how to opt in rather than silently doing nothing.
+function runCodexSubcommand(config) {
+  p.intro(`${color.green(color.bold('APED Method'))} ${color.dim(`v${CLI_VERSION}`)}`);
+  if (!isCodexTargeted()) {
+    p.log.warn('No Codex marker found — create a `.codex/` or `.agents/` directory first.');
+    p.outro(color.dim('mkdir .codex && aped-method codex  — projects skills, config.toml, hooks.json, AGENTS.md.'));
+    return;
+  }
+  const result = projectCodexSurface(config);
+  p.log.success(`Codex surface projected  ${color.dim('(' + (result.written.join(', ') || 'no changes') + ')')}`);
+  if (result.mcpServers.length) p.log.message(color.dim(`MCP servers: ${result.mcpServers.join(', ')}`));
+  p.log.message(color.dim(`Hooks: ${result.hooksEnabled ? 'enabled (codex_hooks)' : 'none wired'} · AGENTS.md: ${result.agentsAction} · skills repaired: ${result.symlinks.repaired}`));
+  p.outro(color.dim('Validate with: python3 ~/.codex/skills/migrate-to-codex/scripts/migrate-to-codex.py --validate-target ./.codex/'));
 }
 
 function runSymlinkRepair(config) {

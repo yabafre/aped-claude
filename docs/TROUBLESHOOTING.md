@@ -28,10 +28,12 @@ You can also pin the exact version: `npx aped-method@3.7.1`.
 
 **Symptom.** The scaffold reports success, `.aped/aped-*` directories exist, but the tool doesn't see the APED skills.
 
-**Cause.** The symlinks under `.claude/skills/`, `.opencode/skills/`, `.agents/skills/`, or `.codex/skills/` weren't created, or they point to the wrong target. This usually happens when:
+**Cause.** The symlinks under `.claude/skills/`, `.opencode/skills/`, or `.agents/skills/` weren't created, or they point to the wrong target. This usually happens when:
 - You're on Windows (see section 3).
 - A non-symlink directory already exists at the target path (scaffolder refuses to overwrite real directories).
 - The filesystem doesn't support symlinks (some SMB / NTFS-via-FUSE setups).
+
+**Codex note (6.14.0+).** Codex reads project skills from `.agents/skills/`, **not** `.codex/skills/`. A `.codex/` marker therefore links skills into `.agents/skills/` and holds only Codex *config* (`config.toml`, `hooks.json`). If you scaffolded before 6.14.0 you may have orphan `.codex/skills/aped-*` links Codex ignored — `aped-method symlink` or `--fresh` sweeps them. Run `aped-method codex` to (re)project the `.codex/` config surface + `AGENTS.md`.
 
 **Diagnose.**
 
@@ -46,7 +48,8 @@ file .claude/skills/aped-analyze
 **Fix.**
 
 ```bash
-# Remove the stale copies and re-run --update (safe: preserves artifacts)
+# Remove the stale copies and re-run --update (safe: preserves artifacts).
+# .codex/skills/aped-* only exists on pre-6.14.0 scaffolds (Codex ignored it).
 rm -rf .claude/skills/aped-* .opencode/skills/aped-* .agents/skills/aped-* .codex/skills/aped-*
 npx aped-method --update
 ```

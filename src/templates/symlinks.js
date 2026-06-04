@@ -6,7 +6,16 @@
 //   .claude/skills/aped-*      → ../../.aped/aped-*   (Claude Code)
 //   .opencode/skills/aped-*    → ../../.aped/aped-*   (OpenCode)
 //   .agents/skills/aped-*      → ../../.aped/aped-*   (Codex CLI + agents.md)
-//   .codex/skills/aped-*       → ../../.aped/aped-*   (Codex-native)
+//
+// Codex reads project skills from .agents/skills/<name>/SKILL.md — NOT from
+// .codex/skills/ (authority: the OpenAI migrate-to-codex converter, whose
+// CODEX_SKILLS_ROOT is .agents/skills/). So BOTH the `.codex` and `.agents`
+// markers map to the `.agents/skills` target. `.codex/` itself holds Codex
+// *config* (config.toml / hooks.json / AGENTS.md) — written by
+// src/codex-manager.js, not here. Pre-6.14.0 APED wrongly symlinked skills
+// into .codex/skills/, where Codex never looked; that path now lives only in
+// TARGET_CATALOG (cleanup-only) so `--fresh` / `aped-method symlink` tidy the
+// orphan links.
 //
 // Claude Code reaches APED skills via .claude/skills/aped-*/SKILL.md — the
 // 3.x slash-command stubs (.claude/commands/aped-*.md) were retired in
@@ -40,7 +49,10 @@ const AUTO_DETECT_TARGETS = [
   { marker: '.claude',   skillsPath: '.claude/skills'   },
   { marker: '.opencode', skillsPath: '.opencode/skills' },
   { marker: '.agents',   skillsPath: '.agents/skills'   },
-  { marker: '.codex',    skillsPath: '.codex/skills'    },
+  // A `.codex/` marker means Codex is in use; its skills live in .agents/skills/
+  // (Codex never reads .codex/skills/). Maps to the same target as `.agents`;
+  // resolveTargets() dedupes when both markers are present.
+  { marker: '.codex',    skillsPath: '.agents/skills'   },
 ];
 
 // All skill-symlink locations APED has ever written to. Used by cleanup
@@ -57,7 +69,9 @@ export const TARGET_CATALOG = [
 // Back-compat export. Tests and external callers may still import this —
 // we keep it as the auto-detect union so that "what would the default
 // install do in a generic environment" stays answerable.
-export const DEFAULT_SKILL_SYMLINK_TARGETS = AUTO_DETECT_TARGETS.map((t) => t.skillsPath);
+export const DEFAULT_SKILL_SYMLINK_TARGETS = [
+  ...new Set(AUTO_DETECT_TARGETS.map((t) => t.skillsPath)),
+];
 
 export function symlinks(c) {
   return buildSkillSymlinkEntries(c);
@@ -96,9 +110,15 @@ function resolveTargets(c) {
     return c.skillSymlinks;
   }
   const cwd = process.cwd();
-  return AUTO_DETECT_TARGETS
-    .filter((t) => existsSync(join(cwd, t.marker)))
-    .map((t) => t.skillsPath);
+  // Dedupe: `.codex` and `.agents` both resolve to `.agents/skills`, so a
+  // project carrying both markers must not get the target twice.
+  return [
+    ...new Set(
+      AUTO_DETECT_TARGETS
+        .filter((t) => existsSync(join(cwd, t.marker)))
+        .map((t) => t.skillsPath),
+    ),
+  ];
 }
 
 export function deriveSkillNames(c) {

@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### **Codex is now a first-class scaffold target, not a broken symlink.**
+
+APED has always claimed cross-tool support, but the Codex half was wrong: it symlinked skills into `.codex/skills/`, a path OpenAI Codex never reads, and emitted no `.codex/config.toml`, no `.codex/hooks.json`, and no `AGENTS.md` — so the `aped-state` MCP and every hook were invisible to Codex, and the agent got zero APED instructions. This release projects the real conventional Codex surface whenever a `.codex/` or `.agents/` marker is present: skills land in `.agents/skills/` (where Codex actually looks), the wired MCP servers and hooks are mirrored into `.codex/config.toml` + `.codex/hooks.json`, and a provider-neutral `AGENTS.md` carries the routing rules. The projection reads your already-materialized Claude config, so it stays in sync on install, `--update`, and after any opt-in feature — and a pure-Claude project still gets nothing. The shape was verified against OpenAI's own `migrate-to-codex` validator: valid TOML, MCP command on PATH, all 36 skill manifests recognized.
+
+### The numbers that matter
+
+Source: `git diff v6.13.2..HEAD` on `packages/create-aped/`, plus an end-to-end scaffold validated with `migrate-to-codex --validate-target`.
+
+| Metric | Before | After | Δ |
+|---|---|---|---|
+| Codex config surfaces generated | 0 | 3 (`config.toml`, `hooks.json`, `AGENTS.md`) | +3 |
+| Skill auto-detect target for the `.codex` marker | `.codex/skills` (Codex never reads it) | `.agents/skills` (Codex reads it) | fixed |
+| `aped-state` MCP visible to Codex | no | yes (`[mcp_servers.aped-state]`, cwd-relative) | — |
+| `migrate-to-codex --validate-target` findings | n/a (no surface) | all `ok` | — |
+
+### What this means for builders
+
+If you run Codex (or any AGENTS.md-aware tool) alongside Claude Code, create a `.codex/` directory and run `aped-method --update` (or the new `aped-method codex`). You get a conventional Codex project: skills discoverable under `.agents/skills/`, the state MCP and hooks wired in `.codex/`, and an `AGENTS.md` that points Codex at the pipeline. Re-running is safe — the config merge preserves your existing `personality`, `projects`, `notify`, and unrelated MCP servers, and is byte-stable on a second pass. Caveat carried verbatim from the Codex hook runtime: Codex fires `PreToolUse`/`PostToolUse` for shell commands only, so APED hooks matched on `Write`/`Edit` are advisory-inert under Codex; lean on the GREEN-gate discipline there.
+
+### Added
+
+- **`aped-method codex` subcommand** projects the conventional Codex surface on demand: skills → `.agents/skills/`, MCP + `personality` + hooks flag → `.codex/config.toml`, hooks → `.codex/hooks.json`, plus a root `AGENTS.md`. Runs automatically on install / `--update` and after any opt-in feature install when a `.codex/` or `.agents/` marker exists.
+- **`src/templates/codex.js`** (pure builders) and **`src/codex-manager.js`** (`projectCodexSurface`, the single fs entry point) — mirror OpenAI's `migrate-to-codex` semantics: commands rewritten cwd-relative, SessionStart matcher mapped to Codex session events, `[features].codex_hooks = true` when hooks are wired, merge-safe TOML that never clobbers unrelated config.
+- **Standalone `AGENTS.md`** for Codex when no `CLAUDE.md` exists; when a real `CLAUDE.md` is present, `AGENTS.md` becomes a relative symlink to it (single source of truth). A user-authored `AGENTS.md` is never overwritten.
+
+### Changed
+
+- **The `.codex` skill-symlink target moved from `.codex/skills` to `.agents/skills`.** Both the `.codex` and `.agents` markers now resolve to `.agents/skills` (deduped), the path Codex actually reads. `.codex/skills` is demoted to `TARGET_CATALOG` (cleanup-only), so `--fresh` / `aped-method symlink` tidy the orphan links a pre-6.14.0 install left behind.
+
+### Fixed
+
+- **The `aped-state` MCP and APED hooks were unreachable from Codex.** They were wired into Claude's `settings.local.json` only; Codex reads neither `.mcp.json` nor Claude settings. They are now projected into `.codex/config.toml` / `.codex/hooks.json` with cwd-relative commands (no broken `${CLAUDE_PROJECT_DIR}` literal).
+
 ## [6.13.2] - 2026-05-29
 
 ### Fixed — the shared `writing-discipline.md` doc is now scaffolded into projects
