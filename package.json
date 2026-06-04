@@ -18,6 +18,7 @@
     "src/subcommands.js",
     "src/doctor.js",
     "src/symlink-manager.js",
+    "src/codex-manager.js",
     "src/bash-safety.js",
     "src/disable.js",
     "src/templates/*.js",

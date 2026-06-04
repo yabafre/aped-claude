@@ -7,7 +7,7 @@
 
 **Turn Claude Code into a disciplined dev pipeline.** APED scaffolds 36 skills, two hooks, named agent personas, and parallel-sprint mode (via `git worktree` + Lead Dev coordinator) into any [Claude Code](https://claude.ai/download) project. Every phase produces an artefact, requires explicit user validation, and hands off through a coherence hook that warns on skipped steps.
 
-Cross-tool ready: skills are symlinked to `.opencode/`, `.agents/`, and `.codex/` when those marker directories exist — one source of truth, every IDE sees the same scaffold.
+Cross-tool ready: skills are symlinked to `.opencode/` and `.agents/` when those marker directories exist — one source of truth, every IDE sees the same scaffold. With a `.codex/` (or `.agents/`) marker present, APED also projects a conventional OpenAI Codex surface: skills under `.agents/skills/`, the MCP + hooks config in `.codex/config.toml` / `.codex/hooks.json`, and a root `AGENTS.md`.
 
 > Upgrading? See [MIGRATING.md](./MIGRATING.md) for 5.x → 6.x and 3.x → 4.x paths.
 
@@ -134,7 +134,8 @@ For the full taxonomy (small / medium / phase-decomposed, opt-in defaults, hard 
 Beyond `npx aped-method` (install / update / fresh), the CLI ships a handful of maintenance subcommands:
 
 - `aped-method doctor` — verify scaffold, hooks, state, skills, symlinks, optional binaries.
-- `aped-method symlink` — repair cross-tool skill symlinks (`.claude/skills/`, `.opencode/skills/`, `.agents/skills/`, `.codex/skills/`).
+- `aped-method symlink` — repair cross-tool skill symlinks (`.claude/skills/`, `.opencode/skills/`, `.agents/skills/`; sweeps legacy `.codex/skills/` links).
+- `aped-method codex` — project the conventional OpenAI Codex surface (skills → `.agents/skills/`, MCP + hooks → `.codex/config.toml` / `.codex/hooks.json`, plus a root `AGENTS.md`). Runs automatically on install / `--update` when a `.codex/` or `.agents/` marker exists; this is the on-demand re-run. 6.14.0+.
 - `aped-method disable` / `enable` / `status` — kill-switch APED routing in a project (6.2.0+). See [Disable APED in a project](#disable-aped-in-a-project-620) below for the full mechanics.
 
 Optional hooks and the MCP companion server each ship as their own subcommand — see the [Optional hooks](#optional-hooks) table below.
@@ -329,16 +330,30 @@ docs/aped/                          # Output (evolves during project)
 # Cross-tool symlinks (only created if the parent marker dir already exists):
 .opencode/skills/aped-*             # → ../../.aped/aped-*  (symlinks, OpenCode)
 .agents/skills/aped-*               # → ../../.aped/aped-*  (symlinks, Codex CLI / agents.md)
-.codex/skills/aped-*                # → ../../.aped/aped-*  (symlinks, Codex native)
+
+# Codex config surface (generated when a .codex/ or .agents/ marker exists, 6.14.0+):
+.codex/config.toml                  # personality + [mcp_servers.aped-*] + [features].codex_hooks
+.codex/hooks.json                   # APED hooks projected for Codex (commands cwd-relative)
+AGENTS.md                           # provider-neutral APED block (or a symlink → CLAUDE.md)
 ```
 
 ### Cross-tool skill distribution
 
-On macOS/Linux the scaffolder creates **relative symlinks** that point back to the canonical `.aped/aped-*` directories, one edit in `.aped/` propagates to every tool instantly — no manual sync, no drift. Since v4.0.0 four targets are **auto-detected**: a symlink tree is created under `.claude/skills/`, `.opencode/skills/`, `.agents/skills/`, and/or `.codex/skills/` **only when the corresponding `.claude` / `.opencode` / `.agents` / `.codex` marker directory already exists** in the project. A single-tool Claude Code project still gets `.claude/skills/aped-*` symlinks (the scaffold pre-creates `.claude/` on a greenfield install so the auto-detect picks Claude Code up); multi-tool setups get the rest only where their marker exists.
+On macOS/Linux the scaffolder creates **relative symlinks** that point back to the canonical `.aped/aped-*` directories, one edit in `.aped/` propagates to every tool instantly — no manual sync, no drift. Targets are **auto-detected**: a symlink tree is created under `.claude/skills/`, `.opencode/skills/`, and/or `.agents/skills/` **only when the corresponding marker directory already exists** in the project. A `.codex/` marker maps to `.agents/skills/` too — Codex reads its project skills from `.agents/skills/<name>/SKILL.md`, never from `.codex/skills/` (`.codex/` holds Codex *config*, see below). A single-tool Claude Code project still gets `.claude/skills/aped-*` symlinks (the scaffold pre-creates `.claude/` on a greenfield install so the auto-detect picks Claude Code up); multi-tool setups get the rest only where their marker exists.
 
-Windows hosts are auto-skipped (symlinks require developer mode + `core.symlinks=true`). Fresh mode wipes stale `aped-*` entries in every location APED has ever written to (including any leftover `.claude/commands/aped-*.md` stubs from 3.x); update mode fixes wrong-target symlinks and preserves regular files at the target path.
+Windows hosts are auto-skipped (symlinks require developer mode + `core.symlinks=true`). Fresh mode wipes stale `aped-*` entries in every location APED has ever written to (including legacy `.codex/skills/aped-*` links and any `.claude/commands/aped-*.md` stubs from 3.x); update mode fixes wrong-target symlinks and preserves regular files at the target path.
 
-Re-run `aped-method symlink` at any time to repair or rebuild the symlink trees after creating a new `.opencode` / `.agents` / `.codex` marker.
+Re-run `aped-method symlink` at any time to repair the symlink trees, or `aped-method codex` to (re)project the Codex config surface, after creating a new `.opencode` / `.agents` / `.codex` marker.
+
+### Codex config surface (6.14.0+)
+
+When a `.codex/` or `.agents/` marker is present, install / `--update` (and each opt-in feature install) also project a conventional OpenAI Codex surface, mirroring OpenAI's own `migrate-to-codex` converter:
+
+- **`.codex/config.toml`** — `personality = "friendly"` (on first generation only), one `[mcp_servers.aped-*]` table per APED-owned MCP server (commands rewritten cwd-relative, since Codex exposes no project-dir variable), and `[features].codex_hooks = true` when hooks are wired. The merge is **non-destructive**: your existing `personality`, `projects`, `notify`, and unrelated MCP servers survive verbatim, and the output is byte-stable on re-run.
+- **`.codex/hooks.json`** — APED's wired hooks projected to Codex shape. Note the Codex hook runtime fires `PreToolUse`/`PostToolUse` for shell commands only, so APED hooks matched on `Write`/`Edit` are advisory-inert under Codex.
+- **`AGENTS.md`** — a standalone provider-neutral APED block when there is no `CLAUDE.md`; a relative symlink to `CLAUDE.md` when one exists. A hand-written `AGENTS.md` is never overwritten.
+
+Validate any time with OpenAI's checker: `python3 ~/.codex/skills/migrate-to-codex/scripts/migrate-to-codex.py --validate-target ./.codex/`.
 
 ## Integrations
 

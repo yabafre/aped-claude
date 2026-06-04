@@ -196,7 +196,8 @@ A `npx aped-method` run drops:
 - **`.claude/settings.local.json`** — UserPromptSubmit + PreToolUse hooks + pre-approved Bash permissions.
 - **`docs/aped/`** — evolving output: `state.yaml` (since 4.1.0 / schema v2: `schema_version: 2` + top-level slots `ticket_sync` / `backlog_future_scope` / `corrections_pointer` + `corrections_count`; richer per-phase records under `pipeline.phases.<phase>`), `state-corrections.yaml` (split out of state.yaml in 4.1.0; appended via `sync-state.sh append-correction`), `product-brief.md`, `prd.md`, `ux/`, `architecture.md`, `adr/000N-{slug}.md` (since 6.0.0; ADR sharding), `epics.md`, `stories/`, `retros/`, `glossary.md` (since 6.0.0; canonical domain terms), `lessons.md`, `epics-context/epic-{N}-context.md` (since 6.2.0; cache compiled by `aped-story`, consumed by `aped-dev` / `aped-review`).
 - **`docs/sync-logs/`** (since 3.12.0) — structured JSON audit logs `<provider>-sync-<ISO>.json` emitted by `aped-epics`, `aped-from-ticket`, `aped-ship`, `aped-course`. Configurable: `sync_logs.{enabled, dir, retention}` in `config.yaml`. Retention (since 4.1.0, opt-in): `mode: keep_last_n` + `keep_last_n: N` prunes the oldest provider-scoped logs after every successful sync; `aped-method sync-logs prune [--apply]` runs a one-shot manual sweep.
-- **Cross-tool symlinks** (auto-detected): `.claude/skills/`, `.opencode/skills/`, `.agents/skills/`, `.codex/skills/` → `.aped/aped-*`.
+- **Cross-tool symlinks** (auto-detected): `.claude/skills/`, `.opencode/skills/`, `.agents/skills/` → `.aped/aped-*`. A `.codex/` marker maps to `.agents/skills/` (Codex reads skills there, not from `.codex/skills/`).
+- **Codex config surface** (since 6.14.0; generated when a `.codex/` or `.agents/` marker exists): `.codex/config.toml` (`personality` + `[mcp_servers.aped-*]` + `[features].codex_hooks`), `.codex/hooks.json` (APED hooks projected, commands cwd-relative), and a root `AGENTS.md` (standalone block, or a symlink → `CLAUDE.md`). Projected from the wired Claude config by `aped-method codex` (and automatically on install / `--update` / opt-in feature install); merge-safe, mirrors OpenAI's `migrate-to-codex` conventions.
 
 ### Optional opt-in add-ons
 
@@ -205,6 +206,7 @@ aped-method doctor                # verify scaffold, hooks, state, skills, symli
 aped-method statusline            # APED-aware status line
 aped-method safe-bash             # Bash safety hook
 aped-method symlink               # repair APED skill symlinks
+aped-method codex                 # project the Codex surface (.agents/skills + .codex/config.toml + hooks.json + AGENTS.md) — since 6.14.0
 aped-method post-edit-typescript  # TS post-edit quality hook
 aped-method verify-claims         # PostToolUse advisory hook (since 3.11.0) — scans Bash output for forbidden completion phrases without evidence
 aped-method session-start         # SessionStart skill-index hook (since 3.11.0) — injects aped/skills/SKILL-INDEX.md as additionalContext at session boot

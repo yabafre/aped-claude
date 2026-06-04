@@ -239,6 +239,7 @@ aped-method doctor                # verifies scaffold, hooks, state, commands, s
 aped-method statusline            # installs the APED-aware status line
 aped-method safe-bash             # Bash safety hook (optional)
 aped-method symlink               # repairs cross-tool symlinks
+aped-method codex                 # projects the Codex surface — .agents/skills + .codex/config.toml + hooks.json + AGENTS.md (6.14.0+)
 aped-method post-edit-typescript  # TS post-edit hook (optional)
 ```
 

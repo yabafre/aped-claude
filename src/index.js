@@ -67,6 +67,7 @@ const SUBCOMMANDS = new Set([
   'context-monitor',
   'prompt-injection',
   'enable-mcp',
+  'codex',
   'disable',
   'enable',
   'status',
@@ -175,6 +176,12 @@ SUBCOMMANDS
                           validate.phase). Registers under .claude/settings
                           .local.json mcpServers. Eliminates the state.yaml
                           hallucination class. Requires yq.
+  codex                   Project the conventional OpenAI Codex surface from the
+                          wired Claude config: skills → .agents/skills/, MCP +
+                          personality + hooks flag → .codex/config.toml, hooks →
+                          .codex/hooks.json, plus a root AGENTS.md. Runs
+                          automatically on install / --update when a .codex/ or
+                          .agents/ marker exists; this is the on-demand re-run.
   state [--write]         Render aped/state.yaml as a human-readable
                           Markdown digest of pipeline state (current phase,
                           subphase, watch/gap/E0 counts, corrections total).
@@ -571,7 +578,7 @@ export async function run() {
     p.log.message([
       `  • ${config.apedDir}/ ${color.dim('(engine)')}`,
       `  • ${config.outputDir}/ ${color.dim('(artifacts — brief, PRD, epics, stories, state.yaml)')}`,
-      `  • .claude/skills/aped-*, .opencode/skills/aped-*, .agents/skills/aped-*, .codex/skills/aped-* ${color.dim('(skill symlinks)')}`,
+      `  • .claude/skills/aped-*, .opencode/skills/aped-*, .agents/skills/aped-*, .codex/skills/aped-* ${color.dim('(skill symlinks — .codex/skills is legacy cleanup only)')}`,
     ].join('\n'));
     p.log.info(color.dim('A compressed backup will be written to .aped-backups/ before deletion.'));
     const confirmFresh = await p.confirm({ message: 'Confirm fresh install (destructive)?', initialValue: false });
@@ -670,6 +677,16 @@ async function runScaffold(config, mode, options = {}) {
   let removedCount = 0;
   if (mode === 'update') {
     removedCount = await runUpdateOrphanCleanup(config, options);
+  }
+
+  // ── Phase 2.6: Codex surface projection ──
+  // Marker-gated (no-op without a .codex/ or .agents/ marker). Reads the
+  // settings.local.json just materialized above, so any wired hooks/MCP reach
+  // Codex too. A pure-Claude project gets nothing here.
+  const { projectCodexSurface } = await import('./codex-manager.js');
+  const codexResult = projectCodexSurface(config);
+  if (codexResult.written?.length) {
+    p.log.success(`Codex surface  ${color.dim('(' + codexResult.written.join(', ') + ')')}`);
   }
 
   // ── Phase 3: Post-install tasks ──
