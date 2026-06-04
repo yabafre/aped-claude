@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.14.0] - 2026-06-04
+
 ### **Codex is now a first-class scaffold target, not a broken symlink.**
 
 APED has always claimed cross-tool support, but the Codex half was wrong: it symlinked skills into `.codex/skills/`, a path OpenAI Codex never reads, and emitted no `.codex/config.toml`, no `.codex/hooks.json`, and no `AGENTS.md` — so the `aped-state` MCP and every hook were invisible to Codex, and the agent got zero APED instructions. This release projects the real conventional Codex surface whenever a `.codex/` or `.agents/` marker is present: skills land in `.agents/skills/` (where Codex actually looks), the wired MCP servers and hooks are mirrored into `.codex/config.toml` + `.codex/hooks.json`, and a provider-neutral `AGENTS.md` carries the routing rules. The projection reads your already-materialized Claude config, so it stays in sync on install, `--update`, and after any opt-in feature — and a pure-Claude project still gets nothing. The shape was verified against OpenAI's own `migrate-to-codex` validator: valid TOML, MCP command on PATH, all 36 skill manifests recognized.
