@@ -56,7 +56,7 @@ echo "::endgroup::"
 echo "::group::Phase 5 — skill symlinks (POSIX only)"
 # Windows is skipped by the scaffolder itself; this script only runs on
 # linux/macos in CI, so we always expect symlinks.
-for base in .claude/skills .opencode/skills .agents/skills .codex/skills; do
+for base in .claude/skills .opencode/skills .agents/skills; do
   if [[ -d "$base" ]]; then
     link_count=0
     while IFS= read -r entry; do
@@ -135,12 +135,26 @@ if (( doctor_exit != 0 )); then
 fi
 echo "::endgroup::"
 
-echo "::group::Phase 10 — symlink repair recreates a broken link"
-# Simulate a user who also has Codex — create a .codex marker so the
-# auto-detection in symlinks.js picks up .codex/skills as a target.
+echo "::group::Phase 10 — Codex surface + symlink repair (.agents/skills)"
+# Simulate a Codex user: a .codex marker triggers the conventional Codex
+# surface (6.14.0+). Skills go to .agents/skills/ (Codex reads there, NOT
+# .codex/skills/); .codex/ holds config.toml + hooks.json; AGENTS.md at root.
 mkdir -p .codex
 node "$BIN" --yes --update --project=ci-e2e --author=ci > /dev/null
-broken_link="$(find .codex/skills -maxdepth 1 -name 'aped-*' -print -quit 2>/dev/null || true)"
+
+# Codex config surface must exist.
+test -f .codex/config.toml || { echo "::error::.codex/config.toml not generated for a .codex marker" >&2; exit 1; }
+grep -q 'personality = "friendly"' .codex/config.toml || { echo "::error::.codex/config.toml missing personality" >&2; cat .codex/config.toml; exit 1; }
+test -e AGENTS.md || { echo "::error::AGENTS.md not generated for a Codex target" >&2; exit 1; }
+# Codex must NOT get a .codex/skills/ tree — it never reads there.
+if find .codex/skills -maxdepth 1 -name 'aped-*' -print -quit 2>/dev/null | grep -q .; then
+  echo "::error::.codex/skills/aped-* should not be created (Codex reads .agents/skills/)" >&2
+  exit 1
+fi
+echo "  .codex/config.toml + AGENTS.md present; no stray .codex/skills tree (correct)"
+
+# Codex skills live in .agents/skills/ — exercise symlink repair there.
+broken_link="$(find .agents/skills -maxdepth 1 -name 'aped-*' -print -quit 2>/dev/null || true)"
 if [[ -n "$broken_link" && -L "$broken_link" ]]; then
   rm "$broken_link"
   test ! -e "$broken_link"
@@ -152,8 +166,8 @@ if [[ -n "$broken_link" && -L "$broken_link" ]]; then
   target="$(readlink "$broken_link")"
   echo "  repaired: $broken_link → $target"
 else
-  echo "::error::symlink repair test could not find a .codex/skills candidate after --update" >&2
-  ls -la .codex/skills 2>&1 || true
+  echo "::error::symlink repair test could not find a .agents/skills candidate after --update" >&2
+  ls -la .agents/skills 2>&1 || true
   exit 1
 fi
 echo "::endgroup::"
